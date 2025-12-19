@@ -1,36 +1,28 @@
 {
   "expo": {
-    "name": "BrowserApp",
-    "slug": "browser-app",
+    "name": "mi.",
+    "slug": "mi-browser",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "icon": "assets/icon.png",
+    "userInterfaceStyle": "dark",
     "splash": {
+      "image": "assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.browserapp"
+      "backgroundColor": "#000000"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.yourname.browserapp",
-      "softwareKeyboardLayoutMode": "resize"
-    },
-    "androidStatusBar": {
-      "hidden": false,
-      "translucent": true,
-      "barStyle": "dark-content",
-      "backgroundColor": "#00000000"
+        "foregroundImage": "assets/icon.png",
+        "backgroundColor": "#000000"
+      }
     },
     "web": {
+      "favicon": "assets/icon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "a736137b-b528-4809-9457-c0e5b0dbf4bf"
+        "projectId": "9f3df663-74f1-42b5-beee-1fa981dee3ff"
       }
     }
   }
