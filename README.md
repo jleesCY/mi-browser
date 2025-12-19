@@ -2,9 +2,9 @@
 
 **mi.** (pronounced "my") is a hyper-lightweight, distraction-free mobile browser designed for the modern web. It strips away the clutter of traditional mobile browsers, replacing bulky toolbars with a single, floating "Pill" that responds to your gestures. It is fast, minimal, and customizable to fit your style.
 
-![Banner Placeholder](https://via.placeholder.com/1200x400?text=mi.+Browser+Preview)
-
 ## 📥 Download & Install (Android Only)
+
+(iOS is in the works)
 
 You can find the latest Android APKs directly in this repository.
 
