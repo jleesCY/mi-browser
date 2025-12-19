@@ -25,6 +25,9 @@
       "eas": {
         "projectId": "9f3df663-74f1-42b5-beee-1fa981dee3ff"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.gucciwonk.mibrowser"
     }
   }
 }
