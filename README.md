@@ -1,14 +1,12 @@
 # mi. Browser 🌐
 
-**mi.** is a hyper-lightweight, distraction-free mobile browser designed for the modern web.
-
-We believe the browser shouldn't be the focus—the content should be. **mi.** strips away the clutter of traditional mobile browsers, replacing bulky toolbars with a single, floating "Pill" that responds to your gestures. It is fast, minimal, and completely customizable to fit your style.
+**mi.** (pronounced "my") is a hyper-lightweight, distraction-free mobile browser designed for the modern web. It strips away the clutter of traditional mobile browsers, replacing bulky toolbars with a single, floating "Pill" that responds to your gestures. It is fast, minimal, and customizable to fit your style.
 
 ![Banner Placeholder](https://via.placeholder.com/1200x400?text=mi.+Browser+Preview)
 
-## 📥 Download & Install
+## 📥 Download & Install (Android Only)
 
-You don't need to build the app yourself. You can find the latest Android APKs directly in this repository.
+You can find the latest Android APKs directly in this repository.
 
 1.  Navigate to the **`builds`** folder in the file list above.
 2.  Open the folder with the highest version number.
@@ -18,7 +16,7 @@ You don't need to build the app yourself. You can find the latest Android APKs d
 ## 🪶 Why mi.?
 
 ### Minimal & Lightweight
-Most browsers are bloated with news feeds, ads, and unnecessary features. **mi.** is built to be invisible. It loads instantly, uses minimal resources, and gets out of your way so you can focus on what you're reading or watching.
+Most browsers are bloated with unnecessary features. **mi.** is built to be invisible. It gets out of your way so you can focus on what you need to do.
 
 ### One-Handed Design
 Smartphones are getting bigger, but our hands aren't. **mi.** moves all navigation to the bottom of the screen within a thumb's reach. No more reaching for the top corner to reload or switch tabs.
@@ -34,12 +32,10 @@ The core of **mi.** is the floating Pill at the bottom of the screen. It is your
 | **Swipe Down** | Hide the interface completely (Immersive Mode) |
 | **Swipe Left/Right** | Go Back or Forward instantly |
 
-*> **Tip:** If the bar is hidden, just swipe up from the very bottom edge of your screen to recall it.*
-
 ## ✨ Features
 
 ### 🎨 Make It Yours
-**mi.** offers deep customization usually reserved for desktop browsers.
+**mi.** offers several customization options.
 * **Themes:** Choose Light, Dark, or **Adaptive** (which tints the UI based on your accent color).
 * **Shape & Size:** Prefer square buttons? Round corners? You decide the radius.
 * **Density:** Switch between Compact, Normal, or Airy padding to suit your screen size.
@@ -60,5 +56,5 @@ Your data belongs to you.
 ---
 
 <p align="center">
-  <em>Simple. Fast. Yours.</em>
+  <em>A minimal masterpiece.</em>
 </p>
