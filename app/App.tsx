@@ -997,7 +997,7 @@ export default function App() {
             <View style={styles.modalOverlay}>
                 <View style={[styles.modalContent, { backgroundColor: theme.surface, borderRadius: cornerRadius }]}>
                     <Text style={[styles.modalTitle, { color: theme.text, fontFamily:'Nunito_700Bold' }]}>Edit Tab</Text>
-                    <TextInput style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text, fontFamily: 'Nunito_600SemiBold', borderRadius: cornerRadius/2 }]} value={renameText} onChangeText={setRenameText} autoFocus selectAllOnFocus />
+                    <TextInput style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text, fontFamily: 'Nunito_600SemiBold', borderRadius: cornerRadius/2 }]} value={renameText} onChangeText={setRenameText} autoFocus />
                     
                     <View style={{flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom: 20}}>
                         <Text style={{color: theme.text, fontFamily: 'Nunito_600SemiBold'}}>Show Site Logo</Text>
