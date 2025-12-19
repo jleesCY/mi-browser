@@ -4,21 +4,22 @@
     "slug": "mi-browser",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "assets/icon.png",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "assets/icon.png",
+      "image": "./assets/images/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "assets/icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#000000"
-      }
+      },
+      "package": "com.gucciwonk.mibrowser"
     },
     "web": {
-      "favicon": "assets/icon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "extra": {
       "eas": {
