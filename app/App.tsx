@@ -17,7 +17,6 @@ import {
     LayoutAnimation,
     Modal,
     PanResponder,
-    Platform,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -26,7 +25,6 @@ import {
     TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
-    UIManager,
     View
 } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -35,9 +33,9 @@ import { WebView } from 'react-native-webview';
 const APP_VERSION = "0.1.5";
 
 // Enable LayoutAnimation
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+//     UIManager.setLayoutAnimationEnabledExperimental(true);
+// }
 
 // --- Configuration ---
 const BAR_HEIGHT = 70;

@@ -1,9 +1,10 @@
 {
   "expo": {
-    "name": "mi.",
+    "name": "mi",
     "slug": "mi-browser",
-    "version": "1.0.0",
+    "version": "0.1.5",
     "orientation": "portrait",
+    "scheme": "mibrowser",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
