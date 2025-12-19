@@ -15,8 +15,8 @@ import {
     Image,
     Keyboard,
     LayoutAnimation,
+    Modal,
     PanResponder,
-    Platform,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -25,18 +25,17 @@ import {
     TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
-    UIManager,
     View
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 // --- Global Constants ---
-const APP_VERSION = "0.1.7";
+const APP_VERSION = "0.1.5";
 
 // Enable LayoutAnimation
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+//     UIManager.setLayoutAnimationEnabledExperimental(true);
+// }
 
 // --- Configuration ---
 const BAR_HEIGHT = 70;
@@ -49,34 +48,40 @@ const SNAP_CLOSED = 0;
 const SNAP_DEFAULT = SCREEN_HEIGHT * 0.6;
 const SNAP_FULL = SCREEN_HEIGHT * 0.95;
 
-// --- Helper: Color Manipulator ---
+// --- Color Logic Helper ---
+// Mixes an accent color with a dark base to create muted, adaptive themes
 const generateAdaptiveTheme = (accentHex: string) => {
+    // 1. Parse Hex to RGB
     const r = parseInt(accentHex.substr(1, 2), 16);
     const g = parseInt(accentHex.substr(3, 2), 16);
     const b = parseInt(accentHex.substr(5, 2), 16);
 
-    // Helper to mix colors
-    const tint = (base: number, mixStrength: number, boost: number = 0) => {
-        const nr = Math.min(255, Math.max(0, Math.floor(base * (1 - mixStrength) + r * mixStrength + boost)));
-        const ng = Math.min(255, Math.max(0, Math.floor(base * (1 - mixStrength) + g * mixStrength + boost)));
-        const nb = Math.min(255, Math.max(0, Math.floor(base * (1 - mixStrength) + b * mixStrength + boost)));
-        return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
+    // 2. Mix with Dark Base (#121212 - rgb(18,18,18))
+    // We keep 85% base, 15% accent for a subtle "muted" tint
+    const mix = (base: number, channel: number, strength: number) => {
+        return Math.floor(base * (1 - strength) + channel * strength);
     };
 
-    // Background: Very dark, slight tint. (Base 10, 10% Accent)
-    const bg = tint(10, 0.10);
+    // Background: Very dark, subtle tint
+    const bgR = mix(18, r, 0.15); 
+    const bgG = mix(18, g, 0.15);
+    const bgB = mix(18, b, 0.15);
+    const bg = `#${bgR.toString(16).padStart(2,'0')}${bgG.toString(16).padStart(2,'0')}${bgB.toString(16).padStart(2,'0')}`;
 
-    // Card: Much lighter for contrast. (Base 35, 15% Accent, +5 brightness)
-    const card = tint(35, 0.15, 5);
+    // Surface/Card: Slightly lighter, slightly more color
+    const cardR = mix(35, r, 0.2); 
+    const cardG = mix(35, g, 0.2);
+    const cardB = mix(35, b, 0.2);
+    const card = `#${cardR.toString(16).padStart(2,'0')}${cardG.toString(16).padStart(2,'0')}${cardB.toString(16).padStart(2,'0')}`;
 
     return {
         bg: bg,
         surface: card,
         card: card,
-        text: '#ffffff',
-        textSec: '#bbbbbb', // Brighter gray for readability
-        glass: bg + 'F0',
-        glassBorder: accentHex + '40',
+        text: '#eaeaea',
+        textSec: '#aaaaaa',
+        glass: bg + 'F5', // High opacity for glass
+        glassBorder: accentHex + '30',
         sheetHeader: card,
         inputBg: '#ffffff15',
         placeholder: '#888',
@@ -126,7 +131,12 @@ const COLORS = {
 };
 
 const ACCENTS = [
-    '#007AFF', '#8E8E93', '#FF3B30', '#34C759', '#5856D6', '#FF9500',
+    '#007AFF', // Blue
+    '#98989D', // Gray (Lightened slightly to avoid black crush)
+    '#FF3B30', // Red
+    '#34C759', // Green
+    '#5856D6', // Purple
+    '#FF9500', // Orange
 ];
 
 const SEARCH_ENGINES = [
@@ -170,6 +180,7 @@ const SwipeableTabRow = ({ item, isActive, onPress, onDelete, onRename, theme, a
   const translateX = useRef(new Animated.Value(0)).current;
   const itemHeight = useRef(new Animated.Value(height)).current; 
   const opacity = useRef(new Animated.Value(1)).current;
+  
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -315,12 +326,12 @@ const SwipeableHistoryRow = ({ item, onPress, onDelete, theme, accent, radius, h
         </View>
   
         <Animated.View
-          style={{ transform: [{ translateX }], backgroundColor: theme.card, borderRadius: radius, height: '100%', justifyContent:'center', overflow: 'hidden' }}
+          style={{ transform: [{ translateX }], backgroundColor: theme.card, borderRadius: radius, height: '100%', justifyContent:'center' }}
           {...panResponder.panHandlers}
         >
           <TouchableOpacity
             activeOpacity={0.9} 
-            style={[styles.historyItem, { backgroundColor: theme.card, height: '100%', borderRadius: radius }]} 
+            style={[styles.historyItem, { backgroundColor: theme.card, height: '100%' }]} 
             onPress={onPress}
           >
             <View style={[styles.historyIconBox, {width: 28, height: 28}]}><Ionicons name="time-outline" size={16} color="#555" /></View>
@@ -380,7 +391,7 @@ export default function App() {
   const [jsEnabled, setJsEnabled] = useState(true);
   const [httpsOnly, setHttpsOnly] = useState(false);
   const [blockCookies, setBlockCookies] = useState(false);
-  const [readerMode, setReaderMode] = useState(false); 
+  const [readerMode, setReaderMode] = useState(false); // Mock reader toggle
 
   // Rename Modal
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
@@ -392,12 +403,13 @@ export default function App() {
   const getTheme = () => {
       if (themeMode === 'light') return COLORS.light;
       if (themeMode === 'dark') return COLORS.dark;
+      // Adaptive
       return generateAdaptiveTheme(accentColor);
   };
 
   const theme = getTheme();
 
-  // Dynamic Metrics
+  // Dynamic Metrics based on UI Spacing
   const getTabHeight = () => {
       switch(uiPadding) {
           case 'compact': return 60;
@@ -468,6 +480,7 @@ export default function App() {
     let text = inputUrl.trim();
     if (!text) return; 
     
+    // HTTPS Only check
     if (httpsOnly && !text.startsWith('http')) {
         text = 'https://' + text.replace(/^http:\/\//, '');
     }
@@ -643,6 +656,7 @@ export default function App() {
                 else if (dx < 0 && canGoForwardRef.current) webViewRef.current?.goForward();
                 
                 Animated.spring(horizontalDrag, { toValue: 0, useNativeDriver: true }).start();
+                
                 Animated.parallel([
                     Animated.spring(animVal, { toValue: 0, useNativeDriver: true }),
                     Animated.spring(scrollTranslateY, { toValue: 0, useNativeDriver: false })
@@ -962,50 +976,116 @@ export default function App() {
     if (!fontsLoaded) return <View style={{flex:1, backgroundColor:'#000', justifyContent:'center', alignItems:'center'}}><ActivityIndicator size="large" color="#007AFF" /></View>;
 
     return (
-      <View style={{flex: 1, backgroundColor: theme.bg}}>
-        <StatusBar translucent backgroundColor="transparent" barStyle={themeMode === 'dark' || themeMode === 'adaptive' ? 'light-content' : 'dark-content'} />
-        <Animated.View style={[styles.webViewContainer, { paddingBottom: keyboardHeight }]}>
-            {activeUrl ? <WebView {...webViewProps} /> : <View style={[styles.homeContainer, { backgroundColor: theme.bg }]} onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}><Animated.View style={{ transform: [{ scale: logoScale }, { translateX: logoPan.x }, { translateY: logoPan.y }], zIndex: 10, padding: 20 }} {...logoResponder.panHandlers}><Text style={[styles.homeText, { color: theme.text, fontFamily: 'Nunito_800ExtraBold' }]}>mi.</Text></Animated.View></View>}
-        </Animated.View>
-        {activeView !== 'none' && <View style={styles.overlayBackdrop}><TouchableWithoutFeedback onPress={closeOverlay}><View style={styles.backdropTouchArea} /></TouchableWithoutFeedback>{renderOverlayContent()}</View>}
-        <Animated.View style={[styles.recallContainer, { opacity: recallOpacity }]} pointerEvents="box-none"><TouchableOpacity activeOpacity={0.8} onPress={showBar} {...recallPanResponder.panHandlers} style={[styles.recallButton, { backgroundColor: theme.glass, borderColor: theme.glassBorder, borderTopLeftRadius: cornerRadius, borderTopRightRadius: cornerRadius }]}><Ionicons name="chevron-up" size={24} color={theme.text} /></TouchableOpacity></Animated.View>
-        
-        {/* Floating Control Bar */}
-        {activeView === 'none' && <View style={styles.floatingLayer} pointerEvents="box-none">
-            <Animated.View style={[styles.bottomAreaContainer, { transform: [{ translateY: Animated.subtract(scrollTranslateY, keyboardHeight) }] }]}>
-                <View style={styles.gestureArea} {...panResponder.panHandlers}>
-                    {/* Menu Pill */}
-                    <Animated.View style={[styles.pillBase, { backgroundColor: theme.glass, borderColor: theme.glassBorder, borderRadius: cornerRadius * 2 }, { zIndex: 1, opacity: menuPillOpacity, transform: [{ scale: menuPillScale }] }]}>
-                        <View style={styles.barTabContent}>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView('tabs')}><Ionicons name="copy-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>Tabs</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView('history')}><Ionicons name="time-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>History</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView('settings')}><Ionicons name="settings-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>Settings</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItem} onPress={goHome}><Ionicons name="home-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>Home</Text></TouchableOpacity>
-                        </View>
-                    </Animated.View>
-
-                    {/* Search Pill */}
-                    <Animated.View style={[styles.pillBase, { backgroundColor: theme.glass, borderColor: theme.glassBorder, borderRadius: cornerRadius * 2 }, { zIndex: 2, opacity: searchPillOpacity, transform: [{ translateY: searchPillTranslateY }] }]} pointerEvents={isSearchActive ? 'auto' : 'none'}>
-                        <View style={styles.barTabContent}>
-                            <Animated.View style={[styles.navArrowContainer, { left: 20, opacity: backArrowOpacity }]}><Ionicons name="arrow-back" size={28} color={theme.text} /></Animated.View>
-                            <Animated.View style={[styles.navArrowContainer, { right: 20, opacity: forwardArrowOpacity }]}><Ionicons name="arrow-forward" size={28} color={theme.text} /></Animated.View>
-                            <Animated.View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, opacity: contentOpacity, borderRadius: cornerRadius }]}>
-                                <TextInput style={[styles.urlInput, { color: theme.text, fontFamily: 'Nunito_600SemiBold' }]} value={inputUrl} onChangeText={setInputUrl} onSubmitEditing={handleGoPress} placeholder="Search" placeholderTextColor={theme.placeholder} autoCapitalize="none" keyboardType="url" returnKeyType="go" selectTextOnFocus onFocus={() => { setIsInputFocused(true); setInputUrl(activeUrl || ''); }} onBlur={() => { setIsInputFocused(false); setInputUrl(getDisplayHost(activeUrl)); }} />
-                                <View style={[styles.actionButtons, { zIndex: 999 }]}>
-                                    {isLoading ? <ActivityIndicator size="small" color={accentColor} /> : 
-                                    isInputFocused ? 
-                                    <TouchableOpacity onPress={handleGoPress}><Ionicons name="search" size={22} color={accentColor} /></TouchableOpacity> : 
-                                    <TouchableOpacity disabled={!activeUrl} onPress={() => { webViewRef.current?.reload(); }} style={!activeUrl && styles.disabledBtn}><Ionicons name="refresh" size={22} color={theme.text} /></TouchableOpacity>}
-                                </View>
-                            </Animated.View>
-                        </View>
-                    </Animated.View>
+      <View style={{flex: 1}}>
+        <Animated.View style={[styles.sheetContainer, { height: overlayHeightAnim, backgroundColor: theme.surface, borderTopLeftRadius: cornerRadius, borderTopRightRadius: cornerRadius }]}>
+            <View style={[styles.sheetHeader, { backgroundColor: theme.sheetHeader, borderBottomColor: theme.bg }]} {...sheetPanResponder.panHandlers}>
+                <View style={styles.sheetHandle} /> 
+                <View style={styles.sheetHeaderRow}>
+                    <Text style={[styles.sheetTitle, { color: theme.text, fontFamily: 'Nunito_800ExtraBold', fontSize: 22 * fontScale }]}>{title}</Text>
+                    <View style={{flexDirection: 'row'}}>
+                        <TouchableOpacity onPress={closeOverlay} style={styles.iconBtn}><Ionicons name="close-circle" size={28} color={accentColor} /></TouchableOpacity>
+                    </View>
                 </View>
-            </Animated.View>
-        </View>}
+            </View>
+            <Animated.View style={{ flex: 1, paddingBottom: keyboardHeight }}>{content}</Animated.View>
+        </Animated.View>
+
+        {/* Rename Modal */}
+        <Modal visible={isRenameModalVisible} transparent animationType="fade" onRequestClose={() => setIsRenameModalVisible(false)}>
+            <View style={styles.modalOverlay}>
+                <View style={[styles.modalContent, { backgroundColor: theme.surface, borderRadius: cornerRadius }]}>
+                    <Text style={[styles.modalTitle, { color: theme.text, fontFamily:'Nunito_700Bold' }]}>Edit Tab</Text>
+                    <TextInput style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text, fontFamily: 'Nunito_600SemiBold', borderRadius: cornerRadius/2 }]} value={renameText} onChangeText={setRenameText} autoFocus />
+                    
+                    <View style={{flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom: 20}}>
+                        <Text style={{color: theme.text, fontFamily: 'Nunito_600SemiBold'}}>Show Site Logo</Text>
+                        <Switch value={renameShowLogo} onValueChange={setRenameShowLogo} trackColor={{false: '#767577', true: accentColor}} thumbColor={'#f4f3f4'} />
+                    </View>
+
+                    <View style={styles.modalButtons}>
+                        <TouchableOpacity onPress={() => setIsRenameModalVisible(false)} style={[styles.modalBtn, {borderRadius: cornerRadius/2}]}><Text style={{ color: theme.textSec, fontFamily: 'Nunito_700Bold' }}>Cancel</Text></TouchableOpacity>
+                        <TouchableOpacity onPress={saveRenameTab} style={[styles.modalBtn, { backgroundColor: accentColor, borderRadius: cornerRadius/2 }]}><Text style={{ color: '#fff', fontWeight: 'bold', fontFamily: 'Nunito_700Bold' }}>Save</Text></TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
       </View>
     );
-  }
+  };
+
+  const webViewProps = {
+    ref: webViewRef,
+    source: { uri: activeUrl || '' }, 
+    onNavigationStateChange: handleNavigationStateChange,
+    onLoadStart: () => setIsLoading(true),
+    onError: () => setIsLoading(false),
+    onLoadEnd: () => setIsLoading(false),
+    onScroll: handleScroll,
+    onTouchStart: () => { if (isInputFocused) Keyboard.dismiss(); },
+    overScrollMode: 'never',
+    scrollEventThrottle: 16,
+    startInLoadingState: true,
+    renderLoading: () => <View style={styles.loadingOverlay}><ActivityIndicator size="large" color={accentColor} /></View>,
+    javaScriptEnabled: jsEnabled,
+    userAgent: desktopMode ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" : undefined,
+    sharedCookiesEnabled: !blockCookies,
+    domStorageEnabled: true,
+    androidLayerType: 'hardware' as const,
+    pullToRefreshEnabled: false, 
+    contentInset: { bottom: BAR_HEIGHT + 20 },
+  };
+
+  if (!fontsLoaded) return null;
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar translucent backgroundColor="transparent" barStyle={themeMode === 'dark' ? 'light-content' : 'dark-content'} />
+      <Animated.View style={[styles.webViewContainer, { paddingBottom: keyboardHeight, backgroundColor: theme.bg }]}>
+        {activeUrl ? <WebView {...webViewProps} /> : <View style={[styles.homeContainer, { backgroundColor: theme.bg }]} onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}><Animated.View style={{ transform: [{ scale: logoScale }, { translateX: logoPan.x }, { translateY: logoPan.y }], zIndex: 10, padding: 20 }} {...logoResponder.panHandlers}><Text style={[styles.homeText, { color: theme.text, fontFamily: 'Nunito_800ExtraBold' }]}>mi.</Text></Animated.View></View>}
+      </Animated.View>
+      {activeView !== 'none' && <View style={styles.overlayBackdrop}><TouchableWithoutFeedback onPress={closeOverlay}><View style={styles.backdropTouchArea} /></TouchableWithoutFeedback>{renderOverlayContent()}</View>}
+      <Animated.View style={[styles.recallContainer, { opacity: recallOpacity }]} pointerEvents="box-none"><TouchableOpacity activeOpacity={0.8} onPress={showBar} {...recallPanResponder.panHandlers} style={[styles.recallButton, { backgroundColor: theme.glass, borderColor: theme.glassBorder, borderTopLeftRadius: cornerRadius, borderTopRightRadius: cornerRadius }]}><Ionicons name="chevron-up" size={24} color={theme.text} /></TouchableOpacity></Animated.View>
+      
+      {/* Floating Control Bar */}
+      {activeView === 'none' && <View style={styles.floatingLayer} pointerEvents="box-none">
+        <Animated.View style={[styles.bottomAreaContainer, { transform: [{ translateY: Animated.subtract(scrollTranslateY, keyboardHeight) }] }]}>
+            <View style={styles.gestureArea} {...panResponder.panHandlers}>
+                
+                {/* Menu Pill */}
+                <Animated.View style={[styles.pillBase, { backgroundColor: theme.glass, borderColor: theme.glassBorder, borderRadius: cornerRadius * 2 }, { zIndex: 1, opacity: menuPillOpacity, transform: [{ scale: menuPillScale }] }]}>
+                    <View style={styles.barTabContent}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView('tabs')}><Ionicons name="copy-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>Tabs</Text></TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView('history')}><Ionicons name="time-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>History</Text></TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView('settings')}><Ionicons name="settings-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>Settings</Text></TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={goHome}><Ionicons name="home-outline" size={24} color={theme.text} /><Text style={[styles.menuLabel, { color: theme.text, fontFamily: 'Nunito_700Bold' }]}>Home</Text></TouchableOpacity>
+                    </View>
+                </Animated.View>
+
+                {/* Search Pill */}
+                <Animated.View style={[styles.pillBase, { backgroundColor: theme.glass, borderColor: theme.glassBorder, borderRadius: cornerRadius * 2 }, { zIndex: 2, opacity: searchPillOpacity, transform: [{ translateY: searchPillTranslateY }] }]} pointerEvents={isSearchActive ? 'auto' : 'none'}>
+                    <View style={styles.barTabContent}>
+                        
+                        {/* Navigation Arrows */}
+                        <Animated.View style={[styles.navArrowContainer, { left: 20, opacity: backArrowOpacity }]}>
+                            <Ionicons name="arrow-back" size={28} color={theme.text} />
+                        </Animated.View>
+                        <Animated.View style={[styles.navArrowContainer, { right: 20, opacity: forwardArrowOpacity }]}>
+                            <Ionicons name="arrow-forward" size={28} color={theme.text} />
+                        </Animated.View>
+
+                        {/* Input Content */}
+                        <Animated.View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, opacity: contentOpacity, borderRadius: cornerRadius }]}>
+                            <TextInput style={[styles.urlInput, { color: theme.text, fontFamily: 'Nunito_600SemiBold' }]} value={inputUrl} onChangeText={setInputUrl} onSubmitEditing={handleGoPress} placeholder="Search" placeholderTextColor={theme.placeholder} autoCapitalize="none" keyboardType="url" returnKeyType="go" selectTextOnFocus onFocus={() => { setIsInputFocused(true); setInputUrl(activeUrl || ''); }} onBlur={() => { setIsInputFocused(false); setInputUrl(getDisplayHost(activeUrl)); }} />
+                            <View style={styles.actionButtons}>{isLoading ? <ActivityIndicator size="small" color={accentColor} /> : isInputFocused ? <TouchableOpacity onPress={handleGoPress}><Ionicons name="search" size={22} color={accentColor} /></TouchableOpacity> : <TouchableOpacity disabled={!activeUrl} onPress={() => webViewRef.current?.reload()} style={!activeUrl && styles.disabledBtn}><Ionicons name="refresh" size={22} color={theme.text} /></TouchableOpacity>}</View>
+                        </Animated.View>
+                    </View>
+                </Animated.View>
+
+            </View>
+        </Animated.View>
+      </View>}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
