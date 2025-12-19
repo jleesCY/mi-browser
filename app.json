@@ -2,7 +2,7 @@
   "expo": {
     "name": "mi",
     "slug": "mi-browser",
-    "version": "0.1.5",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "mibrowser",
     "icon": "./assets/images/icon.png",
@@ -13,22 +13,33 @@
       "backgroundColor": "#000000"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#000000"
-      },
-      "package": "com.gucciwonk.mibrowser"
-    },
-    "web": {
-      "favicon": "./assets/images/icon.png"
+        "package": "com.jlees.mibrowser",
+        "permissions": [
+            "CAMERA",
+            "RECORD_AUDIO",
+            "ACCESS_FINE_LOCATION",
+            "ACCESS_COARSE_LOCATION",
+            "MODIFY_AUDIO_SETTINGS"
+        ],
+        "intentFilters": [
+            {
+            "action": "VIEW",
+            "autoVerify": true,
+            "data": [
+                { "scheme": "http" },
+                { "scheme": "https" }
+            ],
+            "category": [
+                "BROWSABLE",
+                "DEFAULT"
+            ]
+            }
+        ]
     },
     "extra": {
       "eas": {
         "projectId": "9f3df663-74f1-42b5-beee-1fa981dee3ff"
       }
-    },
-    "ios": {
-      "bundleIdentifier": "com.gucciwonk.mibrowser"
     }
   }
 }
