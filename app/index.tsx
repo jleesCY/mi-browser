@@ -28,6 +28,7 @@ import {
     TouchableWithoutFeedback,
     View
 } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from "react-native-webview";
 
 import SwipeableHistoryRow from "../src/components/SwipeableHistoryRow";
@@ -53,6 +54,9 @@ import {
 } from "../src/utils";
 
 export default function App() {
+
+    const insets = useSafeAreaInsets();
+
   let [fontsLoaded] = useFonts({
     Nunito_400Regular,
     Nunito_600SemiBold,
@@ -63,6 +67,9 @@ export default function App() {
   const [isAppReady, setIsAppReady] = useState(false);
   const [inputUrl, setInputUrl] = useState("");
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
+
+  const [progress, setProgress] = useState(0);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
@@ -103,6 +110,8 @@ export default function App() {
   >("frosted");
   const [homeLogoText, setHomeLogoText] = useState("mi.");
   const [pillHeight, setPillHeight] = useState(70);
+  const [progressBarMode, setProgressBarMode] = useState<"ltr" | "center" | "none">("ltr");
+  const [recallPosition, setRecallPosition] = useState<"left" | "center" | "right">("center");
 
   // Functional settings
   const [desktopMode, setDesktopMode] = useState(false);
@@ -127,13 +136,10 @@ export default function App() {
 
   useEffect(() => {
     const loadAllData = async () => {
-      const savedHistory = await loadStorage("history");
-      if (savedHistory) setHistory(savedHistory);
-      const savedTabs = await loadStorage("tabs");
-      if (savedTabs) setTabs(savedTabs);
-      const savedActiveTabId = await loadStorage("activeTabId");
-      if (savedActiveTabId) setActiveTabId(savedActiveTabId);
+      // 1. Load Settings First
       const savedSettings = await loadStorage("settings");
+      let currentStartupMode = "new";
+
       if (savedSettings) {
         setThemeMode(savedSettings.themeMode ?? "dark");
         setAccentColor(savedSettings.accentColor ?? "#007AFF");
@@ -144,6 +150,10 @@ export default function App() {
         setBarTransparency(savedSettings.barTransparency ?? "frosted");
         setHomeLogoText(savedSettings.homeLogoText ?? "mi.");
         setPillHeight(savedSettings.pillHeight ?? 70);
+        setProgressBarMode(savedSettings.progressBarMode ?? "ltr");
+        setRecallPosition(savedSettings.recallPosition ?? "center");
+        currentStartupMode = savedSettings.startupTabMode ?? "new";
+        
         setDesktopMode(savedSettings.desktopMode ?? false);
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
@@ -151,6 +161,54 @@ export default function App() {
         setReaderMode(savedSettings.readerMode ?? false);
         setIncognitoMode(savedSettings.incognitoMode ?? false);
       }
+
+      // 2. Load Data
+      const savedHistory = await loadStorage("history");
+      if (savedHistory) setHistory(savedHistory);
+
+      const savedTabs = await loadStorage("tabs");
+      const existingTabs = savedTabs || [];
+
+      // 3. Handle Startup Logic
+      if (currentStartupMode === "last" && existingTabs.length > 0) {
+        // --- OPTION A: Resume Last Session ---
+        setTabs(existingTabs);
+        const savedActiveTabId = await loadStorage("activeTabId");
+        const targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId) || existingTabs[0];
+        
+        setActiveTabId(targetTab.id);
+        setActiveUrl(targetTab.url);
+        setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
+      
+      } else {
+        // --- OPTION B: Start Fresh (New Tab) ---
+        
+        // FIX: Check if we already have a blank tab to reuse
+        const existingBlankTab = existingTabs.find((t: any) => !t.url);
+
+        if (existingBlankTab) {
+          // REUSE: Use the existing blank tab
+          setTabs(existingTabs);
+          setActiveTabId(existingBlankTab.id);
+          setActiveUrl(null);
+          setInputUrl("");
+        } else {
+          // CREATE: No blank tab found, make a new one
+          const newTabId = Date.now().toString();
+          const newTab = {
+            id: newTabId,
+            url: null,
+            title: "New Tab",
+            showLogo: true,
+          };
+          
+          setTabs([newTab, ...existingTabs]);
+          setActiveTabId(newTabId);
+          setActiveUrl(null);
+          setInputUrl("");
+        }
+      }
+
       setIsAppReady(true);
     };
     loadAllData();
@@ -177,6 +235,8 @@ export default function App() {
         barTransparency,
         homeLogoText,
         pillHeight,
+        progressBarMode,
+        recallPosition,
         desktopMode,
         jsEnabled,
         httpsOnly,
@@ -196,6 +256,8 @@ export default function App() {
     barTransparency,
     homeLogoText,
     pillHeight,
+    progressBarMode,
+    recallPosition,
     desktopMode,
     jsEnabled,
     httpsOnly,
@@ -405,20 +467,26 @@ export default function App() {
 
   const handleGoPress = () => {
     Keyboard.dismiss();
-    let text = inputUrl.trim();
+    const text = inputUrl.trim();
     if (!text) return;
-    if (httpsOnly && !text.startsWith("http"))
-      text = "https://" + text.replace(/^http:\/\//, "");
-    const hasSpace = text.includes(" ");
-    const hasDot = text.includes(".");
-    let destination = "";
-    if (text.startsWith("http")) destination = text;
-    else if (!hasSpace && hasDot) destination = `https://${text}`;
-    else
-      destination = `${
+
+    if (text.startsWith("http://") || text.startsWith("https://")) {
+      setActiveUrl(text);
+      snapToSearch();
+      return;
+    }
+    const isDomainLike = !text.includes(" ") && /\.[a-zA-Z]{2,}$/.test(text);
+
+    if (isDomainLike) {
+      const destination = `https://${text}`;
+      setActiveUrl(destination);
+    } else {
+      const searchUrl = `${
         SEARCH_ENGINES[searchEngineIndex].url
       }${encodeURIComponent(text)}`;
-    setActiveUrl(destination);
+      setActiveUrl(searchUrl);
+    }
+    
     snapToSearch();
   };
 
@@ -443,8 +511,17 @@ export default function App() {
     setIsClearHistoryOpen(false);
   };
 
-  const deleteHistoryItem = (id: string) => {
-    setHistory((prev) => prev.filter((item) => item.id !== id));
+  const deleteHistoryItem = (idToDelete: string) => {
+    // USE FUNCTIONAL UPDATE (prevHistory)
+    // This fixes the bug where swiping fast fails to delete items.
+    setHistory((prevHistory) => {
+      const newHistory = prevHistory.filter((item) => item.id !== idToDelete);
+      
+      // Optional: Animate the list layout
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      
+      return newHistory;
+    });
   };
 
   const addNewTab = (overrideUrl?: string) => {
@@ -462,25 +539,46 @@ export default function App() {
   };
 
   const deleteTab = (idToDelete: string) => {
-    const indexToDelete = tabs.findIndex((t) => t.id === idToDelete);
-    const newTabs = tabs.filter((t) => t.id !== idToDelete);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    if (newTabs.length === 0) {
-      const freshId = Date.now().toString();
-      setTabs([{ id: freshId, url: null, title: "New Tab", showLogo: true }]);
-      setActiveTabId(freshId);
-      setActiveUrl(null);
-      if (activeView === "none") setInputUrl("");
-    } else {
-      setTabs(newTabs);
-      if (activeTabId === idToDelete) {
-        const nextIndex = Math.min(indexToDelete, newTabs.length - 1);
-        const nextTab = newTabs[nextIndex];
+    // 1. Handle Active Tab Switching
+    // We do this separately to ensure the UI updates the URL/Title if the current tab is closed.
+    if (activeTabId === idToDelete) {
+      const indexToDelete = tabs.findIndex((t) => t.id === idToDelete);
+      // Predict the remaining tabs based on current state
+      const remainingTabs = tabs.filter((t) => t.id !== idToDelete);
+
+      if (remainingTabs.length > 0) {
+        const nextIndex = Math.min(indexToDelete, remainingTabs.length - 1);
+        const nextTab = remainingTabs[nextIndex];
         setActiveTabId(nextTab.id);
         setActiveUrl(nextTab.url);
         setInputUrl(getDisplayHost(nextTab.url));
       }
     }
+
+    // 2. Perform the Deletion (Securely)
+    // We use 'prevTabs' to ensure we are always filtering the MOST RECENT list,
+    // preventing the "resurrection" bug when swiping fast.
+    setTabs((prevTabs) => {
+      const newTabs = prevTabs.filter((t) => t.id !== idToDelete);
+      
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+      // Handle "Empty List" Case (Create a new blank tab if we deleted the last one)
+      if (newTabs.length === 0) {
+        const freshId = Date.now().toString();
+        
+        // We use setTimeout to break out of the render cycle for these side effects
+        setTimeout(() => {
+          setActiveTabId(freshId);
+          setActiveUrl(null);
+          setInputUrl("");
+        }, 0);
+        
+        return [{ id: freshId, url: null, title: "New Tab", showLogo: true }];
+      }
+
+      return newTabs;
+    });
   };
 
   const openRenameModal = (
@@ -550,15 +648,33 @@ export default function App() {
     }).start();
   };
 
-  const addToHistory = (url: string, title: string = "Page") => {
-    if (!url || incognitoMode) return;
-    setHistory((prev) => [
-      { id: Date.now().toString(), url, title, timestamp: Date.now() },
-      ...prev,
-    ]);
-    setTabs((prev) =>
-      prev.map((tab) => (tab.id === activeTabId ? { ...tab, url, title } : tab))
-    );
+  const addToHistory = (url: string) => {
+    // 1. Basic cleaning
+    if (!url || url === "about:blank") return;
+
+    const title = getDisplayHost(url);
+    
+    // FIX: Use full ISO string (includes time) so the date formatter doesn't break
+    const date = new Date().toISOString(); 
+
+    setHistory((prevHistory) => {
+      // 2. Remove duplicates
+      // We remove the old entry for this URL so we can bump it to the top
+      const cleanedHistory = prevHistory.filter(
+        (item) => item.url.replace(/\/$/, "") !== url.replace(/\/$/, "")
+      );
+
+      // 3. Create the new item
+      const newItem = {
+        id: Date.now().toString(),
+        url,
+        title,
+        date, // Now stores the full timestamp
+      };
+
+      // 4. Return updated list (Limit to 100)
+      return [newItem, ...cleanedHistory].slice(0, 100);
+    });
   };
 
   const handleNavigationStateChange = (navState: any) => {
@@ -1613,7 +1729,7 @@ export default function App() {
               </View>
             </SettingRow>
 
-            <SettingRow label="Bar Transparency">
+            <SettingRow label="Pill Transparency">
               <View
                 style={{
                   flexDirection: "column",
@@ -1645,7 +1761,7 @@ export default function App() {
                       },
                     ]}
                   >
-                    Bar Transparency
+                    Pill Transparency
                   </Text>
                 </View>
                 <View
@@ -1686,8 +1802,84 @@ export default function App() {
                 </View>
               </View>
             </SettingRow>
+            <SettingRow label="Pill Loading Bar">
+              <View
+                style={{
+                  flexDirection: "column",
+                  width: "100%",
+                  justifyContent: "center",
+                  paddingVertical: 5,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 15,
+                  }}
+                >
+                  <Ionicons
+                    name="hourglass-outline"
+                    size={22}
+                    color={effectiveTheme.text}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={[
+                      styles.settingText,
+                      {
+                        color: effectiveTheme.text,
+                        fontFamily: "Nunito_600SemiBold",
+                        fontSize: 16 * fontScale,
+                      },
+                    ]}
+                  >
+                    Pill Loading Bar
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    width: "100%",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  {["ltr", "center", "none"].map((mode) => (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => setProgressBarMode(mode as any)}
+                      style={[
+                        styles.modeBtn,
+                        progressBarMode === mode && {
+                          backgroundColor: accentColor,
+                        },
+                        { paddingHorizontal: 15 }, // Adjusted padding to fit 3 buttons
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.modeBtnText,
+                          progressBarMode === mode
+                            ? { color: "#fff" }
+                            : { color: effectiveTheme.text },
+                          {
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 12 * fontScale,
+                          },
+                        ]}
+                      >
+                        {mode === "ltr"
+                          ? "Standard"
+                          : mode === "center"
+                          ? "Center Out"
+                          : "Hidden"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </SettingRow>
           </SettingsGroup>
-
           <SettingsGroup title="Browsing">
             {shouldShow("Search Engine") && (
               <View label="Search Engine">
@@ -2289,10 +2481,77 @@ export default function App() {
     source: { uri: activeUrl || "" },
     onNavigationStateChange: handleNavigationStateChange,
     onMessage: handleWebViewMessage,
-    onLoadStart: () => setIsLoading(true),
-    onError: () => setIsLoading(false),
-    onLoadEnd: () => setIsLoading(false),
-    onShouldStartLoadWithRequest: handleShouldStartLoadWithRequest,
+    
+    onLoadStart: () => {
+      setIsLoading(true);
+      // Instantly reset to 0, then animate to 10% to show activity
+      progressAnim.setValue(0);
+      Animated.timing(progressAnim, {
+        toValue: 0.1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    },
+    
+    onLoadProgress: ({ nativeEvent }: any) => {
+      // Smoothly glide to the new progress value over 200ms
+      Animated.timing(progressAnim, {
+        toValue: nativeEvent.progress,
+        duration: 200,
+        useNativeDriver: false, 
+      }).start();
+    },
+
+    onLoadEnd: () => {
+      setIsLoading(false);
+      // Quickly finish the bar to 100%, then fade it out or reset
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start(() => {
+         // Optional: after a brief delay, reset it back to 0 for next time
+         setTimeout(() => {
+            progressAnim.setValue(0);
+         }, 200);
+      });
+    },
+    // Replace the existing onError with this:
+    onError: (syntheticEvent: any) => {
+      const { nativeEvent } = syntheticEvent;
+      setIsLoading(false);
+      
+      // If using the animated bar, finish it
+      Animated.timing(progressAnim, {
+        toValue: 0, 
+        duration: 200, 
+        useNativeDriver: false 
+      }).start();
+
+      // FALLBACK LOGIC:
+      // If the error is a DNS failure (NAME_NOT_RESOLVED), it means the domain doesn't exist.
+      // We should fallback to searching for the text instead.
+      if (nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" || nativeEvent.code === -2) {
+        
+        const failedUrl = nativeEvent.url || activeUrl;
+        
+        // Guard: Check if we are already on a search URL to prevent infinite loops
+        const isAlreadySearch = SEARCH_ENGINES.some(se => failedUrl?.startsWith(se.url));
+        
+        if (!isAlreadySearch && failedUrl) {
+             // Extract the original query from the failed URL (remove https:// and trailing /)
+             let query = failedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+             
+             // Construct the new search URL
+             const searchUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(query)}`;
+             
+             // Redirect
+             setActiveUrl(searchUrl);
+             setInputUrl(query); // Optional: update the bar to show the query
+        }
+      }
+    },
+
     onScroll: handleScroll,
     onScrollEndDrag: () => snapBar(0),
     onMomentumScrollEnd: () => snapBar(0),
@@ -2302,11 +2561,13 @@ export default function App() {
     overScrollMode: "never",
     scrollEventThrottle: 16,
     startInLoadingState: true,
+    
     renderLoading: () => (
       <View style={styles.loadingOverlay}>
         <ActivityIndicator size="large" color={accentColor} />
       </View>
     ),
+    
     javaScriptEnabled: jsEnabled,
     userAgent: desktopMode
       ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -2324,7 +2585,8 @@ export default function App() {
       ? { top: 0, bottom: 0, left: 0, right: 0 }
       : { bottom: pillHeight + 20 },
     geolocationEnabled: true,
-    onPermissionRequest: handleAndroidPermissionRequest
+    onPermissionRequest: handleAndroidPermissionRequest,
+    // Ensure you have the onShouldStartLoadWithRequest from the previous step here too
   };
 
   if (!fontsLoaded || !isAppReady) return null;
@@ -2340,12 +2602,13 @@ export default function App() {
         />
       )}
 
-      {/* Update: paddingBottom should be 0 if fullscreen */}
       <Animated.View
         style={[
           styles.webViewContainer,
           {
-            paddingBottom: isFullscreen ? 0 : keyboardHeight,
+            paddingBottom: isFullscreen 
+              ? 0 
+              : Animated.add(keyboardHeight, insets.bottom),
             backgroundColor: effectiveTheme.bg,
           },
         ]}
@@ -2408,7 +2671,13 @@ export default function App() {
           )}
 
           <Animated.View
-            style={[styles.recallContainer, { opacity: recallOpacity }]}
+            style={[
+              styles.recallContainer,
+              { 
+                 opacity: recallOpacity,
+                 bottom: Math.max(insets.bottom + 10, 10)
+              }
+            ]}
             pointerEvents="box-none"
           >
             <TouchableOpacity
@@ -2418,13 +2687,24 @@ export default function App() {
               style={[
                 styles.recallButton,
                 {
+                  // 1. Base Layer: The Glass (provides the opacity/blur solidness)
                   backgroundColor: effectiveTheme.glass,
-                  borderColor: effectiveTheme.glassBorder,
-                  borderTopLeftRadius: cornerRadius,
-                  borderTopRightRadius: cornerRadius,
+                  // Remove the border to match the input style
+                  borderWidth: 0,
+                  borderRadius: 25,
+                  overflow: "hidden", // Ensures the inner view respects the circle
                 },
               ]}
             >
+              {/* 2. Tint Layer: The Input Background (sits on top of glass) */}
+              <View
+                style={{
+                  ...StyleSheet.absoluteFillObject,
+                  backgroundColor: effectiveTheme.inputBg,
+                }}
+              />
+              
+              {/* Icon sits on top */}
               <Ionicons
                 name="chevron-up"
                 size={24}
@@ -2439,6 +2719,8 @@ export default function App() {
                 style={[
                   styles.bottomAreaContainer,
                   {
+                    paddingBottom: Math.max(insets.bottom + 10, 10),
+                    
                     transform: [
                       {
                         translateY: Animated.subtract(
@@ -2598,6 +2880,8 @@ export default function App() {
                     ]}
                     pointerEvents={isSearchActive ? "auto" : "none"}
                   >
+                    {/* NO PROGRESS VIEWS HERE - They have been removed */}
+
                     <View style={styles.barTabContent}>
                       <Animated.View
                         pointerEvents="none"
@@ -2627,6 +2911,7 @@ export default function App() {
                         />
                       </Animated.View>
 
+                      {/* Input Wrapper: The progress bar is NOW inside here */}
                       <Animated.View
                         style={[
                           styles.inputWrapper,
@@ -2635,15 +2920,46 @@ export default function App() {
                             opacity: contentOpacity,
                             borderRadius: cornerRadius,
                             height: pillHeight * 0.7,
+                            overflow: "hidden", // This cuts off the bar at the input corners
                           },
                         ]}
                       >
+                        {/* Progress Bar (Restricted to Input Area) */}
+                        {progressBarMode !== "none" && isLoading && (
+                          <Animated.View
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              bottom: 0,
+                              backgroundColor: accentColor,
+                              opacity: 0.2,
+                              zIndex: 0,
+                              ...(progressBarMode === "center"
+                                ? {
+                                    // Center Mode: Scale outward from middle
+                                    left: 0,
+                                    right: 0,
+                                    transform: [{ scaleX: progressAnim }],
+                                  }
+                                : {
+                                    // Standard Mode: Grow from left
+                                    left: 0,
+                                    width: progressAnim.interpolate({
+                                      inputRange: [0, 1],
+                                      outputRange: ["0%", "100%"],
+                                    }),
+                                  }),
+                            }}
+                          />
+                        )}
+
                         <TextInput
                           style={[
                             styles.urlInput,
                             {
                               color: effectiveTheme.text,
                               fontFamily: "Nunito_600SemiBold",
+                              zIndex: 1, // On top of the progress bar
                             },
                           ]}
                           value={inputUrl}
@@ -2664,13 +2980,8 @@ export default function App() {
                             setInputUrl(getDisplayHost(activeUrl));
                           }}
                         />
-                        <View style={styles.actionButtons}>
-                          {isLoading ? (
-                            <ActivityIndicator
-                              size="small"
-                              color={accentColor}
-                            />
-                          ) : isInputFocused ? (
+                        <View style={[styles.actionButtons, { zIndex: 1 }]}>
+                          {isInputFocused ? (
                             <TouchableOpacity onPress={handleGoPress}>
                               <Ionicons
                                 name="search"
@@ -2685,7 +2996,7 @@ export default function App() {
                               style={!activeUrl && styles.disabledBtn}
                             >
                               <Ionicons
-                                name="refresh"
+                                name={isLoading ? "close" : "refresh"}
                                 size={22}
                                 color={effectiveTheme.text}
                               />
@@ -2727,7 +3038,6 @@ const styles = StyleSheet.create({
   },
   recallContainer: {
     position: "absolute",
-    bottom: 0,
     left: 0,
     right: 0,
     zIndex: 1,
@@ -2742,8 +3052,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   bottomAreaContainer: {
-    paddingHorizontal: 10,
-    paddingBottom: 15,
+    paddingHorizontal: 10, 
     width: "100%",
     alignItems: "center",
   },
