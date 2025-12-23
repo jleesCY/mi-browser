@@ -10,4 +10,8 @@ export interface TabItem {
     url: string | null; 
     title: string; 
     showLogo: boolean; 
+    // New transient state for Multi-WebView support
+    loading?: boolean;
+    canGoBack?: boolean;
+    canGoForward?: boolean;
 }

@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
     Alert,
     Animated,
+    BackHandler,
     FlatList,
     Keyboard,
     LayoutAnimation,
@@ -71,10 +72,12 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
+  const [activeTabId, setActiveTabId] = useState("1");
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const canGoBackRef = useRef(false);
   const canGoForwardRef = useRef(false);
+  const activeTabIdRef = useRef(activeTabId);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -82,7 +85,11 @@ export default function App() {
   const [tabs, setTabs] = useState<TabItem[]>([
     { id: "1", url: null, title: "New Tab", showLogo: true },
   ]);
-  const [activeTabId, setActiveTabId] = useState("1");
+
+  // Confirmation Modal State
+  const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
+  const [confirmActionType, setConfirmActionType] = useState<'cache' | 'history' | null>(null);
+  const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{ ms: number; label: string } | null>(null);
 
   const [activeView, setActiveView] = useState<
     "none" | "tabs" | "history" | "settings"
@@ -113,6 +120,8 @@ export default function App() {
   const [progressBarMode, setProgressBarMode] = useState<"ltr" | "center" | "none">("ltr");
   const [recallPosition, setRecallPosition] = useState<"left" | "center" | "right">("center");
 
+  const [startupTabMode, setStartupTabMode] = useState<"new" | "last">("new");
+
   // Functional settings
   const [desktopMode, setDesktopMode] = useState(false);
   const [jsEnabled, setJsEnabled] = useState(true);
@@ -138,7 +147,9 @@ export default function App() {
     const loadAllData = async () => {
       // 1. Load Settings First
       const savedSettings = await loadStorage("settings");
-      let currentStartupMode = "new";
+
+      // Initialize a LOCAL variable. We use this for logic because state updates are too slow.
+      let currentStartupMode = "new"; 
 
       if (savedSettings) {
         setThemeMode(savedSettings.themeMode ?? "dark");
@@ -152,14 +163,22 @@ export default function App() {
         setPillHeight(savedSettings.pillHeight ?? 70);
         setProgressBarMode(savedSettings.progressBarMode ?? "ltr");
         setRecallPosition(savedSettings.recallPosition ?? "center");
-        currentStartupMode = savedSettings.startupTabMode ?? "new";
-        
+
         setDesktopMode(savedSettings.desktopMode ?? false);
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
         setReaderMode(savedSettings.readerMode ?? false);
         setIncognitoMode(savedSettings.incognitoMode ?? false);
+
+        // --- FIX STARTS HERE ---
+        // 1. Update the LOCAL variable directly from storage
+        if (savedSettings.startupTabMode) {
+            currentStartupMode = savedSettings.startupTabMode;
+        }
+        // 2. Sync the STATE for the UI
+        setStartupTabMode(currentStartupMode as any);
+        // --- FIX ENDS HERE ---
       }
 
       // 2. Load Data
@@ -170,30 +189,49 @@ export default function App() {
       const existingTabs = savedTabs || [];
 
       // 3. Handle Startup Logic
-      if (currentStartupMode === "last" && existingTabs.length > 0) {
-        // --- OPTION A: Resume Last Session ---
+      const initialUrl = await Linking.getInitialURL();
+
+      if (initialUrl && (initialUrl.startsWith("http://") || initialUrl.startsWith("https://"))) {
+         // --- CASE A: Launched via Deep Link ---
+         const newId = Date.now().toString();
+         const newTab = {
+           id: newId,
+           url: initialUrl,
+           title: "External Link",
+           showLogo: false,
+         };
+         
+         setTabs([newTab, ...existingTabs]);
+         setActiveTabId(newId);
+         setActiveUrl(initialUrl);
+         setInputUrl(getDisplayHost(initialUrl));
+
+      } else if (currentStartupMode === "last" && existingTabs.length > 0) {
+        // --- CASE B: Resume Last Session ---
+        // (Uses the local variable 'currentStartupMode' which is now guaranteed to be correct)
         setTabs(existingTabs);
         const savedActiveTabId = await loadStorage("activeTabId");
-        const targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId) || existingTabs[0];
+        
+        // Failsafe: Try to match ID, otherwise find first tab with a URL
+        let targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId);
+        if (!targetTab) {
+             targetTab = existingTabs.find((t: any) => t.url) || existingTabs[0];
+        }
         
         setActiveTabId(targetTab.id);
         setActiveUrl(targetTab.url);
         setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
       
       } else {
-        // --- OPTION B: Start Fresh (New Tab) ---
-        
-        // FIX: Check if we already have a blank tab to reuse
+        // --- CASE C: Start Fresh (New Tab) ---
         const existingBlankTab = existingTabs.find((t: any) => !t.url);
 
         if (existingBlankTab) {
-          // REUSE: Use the existing blank tab
           setTabs(existingTabs);
           setActiveTabId(existingBlankTab.id);
           setActiveUrl(null);
           setInputUrl("");
         } else {
-          // CREATE: No blank tab found, make a new one
           const newTabId = Date.now().toString();
           const newTab = {
             id: newTabId,
@@ -214,15 +252,50 @@ export default function App() {
     loadAllData();
   }, []);
 
+  // Keep the ref in sync with state
   useEffect(() => {
-    if (isAppReady && !incognitoMode) saveStorage("history", history);
-  }, [history, isAppReady, incognitoMode]);
+    activeTabIdRef.current = activeTabId;
+  }, [activeTabId]);
+
+  // --- SYNC UI WHEN SWITCHING TABS ---
+  useEffect(() => {
+    const currentTab = tabs.find((t) => t.id === activeTabId);
+    if (currentTab) {
+      // 1. Restore URL bar
+      setActiveUrl(currentTab.url);
+      setInputUrl(currentTab.url ? getDisplayHost(currentTab.url) : "");
+      
+      // 2. Restore Navigation Buttons
+      setCanGoBack(currentTab.canGoBack || false);
+      setCanGoForward(currentTab.canGoForward || false);
+      canGoBackRef.current = currentTab.canGoBack || false;
+      canGoForwardRef.current = currentTab.canGoForward || false;
+
+      // 3. Restore Loading State
+      setIsLoading(currentTab.loading || false);
+      
+      // 4. Reset or Restore Progress Bar
+      // (For simplicity, we just reset it visually when switching)
+      progressAnim.setValue(currentTab.loading ? 0.2 : 0);
+    }
+  }, [activeTabId]); // Only run when we switch tabs
+
+  useEffect(() => {
+    if (isAppReady && !incognitoMode) {
+      // Strip transient state before saving
+      const cleanTabs = tabs.map(({ loading, canGoBack, canGoForward, ...rest }) => rest);
+      saveStorage("tabs", cleanTabs);
+      saveStorage("activeTabId", activeTabId);
+    }
+  }, [tabs, activeTabId, isAppReady, incognitoMode]);
+
   useEffect(() => {
     if (isAppReady && !incognitoMode) {
       saveStorage("tabs", tabs);
       saveStorage("activeTabId", activeTabId);
     }
   }, [tabs, activeTabId, isAppReady, incognitoMode]);
+
   useEffect(() => {
     if (isAppReady) {
       const settingsToSave = {
@@ -237,6 +310,7 @@ export default function App() {
         pillHeight,
         progressBarMode,
         recallPosition,
+        startupTabMode,
         desktopMode,
         jsEnabled,
         httpsOnly,
@@ -258,6 +332,7 @@ export default function App() {
     pillHeight,
     progressBarMode,
     recallPosition,
+    startupTabMode,
     desktopMode,
     jsEnabled,
     httpsOnly,
@@ -267,7 +342,44 @@ export default function App() {
     isAppReady,
   ]);
 
-  // Find this useEffect block and update it:
+  // --- FIX: Handle Android Hardware Back Button ---
+  useEffect(() => {
+    const onBackPress = () => {
+      // 1. If an overlay is open (History, Tabs, Settings), close it first
+      if (activeView !== "none") {
+        closeOverlay();
+        return true; // "true" tells Android we handled the event, so don't exit
+      }
+
+      // 2. If the user is typing in the search bar, close the keyboard/unfocus
+      if (isInputFocused) {
+        Keyboard.dismiss();
+        setIsInputFocused(false);
+        return true;
+      }
+
+      // 3. If the WebView has history to go back to, navigate back
+      // We use the Ref we fixed earlier to get the instant "true/false" status
+      // 3. If the WebView has history to go back to, navigate back
+      if (canGoBackRef.current && webViewRefs.current[activeTabId]) {
+        webViewRefs.current[activeTabId]?.goBack();
+        return true;
+      }
+
+      // 4. If none of the above, let the default behavior happen (Exit/Minimize App)
+      return false;
+    };
+
+    // Add the listener
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress
+    );
+
+    // Remove listener on cleanup
+    return () => subscription.remove();
+  }, [activeView, isInputFocused]); // Re-create listener if UI state changes
+
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       let data = event.url;
@@ -288,10 +400,6 @@ export default function App() {
         setActiveView("none");
       }
     };
-
-    Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink({ url });
-    });
 
     const subscription = Linking.addEventListener("url", handleDeepLink);
     return () => subscription.remove();
@@ -366,7 +474,7 @@ export default function App() {
   const logoScale = useRef(new Animated.Value(1)).current;
   const logoPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
-  const webViewRef = useRef<WebView>(null);
+  const webViewRefs = useRef<{ [key: string]: WebView | null }>({});
   const viewShotRef = useRef<View>(null);
 
   useEffect(() => {
@@ -377,6 +485,7 @@ export default function App() {
     if (activeView !== "none") {
       setIsSearchEngineOpen(false);
       setIsClearHistoryOpen(false);
+      
       Animated.spring(overlayHeightAnim, {
         toValue: SNAP_DEFAULT,
         tension: 60,
@@ -384,18 +493,7 @@ export default function App() {
         useNativeDriver: false,
       }).start();
       currentOverlayHeight.current = SNAP_DEFAULT;
-    } else {
-      setSettingsSearch("");
-      setTabsSearch("");
-      setHistorySearch("");
-
-      Animated.timing(overlayHeightAnim, {
-        toValue: SNAP_CLOSED,
-        duration: 200,
-        useNativeDriver: false,
-      }).start();
-      currentOverlayHeight.current = SNAP_CLOSED;
-    }
+    } 
   }, [activeView]);
 
   useEffect(() => {
@@ -470,22 +568,35 @@ export default function App() {
     const text = inputUrl.trim();
     if (!text) return;
 
-    if (text.startsWith("http://") || text.startsWith("https://")) {
-      setActiveUrl(text);
-      snapToSearch();
-      return;
-    }
-    const isDomainLike = !text.includes(" ") && /\.[a-zA-Z]{2,}$/.test(text);
+    let targetUrl = "";
 
-    if (isDomainLike) {
-      const destination = `https://${text}`;
-      setActiveUrl(destination);
+    // 1. Construct the URL
+    if (text.startsWith("http://") || text.startsWith("https://")) {
+      targetUrl = text;
     } else {
-      const searchUrl = `${
-        SEARCH_ENGINES[searchEngineIndex].url
-      }${encodeURIComponent(text)}`;
-      setActiveUrl(searchUrl);
+      const isDomainLike = !text.includes(" ") && /\.[a-zA-Z]{2,}$/.test(text);
+
+      if (isDomainLike) {
+        targetUrl = `https://${text}`;
+      } else {
+        targetUrl = `${
+          SEARCH_ENGINES[searchEngineIndex].url
+        }${encodeURIComponent(text)}`;
+      }
     }
+    
+    // 2. Update Address Bar State
+    setActiveUrl(targetUrl);
+
+    // 3. Update the Tabs Array (CRITICAL FIX)
+    // This ensures the renderer sees a URL for this tab and actually mounts the WebView
+    setTabs((prev) => 
+        prev.map((t) => 
+            t.id === activeTabId 
+            ? { ...t, url: targetUrl, title: text } // Update URL immediately
+            : t
+        )
+    );
     
     snapToSearch();
   };
@@ -509,6 +620,29 @@ export default function App() {
     }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsClearHistoryOpen(false);
+  };
+
+  // --- CONFIRMATION HANDLERS ---
+  const requestClearCache = () => {
+    setConfirmActionType('cache');
+    setIsConfirmModalVisible(true);
+  };
+
+  const requestClearHistory = (ms: number, label: string) => {
+    setConfirmHistoryPayload({ ms, label });
+    setConfirmActionType('history');
+    setIsConfirmModalVisible(true);
+  };
+
+  const executeConfirmAction = () => {
+    if (confirmActionType === 'cache') {
+      webViewRefs.current[activeTabId]?.clearCache(true);
+      // Small delay to allow modal to close smoothly before alert
+      // setTimeout(() => Alert.alert("Success", "Cache cleared."), 300);
+    } else if (confirmActionType === 'history' && confirmHistoryPayload) {
+      deleteHistory(confirmHistoryPayload.ms);
+    }
+    setIsConfirmModalVisible(false);
   };
 
   const deleteHistoryItem = (idToDelete: string) => {
@@ -539,11 +673,15 @@ export default function App() {
   };
 
   const deleteTab = (idToDelete: string) => {
-    // 1. Handle Active Tab Switching
-    // We do this separately to ensure the UI updates the URL/Title if the current tab is closed.
+    // 1. Clean up the WebView ref to prevent leaks
+    if (webViewRefs.current[idToDelete]) {
+        webViewRefs.current[idToDelete] = null;
+        delete webViewRefs.current[idToDelete];
+    }
+
+    // 2. If we are deleting the ACTIVE tab, switch to a neighbor first
     if (activeTabId === idToDelete) {
       const indexToDelete = tabs.findIndex((t) => t.id === idToDelete);
-      // Predict the remaining tabs based on current state
       const remainingTabs = tabs.filter((t) => t.id !== idToDelete);
 
       if (remainingTabs.length > 0) {
@@ -555,14 +693,13 @@ export default function App() {
       }
     }
 
-    // 2. Perform the Deletion (Securely)
-    // We use 'prevTabs' to ensure we are always filtering the MOST RECENT list,
-    // preventing the "resurrection" bug when swiping fast.
+    // 3. Update the Tabs State
     setTabs((prevTabs) => {
       const newTabs = prevTabs.filter((t) => t.id !== idToDelete);
       
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
+      // --- FIX STARTS HERE ---
       // Handle "Empty List" Case (Create a new blank tab if we deleted the last one)
       if (newTabs.length === 0) {
         const freshId = Date.now().toString();
@@ -572,6 +709,7 @@ export default function App() {
           setActiveTabId(freshId);
           setActiveUrl(null);
           setInputUrl("");
+          closeOverlay();
         }, 0);
         
         return [{ id: freshId, url: null, title: "New Tab", showLogo: true }];
@@ -618,8 +756,23 @@ export default function App() {
   };
 
   const closeOverlay = () => {
-    setActiveView("none");
-    snapToSearch();
+    // 1. Animate the menu sliding down
+    Animated.timing(overlayHeightAnim, {
+      toValue: SNAP_CLOSED,
+      duration: 250, // Slightly longer for smoothness
+      useNativeDriver: false,
+    }).start(() => {
+      // 2. AFTER animation finishes, unmount the view
+      setActiveView("none");
+      snapToSearch();
+
+      // 3. Reset search states
+      setSettingsSearch("");
+      setTabsSearch("");
+      setHistorySearch("");
+    });
+    
+    currentOverlayHeight.current = SNAP_CLOSED;
   };
 
   const snapToSearch = () => {
@@ -653,9 +806,6 @@ export default function App() {
     if (!url || url === "about:blank") return;
 
     const title = getDisplayHost(url);
-    
-    // FIX: Use full ISO string (includes time) so the date formatter doesn't break
-    const date = new Date().toISOString(); 
 
     setHistory((prevHistory) => {
       // 2. Remove duplicates
@@ -669,24 +819,12 @@ export default function App() {
         id: Date.now().toString(),
         url,
         title,
-        date, // Now stores the full timestamp
+        timestamp: Date.now(), // Now stores the full timestamp
       };
 
       // 4. Return updated list (Limit to 100)
       return [newItem, ...cleanedHistory].slice(0, 100);
     });
-  };
-
-  const handleNavigationStateChange = (navState: any) => {
-    setCanGoBack(navState.canGoBack);
-    canGoBackRef.current = navState.canGoBack;
-    setCanGoForward(navState.canGoForward);
-    canGoForwardRef.current = navState.canGoForward;
-    if (!navState.loading) {
-      setIsLoading(false);
-      addToHistory(navState.url, navState.title);
-    } else setIsLoading(true);
-    if (!isInputFocused) setInputUrl(getDisplayHost(navState.url));
   };
 
   const handleScroll = (event: any) => {
@@ -737,20 +875,74 @@ export default function App() {
         [null, { dx: logoPan.x, dy: logoPan.y }],
         { useNativeDriver: false }
       ),
-      onPanResponderRelease: () => {
-        logoPan.flattenOffset();
-        Animated.spring(logoScale, {
-          toValue: 1,
-          friction: 3,
-          tension: 40,
-          useNativeDriver: false,
-        }).start();
-        Animated.spring(logoPan, {
-          toValue: { x: 0, y: 0 },
-          friction: 4,
-          tension: 80,
-          useNativeDriver: false,
-        }).start();
+      onPanResponderRelease: (_, gestureState) => {
+        const { dy, dx, vy } = gestureState;
+
+        if (isSearchActiveRef.current) {
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+            // FIX: Use ref to get the current tab ID
+            const currentTabId = activeTabIdRef.current;
+            const currentWebView = webViewRefs.current[currentTabId];
+
+            if (dx > 0) {
+                // FIX: Removed "&& canGoBackRef.current" check
+                // We force the attempt. If no history exists, WebView just ignores it.
+                currentWebView?.goBack();
+            } else if (dx < 0) {
+                // FIX: Removed "&& canGoForwardRef.current" check
+                currentWebView?.goForward();
+            }
+
+            Animated.spring(horizontalDrag, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+            Animated.spring(animVal, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+            showBar();
+            return;
+          }
+
+          Animated.spring(horizontalDrag, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+
+          if (dy < -30) {
+            setIsSearchActive(false);
+            Animated.spring(animVal, {
+              toValue: -SWAP_DISTANCE,
+              tension: 60,
+              friction: 9,
+              useNativeDriver: true,
+            }).start();
+          } else {
+            Animated.spring(animVal, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+            snapBar(vy);
+          }
+        } else {
+          if (dy > 30 || vy > 0.5) {
+            setIsSearchActive(true);
+            Animated.spring(animVal, {
+              toValue: 0,
+              tension: 60,
+              friction: 9,
+              useNativeDriver: true,
+            }).start();
+          } else {
+            Animated.spring(animVal, {
+              toValue: -SWAP_DISTANCE,
+              tension: 60,
+              friction: 9,
+              useNativeDriver: true,
+            }).start();
+          }
+        }
       },
     })
   ).current;
@@ -790,9 +982,17 @@ export default function App() {
 
         if (isSearchActiveRef.current) {
           if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-            if (dx > 0 && canGoBackRef.current) webViewRef.current?.goBack();
-            else if (dx < 0 && canGoForwardRef.current)
-              webViewRef.current?.goForward();
+            // FIX 1: Use activeTabIdRef.current to get the REAL active tab
+            const currentTabId = activeTabIdRef.current;
+            const currentWebView = webViewRefs.current[currentTabId];
+            
+            // FIX 2: Removed conditional checks (&& canGoBackRef.current). 
+            // We let the WebView attempt navigation blindly. If history is empty, it just does nothing.
+            if (dx > 0) {
+                currentWebView?.goBack();
+            } else if (dx < 0) {
+                currentWebView?.goForward();
+            }
 
             Animated.spring(horizontalDrag, {
               toValue: 0,
@@ -1114,8 +1314,22 @@ export default function App() {
                 margin={getMargin()}
                 fontScale={fontScale}
                 onPress={() => {
-                  setActiveUrl(item.url);
-                  setInputUrl(getDisplayHost(item.url));
+                  const targetUrl = item.url;
+
+                  // 1. Update Address Bar State immediately
+                  setActiveUrl(targetUrl);
+                  setInputUrl(getDisplayHost(targetUrl));
+
+                  // 2. Update the Tabs State (This is what triggers the WebView to load the page)
+                  setTabs((prev) =>
+                    prev.map((t) =>
+                      t.id === activeTabId
+                        ? { ...t, url: targetUrl, title: item.title || getDisplayHost(targetUrl) }
+                        : t
+                    )
+                  );
+
+                  // 3. Close the menu
                   closeOverlay();
                 }}
                 onDelete={() => deleteHistoryItem(item.id)}
@@ -1998,6 +2212,39 @@ export default function App() {
               </View>
             )}
 
+            <SettingRow label="Startup Behavior">
+              <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+                 <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                    <Ionicons name="power-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                    <Text style={[styles.settingText, { color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }]}>
+                      On Startup
+                    </Text>
+                 </View>
+                 <View style={{ flexDirection: "row", width: "100%" }}>
+                    {["new", "last"].map((mode) => (
+                      <TouchableOpacity
+                        key={mode}
+                        onPress={() => setStartupTabMode(mode as any)}
+                        style={[
+                          styles.modeBtn,
+                          startupTabMode === mode && { backgroundColor: accentColor },
+                          { flex: 1, alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 }
+                        ]}
+                      >
+                        <Text style={[
+                            styles.modeBtnText,
+                            startupTabMode === mode ? { color: "#fff" } : { color: effectiveTheme.text },
+                            { fontFamily: "Nunito_700Bold", fontSize: 12 * fontScale }
+                          ]}
+                        >
+                          {mode === "new" ? "New Tab" : "Continue Session"}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                 </View>
+              </View>
+            </SettingRow>
+
             <SettingRow label="Incognito Mode">
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
@@ -2177,9 +2424,10 @@ export default function App() {
 
           <SettingsGroup title="Data">
             <SettingRow
-              label="Clear Cache"
-              onPress={() => webViewRef.current?.clearCache(true)}
-            >
+                label="Clear Cache"
+                // UPDATED: Now calls the request function
+                onPress={requestClearCache}
+                >
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
                   name="file-tray-full-outline"
@@ -2266,7 +2514,8 @@ export default function App() {
                           styles.settingRow,
                           { paddingLeft: 40, paddingVertical: 12 },
                         ]}
-                        onPress={() => deleteHistory(range.ms)}
+                        // UPDATED: Passes label and ms to request function
+                        onPress={() => requestClearHistory(range.ms, range.label)}
                       >
                         <Text
                           style={{
@@ -2352,6 +2601,85 @@ export default function App() {
             {content}
           </Animated.View>
         </Animated.View>
+
+        {/* Confirmation Modal */}
+        <Modal
+          visible={isConfirmModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsConfirmModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: effectiveTheme.surface,
+                  borderRadius: cornerRadius,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modalTitle,
+                  { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" },
+                ]}
+              >
+                Are you sure?
+              </Text>
+              
+              <Text
+                style={{
+                  color: effectiveTheme.textSec,
+                  fontFamily: "Nunito_600SemiBold",
+                  marginBottom: 20,
+                  fontSize: 16
+                }}
+              >
+                {confirmActionType === 'cache' 
+                    ? "This will clear all cache for the current website."
+                    : `This will permanently delete history for: ${confirmHistoryPayload?.label}.`
+                }
+              </Text>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  onPress={() => setIsConfirmModalVisible(false)}
+                  style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}
+                >
+                  <Text
+                    style={{
+                      color: effectiveTheme.textSec,
+                      fontFamily: "Nunito_700Bold",
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={executeConfirmAction}
+                  style={[
+                    styles.modalBtn,
+                    {
+                      backgroundColor: "#ff3b30", // Red for destructive action
+                      borderRadius: cornerRadius / 2,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontWeight: "bold",
+                      fontFamily: "Nunito_700Bold",
+                    }}
+                  >
+                    {confirmActionType === 'cache' ? "Clear Cache" : "Delete"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Rename Modal */}
         <Modal
@@ -2459,119 +2787,130 @@ export default function App() {
     );
   };
 
+  // 1. Re-define the handler to be accessible
   const handleShouldStartLoadWithRequest = (request: any) => {
     const { url } = request;
-
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("about:")) {
       return true;
     }
-    Linking.canOpenURL(url).then((supported) => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        console.log("Can't handle url: " + url);
-      }
-    }).catch(err => console.error("An error occurred", err));
-
+    Linking.openURL(url).catch(err => console.error("Link Error:", err));
     return false;
   };
 
-  const webViewProps = {
-    ref: webViewRef,
-    source: { uri: activeUrl || "" },
-    onNavigationStateChange: handleNavigationStateChange,
-    onMessage: handleWebViewMessage,
+  // 2. Create a Factory for Tab Props
+  const getWebViewProps = (tabId: string) => ({
+    ref: (ref: WebView | null) => (webViewRefs.current[tabId] = ref),
+    source: { uri: tabs.find((t) => t.id === tabId)?.url || "" },
+    originWhitelist: ["*"],
+    onShouldStartLoadWithRequest: handleShouldStartLoadWithRequest,
     
-    onLoadStart: () => {
-      setIsLoading(true);
-      // Instantly reset to 0, then animate to 10% to show activity
-      progressAnim.setValue(0);
-      Animated.timing(progressAnim, {
-        toValue: 0.1,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    },
-    
-    onLoadProgress: ({ nativeEvent }: any) => {
-      // Smoothly glide to the new progress value over 200ms
-      Animated.timing(progressAnim, {
-        toValue: nativeEvent.progress,
-        duration: 200,
-        useNativeDriver: false, 
-      }).start();
-    },
+    // NAVIGATION CHANGE
+    onNavigationStateChange: (navState: any) => {
+      const { url, title, canGoBack, canGoForward, loading } = navState;
 
-    onLoadEnd: () => {
-      setIsLoading(false);
-      // Quickly finish the bar to 100%, then fade it out or reset
-      Animated.timing(progressAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: false,
-      }).start(() => {
-         // Optional: after a brief delay, reset it back to 0 for next time
-         setTimeout(() => {
-            progressAnim.setValue(0);
-         }, 200);
-      });
-    },
-    // Replace the existing onError with this:
-    onError: (syntheticEvent: any) => {
-      const { nativeEvent } = syntheticEvent;
-      setIsLoading(false);
-      
-      // If using the animated bar, finish it
-      Animated.timing(progressAnim, {
-        toValue: 0, 
-        duration: 200, 
-        useNativeDriver: false 
-      }).start();
+      // A. Always update the specific tab's state in the list
+      setTabs((prev) =>
+        prev.map((t) => {
+          if (t.id !== tabId) return t;
+          return {
+            ...t,
+            url,
+            title: (title && title.length > 0) ? title : getDisplayHost(url),
+            canGoBack,
+            canGoForward,
+            loading
+          };
+        })
+      );
 
-      // FALLBACK LOGIC:
-      // If the error is a DNS failure (NAME_NOT_RESOLVED), it means the domain doesn't exist.
-      // We should fallback to searching for the text instead.
-      if (nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" || nativeEvent.code === -2) {
+      // B. If this is the ACTIVE tab, update the Global UI refs immediately
+      if (tabId === activeTabId) {
+        setCanGoBack(canGoBack);
+        setCanGoForward(canGoForward);
+        canGoBackRef.current = canGoBack;
+        canGoForwardRef.current = canGoForward;
+        setIsLoading(loading);
+
+        if (!isInputFocused && url) {
+          setActiveUrl(url);
+          setInputUrl(getDisplayHost(url));
+        }
         
-        const failedUrl = nativeEvent.url || activeUrl;
-        
-        // Guard: Check if we are already on a search URL to prevent infinite loops
-        const isAlreadySearch = SEARCH_ENGINES.some(se => failedUrl?.startsWith(se.url));
-        
-        if (!isAlreadySearch && failedUrl) {
-             // Extract the original query from the failed URL (remove https:// and trailing /)
-             let query = failedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
-             
-             // Construct the new search URL
-             const searchUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(query)}`;
-             
-             // Redirect
-             setActiveUrl(searchUrl);
-             setInputUrl(query); // Optional: update the bar to show the query
+        // Add to history (Active tab only)
+        if (url && !loading && url !== "about:blank") {
+             addToHistory(url);
         }
       }
     },
 
+    // PROGRESS
+    onLoadProgress: ({ nativeEvent }: any) => {
+      if (tabId === activeTabId) {
+        Animated.timing(progressAnim, {
+          toValue: nativeEvent.progress,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+      }
+    },
+
+    // LOADING START
+    onLoadStart: () => {
+      if (tabId === activeTabId) {
+        setIsLoading(true);
+        progressAnim.setValue(0);
+        Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
+      }
+    },
+
+    // LOADING END
+    onLoadEnd: () => {
+      if (tabId === activeTabId) {
+        setIsLoading(false);
+        Animated.timing(progressAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start(() => {
+          setTimeout(() => progressAnim.setValue(0), 200);
+        });
+      }
+    },
+    
+    // ERROR HANDLING
+    onError: (e: any) => {
+       if (tabId === activeTabId) setIsLoading(false);
+       
+       // DNS Failure / Search Fallback logic
+       const { nativeEvent } = e;
+       if (nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" || nativeEvent.code === -2) {
+            const failedUrl = nativeEvent.url;
+            const isAlreadySearch = SEARCH_ENGINES.some(se => failedUrl?.startsWith(se.url));
+            if (!isAlreadySearch && failedUrl && tabId === activeTabId) {
+                let query = failedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+                const searchUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(query)}`;
+                // Redirect via state update
+                setTabs(prev => prev.map(t => t.id === tabId ? {...t, url: searchUrl} : t));
+                if(tabId === activeTabId) {
+                    setActiveUrl(searchUrl);
+                    setInputUrl(query);
+                }
+            }
+       }
+    },
+
+    // COMMON PROPS
+    onMessage: handleWebViewMessage,
     onScroll: handleScroll,
     onScrollEndDrag: () => snapBar(0),
     onMomentumScrollEnd: () => snapBar(0),
-    onTouchStart: () => {
-      if (isInputFocused) Keyboard.dismiss();
-    },
+    onTouchStart: () => { if (isInputFocused) Keyboard.dismiss(); },
     overScrollMode: "never",
     scrollEventThrottle: 16,
     startInLoadingState: true,
-    
     renderLoading: () => (
       <View style={styles.loadingOverlay}>
         <ActivityIndicator size="large" color={accentColor} />
       </View>
     ),
-    
     javaScriptEnabled: jsEnabled,
-    userAgent: desktopMode
-      ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      : undefined,
+    userAgent: desktopMode ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" : undefined,
     sharedCookiesEnabled: !blockCookies,
     domStorageEnabled: true,
     androidLayerType: "hardware" as const,
@@ -2581,13 +2920,10 @@ export default function App() {
     mediaPlaybackRequiresUserAction: false,
     javaScriptCanOpenWindowsAutomatically: true,
     onFullScreen: handleFullScreen,
-    contentInset: isFullscreen
-      ? { top: 0, bottom: 0, left: 0, right: 0 }
-      : { bottom: pillHeight + 20 },
+    contentInset: isFullscreen ? { top: 0, bottom: 0, left: 0, right: 0 } : { bottom: pillHeight + 20 },
     geolocationEnabled: true,
     onPermissionRequest: handleAndroidPermissionRequest,
-    // Ensure you have the onShouldStartLoadWithRequest from the previous step here too
-  };
+  });
 
   if (!fontsLoaded || !isAppReady) return null;
 
@@ -2613,14 +2949,37 @@ export default function App() {
           },
         ]}
       >
-        {activeUrl ? (
-          <WebView
-            {...webViewProps}
-            style={
-              isFullscreen ? { flex: 1, backgroundColor: "#000" } : { flex: 1 }
-            }
-          />
-        ) : (
+        {/* 1. RENDER ALL TABS WITH URLs */}
+        {tabs.map((tab) => {
+          // If tab has no URL (New Tab), don't render a WebView for it
+          if (!tab.url) return null;
+
+          const isActive = tab.id === activeTabId;
+          
+          return (
+            <View 
+                key={tab.id} 
+                style={[
+                    StyleSheet.absoluteFill, 
+                    { 
+                        // Hide inactive tabs using opacity/z-index to keep them alive
+                        opacity: isActive ? 1 : 0,
+                        zIndex: isActive ? 1 : 0,
+                        // Important: move them off-screen if hidden to prevent touch events
+                        transform: [{ translateX: isActive ? 0 : 9999 }] 
+                    }
+                ]}
+            >
+                <WebView
+                    {...getWebViewProps(tab.id)}
+                    style={isFullscreen ? { flex: 1, backgroundColor: "#000" } : { flex: 1 }}
+                />
+            </View>
+          );
+        })}
+
+        {/* 2. RENDER HOME SCREEN (If active tab has no URL) */}
+        {!activeUrl && (
           <View
             style={[
               styles.homeContainer,
@@ -2991,15 +3350,16 @@ export default function App() {
                             </TouchableOpacity>
                           ) : (
                             <TouchableOpacity
-                              disabled={!activeUrl}
-                              onPress={() => webViewRef.current?.reload()}
-                              style={!activeUrl && styles.disabledBtn}
+                            disabled={!activeUrl}
+                            // FIX: Use the ref map with the activeTabId
+                            onPress={() => webViewRefs.current[activeTabId]?.reload()} 
+                            style={!activeUrl && styles.disabledBtn}
                             >
-                              <Ionicons
+                            <Ionicons
                                 name={isLoading ? "close" : "refresh"}
                                 size={22}
                                 color={effectiveTheme.text}
-                              />
+                            />
                             </TouchableOpacity>
                           )}
                         </View>
