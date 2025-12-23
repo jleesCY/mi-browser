@@ -261,6 +261,8 @@ export default function App() {
   useEffect(() => {
     const currentTab = tabs.find((t) => t.id === activeTabId);
     if (currentTab) {
+        ignoreNextScroll.current = true;
+        
       // 1. Restore URL bar
       setActiveUrl(currentTab.url);
       setInputUrl(currentTab.url ? getDisplayHost(currentTab.url) : "");
@@ -363,6 +365,7 @@ export default function App() {
       // 3. If the WebView has history to go back to, navigate back
       if (canGoBackRef.current && webViewRefs.current[activeTabId]) {
         webViewRefs.current[activeTabId]?.goBack();
+        showBar();
         return true;
       }
 
@@ -476,6 +479,8 @@ export default function App() {
 
   const webViewRefs = useRef<{ [key: string]: WebView | null }>({});
   const viewShotRef = useRef<View>(null);
+
+  const ignoreNextScroll = useRef(false);
 
   useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
@@ -829,6 +834,13 @@ export default function App() {
 
   const handleScroll = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
+
+    if (ignoreNextScroll.current) {
+        lastScrollY.current = y;
+        ignoreNextScroll.current = false;
+        return;
+    }
+
     if (isInputFocused || activeView !== "none" || y < 0) return;
     const dy = y - lastScrollY.current;
     const newTrans = Math.max(
@@ -861,10 +873,13 @@ export default function App() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
+        // 1. Scale up slightly when touched
         Animated.spring(logoScale, {
           toValue: 1.2,
           useNativeDriver: false,
         }).start();
+
+        // 2. Set offset to prevent "jumping" when starting the drag
         logoPan.setOffset({
           x: (logoPan.x as any)._value,
           y: (logoPan.y as any)._value,
@@ -875,74 +890,25 @@ export default function App() {
         [null, { dx: logoPan.x, dy: logoPan.y }],
         { useNativeDriver: false }
       ),
-      onPanResponderRelease: (_, gestureState) => {
-        const { dy, dx, vy } = gestureState;
+      onPanResponderRelease: () => {
+        // 3. Flatten offset to calculate the return path correctly
+        logoPan.flattenOffset();
 
-        if (isSearchActiveRef.current) {
-          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-            // FIX: Use ref to get the current tab ID
-            const currentTabId = activeTabIdRef.current;
-            const currentWebView = webViewRefs.current[currentTabId];
+        // 4. Rubber band (Spring) back to Center (0,0)
+        Animated.spring(logoPan, {
+          toValue: { x: 0, y: 0 },
+          friction: 6,   // Controls the "bounciness"
+          tension: 80,   // Controls the speed
+          useNativeDriver: false,
+        }).start();
 
-            if (dx > 0) {
-                // FIX: Removed "&& canGoBackRef.current" check
-                // We force the attempt. If no history exists, WebView just ignores it.
-                currentWebView?.goBack();
-            } else if (dx < 0) {
-                // FIX: Removed "&& canGoForwardRef.current" check
-                currentWebView?.goForward();
-            }
-
-            Animated.spring(horizontalDrag, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
-            Animated.spring(animVal, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
-            showBar();
-            return;
-          }
-
-          Animated.spring(horizontalDrag, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-
-          if (dy < -30) {
-            setIsSearchActive(false);
-            Animated.spring(animVal, {
-              toValue: -SWAP_DISTANCE,
-              tension: 60,
-              friction: 9,
-              useNativeDriver: true,
-            }).start();
-          } else {
-            Animated.spring(animVal, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
-            snapBar(vy);
-          }
-        } else {
-          if (dy > 30 || vy > 0.5) {
-            setIsSearchActive(true);
-            Animated.spring(animVal, {
-              toValue: 0,
-              tension: 60,
-              friction: 9,
-              useNativeDriver: true,
-            }).start();
-          } else {
-            Animated.spring(animVal, {
-              toValue: -SWAP_DISTANCE,
-              tension: 60,
-              friction: 9,
-              useNativeDriver: true,
-            }).start();
-          }
-        }
+        // 5. Spring scale back to normal (1)
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 80,
+          useNativeDriver: false,
+        }).start();
       },
     })
   ).current;
@@ -2857,6 +2823,8 @@ export default function App() {
     // LOADING START
     onLoadStart: () => {
       if (tabId === activeTabId) {
+        ignoreNextScroll.current = true; // <--- ADD THIS
+        showBar(); 
         setIsLoading(true);
         progressAnim.setValue(0);
         Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
