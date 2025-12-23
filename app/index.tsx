@@ -205,18 +205,32 @@ export default function App() {
     isAppReady,
   ]);
 
+  // Find this useEffect block and update it:
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       let data = event.url;
       if (data && (data.startsWith("http://") || data.startsWith("https://"))) {
+        
+        const newId = Date.now().toString();
+        const newTab = {
+          id: newId,
+          url: data,
+          title: "External Link",
+          showLogo: false,
+        };
+        
+        setTabs((prev) => [newTab, ...prev]);
+        setActiveTabId(newId);
         setActiveUrl(data);
         setInputUrl(getDisplayHost(data));
         setActiveView("none");
       }
     };
+
     Linking.getInitialURL().then((url) => {
       if (url) handleDeepLink({ url });
     });
+
     const subscription = Linking.addEventListener("url", handleDeepLink);
     return () => subscription.remove();
   }, []);
@@ -1672,43 +1686,6 @@ export default function App() {
                 </View>
               </View>
             </SettingRow>
-
-            <SettingRow label="Home Logo Text">
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="pricetag-outline"
-                  size={22}
-                  color={effectiveTheme.text}
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  style={[
-                    styles.settingText,
-                    {
-                      color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
-                      fontSize: 16 * fontScale,
-                    },
-                  ]}
-                >
-                  Home Logo Text
-                </Text>
-              </View>
-              <TextInput
-                style={{
-                  width: 100,
-                  color: accentColor,
-                  fontFamily: "Nunito_800ExtraBold",
-                  fontSize: 18 * fontScale,
-                  textAlign: "right",
-                }}
-                value={homeLogoText}
-                onChangeText={setHomeLogoText}
-                maxLength={5}
-                placeholder="mi."
-                placeholderTextColor={effectiveTheme.textSec}
-              />
-            </SettingRow>
           </SettingsGroup>
 
           <SettingsGroup title="Browsing">
@@ -2290,6 +2267,23 @@ export default function App() {
     );
   };
 
+  const handleShouldStartLoadWithRequest = (request: any) => {
+    const { url } = request;
+
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return true;
+    }
+    Linking.canOpenURL(url).then((supported) => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        console.log("Can't handle url: " + url);
+      }
+    }).catch(err => console.error("An error occurred", err));
+
+    return false;
+  };
+
   const webViewProps = {
     ref: webViewRef,
     source: { uri: activeUrl || "" },
@@ -2298,6 +2292,7 @@ export default function App() {
     onLoadStart: () => setIsLoading(true),
     onError: () => setIsLoading(false),
     onLoadEnd: () => setIsLoading(false),
+    onShouldStartLoadWithRequest: handleShouldStartLoadWithRequest,
     onScroll: handleScroll,
     onScrollEndDrag: () => snapBar(0),
     onMomentumScrollEnd: () => snapBar(0),

@@ -1,43 +1,96 @@
-#!/bin/sh
+#!/bin/bash
 
-## Usage: $(basename "$0") [-h] [arg1]
-##
-## Builds an installable APK file from the source code
-##
-## Options:
-##   -h, --help    Display this message
-##   -v, --version <major.minor.patch>  Specify the version of the APK to build
+# ==========================================
+# 1. Parse Command Line Arguments
+# ==========================================
+VERSION=""
 
-# Set default variables
-VERSION="0.0.0"
-
-# Function to display usage and exit
-usage() {
-  [ "$*" ] && echo "$0: $*"
-  sed -n '/^##/,/^$/s/^## \{0,1\}//p' "$0"
-  exit 2
-}
-
-# Main script logic
-main() {
-  # Parse command-line arguments
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      (-h|--help) usage 2>&1;;
-      (--) shift; break;;
-      (-v|--version) VERSION="$2"; shift 2;;
-      (-*) usage "$1: unknown option";;
-      (*) break;;
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -v|--version) VERSION="$2"; shift ;;
+        *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
     shift
-  done
+done
 
-  # Your script logic goes here
-  echo "Script is running..."
-  echo "Building APK version: $VERSION"
-  eas build --platform android
-    echo "DONE"
-}
+if [ -z "$VERSION" ]; then
+    echo "Error: You must provide a version using -v or --version"
+    exit 1
+fi
 
-# Execute the main function
-main "$@"
+echo "Starting build process for version: $VERSION"
+
+# ==========================================
+# 2. Run EAS Build & Capture Output
+# ==========================================
+echo "Running: eas build -p android --local"
+BUILD_OUTPUT=$(eas build -p android --local | tee /dev/tty)
+
+# ==========================================
+# 3. Extract the .aab File Path
+# ==========================================
+AAB_PATH=$(echo "$BUILD_OUTPUT" | grep "You can find the build artifacts in" | awk '{print $NF}')
+
+if [ -z "$AAB_PATH" ]; then
+    echo "Error: Could not find the .aab file path in the build output."
+    exit 1
+fi
+
+echo "Captured AAB path: $AAB_PATH"
+
+# ==========================================
+# 4. Run Bundletool (Generate APKS)
+# ==========================================
+OUTPUT_APKS="./builds/${VERSION}.apks"
+BUNDLETOOL="./builds/bundletool-all-1.18.3.jar"
+
+echo "Generating APKS..."
+java -jar "$BUNDLETOOL" build-apks \
+    --bundle="$AAB_PATH" \
+    --output="$OUTPUT_APKS" \
+    --mode=universal
+
+# ==========================================
+# 5. Rename .apks to .zip
+# ==========================================
+ZIP_FILE="./builds/${VERSION}.zip"
+echo "Renaming $OUTPUT_APKS to $ZIP_FILE..."
+mv "$OUTPUT_APKS" "$ZIP_FILE"
+
+# ==========================================
+# 6. Extract Zip & Isolate universal.apk
+# ==========================================
+TEMP_DIR="./builds/temp_${VERSION}"
+FINAL_APK="./builds/${VERSION}.apk"
+
+echo "Extracting to temporary directory $TEMP_DIR..."
+unzip -q "$ZIP_FILE" -d "$TEMP_DIR"
+
+if [ -f "$TEMP_DIR/universal.apk" ]; then
+    echo "Found universal.apk. Moving to $FINAL_APK..."
+    mv "$TEMP_DIR/universal.apk" "$FINAL_APK"
+else
+    echo "Error: 'universal.apk' was not found inside the generated zip!"
+    # Clean up temp dir before exiting so we don't leave trash
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
+
+# ==========================================
+# 7. Cleanup
+# ==========================================
+echo "Cleaning up intermediate files..."
+
+# Delete the zip file
+rm "$ZIP_FILE"
+
+# Delete the temporary extraction folder and its contents
+rm -rf "$TEMP_DIR"
+
+# Delete the original .aab file from Step 2
+rm "$AAB_PATH"
+
+echo "------------------------------------------------"
+echo "Success! The final file is ready:"
+echo "$FINAL_APK"
+echo "------------------------------------------------"
