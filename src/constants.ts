@@ -1,6 +1,6 @@
 import { Dimensions, Platform, UIManager } from 'react-native';
 
-export const APP_VERSION = "0.3.2";
+export const APP_VERSION = "0.3.3";
 
 // Enable LayoutAnimation
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
