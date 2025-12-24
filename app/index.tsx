@@ -1,62 +1,61 @@
 import {
-    Nunito_400Regular,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-    Nunito_800ExtraBold,
-    useFonts,
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+  Nunito_800ExtraBold,
+  useFonts,
 } from "@expo-google-fonts/nunito";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    BackHandler,
-    FlatList,
-    Keyboard,
-    LayoutAnimation,
-    Linking,
-    Modal,
-    PanResponder,
-    ScrollView,
-    Share,
-    StatusBar,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  Animated,
+  BackHandler,
+  FlatList,
+  Keyboard,
+  LayoutAnimation,
+  Linking,
+  Modal,
+  PanResponder,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 
 import SwipeableHistoryRow from "../src/components/SwipeableHistoryRow";
 import SwipeableTabRow from "../src/components/SwipeableTabRow";
 import {
-    ACCENTS,
-    APP_VERSION,
-    COLORS,
-    HIDDEN_TRANSLATE_Y,
-    HISTORY_RANGES,
-    SEARCH_ENGINES,
-    SNAP_CLOSED,
-    SNAP_DEFAULT,
-    SNAP_FULL,
-    SWAP_DISTANCE,
+  ACCENTS,
+  APP_VERSION,
+  COLORS,
+  HIDDEN_TRANSLATE_Y,
+  HISTORY_RANGES,
+  SEARCH_ENGINES,
+  SNAP_CLOSED,
+  SNAP_DEFAULT,
+  SNAP_FULL,
+  SWAP_DISTANCE,
 } from "../src/constants";
 import { HistoryItem, TabItem } from "../src/types";
 import {
-    generateAdaptiveTheme,
-    getDisplayHost,
-    loadStorage,
-    saveStorage,
+  generateAdaptiveTheme,
+  getDisplayHost,
+  loadStorage,
+  saveStorage,
 } from "../src/utils";
 
 export default function App() {
-
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
   let [fontsLoaded] = useFonts({
     Nunito_400Regular,
@@ -88,8 +87,13 @@ export default function App() {
 
   // Confirmation Modal State
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
-  const [confirmActionType, setConfirmActionType] = useState<'cache' | 'history' | null>(null);
-  const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{ ms: number; label: string } | null>(null);
+  const [confirmActionType, setConfirmActionType] = useState<
+    "history" | "resetSettings" | null
+  >(null);
+  const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{
+    ms: number;
+    label: string;
+  } | null>(null);
 
   const [activeView, setActiveView] = useState<
     "none" | "tabs" | "history" | "settings"
@@ -117,8 +121,12 @@ export default function App() {
   >("frosted");
   const [homeLogoText, setHomeLogoText] = useState("mi.");
   const [pillHeight, setPillHeight] = useState(70);
-  const [progressBarMode, setProgressBarMode] = useState<"ltr" | "center" | "none">("ltr");
-  const [recallPosition, setRecallPosition] = useState<"left" | "center" | "right">("center");
+  const [progressBarMode, setProgressBarMode] = useState<
+    "ltr" | "center" | "none"
+  >("ltr");
+  const [recallPosition, setRecallPosition] = useState<
+    "left" | "center" | "right"
+  >("center");
 
   const [startupTabMode, setStartupTabMode] = useState<"new" | "last">("new");
 
@@ -127,8 +135,6 @@ export default function App() {
   const [jsEnabled, setJsEnabled] = useState(true);
   const [httpsOnly, setHttpsOnly] = useState(false);
   const [blockCookies, setBlockCookies] = useState(false);
-  const [readerMode, setReaderMode] = useState(false);
-  const [incognitoMode, setIncognitoMode] = useState(false);
 
   // UI State for Menus
   const [settingsSearch, setSettingsSearch] = useState("");
@@ -148,7 +154,7 @@ export default function App() {
       // 1. Load Settings First
       const savedSettings = await loadStorage("settings");
 
-      let currentStartupMode = "new"; 
+      let currentStartupMode = "new";
 
       if (savedSettings) {
         setThemeMode(savedSettings.themeMode ?? "dark");
@@ -167,11 +173,9 @@ export default function App() {
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
-        setReaderMode(savedSettings.readerMode ?? false);
-        setIncognitoMode(savedSettings.incognitoMode ?? false);
 
         if (savedSettings.startupTabMode) {
-            currentStartupMode = savedSettings.startupTabMode;
+          currentStartupMode = savedSettings.startupTabMode;
         }
         setStartupTabMode(currentStartupMode as any);
       }
@@ -186,35 +190,38 @@ export default function App() {
       // 3. Handle Startup Logic
       const initialUrl = await Linking.getInitialURL();
 
-      if (initialUrl && (initialUrl.startsWith("http://") || initialUrl.startsWith("https://"))) {
-         // --- CASE A: Launched via Deep Link ---
-         const newId = Date.now().toString();
-         const newTab = {
-           id: newId,
-           url: initialUrl,
-           title: "External Link",
-           showLogo: false,
-         };
-         
-         setTabs([newTab, ...existingTabs]);
-         setActiveTabId(newId);
-         setActiveUrl(initialUrl);
-         setInputUrl(getDisplayHost(initialUrl));
+      if (
+        initialUrl &&
+        (initialUrl.startsWith("http://") || initialUrl.startsWith("https://"))
+      ) {
+        // --- CASE A: Launched via Deep Link ---
+        const newId = Date.now().toString();
+        const newTab = {
+          id: newId,
+          url: initialUrl,
+          title: "External Link",
+          showLogo: false,
+        };
 
+        setTabs([newTab, ...existingTabs]);
+        setActiveTabId(newId);
+        setActiveUrl(initialUrl);
+        setInputUrl(getDisplayHost(initialUrl));
       } else if (currentStartupMode === "last" && existingTabs.length > 0) {
         // --- CASE B: Resume Last Session ---
         setTabs(existingTabs);
         const savedActiveTabId = await loadStorage("activeTabId");
-        
-        let targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId);
+
+        let targetTab = existingTabs.find(
+          (t: any) => t.id === savedActiveTabId
+        );
         if (!targetTab) {
-             targetTab = existingTabs.find((t: any) => t.url) || existingTabs[0];
+          targetTab = existingTabs.find((t: any) => t.url) || existingTabs[0];
         }
-        
+
         setActiveTabId(targetTab.id);
         setActiveUrl(targetTab.url);
         setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
-      
       } else {
         // --- CASE C: Start Fresh (New Tab) ---
         const existingBlankTab = existingTabs.find((t: any) => !t.url);
@@ -232,7 +239,7 @@ export default function App() {
             title: "New Tab",
             showLogo: true,
           };
-          
+
           setTabs([newTab, ...existingTabs]);
           setActiveTabId(newTabId);
           setActiveUrl(null);
@@ -254,12 +261,12 @@ export default function App() {
   useEffect(() => {
     const currentTab = tabs.find((t) => t.id === activeTabId);
     if (currentTab) {
-        ignoreNextScroll.current = true;
-        
+      ignoreNextScroll.current = true;
+
       // 1. Restore URL bar
       setActiveUrl(currentTab.url);
       setInputUrl(currentTab.url ? getDisplayHost(currentTab.url) : "");
-      
+
       // 2. Restore Navigation Buttons
       setCanGoBack(currentTab.canGoBack || false);
       setCanGoForward(currentTab.canGoForward || false);
@@ -268,20 +275,22 @@ export default function App() {
 
       // 3. Restore Loading State
       setIsLoading(currentTab.loading || false);
-      
+
       // 4. Reset or Restore Progress Bar
       progressAnim.setValue(currentTab.loading ? 0.2 : 0);
     }
-  }, [activeTabId]); 
+  }, [activeTabId]);
 
   useEffect(() => {
-    if (isAppReady && !incognitoMode) {
+    if (isAppReady) {
       // Strip transient state before saving
-      const cleanTabs = tabs.map(({ loading, canGoBack, canGoForward, ...rest }) => rest);
+      const cleanTabs = tabs.map(
+        ({ loading, canGoBack, canGoForward, ...rest }) => rest
+      );
       saveStorage("tabs", cleanTabs);
       saveStorage("activeTabId", activeTabId);
     }
-  }, [tabs, activeTabId, isAppReady, incognitoMode]);
+  }, [tabs, activeTabId, isAppReady]);
 
   useEffect(() => {
     if (isAppReady) {
@@ -302,8 +311,6 @@ export default function App() {
         jsEnabled,
         httpsOnly,
         blockCookies,
-        readerMode,
-        incognitoMode,
       };
       saveStorage("settings", settingsToSave);
     }
@@ -324,8 +331,6 @@ export default function App() {
     jsEnabled,
     httpsOnly,
     blockCookies,
-    readerMode,
-    incognitoMode,
     isAppReady,
   ]);
 
@@ -335,7 +340,7 @@ export default function App() {
       // 1. If an overlay is open (History, Tabs, Settings), close it first
       if (activeView !== "none") {
         closeOverlay();
-        return true; 
+        return true;
       }
 
       // 2. If the user is typing in the search bar, close the keyboard/unfocus
@@ -361,13 +366,12 @@ export default function App() {
     );
 
     return () => subscription.remove();
-  }, [activeView, isInputFocused]); 
+  }, [activeView, isInputFocused]);
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       let data = event.url;
       if (data && (data.startsWith("http://") || data.startsWith("https://"))) {
-        
         const newId = Date.now().toString();
         const newTab = {
           id: newId,
@@ -375,7 +379,7 @@ export default function App() {
           title: "External Link",
           showLogo: false,
         };
-        
+
         setTabs((prev) => [newTab, ...prev]);
         setActiveTabId(newId);
         setActiveUrl(data);
@@ -395,23 +399,13 @@ export default function App() {
   };
   const theme = getTheme();
 
-  const effectiveTheme = incognitoMode
-    ? { ...theme, glass: "#222222F2", glassBorder: "#444" }
-    : theme;
+  const effectiveTheme = theme;
 
-  if (themeMode === "adaptive" && !incognitoMode) {
+  if (themeMode === "adaptive") {
     let alpha = "F2";
     if (barTransparency === "opaque") alpha = "FF";
     if (barTransparency === "ghost") alpha = "99";
     effectiveTheme.glass = effectiveTheme.bg.substring(0, 7) + alpha;
-  } else if (!incognitoMode) {
-    let alpha = 0.95;
-    if (barTransparency === "opaque") alpha = 1;
-    if (barTransparency === "ghost") alpha = 0.6;
-    if (themeMode === "light")
-      effectiveTheme.glass = `rgba(255, 255, 255, ${alpha})`;
-    if (themeMode === "dark")
-      effectiveTheme.glass = `rgba(30, 30, 30, ${alpha})`;
   }
 
   const getTabHeight = () => {
@@ -469,7 +463,7 @@ export default function App() {
     if (activeView !== "none") {
       setIsSearchEngineOpen(false);
       setIsClearHistoryOpen(false);
-      
+
       Animated.spring(overlayHeightAnim, {
         toValue: SNAP_DEFAULT,
         tension: 60,
@@ -477,7 +471,7 @@ export default function App() {
         useNativeDriver: false,
       }).start();
       currentOverlayHeight.current = SNAP_DEFAULT;
-    } 
+    }
   }, [activeView]);
 
   useEffect(() => {
@@ -521,31 +515,35 @@ export default function App() {
 
   const handleAndroidPermissionRequest = (event: any) => {
     const { resources } = event.nativeEvent;
-    
+
     const resourceMap: { [key: string]: string } = {
-        'android.webkit.resource.AUDIO_CAPTURE': 'Microphone',
-        'android.webkit.resource.VIDEO_CAPTURE': 'Camera',
-        'android.webkit.resource.PROTECTED_MEDIA_ID': 'Protected Media',
+      "android.webkit.resource.AUDIO_CAPTURE": "Microphone",
+      "android.webkit.resource.VIDEO_CAPTURE": "Camera",
+      "android.webkit.resource.PROTECTED_MEDIA_ID": "Protected Media",
     };
 
-    const friendlyResources = resources.map((res: string) => resourceMap[res] || res).join(' and ');
+    const friendlyResources = resources
+      .map((res: string) => resourceMap[res] || res)
+      .join(" and ");
 
     Alert.alert(
-        'Permission Request',
-        `${activeUrl ? getDisplayHost(activeUrl) : 'This site'} is requesting access to your ${friendlyResources}.`,
-        [
-            {
-                text: 'Deny',
-                onPress: () => event.nativeEvent.deny(),
-                style: 'cancel',
-            },
-            {
-                text: 'Allow',
-                onPress: () => event.nativeEvent.grant(resources),
-            },
-        ]
+      "Permission Request",
+      `${
+        activeUrl ? getDisplayHost(activeUrl) : "This site"
+      } is requesting access to your ${friendlyResources}.`,
+      [
+        {
+          text: "Deny",
+          onPress: () => event.nativeEvent.deny(),
+          style: "cancel",
+        },
+        {
+          text: "Allow",
+          onPress: () => event.nativeEvent.grant(resources),
+        },
+      ]
     );
-};
+  };
 
   const handleGoPress = () => {
     Keyboard.dismiss();
@@ -554,33 +552,43 @@ export default function App() {
 
     let targetUrl = "";
 
-    // 1. Construct the URL
-    if (text.startsWith("http://") || text.startsWith("https://")) {
-      targetUrl = text;
+    // 1. Check if it explicitly starts with http/https
+    if (/^(http|https):\/\//i.test(text)) {
+      if (httpsOnly && text.startsWith("http://")) {
+        targetUrl = text.replace(/^http:\/\//i, "https://");
+      } else {
+        targetUrl = text;
+      }
     } else {
-      const isDomainLike = !text.includes(" ") && /\.[a-zA-Z]{2,}$/.test(text);
+      // 2. Robust Domain Detection (looks for "word.tld" or "word.tld/path")
+      // This allows "example.com" or "sub.site.org" but sends "hello world" to search
+      const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
 
-      if (isDomainLike) {
+      if (domainRegex.test(text) && !text.includes(" ")) {
         targetUrl = `https://${text}`;
       } else {
+        // 3. Fallback to Search Engine
         targetUrl = `${
           SEARCH_ENGINES[searchEngineIndex].url
         }${encodeURIComponent(text)}`;
       }
     }
-    
-    // 2. Update Address Bar State
-    setActiveUrl(targetUrl);
 
-    // 3. Update the Tabs Array (CRITICAL FIX)
-    setTabs((prev) => 
-        prev.map((t) => 
-            t.id === activeTabId 
-            ? { ...t, url: targetUrl, title: text } // Update URL immediately
-            : t
-        )
+    // 4. Navigate
+    setActiveUrl(targetUrl);
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === activeTabId
+          ? { ...t, url: targetUrl, title: text } // Set title to text initially
+          : t
+      )
     );
-    
+
+    // Force reload if URL is identical (e.g. user hit enter on same URL to refresh)
+    if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
+      webViewRefs.current[activeTabId]?.reload();
+    }
+
     snapToSearch();
   };
 
@@ -605,23 +613,41 @@ export default function App() {
     setIsClearHistoryOpen(false);
   };
 
-  // --- CONFIRMATION HANDLERS ---
-  const requestClearCache = () => {
-    setConfirmActionType('cache');
+  const requestClearHistory = (ms: number, label: string) => {
+    setConfirmHistoryPayload({ ms, label });
+    setConfirmActionType("history");
     setIsConfirmModalVisible(true);
   };
 
-  const requestClearHistory = (ms: number, label: string) => {
-    setConfirmHistoryPayload({ ms, label });
-    setConfirmActionType('history');
+  const requestResetSettings = () => {
+    setConfirmActionType("resetSettings");
     setIsConfirmModalVisible(true);
   };
 
   const executeConfirmAction = () => {
-    if (confirmActionType === 'cache') {
-      webViewRefs.current[activeTabId]?.clearCache(true);
-    } else if (confirmActionType === 'history' && confirmHistoryPayload) {
+    if (confirmActionType === "history" && confirmHistoryPayload) {
       deleteHistory(confirmHistoryPayload.ms);
+    } else if (confirmActionType === "resetSettings") {
+      // --- RESET TO DEFAULTS ---
+      setThemeMode("dark");
+      setAccentColor("#007AFF");
+      setSearchEngineIndex(0);
+      setCornerRadius(22);
+      setUiPadding("normal");
+      setFontScale(1);
+      setBarTransparency("frosted");
+      setHomeLogoText("mi.");
+      setPillHeight(70);
+      setProgressBarMode("ltr");
+      setRecallPosition("center");
+      setStartupTabMode("new");
+      setDesktopMode(false);
+      setJsEnabled(true);
+      setHttpsOnly(false);
+      setBlockCookies(false);
+
+      // Clear settings from storage
+      saveStorage("settings", null);
     }
     setIsConfirmModalVisible(false);
   };
@@ -649,44 +675,45 @@ export default function App() {
   };
 
   const deleteTab = (idToDelete: string) => {
-    // 1. Clean up the WebView ref to prevent leaks
+    // 1. Clean up the WebView ref
     if (webViewRefs.current[idToDelete]) {
-        webViewRefs.current[idToDelete] = null;
-        delete webViewRefs.current[idToDelete];
+      // Stop loading to prevent callbacks firing after state update
+      webViewRefs.current[idToDelete]?.stopLoading();
+      webViewRefs.current[idToDelete] = null;
+      delete webViewRefs.current[idToDelete];
     }
 
-    // 2. If we are deleting the ACTIVE tab, switch to a neighbor first
+    // 2. Logic to switch tabs if we close the active one
     if (activeTabId === idToDelete) {
       const indexToDelete = tabs.findIndex((t) => t.id === idToDelete);
       const remainingTabs = tabs.filter((t) => t.id !== idToDelete);
 
       if (remainingTabs.length > 0) {
-        const nextIndex = Math.min(indexToDelete, remainingTabs.length - 1);
+        // Try to go to the left (previous) tab, otherwise the one to the right
+        const nextIndex = Math.max(0, indexToDelete - 1);
         const nextTab = remainingTabs[nextIndex];
         setActiveTabId(nextTab.id);
         setActiveUrl(nextTab.url);
-        setInputUrl(getDisplayHost(nextTab.url));
+        setInputUrl(nextTab.url ? getDisplayHost(nextTab.url) : "");
       }
     }
 
-    // 3. Update the Tabs State
+    // 3. Update State
     setTabs((prevTabs) => {
       const newTabs = prevTabs.filter((t) => t.id !== idToDelete);
-      
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-      // Handle "Empty List" Case (Create a new blank tab if we deleted the last one)
+      // Handle "Empty List" - Create a new blank tab
       if (newTabs.length === 0) {
         const freshId = Date.now().toString();
+        // Use timeout to allow state to settle before setting active
         setTimeout(() => {
           setActiveTabId(freshId);
           setActiveUrl(null);
           setInputUrl("");
-          closeOverlay();
         }, 0);
         return [{ id: freshId, url: null, title: "New Tab", showLogo: true }];
       }
-
       return newTabs;
     });
   };
@@ -731,7 +758,7 @@ export default function App() {
     Keyboard.dismiss();
     Animated.timing(overlayHeightAnim, {
       toValue: SNAP_CLOSED,
-      duration: 250, 
+      duration: 250,
       useNativeDriver: false,
     }).start(() => {
       setActiveView("none");
@@ -742,7 +769,7 @@ export default function App() {
       setTabsSearch("");
       setHistorySearch("");
     });
-    
+
     currentOverlayHeight.current = SNAP_CLOSED;
   };
 
@@ -787,7 +814,7 @@ export default function App() {
         id: Date.now().toString(),
         url,
         title,
-        timestamp: Date.now(), 
+        timestamp: Date.now(),
       };
 
       return [newItem, ...cleanedHistory].slice(0, 100);
@@ -798,9 +825,9 @@ export default function App() {
     const y = event.nativeEvent.contentOffset.y;
 
     if (ignoreNextScroll.current) {
-        lastScrollY.current = y;
-        ignoreNextScroll.current = false;
-        return;
+      lastScrollY.current = y;
+      ignoreNextScroll.current = false;
+      return;
     }
 
     if (isInputFocused || activeView !== "none" || y < 0) return;
@@ -854,8 +881,8 @@ export default function App() {
         logoPan.flattenOffset();
         Animated.spring(logoPan, {
           toValue: { x: 0, y: 0 },
-          friction: 6,   
-          tension: 80,   
+          friction: 6,
+          tension: 80,
           useNativeDriver: false,
         }).start();
 
@@ -907,11 +934,11 @@ export default function App() {
             // FIX: Use activeTabIdRef.current to get the REAL active tab
             const currentTabId = activeTabIdRef.current;
             const currentWebView = webViewRefs.current[currentTabId];
-            
+
             if (dx > 0) {
-                currentWebView?.goBack();
+              currentWebView?.goBack();
             } else if (dx < 0) {
-                currentWebView?.goForward();
+              currentWebView?.goForward();
             }
 
             Animated.spring(horizontalDrag, {
@@ -1242,7 +1269,11 @@ export default function App() {
                   setTabs((prev) =>
                     prev.map((t) =>
                       t.id === activeTabId
-                        ? { ...t, url: targetUrl, title: item.title || getDisplayHost(targetUrl) }
+                        ? {
+                            ...t,
+                            url: targetUrl,
+                            title: item.title || getDisplayHost(targetUrl),
+                          }
                         : t
                     )
                   );
@@ -2131,65 +2162,75 @@ export default function App() {
             )}
 
             <SettingRow label="Startup Behavior">
-              <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
-                 <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
-                    <Ionicons name="power-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                    <Text style={[styles.settingText, { color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }]}>
-                      On Startup
-                    </Text>
-                 </View>
-                 <View style={{ flexDirection: "row", width: "100%" }}>
-                    {["new", "last"].map((mode) => (
-                      <TouchableOpacity
-                        key={mode}
-                        onPress={() => setStartupTabMode(mode as any)}
+              <View
+                style={{
+                  flexDirection: "column",
+                  width: "100%",
+                  paddingVertical: 5,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 15,
+                  }}
+                >
+                  <Ionicons
+                    name="power-outline"
+                    size={22}
+                    color={effectiveTheme.text}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={[
+                      styles.settingText,
+                      {
+                        color: effectiveTheme.text,
+                        fontFamily: "Nunito_600SemiBold",
+                        fontSize: 16 * fontScale,
+                      },
+                    ]}
+                  >
+                    On Startup
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", width: "100%" }}>
+                  {["new", "last"].map((mode) => (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => setStartupTabMode(mode as any)}
+                      style={[
+                        styles.modeBtn,
+                        startupTabMode === mode && {
+                          backgroundColor: accentColor,
+                        },
+                        {
+                          flex: 1,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginHorizontal: 2,
+                        },
+                      ]}
+                    >
+                      <Text
                         style={[
-                          styles.modeBtn,
-                          startupTabMode === mode && { backgroundColor: accentColor },
-                          { flex: 1, alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 }
+                          styles.modeBtnText,
+                          startupTabMode === mode
+                            ? { color: "#fff" }
+                            : { color: effectiveTheme.text },
+                          {
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 12 * fontScale,
+                          },
                         ]}
                       >
-                        <Text style={[
-                            styles.modeBtnText,
-                            startupTabMode === mode ? { color: "#fff" } : { color: effectiveTheme.text },
-                            { fontFamily: "Nunito_700Bold", fontSize: 12 * fontScale }
-                          ]}
-                        >
-                          {mode === "new" ? "New Tab" : "Continue Session"}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                 </View>
+                        {mode === "new" ? "New Tab" : "Continue Session"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </SettingRow>
-
-            <SettingRow label="Incognito Mode">
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="eye-off-outline"
-                  size={22}
-                  color={effectiveTheme.text}
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  style={[
-                    styles.settingText,
-                    {
-                      color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
-                      fontSize: 16 * fontScale,
-                    },
-                  ]}
-                >
-                  Incognito Mode
-                </Text>
-              </View>
-              <Switch
-                value={incognitoMode}
-                onValueChange={setIncognitoMode}
-                trackColor={{ false: "#767577", true: accentColor }}
-                thumbColor={"#f4f3f4"}
-              />
             </SettingRow>
 
             <SettingRow label="Desktop Mode">
@@ -2216,35 +2257,6 @@ export default function App() {
               <Switch
                 value={desktopMode}
                 onValueChange={setDesktopMode}
-                trackColor={{ false: "#767577", true: accentColor }}
-                thumbColor={"#f4f3f4"}
-              />
-            </SettingRow>
-
-            <SettingRow label="Reader View">
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="book-outline"
-                  size={22}
-                  color={effectiveTheme.text}
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  style={[
-                    styles.settingText,
-                    {
-                      color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
-                      fontSize: 16 * fontScale,
-                    },
-                  ]}
-                >
-                  Reader View
-                </Text>
-              </View>
-              <Switch
-                value={readerMode}
-                onValueChange={setReaderMode}
                 trackColor={{ false: "#767577", true: accentColor }}
                 thumbColor={"#f4f3f4"}
               />
@@ -2341,28 +2353,29 @@ export default function App() {
           </SettingsGroup>
 
           <SettingsGroup title="Data">
+            {/* NEW: Reset Settings Option */}
             <SettingRow
-                label="Clear Cache"
-                onPress={requestClearCache}
-                >
+              label="Reset all settings"
+              onPress={requestResetSettings}
+            >
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
-                  name="file-tray-full-outline"
+                  name="refresh-circle-outline"
                   size={22}
-                  color={effectiveTheme.text}
+                  color="#ff3b30" // Red to indicate destructive/reset action
                   style={{ marginRight: 10 }}
                 />
                 <Text
                   style={[
                     styles.settingText,
                     {
-                      color: effectiveTheme.text,
+                      color: "#ff3b30",
                       fontFamily: "Nunito_600SemiBold",
                       fontSize: 16 * fontScale,
                     },
                   ]}
                 >
-                  Clear Cache
+                  Reset all settings
                 </Text>
               </View>
               <Ionicons
@@ -2431,7 +2444,9 @@ export default function App() {
                           styles.settingRow,
                           { paddingLeft: 40, paddingVertical: 12 },
                         ]}
-                        onPress={() => requestClearHistory(range.ms, range.label)}
+                        onPress={() =>
+                          requestClearHistory(range.ms, range.label)
+                        }
                       >
                         <Text
                           style={{
@@ -2543,19 +2558,18 @@ export default function App() {
               >
                 Are you sure?
               </Text>
-              
+
               <Text
                 style={{
                   color: effectiveTheme.textSec,
                   fontFamily: "Nunito_600SemiBold",
                   marginBottom: 20,
-                  fontSize: 16
+                  fontSize: 16,
                 }}
               >
-                {confirmActionType === 'cache' 
-                    ? "This will clear all cache for the current website."
-                    : `This will permanently delete history for: ${confirmHistoryPayload?.label}.`
-                }
+                {confirmActionType === "history"
+                  ? `This will permanently delete history for: ${confirmHistoryPayload?.label}.`
+                  : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
               </Text>
 
               <View style={styles.modalButtons}>
@@ -2577,7 +2591,7 @@ export default function App() {
                   style={[
                     styles.modalBtn,
                     {
-                      backgroundColor: "#ff3b30", // Red for destructive action
+                      backgroundColor: "#ff3b30",
                       borderRadius: cornerRadius / 2,
                     },
                   ]}
@@ -2589,7 +2603,11 @@ export default function App() {
                       fontFamily: "Nunito_700Bold",
                     }}
                   >
-                    {confirmActionType === 'cache' ? "Clear Cache" : "Delete"}
+                    {confirmActionType === "resetSettings"
+                      ? "Reset"
+                      : confirmActionType === "cache"
+                      ? "Clear Cache"
+                      : "Delete"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -2705,14 +2723,38 @@ export default function App() {
 
   const handleShouldStartLoadWithRequest = (request: any) => {
     const { url } = request;
-    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("about:")) {
-      return true;
+
+    // 1. Handle HTTPS Only Mode
+    if (httpsOnly && url.startsWith("http://")) {
+      const secureUrl = url.replace(/^http:\/\//i, "https://");
+
+      // Stop the current load immediately
+      // We perform the state update to switch the URL, but we don't return true
+      setTabs((prev) =>
+        prev.map((t) => {
+          if (t.id === activeTabIdRef.current) {
+            return { ...t, url: secureUrl };
+          }
+          return t;
+        })
+      );
+
+      if (activeTabIdRef.current === activeTabId) {
+        setActiveUrl(secureUrl);
+        setInputUrl(getDisplayHost(secureUrl));
+      }
+      return false; // STOP the http request
     }
-    // FIX: Check if we can open the URL before trying, to avoid crashes on unknown schemes
-    Linking.canOpenURL(url).then(supported => {
-        if(supported) Linking.openURL(url);
-    }).catch(err => console.error("Link Error:", err));
-    return false;
+
+    // 2. Handle Deep Links (Mail, Tel, Apps)
+    if (!url.startsWith("http") && !url.startsWith("about:")) {
+      Linking.openURL(url).catch((err) =>
+        console.error("Could not open link:", err)
+      );
+      return false;
+    }
+
+    return true;
   };
 
   const getWebViewProps = (tabId: string) => ({
@@ -2720,10 +2762,33 @@ export default function App() {
     source: { uri: tabs.find((t) => t.id === tabId)?.url || "" },
     originWhitelist: ["*"],
     onShouldStartLoadWithRequest: handleShouldStartLoadWithRequest,
-    
+
     // NAVIGATION CHANGE
+    // Inside getWebViewProps...
+
     onNavigationStateChange: (navState: any) => {
       const { url, title, canGoBack, canGoForward, loading } = navState;
+
+      // 1. PERFORMANCE FIX: Only update state if something meaningful changed
+      const currentTab = tabs.find((t) => t.id === tabId);
+      if (currentTab) {
+        const hasChanged =
+          currentTab.url !== url ||
+          currentTab.title !== title ||
+          currentTab.canGoBack !== canGoBack ||
+          currentTab.canGoForward !== canGoForward ||
+          currentTab.loading !== loading;
+
+        if (!hasChanged) return;
+      }
+
+      // 2. Smart Title Fallback (Don't show http://... as the title if possible)
+      const newTitle =
+        title && title.length > 0 && !title.includes("://")
+          ? title
+          : url
+          ? getDisplayHost(url)
+          : "New Tab";
 
       setTabs((prev) =>
         prev.map((t) => {
@@ -2731,14 +2796,15 @@ export default function App() {
           return {
             ...t,
             url,
-            title: (title && title.length > 0) ? title : getDisplayHost(url),
+            title: newTitle,
             canGoBack,
             canGoForward,
-            loading
+            loading,
           };
         })
       );
 
+      // 3. Update Active State
       if (tabId === activeTabId) {
         setCanGoBack(canGoBack);
         setCanGoForward(canGoForward);
@@ -2746,13 +2812,14 @@ export default function App() {
         canGoForwardRef.current = canGoForward;
         setIsLoading(loading);
 
+        // Only update the address bar if the user isn't currently typing in it
         if (!isInputFocused && url) {
           setActiveUrl(url);
           setInputUrl(getDisplayHost(url));
         }
-        
+
         if (url && !loading && url !== "about:blank") {
-             addToHistory(url);
+          addToHistory(url);
         }
       }
     },
@@ -2772,10 +2839,14 @@ export default function App() {
     onLoadStart: () => {
       if (tabId === activeTabId) {
         ignoreNextScroll.current = true;
-        showBar(); 
+        showBar();
         setIsLoading(true);
         progressAnim.setValue(0);
-        Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
+        Animated.timing(progressAnim, {
+          toValue: 0.1,
+          duration: 300,
+          useNativeDriver: false,
+        }).start();
       }
     },
 
@@ -2783,30 +2854,43 @@ export default function App() {
     onLoadEnd: () => {
       if (tabId === activeTabId) {
         setIsLoading(false);
-        Animated.timing(progressAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start(() => {
+        Animated.timing(progressAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }).start(() => {
           setTimeout(() => progressAnim.setValue(0), 200);
         });
       }
     },
-    
+
     // ERROR HANDLING
     onError: (e: any) => {
-       if (tabId === activeTabId) setIsLoading(false);
-       
-       const { nativeEvent } = e;
-       if (nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" || nativeEvent.code === -2) {
-            const failedUrl = nativeEvent.url;
-            const isAlreadySearch = SEARCH_ENGINES.some(se => failedUrl?.startsWith(se.url));
-            if (!isAlreadySearch && failedUrl && tabId === activeTabId) {
-                let query = failedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
-                const searchUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(query)}`;
-                setTabs(prev => prev.map(t => t.id === tabId ? {...t, url: searchUrl} : t));
-                if(tabId === activeTabId) {
-                    setActiveUrl(searchUrl);
-                    setInputUrl(query);
-                }
-            }
-       }
+      if (tabId === activeTabId) setIsLoading(false);
+
+      const { nativeEvent } = e;
+      if (
+        nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" ||
+        nativeEvent.code === -2
+      ) {
+        const failedUrl = nativeEvent.url;
+        const isAlreadySearch = SEARCH_ENGINES.some((se) =>
+          failedUrl?.startsWith(se.url)
+        );
+        if (!isAlreadySearch && failedUrl && tabId === activeTabId) {
+          let query = failedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+          const searchUrl = `${
+            SEARCH_ENGINES[searchEngineIndex].url
+          }${encodeURIComponent(query)}`;
+          setTabs((prev) =>
+            prev.map((t) => (t.id === tabId ? { ...t, url: searchUrl } : t))
+          );
+          if (tabId === activeTabId) {
+            setActiveUrl(searchUrl);
+            setInputUrl(query);
+          }
+        }
+      }
     },
 
     // COMMON PROPS
@@ -2814,7 +2898,9 @@ export default function App() {
     onScroll: handleScroll,
     onScrollEndDrag: () => snapBar(0),
     onMomentumScrollEnd: () => snapBar(0),
-    onTouchStart: () => { if (isInputFocused) Keyboard.dismiss(); },
+    onTouchStart: () => {
+      if (isInputFocused) Keyboard.dismiss();
+    },
     overScrollMode: "never",
     scrollEventThrottle: 16,
     startInLoadingState: true,
@@ -2824,17 +2910,20 @@ export default function App() {
       </View>
     ),
     javaScriptEnabled: jsEnabled,
-    userAgent: desktopMode ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" : undefined,
+    userAgent: desktopMode
+      ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      : undefined,
     sharedCookiesEnabled: !blockCookies,
     domStorageEnabled: true,
     androidLayerType: "hardware" as const,
     pullToRefreshEnabled: false,
-    incognito: incognitoMode,
     allowsFullscreenVideo: true,
     mediaPlaybackRequiresUserAction: false,
     javaScriptCanOpenWindowsAutomatically: true,
     onFullScreen: handleFullScreen,
-    contentInset: isFullscreen ? { top: 0, bottom: 0, left: 0, right: 0 } : { bottom: pillHeight + 20 },
+    contentInset: isFullscreen
+      ? { top: 0, bottom: 0, left: 0, right: 0 }
+      : { bottom: pillHeight + 20 },
     geolocationEnabled: true,
     onPermissionRequest: handleAndroidPermissionRequest,
     allowsBackForwardNavigationGestures: true, // FIX: iOS swipe to go back
@@ -2856,38 +2945,53 @@ export default function App() {
         style={[
           styles.webViewContainer,
           {
-            paddingBottom: isFullscreen 
-              ? 0 
+            paddingBottom: isFullscreen
+              ? 0
               : Animated.add(keyboardHeight, insets.bottom),
             backgroundColor: effectiveTheme.bg,
           },
         ]}
       >
         {/* 1. RENDER ALL TABS WITH URLs */}
+        {/* 1. RENDER TABS */}
         {tabs.map((tab) => {
+          // If the tab has no URL (New Tab Page), don't render a WebView
           if (!tab.url) return null;
 
           const isActive = tab.id === activeTabId;
-          
+
+          // MEMORY OPTIMIZATION:
+          // On Android, if we render too many WebViews, the app crashes.
+          // We can detach the WebView from the view hierarchy using 'display: none' logic
+          // or simple conditional rendering. However, conditional rendering resets state.
+          // For a production browser, you usually keep ~3 tabs in memory (Active, Left, Right).
+          // For this code, we will stick to the hidden view method but ensure it's optimized.
+
           return (
-            <View 
-                key={tab.id} 
-                pointerEvents={isActive ? 'auto' : 'none'} // FIX: Prevent invisible tabs from stealing touches
-                style={[
-                    StyleSheet.absoluteFill, 
-                    { 
-                        // Hide inactive tabs using opacity/z-index to keep them alive
-                        opacity: isActive ? 1 : 0,
-                        zIndex: isActive ? 1 : 0,
-                        // Important: move them off-screen if hidden to prevent touch events
-                        transform: [{ translateX: isActive ? 0 : 9999 }] 
-                    }
-                ]}
+            <View
+              key={tab.id}
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  // Using opacity 0 and zIndex -1 hides it visually
+                  opacity: isActive ? 1 : 0,
+                  zIndex: isActive ? 1 : -1,
+                  // Move off-screen to ensure no touch events are captured
+                  transform: [{ translateX: isActive ? 0 : 9999 }],
+                },
+              ]}
+              // IMPORTANT: "none" prevents the hidden WebViews from capturing touches
+              pointerEvents={isActive ? "auto" : "none"}
             >
-                <WebView
-                    {...getWebViewProps(tab.id)}
-                    style={isFullscreen ? { flex: 1, backgroundColor: "#000" } : { flex: 1 }}
-                />
+              <WebView
+                {...getWebViewProps(tab.id)}
+                // Pausing javascript on background tabs saves massive CPU/Battery
+                // Only strictly pause if not active and desktop mode isn't forcing keep-alive
+                pauseJavaScriptBeforeUnmount={true}
+                containerStyle={
+                  isFullscreen ? { backgroundColor: "#000" } : undefined
+                }
+              />
             </View>
           );
         })}
@@ -2946,10 +3050,10 @@ export default function App() {
           <Animated.View
             style={[
               styles.recallContainer,
-              { 
-                 opacity: recallOpacity,
-                 bottom: Math.max(insets.bottom + 10, 10)
-              }
+              {
+                opacity: recallOpacity,
+                bottom: Math.max(insets.bottom + 10, 10),
+              },
             ]}
             pointerEvents="box-none"
           >
@@ -2963,7 +3067,7 @@ export default function App() {
                   backgroundColor: effectiveTheme.glass,
                   borderWidth: 0,
                   borderRadius: 25,
-                  overflow: "hidden", 
+                  overflow: "hidden",
                 },
               ]}
             >
@@ -2988,7 +3092,7 @@ export default function App() {
                   styles.bottomAreaContainer,
                   {
                     paddingBottom: Math.max(insets.bottom + 10, 10),
-                    
+
                     transform: [
                       {
                         translateY: Animated.subtract(
@@ -3148,7 +3252,6 @@ export default function App() {
                     ]}
                     pointerEvents={isSearchActive ? "auto" : "none"}
                   >
-
                     <View style={styles.barTabContent}>
                       <Animated.View
                         pointerEvents="none"
@@ -3187,7 +3290,7 @@ export default function App() {
                             opacity: contentOpacity,
                             borderRadius: cornerRadius,
                             height: pillHeight * 0.7,
-                            overflow: "hidden", 
+                            overflow: "hidden",
                           },
                         ]}
                       >
@@ -3226,7 +3329,7 @@ export default function App() {
                             {
                               color: effectiveTheme.text,
                               fontFamily: "Nunito_600SemiBold",
-                              zIndex: 1, 
+                              zIndex: 1,
                             },
                           ]}
                           value={inputUrl}
@@ -3258,15 +3361,17 @@ export default function App() {
                             </TouchableOpacity>
                           ) : (
                             <TouchableOpacity
-                            disabled={!activeUrl}
-                            onPress={() => webViewRefs.current[activeTabId]?.reload()} 
-                            style={!activeUrl && styles.disabledBtn}
+                              disabled={!activeUrl}
+                              onPress={() =>
+                                webViewRefs.current[activeTabId]?.reload()
+                              }
+                              style={!activeUrl && styles.disabledBtn}
                             >
-                            <Ionicons
+                              <Ionicons
                                 name={isLoading ? "close" : "refresh"}
                                 size={22}
                                 color={effectiveTheme.text}
-                            />
+                              />
                             </TouchableOpacity>
                           )}
                         </View>
@@ -3319,7 +3424,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   bottomAreaContainer: {
-    paddingHorizontal: 10, 
+    paddingHorizontal: 10,
     width: "100%",
     alignItems: "center",
   },
