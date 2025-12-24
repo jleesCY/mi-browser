@@ -1,13 +1,16 @@
 import { Stack } from 'expo-router';
+import { useColorScheme } from 'react-native';
 
 export default function Layout() {
+  const colorScheme = useColorScheme();
+  
   return (
     <Stack
       screenOptions={{
-        // This removes the header globally for all screens
         headerShown: false, 
-        // Ensure the background is white
-        contentStyle: { backgroundColor: '#fff' },
+        // Use the system theme for the initial background to prevent "flashing"
+        contentStyle: { backgroundColor: colorScheme === 'dark' ? '#000' : '#fff' },
+        animation: 'fade', // Smoother transition
       }}
     />
   );

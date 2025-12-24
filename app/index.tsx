@@ -148,7 +148,6 @@ export default function App() {
       // 1. Load Settings First
       const savedSettings = await loadStorage("settings");
 
-      // Initialize a LOCAL variable. We use this for logic because state updates are too slow.
       let currentStartupMode = "new"; 
 
       if (savedSettings) {
@@ -171,14 +170,10 @@ export default function App() {
         setReaderMode(savedSettings.readerMode ?? false);
         setIncognitoMode(savedSettings.incognitoMode ?? false);
 
-        // --- FIX STARTS HERE ---
-        // 1. Update the LOCAL variable directly from storage
         if (savedSettings.startupTabMode) {
             currentStartupMode = savedSettings.startupTabMode;
         }
-        // 2. Sync the STATE for the UI
         setStartupTabMode(currentStartupMode as any);
-        // --- FIX ENDS HERE ---
       }
 
       // 2. Load Data
@@ -208,11 +203,9 @@ export default function App() {
 
       } else if (currentStartupMode === "last" && existingTabs.length > 0) {
         // --- CASE B: Resume Last Session ---
-        // (Uses the local variable 'currentStartupMode' which is now guaranteed to be correct)
         setTabs(existingTabs);
         const savedActiveTabId = await loadStorage("activeTabId");
         
-        // Failsafe: Try to match ID, otherwise find first tab with a URL
         let targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId);
         if (!targetTab) {
              targetTab = existingTabs.find((t: any) => t.url) || existingTabs[0];
@@ -277,23 +270,15 @@ export default function App() {
       setIsLoading(currentTab.loading || false);
       
       // 4. Reset or Restore Progress Bar
-      // (For simplicity, we just reset it visually when switching)
       progressAnim.setValue(currentTab.loading ? 0.2 : 0);
     }
-  }, [activeTabId]); // Only run when we switch tabs
+  }, [activeTabId]); 
 
   useEffect(() => {
     if (isAppReady && !incognitoMode) {
       // Strip transient state before saving
       const cleanTabs = tabs.map(({ loading, canGoBack, canGoForward, ...rest }) => rest);
       saveStorage("tabs", cleanTabs);
-      saveStorage("activeTabId", activeTabId);
-    }
-  }, [tabs, activeTabId, isAppReady, incognitoMode]);
-
-  useEffect(() => {
-    if (isAppReady && !incognitoMode) {
-      saveStorage("tabs", tabs);
       saveStorage("activeTabId", activeTabId);
     }
   }, [tabs, activeTabId, isAppReady, incognitoMode]);
@@ -350,7 +335,7 @@ export default function App() {
       // 1. If an overlay is open (History, Tabs, Settings), close it first
       if (activeView !== "none") {
         closeOverlay();
-        return true; // "true" tells Android we handled the event, so don't exit
+        return true; 
       }
 
       // 2. If the user is typing in the search bar, close the keyboard/unfocus
@@ -361,27 +346,22 @@ export default function App() {
       }
 
       // 3. If the WebView has history to go back to, navigate back
-      // We use the Ref we fixed earlier to get the instant "true/false" status
-      // 3. If the WebView has history to go back to, navigate back
       if (canGoBackRef.current && webViewRefs.current[activeTabId]) {
         webViewRefs.current[activeTabId]?.goBack();
         showBar();
         return true;
       }
 
-      // 4. If none of the above, let the default behavior happen (Exit/Minimize App)
       return false;
     };
 
-    // Add the listener
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       onBackPress
     );
 
-    // Remove listener on cleanup
     return () => subscription.remove();
-  }, [activeView, isInputFocused]); // Re-create listener if UI state changes
+  }, [activeView, isInputFocused]); 
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
@@ -415,7 +395,6 @@ export default function App() {
   };
   const theme = getTheme();
 
-  // Incognito overrides
   const effectiveTheme = incognitoMode
     ? { ...theme, glass: "#222222F2", glassBorder: "#444" }
     : theme;
@@ -594,7 +573,6 @@ export default function App() {
     setActiveUrl(targetUrl);
 
     // 3. Update the Tabs Array (CRITICAL FIX)
-    // This ensures the renderer sees a URL for this tab and actually mounts the WebView
     setTabs((prev) => 
         prev.map((t) => 
             t.id === activeTabId 
@@ -642,8 +620,6 @@ export default function App() {
   const executeConfirmAction = () => {
     if (confirmActionType === 'cache') {
       webViewRefs.current[activeTabId]?.clearCache(true);
-      // Small delay to allow modal to close smoothly before alert
-      // setTimeout(() => Alert.alert("Success", "Cache cleared."), 300);
     } else if (confirmActionType === 'history' && confirmHistoryPayload) {
       deleteHistory(confirmHistoryPayload.ms);
     }
@@ -651,14 +627,9 @@ export default function App() {
   };
 
   const deleteHistoryItem = (idToDelete: string) => {
-    // USE FUNCTIONAL UPDATE (prevHistory)
-    // This fixes the bug where swiping fast fails to delete items.
     setHistory((prevHistory) => {
       const newHistory = prevHistory.filter((item) => item.id !== idToDelete);
-      
-      // Optional: Animate the list layout
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      
       return newHistory;
     });
   };
@@ -704,19 +675,15 @@ export default function App() {
       
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-      // --- FIX STARTS HERE ---
       // Handle "Empty List" Case (Create a new blank tab if we deleted the last one)
       if (newTabs.length === 0) {
         const freshId = Date.now().toString();
-        
-        // We use setTimeout to break out of the render cycle for these side effects
         setTimeout(() => {
           setActiveTabId(freshId);
           setActiveUrl(null);
           setInputUrl("");
           closeOverlay();
         }, 0);
-        
         return [{ id: freshId, url: null, title: "New Tab", showLogo: true }];
       }
 
@@ -761,17 +728,16 @@ export default function App() {
   };
 
   const closeOverlay = () => {
-    // 1. Animate the menu sliding down
+    Keyboard.dismiss();
     Animated.timing(overlayHeightAnim, {
       toValue: SNAP_CLOSED,
-      duration: 250, // Slightly longer for smoothness
+      duration: 250, 
       useNativeDriver: false,
     }).start(() => {
-      // 2. AFTER animation finishes, unmount the view
       setActiveView("none");
       snapToSearch();
 
-      // 3. Reset search states
+      // Reset search states
       setSettingsSearch("");
       setTabsSearch("");
       setHistorySearch("");
@@ -807,27 +773,23 @@ export default function App() {
   };
 
   const addToHistory = (url: string) => {
-    // 1. Basic cleaning
     if (!url || url === "about:blank") return;
 
     const title = getDisplayHost(url);
 
     setHistory((prevHistory) => {
-      // 2. Remove duplicates
-      // We remove the old entry for this URL so we can bump it to the top
+      // Remove duplicates
       const cleanedHistory = prevHistory.filter(
         (item) => item.url.replace(/\/$/, "") !== url.replace(/\/$/, "")
       );
 
-      // 3. Create the new item
       const newItem = {
         id: Date.now().toString(),
         url,
         title,
-        timestamp: Date.now(), // Now stores the full timestamp
+        timestamp: Date.now(), 
       };
 
-      // 4. Return updated list (Limit to 100)
       return [newItem, ...cleanedHistory].slice(0, 100);
     });
   };
@@ -873,13 +835,11 @@ export default function App() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        // 1. Scale up slightly when touched
         Animated.spring(logoScale, {
           toValue: 1.2,
           useNativeDriver: false,
         }).start();
 
-        // 2. Set offset to prevent "jumping" when starting the drag
         logoPan.setOffset({
           x: (logoPan.x as any)._value,
           y: (logoPan.y as any)._value,
@@ -891,18 +851,14 @@ export default function App() {
         { useNativeDriver: false }
       ),
       onPanResponderRelease: () => {
-        // 3. Flatten offset to calculate the return path correctly
         logoPan.flattenOffset();
-
-        // 4. Rubber band (Spring) back to Center (0,0)
         Animated.spring(logoPan, {
           toValue: { x: 0, y: 0 },
-          friction: 6,   // Controls the "bounciness"
-          tension: 80,   // Controls the speed
+          friction: 6,   
+          tension: 80,   
           useNativeDriver: false,
         }).start();
 
-        // 5. Spring scale back to normal (1)
         Animated.spring(logoScale, {
           toValue: 1,
           friction: 6,
@@ -948,12 +904,10 @@ export default function App() {
 
         if (isSearchActiveRef.current) {
           if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-            // FIX 1: Use activeTabIdRef.current to get the REAL active tab
+            // FIX: Use activeTabIdRef.current to get the REAL active tab
             const currentTabId = activeTabIdRef.current;
             const currentWebView = webViewRefs.current[currentTabId];
             
-            // FIX 2: Removed conditional checks (&& canGoBackRef.current). 
-            // We let the WebView attempt navigation blindly. If history is empty, it just does nothing.
             if (dx > 0) {
                 currentWebView?.goBack();
             } else if (dx < 0) {
@@ -1257,6 +1211,7 @@ export default function App() {
             data={filteredHistory}
             keyExtractor={(item, index) => item.id + index}
             contentContainerStyle={{ padding: 20, paddingTop: 0 }}
+            keyboardShouldPersistTaps="handled" // FIX: Allow tap through keyboard
             ListHeaderComponent={
               <Text
                 style={[
@@ -1281,12 +1236,9 @@ export default function App() {
                 fontScale={fontScale}
                 onPress={() => {
                   const targetUrl = item.url;
-
-                  // 1. Update Address Bar State immediately
                   setActiveUrl(targetUrl);
                   setInputUrl(getDisplayHost(targetUrl));
 
-                  // 2. Update the Tabs State (This is what triggers the WebView to load the page)
                   setTabs((prev) =>
                     prev.map((t) =>
                       t.id === activeTabId
@@ -1294,8 +1246,6 @@ export default function App() {
                         : t
                     )
                   );
-
-                  // 3. Close the menu
                   closeOverlay();
                 }}
                 onDelete={() => deleteHistoryItem(item.id)}
@@ -1390,6 +1340,7 @@ export default function App() {
           <FlatList
             data={filteredTabs}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled" // FIX: Allow tap through keyboard
             contentContainerStyle={{
               padding: 20,
               paddingBottom: 100,
@@ -1432,6 +1383,7 @@ export default function App() {
       content = (
         <ScrollView
           style={{ flex: 1 }}
+          keyboardShouldPersistTaps="handled" // FIX: Allow tap through keyboard
           contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
         >
           <View
@@ -2391,7 +2343,6 @@ export default function App() {
           <SettingsGroup title="Data">
             <SettingRow
                 label="Clear Cache"
-                // UPDATED: Now calls the request function
                 onPress={requestClearCache}
                 >
               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -2480,7 +2431,6 @@ export default function App() {
                           styles.settingRow,
                           { paddingLeft: 40, paddingVertical: 12 },
                         ]}
-                        // UPDATED: Passes label and ms to request function
                         onPress={() => requestClearHistory(range.ms, range.label)}
                       >
                         <Text
@@ -2753,17 +2703,18 @@ export default function App() {
     );
   };
 
-  // 1. Re-define the handler to be accessible
   const handleShouldStartLoadWithRequest = (request: any) => {
     const { url } = request;
     if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("about:")) {
       return true;
     }
-    Linking.openURL(url).catch(err => console.error("Link Error:", err));
+    // FIX: Check if we can open the URL before trying, to avoid crashes on unknown schemes
+    Linking.canOpenURL(url).then(supported => {
+        if(supported) Linking.openURL(url);
+    }).catch(err => console.error("Link Error:", err));
     return false;
   };
 
-  // 2. Create a Factory for Tab Props
   const getWebViewProps = (tabId: string) => ({
     ref: (ref: WebView | null) => (webViewRefs.current[tabId] = ref),
     source: { uri: tabs.find((t) => t.id === tabId)?.url || "" },
@@ -2774,7 +2725,6 @@ export default function App() {
     onNavigationStateChange: (navState: any) => {
       const { url, title, canGoBack, canGoForward, loading } = navState;
 
-      // A. Always update the specific tab's state in the list
       setTabs((prev) =>
         prev.map((t) => {
           if (t.id !== tabId) return t;
@@ -2789,7 +2739,6 @@ export default function App() {
         })
       );
 
-      // B. If this is the ACTIVE tab, update the Global UI refs immediately
       if (tabId === activeTabId) {
         setCanGoBack(canGoBack);
         setCanGoForward(canGoForward);
@@ -2802,7 +2751,6 @@ export default function App() {
           setInputUrl(getDisplayHost(url));
         }
         
-        // Add to history (Active tab only)
         if (url && !loading && url !== "about:blank") {
              addToHistory(url);
         }
@@ -2823,7 +2771,7 @@ export default function App() {
     // LOADING START
     onLoadStart: () => {
       if (tabId === activeTabId) {
-        ignoreNextScroll.current = true; // <--- ADD THIS
+        ignoreNextScroll.current = true;
         showBar(); 
         setIsLoading(true);
         progressAnim.setValue(0);
@@ -2845,7 +2793,6 @@ export default function App() {
     onError: (e: any) => {
        if (tabId === activeTabId) setIsLoading(false);
        
-       // DNS Failure / Search Fallback logic
        const { nativeEvent } = e;
        if (nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" || nativeEvent.code === -2) {
             const failedUrl = nativeEvent.url;
@@ -2853,7 +2800,6 @@ export default function App() {
             if (!isAlreadySearch && failedUrl && tabId === activeTabId) {
                 let query = failedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
                 const searchUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(query)}`;
-                // Redirect via state update
                 setTabs(prev => prev.map(t => t.id === tabId ? {...t, url: searchUrl} : t));
                 if(tabId === activeTabId) {
                     setActiveUrl(searchUrl);
@@ -2891,13 +2837,13 @@ export default function App() {
     contentInset: isFullscreen ? { top: 0, bottom: 0, left: 0, right: 0 } : { bottom: pillHeight + 20 },
     geolocationEnabled: true,
     onPermissionRequest: handleAndroidPermissionRequest,
+    allowsBackForwardNavigationGestures: true, // FIX: iOS swipe to go back
   });
 
   if (!fontsLoaded || !isAppReady) return null;
 
   return (
     <View style={[styles.container, { backgroundColor: effectiveTheme.bg }]}>
-      {/* Status Bar is handled by the handleFullScreen function now, but we keep this for default state */}
       {!isFullscreen && (
         <StatusBar
           translucent
@@ -2919,7 +2865,6 @@ export default function App() {
       >
         {/* 1. RENDER ALL TABS WITH URLs */}
         {tabs.map((tab) => {
-          // If tab has no URL (New Tab), don't render a WebView for it
           if (!tab.url) return null;
 
           const isActive = tab.id === activeTabId;
@@ -2927,6 +2872,7 @@ export default function App() {
           return (
             <View 
                 key={tab.id} 
+                pointerEvents={isActive ? 'auto' : 'none'} // FIX: Prevent invisible tabs from stealing touches
                 style={[
                     StyleSheet.absoluteFill, 
                     { 
@@ -3014,24 +2960,19 @@ export default function App() {
               style={[
                 styles.recallButton,
                 {
-                  // 1. Base Layer: The Glass (provides the opacity/blur solidness)
                   backgroundColor: effectiveTheme.glass,
-                  // Remove the border to match the input style
                   borderWidth: 0,
                   borderRadius: 25,
-                  overflow: "hidden", // Ensures the inner view respects the circle
+                  overflow: "hidden", 
                 },
               ]}
             >
-              {/* 2. Tint Layer: The Input Background (sits on top of glass) */}
               <View
                 style={{
                   ...StyleSheet.absoluteFillObject,
                   backgroundColor: effectiveTheme.inputBg,
                 }}
               />
-              
-              {/* Icon sits on top */}
               <Ionicons
                 name="chevron-up"
                 size={24}
@@ -3207,7 +3148,6 @@ export default function App() {
                     ]}
                     pointerEvents={isSearchActive ? "auto" : "none"}
                   >
-                    {/* NO PROGRESS VIEWS HERE - They have been removed */}
 
                     <View style={styles.barTabContent}>
                       <Animated.View
@@ -3238,7 +3178,7 @@ export default function App() {
                         />
                       </Animated.View>
 
-                      {/* Input Wrapper: The progress bar is NOW inside here */}
+                      {/* Input Wrapper */}
                       <Animated.View
                         style={[
                           styles.inputWrapper,
@@ -3247,7 +3187,7 @@ export default function App() {
                             opacity: contentOpacity,
                             borderRadius: cornerRadius,
                             height: pillHeight * 0.7,
-                            overflow: "hidden", // This cuts off the bar at the input corners
+                            overflow: "hidden", 
                           },
                         ]}
                       >
@@ -3286,7 +3226,7 @@ export default function App() {
                             {
                               color: effectiveTheme.text,
                               fontFamily: "Nunito_600SemiBold",
-                              zIndex: 1, // On top of the progress bar
+                              zIndex: 1, 
                             },
                           ]}
                           value={inputUrl}
@@ -3319,7 +3259,6 @@ export default function App() {
                           ) : (
                             <TouchableOpacity
                             disabled={!activeUrl}
-                            // FIX: Use the ref map with the activeTabId
                             onPress={() => webViewRefs.current[activeTabId]?.reload()} 
                             style={!activeUrl && styles.disabledBtn}
                             >
