@@ -1,8 +1,7 @@
 import { Dimensions, Platform, UIManager } from 'react-native';
 
-export const APP_VERSION = "0.3.4";
+export const APP_VERSION = "0.3.3";
 
-// Enable LayoutAnimation
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -16,6 +15,8 @@ export const SCREEN_HEIGHT = Dimensions.get('window').height;
 export const SNAP_CLOSED = 0;
 export const SNAP_DEFAULT = SCREEN_HEIGHT * 0.6;
 export const SNAP_FULL = SCREEN_HEIGHT * 0.95;
+
+export const HOME_LOGO_TEXT = "mi.";
 
 export const COLORS = {
     light: {
@@ -44,21 +45,48 @@ export const COLORS = {
     }
 };
 
+// GRID: 3 Rows x 6 Columns
+// Order: Red, Orange, Yellow, Green, Blue, Purple
 export const ACCENTS = [
-    '#007AFF', '#98989D', '#FF3B30', '#34C759', '#5856D6', '#FF9500',
+    // Row 1: Standard / Vibrant (Unchanged)
+    '#FF3B30', // Red
+    '#FF9500', // Orange
+    '#FFCC00', // Yellow
+    '#34C759', // Green
+    '#007AFF', // Blue
+    '#AF52DE', // Purple
+
+    // Row 2: Lighter / Pastel (Brightened)
+    '#FF8E86', // Light Red
+    '#FFC565', // Light Orange
+    '#FFF060', // Light Yellow
+    '#69E6B5', // Mint/Teal
+    '#75D6FF', // Sky Blue
+    '#E4A9FF', // Lavender
+
+    // Row 3: Darker / Deep (Darkened)
+    '#8A0F0F', // Deep Red
+    '#8F4D00', // Deep Orange
+    '#946C00', // Deep Gold
+    '#156625', // Deep Green
+    '#002E99', // Deep Blue
+    '#40136E', // Deep Purple
 ];
 
+// EXPANDED SEARCH ENGINES
 export const SEARCH_ENGINES = [
     { name: 'Google', url: 'https://www.google.com/search?q=', icon: 'logo-google' },
+    { name: 'Bing', url: 'https://www.bing.com/search?q=', icon: 'search' },
     { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=', icon: 'shield-checkmark-outline' },
-    { name: 'Bing', url: 'https://www.bing.com/search?q=', icon: 'globe-outline' },
+    { name: 'Brave', url: 'https://search.brave.com/search?q=', icon: 'shield-outline' },
     { name: 'Ecosia', url: 'https://www.ecosia.org/search?q=', icon: 'leaf-outline' },
+    { name: 'Yahoo', url: 'https://search.yahoo.com/search?p=', icon: 'logo-yahoo' },
 ];
 
 export const HISTORY_RANGES = [
-    { label: 'Last Hour', ms: 3600 * 1000 },
-    { label: 'Last 24 Hours', ms: 24 * 3600 * 1000 },
-    { label: 'Last 7 Days', ms: 7 * 24 * 3600 * 1000 },
-    { label: 'Last 4 Weeks', ms: 28 * 24 * 3600 * 1000 },
+    { label: 'Last Hour', ms: 3600000 },
+    { label: 'Last 24 Hours', ms: 86400000 },
+    { label: 'Last 7 Days', ms: 604800000 },
+    { label: 'Last 4 Weeks', ms: 2419200000 },
     { label: 'All Time', ms: -1 },
 ];

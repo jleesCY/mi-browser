@@ -40,6 +40,7 @@ import {
   COLORS,
   HIDDEN_TRANSLATE_Y,
   HISTORY_RANGES,
+  HOME_LOGO_TEXT,
   SEARCH_ENGINES,
   SNAP_CLOSED,
   SNAP_DEFAULT,
@@ -119,7 +120,7 @@ export default function App() {
   const [barTransparency, setBarTransparency] = useState<
     "opaque" | "frosted" | "ghost"
   >("frosted");
-  const [homeLogoText, setHomeLogoText] = useState("mi.");
+  const [showStatusBar, setShowStatusBar] = useState(true);
   const [pillHeight, setPillHeight] = useState(70);
   const [progressBarMode, setProgressBarMode] = useState<
     "ltr" | "center" | "none"
@@ -135,6 +136,8 @@ export default function App() {
   const [jsEnabled, setJsEnabled] = useState(true);
   const [httpsOnly, setHttpsOnly] = useState(false);
   const [blockCookies, setBlockCookies] = useState(false);
+
+  const [isAccentExpanded, setIsAccentExpanded] = useState(false);
 
   // UI State for Menus
   const [settingsSearch, setSettingsSearch] = useState("");
@@ -152,56 +155,62 @@ export default function App() {
   // --- HELPER TO HANDLE INCOMING LINKS ---
   const handleIncomingUrl = (url: string | null) => {
     if (!url) return;
-    
+
     let targetUrl = url;
 
     // Handle "mibrowser://" schemes
-    if (url.startsWith('mibrowser://')) {
-        // Remove the scheme
-        const stripped = url.replace('mibrowser://', '');
-        
-        // Handle "mibrowser://https://google.com" vs "mibrowser://?url=..."
-        // We use a safe try-catch for decoding because malformed URI components crash the app
-        try {
-            if (stripped.startsWith('?url=') || stripped.startsWith('url?=')) {
-                 const match = stripped.match(/[?&]url=([^&]+)/);
-                 if (match && match[1]) {
-                     targetUrl = decodeURIComponent(match[1]);
-                 } else {
-                     targetUrl = stripped.replace(/^(?:\?url=|url\?=)/, '');
-                 }
-            } else {
-                 targetUrl = stripped;
-            }
-        } catch (e) {
-            console.warn("Failed to decode deep link:", e);
-            // Fallback: use the stripped string raw if decoding failed
-            targetUrl = stripped.replace(/^(?:\?url=|url\?=)/, '');
-        }
+    if (url.startsWith("mibrowser://")) {
+      // Remove the scheme
+      const stripped = url.replace("mibrowser://", "");
 
-        // Ensure protocol exists if missing
-        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-            targetUrl = 'https://' + targetUrl;
+      // Handle "mibrowser://https://google.com" vs "mibrowser://?url=..."
+      // We use a safe try-catch for decoding because malformed URI components crash the app
+      try {
+        if (stripped.startsWith("?url=") || stripped.startsWith("url?=")) {
+          const match = stripped.match(/[?&]url=([^&]+)/);
+          if (match && match[1]) {
+            targetUrl = decodeURIComponent(match[1]);
+          } else {
+            targetUrl = stripped.replace(/^(?:\?url=|url\?=)/, "");
+          }
+        } else {
+          targetUrl = stripped;
         }
+      } catch (e) {
+        console.warn("Failed to decode deep link:", e);
+        // Fallback: use the stripped string raw if decoding failed
+        targetUrl = stripped.replace(/^(?:\?url=|url\?=)/, "");
+      }
+
+      // Ensure protocol exists if missing
+      if (
+        !targetUrl.startsWith("http://") &&
+        !targetUrl.startsWith("https://")
+      ) {
+        targetUrl = "https://" + targetUrl;
+      }
     }
 
-    if (targetUrl && (targetUrl.startsWith("http://") || targetUrl.startsWith("https://"))) {
+    if (
+      targetUrl &&
+      (targetUrl.startsWith("http://") || targetUrl.startsWith("https://"))
+    ) {
       const newId = Date.now().toString();
-      const isDuplicate = tabs.some(t => t.url === targetUrl);
-      
-      if (!isDuplicate) {
-          const newTab = {
-            id: newId,
-            url: targetUrl,
-            title: "External Link",
-            showLogo: false,
-          };
+      const isDuplicate = tabs.some((t) => t.url === targetUrl);
 
-          setTabs((prev) => [newTab, ...prev]);
-          setActiveTabId(newId);
-          setActiveUrl(targetUrl);
-          setInputUrl(getDisplayHost(targetUrl));
-          setActiveView("none");
+      if (!isDuplicate) {
+        const newTab = {
+          id: newId,
+          url: targetUrl,
+          title: "External Link",
+          showLogo: false,
+        };
+
+        setTabs((prev) => [newTab, ...prev]);
+        setActiveTabId(newId);
+        setActiveUrl(targetUrl);
+        setInputUrl(getDisplayHost(targetUrl));
+        setActiveView("none");
       }
     }
   };
@@ -239,7 +248,7 @@ export default function App() {
         setUiPadding(savedSettings.uiPadding ?? "normal");
         setFontScale(savedSettings.fontScale ?? 1);
         setBarTransparency(savedSettings.barTransparency ?? "frosted");
-        setHomeLogoText(savedSettings.homeLogoText ?? "mi.");
+        setShowStatusBar(savedSettings.showStatusBar ?? true);
         setPillHeight(savedSettings.pillHeight ?? 70);
         setProgressBarMode(savedSettings.progressBarMode ?? "ltr");
         setRecallPosition(savedSettings.recallPosition ?? "center");
@@ -267,23 +276,23 @@ export default function App() {
 
       // If initial URL exists, handle it (Deep Link Case)
       if (initialUrl) {
-         // If we have an initial URL, we process it. 
-         // Note: If we had existing tabs, we add this on top.
-         handleIncomingUrl(initialUrl);
-         // Ensure existing tabs are loaded underneath if needed
-         if (existingTabs.length > 0) {
-             // We just add the new one to state in handleIncomingUrl
-             // But we need to make sure we don't overwrite if handleIncomingUrl didn't fire yet? 
-             // Actually handleIncomingUrl sets state completely. 
-             // Let's mix efficiently:
-             setTabs((currentTabs) => {
-                 // The handleIncomingUrl is async state update, so we can't easily rely on 'currentTabs' here
-                 // simpler approach:
-                 return currentTabs.length > 0 ? currentTabs : existingTabs;
-             });
-         } else {
-             // No existing tabs, and handleIncomingUrl will create one.
-         }
+        // If we have an initial URL, we process it.
+        // Note: If we had existing tabs, we add this on top.
+        handleIncomingUrl(initialUrl);
+        // Ensure existing tabs are loaded underneath if needed
+        if (existingTabs.length > 0) {
+          // We just add the new one to state in handleIncomingUrl
+          // But we need to make sure we don't overwrite if handleIncomingUrl didn't fire yet?
+          // Actually handleIncomingUrl sets state completely.
+          // Let's mix efficiently:
+          setTabs((currentTabs) => {
+            // The handleIncomingUrl is async state update, so we can't easily rely on 'currentTabs' here
+            // simpler approach:
+            return currentTabs.length > 0 ? currentTabs : existingTabs;
+          });
+        } else {
+          // No existing tabs, and handleIncomingUrl will create one.
+        }
       } else if (currentStartupMode === "last" && existingTabs.length > 0) {
         // --- CASE B: Resume Last Session ---
         setTabs(existingTabs);
@@ -371,6 +380,12 @@ export default function App() {
 
   useEffect(() => {
     if (isAppReady) {
+      saveStorage("history", history);
+    }
+  }, [history, isAppReady]);
+
+  useEffect(() => {
+    if (isAppReady) {
       const settingsToSave = {
         themeMode,
         accentColor,
@@ -379,7 +394,7 @@ export default function App() {
         uiPadding,
         fontScale,
         barTransparency,
-        homeLogoText,
+        showStatusBar,
         pillHeight,
         progressBarMode,
         recallPosition,
@@ -399,7 +414,6 @@ export default function App() {
     uiPadding,
     fontScale,
     barTransparency,
-    homeLogoText,
     pillHeight,
     progressBarMode,
     recallPosition,
@@ -459,6 +473,7 @@ export default function App() {
     if (themeMode === "dark") return COLORS.dark;
     return generateAdaptiveTheme(accentColor);
   };
+
   const theme = getTheme();
 
   const effectiveTheme = theme;
@@ -471,25 +486,38 @@ export default function App() {
   }
 
   const getTabHeight = () => {
+    let base = 70;
     switch (uiPadding) {
       case "compact":
-        return 60;
+        base = 64; // Increased base slightly to fit content
+        break;
       case "normal":
-        return 70;
+        base = 74;
+        break;
       case "airy":
-        return 85;
+        base = 88;
+        break;
     }
+    // Scale the height based on font selection so large text doesn't overflow
+    return base * fontScale;
   };
+
   const getHistoryHeight = () => {
+    let base = 50;
     switch (uiPadding) {
       case "compact":
-        return 40;
+        base = 48; // Increased slightly
+        break;
       case "normal":
-        return 50;
+        base = 58;
+        break;
       case "airy":
-        return 65;
+        base = 72;
+        break;
     }
+    return base * fontScale;
   };
+
   const getMargin = () => {
     switch (uiPadding) {
       case "compact":
@@ -698,7 +726,6 @@ export default function App() {
       setUiPadding("normal");
       setFontScale(1);
       setBarTransparency("frosted");
-      setHomeLogoText("mi.");
       setPillHeight(70);
       setProgressBarMode("ltr");
       setRecallPosition("center");
@@ -1544,7 +1571,16 @@ export default function App() {
               >
                 Theme
               </Text>
-              <View style={{ flexDirection: "row" }}>
+              {/* FIXED: Horizontal ScrollView to prevent cut-off */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 5,
+                }}
+              >
                 {["light", "dark", "adaptive"].map((m) => (
                   <TouchableOpacity
                     key={m}
@@ -1570,38 +1606,106 @@ export default function App() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             </SettingRow>
 
             <SettingRow label="Accent">
-              <Text
-                style={[
-                  styles.settingText,
-                  {
-                    color: effectiveTheme.text,
-                    fontFamily: "Nunito_600SemiBold",
-                    fontSize: 16 * fontScale,
-                  },
-                ]}
-              >
-                Accent
-              </Text>
-              <View style={{ flexDirection: "row" }}>
-                {ACCENTS.map((color) => (
-                  <TouchableOpacity
-                    key={color}
-                    onPress={() => setAccentColor(color)}
-                    style={[
-                      styles.colorDot,
-                      { backgroundColor: color },
-                      accentColor === color && {
-                        borderWidth: 2,
-                        borderColor: effectiveTheme.text,
-                      },
-                    ]}
-                  />
-                ))}
+              <View style={{ width: '100%', flexDirection: 'column', paddingVertical: 5 }}>
+                 {/* Header Row with Label and Toggle */}
+                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <Text
+                        style={[
+                        styles.settingText,
+                        {
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_600SemiBold",
+                            fontSize: 16 * fontScale,
+                        },
+                        ]}
+                    >
+                        Accent
+                    </Text>
+                    <TouchableOpacity 
+                        onPress={() => {
+                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            setIsAccentExpanded(!isAccentExpanded);
+                        }}
+                        style={{ padding: 5 }}
+                    >
+                        <Text style={{ color: accentColor, fontFamily: 'Nunito_700Bold', fontSize: 12 * fontScale }}>
+                            {isAccentExpanded ? 'Show Less' : 'Show More'}
+                        </Text>
+                    </TouchableOpacity>
+                 </View>
+
+                  {/* Expandable Grid */}
+                  <View 
+                    style={{ 
+                      flexDirection: 'row', 
+                      flexWrap: 'wrap', 
+                      width: '100%',
+                      justifyContent: 'space-between', 
+                      rowGap: 12, 
+                    }}
+                  >
+                    {/* Logically slice the data based on state */}
+                    {(isAccentExpanded ? ACCENTS : ACCENTS.slice(0, 6)).map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        onPress={() => setAccentColor(color)}
+                        style={[
+                          styles.colorDot,
+                          { 
+                              backgroundColor: color, 
+                              width: '14.5%', 
+                              aspectRatio: 1, 
+                              borderRadius: 8, 
+                              margin: 0,
+                              marginLeft: 0,
+                              marginRight: 0,
+                              marginTop: 0,
+                              marginBottom: 0
+                          },
+                          accentColor === color && {
+                            borderWidth: 3,
+                            borderColor: effectiveTheme.text,
+                            transform: [{ scale: 0.9 }] 
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
               </View>
+            </SettingRow>
+
+            {/* NEW: Status Bar Toggle */}
+            <SettingRow label="Show Status Bar">
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                  name="battery-charging-outline"
+                  size={22}
+                  color={effectiveTheme.text}
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={[
+                    styles.settingText,
+                    {
+                      color: effectiveTheme.text,
+                      fontFamily: "Nunito_600SemiBold",
+                      fontSize: 16 * fontScale,
+                    },
+                  ]}
+                >
+                  Show Status Bar
+                </Text>
+              </View>
+              <Switch
+                value={showStatusBar}
+                onValueChange={setShowStatusBar}
+                trackColor={{ false: "#767577", true: accentColor }}
+                thumbColor={"#f4f3f4"}
+              />
             </SettingRow>
           </SettingsGroup>
 
@@ -1821,11 +1925,13 @@ export default function App() {
                     UI Spacing
                   </Text>
                 </View>
-                <View
-                  style={{
+                {/* FIXED: Horizontal ScrollView */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
                     flexDirection: "row",
-                    width: "100%",
-                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
                   {["compact", "normal", "airy"].map((mode) => (
@@ -1854,7 +1960,7 @@ export default function App() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             </SettingRow>
 
@@ -1989,11 +2095,13 @@ export default function App() {
                     Pill Transparency
                   </Text>
                 </View>
-                <View
-                  style={{
+                {/* FIXED: Horizontal ScrollView */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
                     flexDirection: "row",
-                    width: "100%",
-                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
                   {["opaque", "frosted", "ghost"].map((mode) => (
@@ -2024,7 +2132,7 @@ export default function App() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             </SettingRow>
             <SettingRow label="Pill Loading Bar">
@@ -2062,11 +2170,13 @@ export default function App() {
                     Pill Loading Bar
                   </Text>
                 </View>
-                <View
-                  style={{
+                {/* FIXED: Horizontal ScrollView */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
                     flexDirection: "row",
-                    width: "100%",
-                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
                   {["ltr", "center", "none"].map((mode) => (
@@ -2078,7 +2188,7 @@ export default function App() {
                         progressBarMode === mode && {
                           backgroundColor: accentColor,
                         },
-                        { paddingHorizontal: 15 }, // Adjusted padding to fit 3 buttons
+                        { paddingHorizontal: 15 },
                       ]}
                     >
                       <Text
@@ -2101,10 +2211,11 @@ export default function App() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             </SettingRow>
           </SettingsGroup>
+
           <SettingsGroup title="Browsing">
             {shouldShow("Search Engine") && (
               <View label="Search Engine">
@@ -2257,7 +2368,16 @@ export default function App() {
                     On Startup
                   </Text>
                 </View>
-                <View style={{ flexDirection: "row", width: "100%" }}>
+                {/* FIXED: Horizontal ScrollView and removed flex: 1 from children */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    width: "100%",
+                  }}
+                >
                   {["new", "last"].map((mode) => (
                     <TouchableOpacity
                       key={mode}
@@ -2268,10 +2388,10 @@ export default function App() {
                           backgroundColor: accentColor,
                         },
                         {
-                          flex: 1,
+                          // Removed flex: 1 so they don't crush each other
                           alignItems: "center",
                           justifyContent: "center",
-                          marginHorizontal: 2,
+                          paddingHorizontal: 20,
                         },
                       ]}
                     >
@@ -2291,7 +2411,7 @@ export default function App() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             </SettingRow>
 
@@ -2556,6 +2676,11 @@ export default function App() {
               backgroundColor: effectiveTheme.surface,
               borderTopLeftRadius: cornerRadius,
               borderTopRightRadius: cornerRadius,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: -5 },
+              shadowOpacity: 0.3,
+              shadowRadius: 10,
+              elevation: 20,
             },
           ]}
         >
@@ -2787,77 +2912,86 @@ export default function App() {
     const { url } = request;
 
     // --- 1. Allow Internal Blob/Data URLs (PDFs, Images) ---
-    if (url.startsWith('blob:') || url.startsWith('data:')) {
-        return true;
+    if (url.startsWith("blob:") || url.startsWith("data:")) {
+      return true;
     }
 
     // --- 2. Handle Internal "mibrowser://" Scheme ---
-    if (url.startsWith('mibrowser://')) {
-       handleIncomingUrl(url);
-       return false; 
+    if (url.startsWith("mibrowser://")) {
+      handleIncomingUrl(url);
+      return false;
     }
 
     // --- 3. CRITICAL: Block "urn:" and non-standard schemes from WebView ---
     // If WebView tries to render 'urn:aaid', it WILL crash the app.
     // We pass it to the OS instead.
-    if (url.startsWith('urn:')) {
-        safeOpenURL(url);
-        return false;
+    if (url.startsWith("urn:")) {
+      safeOpenURL(url);
+      return false;
     }
 
     // --- 4. Handle "Intent" links (The goo.gl / Android App Links) ---
     // This catches "intent://" AND standard https links that have the #Intent fragment.
-    const isIntent = url.startsWith('intent://') || url.includes('#Intent;');
+    const isIntent = url.startsWith("intent://") || url.includes("#Intent;");
 
     if (isIntent) {
-        // 1. Try to launch the target app
-        Linking.openURL(url)
-            .then(() => {
-                // Success: App opened. Do nothing.
-            })
-            .catch(() => {
-                // 2. Failure: App not installed. Look for fallback URL.
-                // Format: ...;S.browser_fallback_url=encoded_url;...
-                try {
-                    const fallbackMatch = url.match(/browser_fallback_url=([^;]+)/);
-                    if (fallbackMatch && fallbackMatch[1]) {
-                        const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
-                        
-                        // Navigate to the fallback (Play Store or Web Version) in the browser
-                        if (activeTabIdRef.current === activeTabId) {
-                             setTabs((prev) => prev.map(t => t.id === activeTabId ? { ...t, url: fallbackUrl } : t));
-                             setActiveUrl(fallbackUrl);
-                             setInputUrl(getDisplayHost(fallbackUrl));
-                        }
-                    } else {
-                        // No fallback? Tell the user.
-                        Alert.alert("App Not Installed", "This link requires an external app which is not installed.");
-                    }
-                } catch (e) {
-                    console.warn("Failed to parse fallback", e);
-                }
-            });
-        
-        // ALWAYS return false for intents. Never let WebView load them directly.
-        return false; 
+      // 1. Try to launch the target app
+      Linking.openURL(url)
+        .then(() => {
+          // Success: App opened. Do nothing.
+        })
+        .catch(() => {
+          // 2. Failure: App not installed. Look for fallback URL.
+          // Format: ...;S.browser_fallback_url=encoded_url;...
+          try {
+            const fallbackMatch = url.match(/browser_fallback_url=([^;]+)/);
+            if (fallbackMatch && fallbackMatch[1]) {
+              const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
+
+              // Navigate to the fallback (Play Store or Web Version) in the browser
+              if (activeTabIdRef.current === activeTabId) {
+                setTabs((prev) =>
+                  prev.map((t) =>
+                    t.id === activeTabId ? { ...t, url: fallbackUrl } : t
+                  )
+                );
+                setActiveUrl(fallbackUrl);
+                setInputUrl(getDisplayHost(fallbackUrl));
+              }
+            } else {
+              // No fallback? Tell the user.
+              Alert.alert(
+                "App Not Installed",
+                "This link requires an external app which is not installed."
+              );
+            }
+          } catch (e) {
+            console.warn("Failed to parse fallback", e);
+          }
+        });
+
+      // ALWAYS return false for intents. Never let WebView load them directly.
+      return false;
     }
 
     // --- 5. Handle HTTPS Only Mode (for standard http/https) ---
     if (httpsOnly && url.startsWith("http://")) {
       const secureUrl = url.replace(/^http:\/\//i, "https://");
-      
+
       if (activeTabIdRef.current === activeTabId) {
-         setTabs((prev) => prev.map(t => t.id === activeTabId ? { ...t, url: secureUrl } : t));
-         setActiveUrl(secureUrl);
-         setInputUrl(getDisplayHost(secureUrl));
+        setTabs((prev) =>
+          prev.map((t) => (t.id === activeTabId ? { ...t, url: secureUrl } : t))
+        );
+        setActiveUrl(secureUrl);
+        setInputUrl(getDisplayHost(secureUrl));
       }
-      return false; 
+      return false;
     }
 
     // --- 6. Allow Standard HTTP/HTTPS ---
     // This is the ONLY thing the WebView should actually load.
     if (url.startsWith("http") || url.startsWith("about:")) {
-        return true;
+      return true;
     }
 
     // --- 7. Catch-All for other external schemes (mailto:, tel:, maps:, market:) ---
@@ -3041,10 +3175,20 @@ export default function App() {
   if (!fontsLoaded || !isAppReady) return null;
 
   return (
-    <View style={[styles.container, { backgroundColor: effectiveTheme.bg }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: effectiveTheme.bg,
+          paddingTop:
+            showStatusBar && !isFullscreen ? StatusBar.currentHeight || 0 : 0,
+        },
+      ]}
+    >
       {!isFullscreen && (
         <StatusBar
           translucent
+          hidden={!showStatusBar}
           backgroundColor="transparent"
           barStyle={themeMode === "dark" ? "light-content" : "dark-content"}
         />
@@ -3128,6 +3272,7 @@ export default function App() {
               }}
               {...logoResponder.panHandlers}
             >
+              {/* FIXED: Hardcoded 'mi.' with explicit styling to ensure visibility */}
               <Text
                 style={[
                   styles.homeText,
@@ -3137,7 +3282,7 @@ export default function App() {
                   },
                 ]}
               >
-                {homeLogoText}
+                {HOME_LOGO_TEXT}
               </Text>
             </Animated.View>
           </View>
@@ -3226,6 +3371,11 @@ export default function App() {
                         backgroundColor: effectiveTheme.glass,
                         borderColor: effectiveTheme.glassBorder,
                         borderRadius: cornerRadius * 2,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 5 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 15,
+                        elevation: 10,
                       },
                       {
                         zIndex: 1,
@@ -3352,6 +3502,11 @@ export default function App() {
                         backgroundColor: effectiveTheme.glass,
                         borderColor: effectiveTheme.glassBorder,
                         borderRadius: cornerRadius * 2,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 5 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 15,
+                        elevation: 10,
                       },
                       {
                         zIndex: 2,
@@ -3557,6 +3712,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 10,
     justifyContent: "space-around",
+  },
+  wrapRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    width: "100%",
+    justifyContent: "flex-start",
+    gap: 10, // Adds space between wrapped items (React Native 0.71+)
+    marginBottom: 5,
   },
   inputWrapper: {
     flex: 1,
