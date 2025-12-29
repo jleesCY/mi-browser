@@ -206,6 +206,23 @@ export default function App() {
     }
   };
 
+  // Helper to safely open URLs without crashing the app
+  const safeOpenURL = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+        return true;
+      } else {
+        console.log("No app installed to handle:", url);
+        return false;
+      }
+    } catch (err) {
+      console.warn("Failed to open URL:", url, err);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const loadAllData = async () => {
       // 1. Load Settings First
@@ -2779,11 +2796,48 @@ export default function App() {
        return false; 
     }
 
-    // --- 3. Handle HTTPS Only Mode ---
+    // --- 3. CRITICAL FIX: Handle URNs (urn:aaid, etc) ---
+    // WebView cannot render these. We must return false immediately to prevent crash.
+    if (url.startsWith('urn:')) {
+        safeOpenURL(url);
+        return false;
+    }
+
+    // --- 4. Handle "Intent" based URLs (intent:// OR http...#Intent;...) ---
+    // The goo.gl link you provided is an HTTPS link with an #Intent fragment.
+    // We must handle this manually to support the 'browser_fallback_url'.
+    const isIntent = url.startsWith('intent://') || url.includes('#Intent;');
+
+    if (isIntent) {
+        // Try to open it externally first (launch the app)
+        safeOpenURL(url).then((success) => {
+            if (!success) {
+                // If opening failed (app not installed), look for the fallback URL
+                // Format: ...S.browser_fallback_url=https://...;end
+                try {
+                    const fallbackMatch = url.match(/browser_fallback_url=([^;]+)/);
+                    if (fallbackMatch && fallbackMatch[1]) {
+                        const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
+                        
+                        // Redirect current tab to the fallback (e.g., Play Store or Web Version)
+                        if (activeTabIdRef.current === activeTabId) {
+                             setTabs((prev) => prev.map(t => t.id === activeTabId ? { ...t, url: fallbackUrl } : t));
+                             setActiveUrl(fallbackUrl);
+                             setInputUrl(getDisplayHost(fallbackUrl));
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse fallback URL", e);
+                }
+            }
+        });
+        return false; // Stop WebView from trying to load the scary Intent string
+    }
+
+    // --- 5. Handle HTTPS Only Mode ---
     if (httpsOnly && url.startsWith("http://")) {
       const secureUrl = url.replace(/^http:\/\//i, "https://");
       
-      // Update state without navigation loop
       if (activeTabIdRef.current === activeTabId) {
          setTabs((prev) => prev.map(t => t.id === activeTabId ? { ...t, url: secureUrl } : t));
          setActiveUrl(secureUrl);
@@ -2792,48 +2846,13 @@ export default function App() {
       return false; 
     }
 
-    // --- 4. Handle Standard HTTP/HTTPS ---
+    // --- 6. Handle Standard HTTP/HTTPS (Websites) ---
     if (url.startsWith("http") || url.startsWith("about:")) {
         return true;
     }
 
-    // --- 5. Handle External Schemes (Intents, Mail, Tel, Maps, URNs) ---
-    try {
-        if (url.startsWith('intent://')) {
-            Linking.openURL(url).catch(() => {
-                // Safely try to fallback
-                try {
-                    const fallbackMatch = url.match(/browser_fallback_url=([^;]+)/);
-                    if (fallbackMatch && fallbackMatch[1]) {
-                        const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
-                        
-                        // Load fallback in current tab
-                        setTabs((prev) =>
-                            prev.map((t) => {
-                                if (t.id === activeTabIdRef.current) return { ...t, url: fallbackUrl };
-                                return t;
-                            })
-                        );
-                        if (activeTabIdRef.current === activeTabId) {
-                            setActiveUrl(fallbackUrl);
-                            setInputUrl(getDisplayHost(fallbackUrl));
-                        }
-                    }
-                } catch (decodeErr) {
-                    console.warn("Failed to decode fallback URL:", decodeErr);
-                }
-            });
-            return false;
-        }
-        
-        // For everything else, try to open externally
-        Linking.openURL(url).catch((err) => {
-            console.warn("Could not open link:", url, err);
-        });
-    } catch (e) {
-        console.warn("Error attempting to open URL:", url);
-    }
-    
+    // --- 7. Catch-all for other external schemes (mailto:, tel:, maps:) ---
+    safeOpenURL(url);
     return false;
   };
 
