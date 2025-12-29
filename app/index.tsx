@@ -206,19 +206,20 @@ export default function App() {
     }
   };
 
-  // Helper to safely open URLs without crashing the app
+  // --- ROBUST EXTERNAL LINK HANDLER ---
   const safeOpenURL = async (url: string) => {
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-        return true;
-      } else {
-        console.log("No app installed to handle:", url);
-        return false;
-      }
+      // We explicitly try to open. If it fails (app not installed/scheme unknown),
+      // it throws an error, which we catch below.
+      await Linking.openURL(url);
+      return true;
     } catch (err) {
-      console.warn("Failed to open URL:", url, err);
+      console.log("External link failed:", url);
+      Alert.alert(
+        "Cannot Open Link",
+        `No application found to handle this link.\n${url}`,
+        [{ text: "OK" }]
+      );
       return false;
     }
   };
@@ -2785,56 +2786,63 @@ export default function App() {
   const handleShouldStartLoadWithRequest = (request: any) => {
     const { url } = request;
 
-    // --- 1. Allow Internal Blob/Data URLs ---
+    // --- 1. Allow Internal Blob/Data URLs (PDFs, Images) ---
     if (url.startsWith('blob:') || url.startsWith('data:')) {
         return true;
     }
 
-    // --- 2. Prevent Recursive Loading of own scheme ---
+    // --- 2. Handle Internal "mibrowser://" Scheme ---
     if (url.startsWith('mibrowser://')) {
        handleIncomingUrl(url);
        return false; 
     }
 
-    // --- 3. CRITICAL FIX: Handle URNs (urn:aaid, etc) ---
-    // WebView cannot render these. We must return false immediately to prevent crash.
+    // --- 3. CRITICAL: Block "urn:" and non-standard schemes from WebView ---
+    // If WebView tries to render 'urn:aaid', it WILL crash the app.
+    // We pass it to the OS instead.
     if (url.startsWith('urn:')) {
         safeOpenURL(url);
         return false;
     }
 
-    // --- 4. Handle "Intent" based URLs (intent:// OR http...#Intent;...) ---
-    // The goo.gl link you provided is an HTTPS link with an #Intent fragment.
-    // We must handle this manually to support the 'browser_fallback_url'.
+    // --- 4. Handle "Intent" links (The goo.gl / Android App Links) ---
+    // This catches "intent://" AND standard https links that have the #Intent fragment.
     const isIntent = url.startsWith('intent://') || url.includes('#Intent;');
 
     if (isIntent) {
-        // Try to open it externally first (launch the app)
-        safeOpenURL(url).then((success) => {
-            if (!success) {
-                // If opening failed (app not installed), look for the fallback URL
-                // Format: ...S.browser_fallback_url=https://...;end
+        // 1. Try to launch the target app
+        Linking.openURL(url)
+            .then(() => {
+                // Success: App opened. Do nothing.
+            })
+            .catch(() => {
+                // 2. Failure: App not installed. Look for fallback URL.
+                // Format: ...;S.browser_fallback_url=encoded_url;...
                 try {
                     const fallbackMatch = url.match(/browser_fallback_url=([^;]+)/);
                     if (fallbackMatch && fallbackMatch[1]) {
                         const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
                         
-                        // Redirect current tab to the fallback (e.g., Play Store or Web Version)
+                        // Navigate to the fallback (Play Store or Web Version) in the browser
                         if (activeTabIdRef.current === activeTabId) {
                              setTabs((prev) => prev.map(t => t.id === activeTabId ? { ...t, url: fallbackUrl } : t));
                              setActiveUrl(fallbackUrl);
                              setInputUrl(getDisplayHost(fallbackUrl));
                         }
+                    } else {
+                        // No fallback? Tell the user.
+                        Alert.alert("App Not Installed", "This link requires an external app which is not installed.");
                     }
                 } catch (e) {
-                    console.warn("Failed to parse fallback URL", e);
+                    console.warn("Failed to parse fallback", e);
                 }
-            }
-        });
-        return false; // Stop WebView from trying to load the scary Intent string
+            });
+        
+        // ALWAYS return false for intents. Never let WebView load them directly.
+        return false; 
     }
 
-    // --- 5. Handle HTTPS Only Mode ---
+    // --- 5. Handle HTTPS Only Mode (for standard http/https) ---
     if (httpsOnly && url.startsWith("http://")) {
       const secureUrl = url.replace(/^http:\/\//i, "https://");
       
@@ -2846,12 +2854,14 @@ export default function App() {
       return false; 
     }
 
-    // --- 6. Handle Standard HTTP/HTTPS (Websites) ---
+    // --- 6. Allow Standard HTTP/HTTPS ---
+    // This is the ONLY thing the WebView should actually load.
     if (url.startsWith("http") || url.startsWith("about:")) {
         return true;
     }
 
-    // --- 7. Catch-all for other external schemes (mailto:, tel:, maps:) ---
+    // --- 7. Catch-All for other external schemes (mailto:, tel:, maps:, market:) ---
+    // We return false to keep WebView safe, and try to open externally.
     safeOpenURL(url);
     return false;
   };
