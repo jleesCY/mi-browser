@@ -2,7 +2,7 @@
   "expo": {
     "name": "mi",
     "slug": "mi-browser",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "orientation": "portrait",
     "scheme": "mibrowser",
     "icon": "./assets/images/icon.png",
