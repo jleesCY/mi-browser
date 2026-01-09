@@ -21,6 +21,7 @@ const SwipeableHistoryRow = ({
   height,
   margin,
   fontScale,
+  timeString, // <--- NEW PROP
 }: any) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const itemHeight = useRef(new Animated.Value(height)).current;
@@ -83,10 +84,8 @@ const SwipeableHistoryRow = ({
     extrapolate: "clamp",
   });
 
-  const timeStr = new Date(item.timestamp).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  // REMOVED: The internal timeStr calculation
+  // const timeStr = ... 
 
   return (
     <Animated.View
@@ -122,7 +121,6 @@ const SwipeableHistoryRow = ({
       >
         <TouchableOpacity
           activeOpacity={0.9}
-          // FIXED: Added borderRadius: radius to match the theme setting
           style={[
             styles.historyItem,
             {
@@ -159,7 +157,8 @@ const SwipeableHistoryRow = ({
                   fontFamily: "Nunito_700Bold",
                 }}
               >
-                {timeStr}
+                {/* USE PROP HERE */}
+                {timeString}
               </Text>
               <Text
                 style={[
