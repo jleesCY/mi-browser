@@ -1,47 +1,69 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const generateAdaptiveTheme = (accentHex: string) => {
-  const r = parseInt(accentHex.substr(1, 2), 16);
-  const g = parseInt(accentHex.substr(3, 2), 16);
-  const b = parseInt(accentHex.substr(5, 2), 16);
+  // SANITY CHECK: Fallback if accentHex is missing or invalid
+  const safeAccent = (accentHex && accentHex.startsWith('#') && accentHex.length === 7) 
+    ? accentHex 
+    : '#007AFF';
 
-  const mix = (base: number, channel: number, strength: number) => {
-    return Math.floor(base * (1 - strength) + channel * strength);
-  };
+  try {
+    const r = parseInt(safeAccent.substring(1, 3), 16);
+    const g = parseInt(safeAccent.substring(3, 5), 16);
+    const b = parseInt(safeAccent.substring(5, 7), 16);
 
-  const bgR = mix(10, r, 0.15);
-  const bgG = mix(10, g, 0.15);
-  const bgB = mix(10, b, 0.15);
-  const bg = `#${bgR.toString(16).padStart(2, "0")}${bgG
-    .toString(16)
-    .padStart(2, "0")}${bgB.toString(16).padStart(2, "0")}`;
+    // If parsing failed (NaN), throw to catch block
+    if (isNaN(r) || isNaN(g) || isNaN(b)) throw new Error("Invalid Color");
 
-  const surfaceR = mix(36, r, 0.2);
-  const surfaceG = mix(36, g, 0.2);
-  const surfaceB = mix(36, b, 0.2);
-  const surface = `#${surfaceR.toString(16).padStart(2, "0")}${surfaceG
-    .toString(16)
-    .padStart(2, "0")}${surfaceB.toString(16).padStart(2, "0")}`;
+    const mix = (base: number, channel: number, strength: number) => {
+      return Math.floor(base * (1 - strength) + channel * strength);
+    };
 
-  const cardR = mix(45, r, 0.2);
-  const cardG = mix(45, g, 0.2);
-  const cardB = mix(45, b, 0.2);
-  const card = `#${cardR.toString(16).padStart(2, "0")}${cardG
-    .toString(16)
-    .padStart(2, "0")}${cardB.toString(16).padStart(2, "0")}`;
+    const bgR = mix(10, r, 0.15);
+    const bgG = mix(10, g, 0.15);
+    const bgB = mix(10, b, 0.15);
+    
+    // Helper to force 2 digits
+    const toHex = (n: number) => n.toString(16).padStart(2, "0");
 
-  return {
-    bg: bg,
-    surface: surface,
-    card: card,
-    text: "#eaeaea",
-    textSec: "#aaaaaa",
-    glass: bg + "F5",
-    glassBorder: accentHex + "30",
-    sheetHeader: card,
-    inputBg: "#ffffff15",
-    placeholder: "#888",
-  };
+    const bg = `#${toHex(bgR)}${toHex(bgG)}${toHex(bgB)}`;
+
+    const surfaceR = mix(36, r, 0.2);
+    const surfaceG = mix(36, g, 0.2);
+    const surfaceB = mix(36, b, 0.2);
+    const surface = `#${toHex(surfaceR)}${toHex(surfaceG)}${toHex(surfaceB)}`;
+
+    const cardR = mix(45, r, 0.2);
+    const cardG = mix(45, g, 0.2);
+    const cardB = mix(45, b, 0.2);
+    const card = `#${toHex(cardR)}${toHex(cardG)}${toHex(cardB)}`;
+
+    return {
+      bg: bg,
+      surface: surface,
+      card: card,
+      text: "#eaeaea",
+      textSec: "#aaaaaa",
+      glass: bg + "F5",
+      glassBorder: safeAccent + "30",
+      sheetHeader: card,
+      inputBg: "#ffffff15",
+      placeholder: "#888",
+    };
+  } catch (e) {
+    // FALLBACK THEME (Dark Mode Standard) if math fails
+    return {
+      bg: '#000000',
+      surface: '#1c1c1e',
+      card: '#2c2c2e',
+      text: '#ffffff',
+      textSec: '#888888',
+      glass: 'rgba(30, 30, 30, 0.95)',
+      glassBorder: 'rgba(255,255,255,0.1)',
+      sheetHeader: '#252527',
+      inputBg: 'rgba(255,255,255,0.1)',
+      placeholder: '#aaa',
+    };
+  }
 };
 
 export const getDisplayHost = (url: string | null) => {

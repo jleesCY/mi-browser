@@ -21,7 +21,7 @@ const SwipeableHistoryRow = ({
   height,
   margin,
   fontScale,
-  timeString, // <--- NEW PROP
+  timeString,
 }: any) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const itemHeight = useRef(new Animated.Value(height)).current;

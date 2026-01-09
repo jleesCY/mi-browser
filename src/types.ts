@@ -8,6 +8,7 @@ export interface HistoryItem {
 export interface TabItem {
   id: string;
   url: string | null;
+  initialUrl?: string | null;
   title: string;
   showLogo: boolean;
   loading?: boolean;

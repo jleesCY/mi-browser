@@ -116,6 +116,7 @@ export default function App() {
   const canGoBackRef = useRef(false);
   const canGoForwardRef = useRef(false);
   const activeTabIdRef = useRef(activeTabId);
+  const lastErrorTimestamp = useRef(0);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -246,6 +247,7 @@ export default function App() {
         const newTab = {
           id: newId,
           url: targetUrl,
+          initialUrl: targetUrl,
           title: "External Link",
           showLogo: false,
         };
@@ -393,7 +395,10 @@ export default function App() {
       if (savedHistory) setHistory(savedHistory);
 
       const savedTabs = await loadStorage("tabs");
-      const existingTabs = savedTabs || [];
+      const existingTabs = (savedTabs || []).map((t: any) => ({
+          ...t,
+          initialUrl: t.initialUrl || t.url // Polyfill missing initialUrl
+      }));
 
       // 3. Handle Startup Logic
       const initialUrl = await Linking.getInitialURL();
@@ -492,20 +497,27 @@ export default function App() {
   }, [activeTabId]);
 
   useEffect(() => {
-    if (isAppReady) {
-      // Strip transient state before saving
+    if (!isAppReady) return;
+
+    const saveTimeout = setTimeout(() => {
       const cleanTabs = tabs.map(
         ({ loading, canGoBack, canGoForward, ...rest }) => rest
       );
       saveStorage("tabs", cleanTabs);
       saveStorage("activeTabId", activeTabId);
-    }
+    }, 500); // Wait 1 second after the last change
+
+    return () => clearTimeout(saveTimeout);
   }, [tabs, activeTabId, isAppReady]);
 
   useEffect(() => {
-    if (isAppReady) {
+    if (!isAppReady) return;
+
+    const saveTimeout = setTimeout(() => {
       saveStorage("history", history);
-    }
+    }, 1000);
+
+    return () => clearTimeout(saveTimeout);
   }, [history, isAppReady]);
 
   useEffect(() => {
@@ -897,6 +909,7 @@ export default function App() {
     const newTab = {
       id: newId,
       url: overrideUrl || null,
+      initialUrl: overrideUrl || null,
       title: "New Tab",
       showLogo: true,
     };
@@ -1044,7 +1057,13 @@ export default function App() {
     const title = getDisplayHost(url);
 
     setHistory((prevHistory) => {
-      // Remove duplicates
+      // OPTIMIZATION: If the top history item is the same URL, don't do anything.
+      // This prevents "thrashing" when SPAs update the URL fragment/query rapidly.
+      if (prevHistory.length > 0 && prevHistory[0].url === url) {
+        return prevHistory;
+      }
+
+      // Remove duplicates (Expensive operation, now only runs when necessary)
       const cleanedHistory = prevHistory.filter(
         (item) => item.url.replace(/\/$/, "") !== url.replace(/\/$/, "")
       );
@@ -1093,21 +1112,37 @@ export default function App() {
     StatusBar.setHidden(fullScreen);
   };
 
+  // --- PERMISSION HELPER ---
+  const requestManualPermission = (featureName: string) => {
+    Alert.alert(
+      "Permission Required",
+      `This app needs access to your ${featureName} to function. Please grant permission in your device settings.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Open Settings", 
+          onPress: () => Linking.openSettings() 
+        }
+      ]
+    );
+  };
+
   const handleDownloadImage = async () => {
     const url = contextMenuData?.imgUrl;
     if (!url) return;
 
     try {
-      // FIX: Pass 'true' to request write-only access.
-      // This avoids asking for Audio permissions which causes the crash.
+      // 1. Request Permission (Write Only)
+      // We check status immediately.
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
       
+      // 2. Handle Denial (Soft or Hard)
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Please allow storage access to save images.');
+        requestManualPermission("Photos");
         return;
       }
 
-      // 2. Determine File Extension
+      // 3. Determine File Extension
       let extension = '.jpg';
       if (url.includes('.png')) extension = '.png';
       else if (url.includes('.gif')) extension = '.gif';
@@ -1117,7 +1152,7 @@ export default function App() {
       const fileName = `download_${Date.now()}${extension}`; 
       const fileUri = FileSystem.documentDirectory + fileName;
 
-      // 3. Download or Write File
+      // 4. Download or Write File
       if (url.startsWith('data:')) {
         const base64Code = url.split('base64,')[1];
         await FileSystem.writeAsStringAsync(fileUri, base64Code, {
@@ -1130,7 +1165,7 @@ export default function App() {
         }
       }
 
-      // 4. Save to Device Gallery
+      // 5. Save to Device Gallery
       await MediaLibrary.saveToLibraryAsync(fileUri);
       
       Alert.alert("Success", "Image saved to gallery!");
@@ -1138,7 +1173,12 @@ export default function App() {
 
     } catch (e: any) {
       console.error(e);
-      Alert.alert("Save Error", e.message || "An unknown error occurred.");
+      // If the save fails specifically due to permissions (rare if step 1 passed), prompt again
+      if (e.message && e.message.includes("permission")) {
+        requestManualPermission("Photos");
+      } else {
+        Alert.alert("Save Error", e.message || "An unknown error occurred.");
+      }
     }
   };
 
@@ -1601,6 +1641,7 @@ export default function App() {
                         ? {
                             ...t,
                             url: targetUrl,
+                            initialUrl: targetUrl, // <--- ADD THIS
                             title: item.title || getDisplayHost(targetUrl),
                           }
                         : t
@@ -3325,11 +3366,7 @@ export default function App() {
     source: { uri: tabs.find((t) => t.id === tabId)?.url || "" },
     originWhitelist: ["*"],
     onShouldStartLoadWithRequest: handleShouldStartLoadWithRequest,
-
     injectedJavaScript: INJECTED_CONTEXT_MENU_SCRIPT,
-
-    // NAVIGATION CHANGE
-    // Inside getWebViewProps...
 
     onNavigationStateChange: (navState: any) => {
       const { url, title, canGoBack, canGoForward, loading } = navState;
@@ -3434,19 +3471,31 @@ export default function App() {
       if (tabId === activeTabId) setIsLoading(false);
 
       const { nativeEvent } = e;
+      const currentTime = Date.now();
+
+      // 1. LOOP BREAKER: If errors are firing too fast (< 1 second apart), ignore them.
+      if (currentTime - lastErrorTimestamp.current < 1000) {
+        return;
+      }
+      lastErrorTimestamp.current = currentTime;
+
       if (
         nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" ||
         nativeEvent.code === -2
       ) {
         const failedUrl = nativeEvent.url;
-        const isAlreadySearch = SEARCH_ENGINES.some((se) =>
-          failedUrl?.startsWith(se.url)
-        );
+        
+        // 2. STRICT CHECK: Check if the failed URL is ALREADY a search engine URL.
+        // This prevents the infinite loop: Search Fails -> Search Again -> Search Fails...
+        const currentSearchEngine = SEARCH_ENGINES[searchEngineIndex];
+        const isAlreadySearch = failedUrl?.startsWith(currentSearchEngine.url);
+
         if (!isAlreadySearch && failedUrl && tabId === activeTabId) {
           let query = failedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
           const searchUrl = `${
-            SEARCH_ENGINES[searchEngineIndex].url
+            currentSearchEngine.url
           }${encodeURIComponent(query)}`;
+          
           setTabs((prev) =>
             prev.map((t) => (t.id === tabId ? { ...t, url: searchUrl } : t))
           );
@@ -3477,7 +3526,7 @@ export default function App() {
     javaScriptEnabled: jsEnabled,
     userAgent: desktopMode
       ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      : undefined,
+      : "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
     sharedCookiesEnabled: !blockCookies,
     domStorageEnabled: true,
     androidLayerType: "hardware" as const,
@@ -3491,7 +3540,7 @@ export default function App() {
       : { bottom: pillHeight + 20 },
     geolocationEnabled: true,
     onPermissionRequest: handleAndroidPermissionRequest,
-    allowsBackForwardNavigationGestures: true, // FIX: iOS swipe to go back
+    allowsBackForwardNavigationGestures: true,
   });
 
   if (!fontsLoaded || !isAppReady) return null;
@@ -3562,6 +3611,7 @@ export default function App() {
                 // Pausing javascript on background tabs saves massive CPU/Battery
                 // Only strictly pause if not active and desktop mode isn't forcing keep-alive
                 pauseJavaScriptBeforeUnmount={true}
+                source={{ uri: tab.initialUrl || tab.url || "" }}
                 containerStyle={
                   isFullscreen ? { backgroundColor: "#000" } : undefined
                 }
