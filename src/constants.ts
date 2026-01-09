@@ -31,6 +31,18 @@ export const COLORS = {
         inputBg: 'rgba(0,0,0,0.05)',
         placeholder: '#999',
     },
+    gray: {
+        bg: '#252525',           
+        surface: '#333333',      
+        glass: 'rgba(37, 37, 37, 0.95)',
+        glassBorder: 'rgba(255,255,255,0.1)',
+        text: '#FFFFFF',
+        textSec: '#AAAAAA',
+        card: '#404040',
+        sheetHeader: '#3E3E3E',
+        inputBg: '#404040',
+        placeholder: '#808080',
+    },
     dark: {
         bg: '#000000',
         surface: '#1c1c1e',

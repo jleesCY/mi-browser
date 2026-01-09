@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/nunito";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -103,7 +103,7 @@ export default function App() {
   const isSearchActiveRef = useRef(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
-  const [themeMode, setThemeMode] = useState<"light" | "dark" | "adaptive">(
+  const [themeMode, setThemeMode] = useState<"light" | "gray" | "dark" | "adaptive">(
     "dark"
   );
   const [accentColor, setAccentColor] = useState("#007AFF");
@@ -177,7 +177,6 @@ export default function App() {
           targetUrl = stripped;
         }
       } catch (e) {
-        console.warn("Failed to decode deep link:", e);
         // Fallback: use the stripped string raw if decoding failed
         targetUrl = stripped.replace(/^(?:\?url=|url\?=)/, "");
       }
@@ -216,20 +215,96 @@ export default function App() {
   };
 
   // --- ROBUST EXTERNAL LINK HANDLER ---
-  const safeOpenURL = async (url: string) => {
+  const handleExternalLink = async (url: string) => {
     try {
-      // We explicitly try to open. If it fails (app not installed/scheme unknown),
-      // it throws an error, which we catch below.
-      await Linking.openURL(url);
-      return true;
-    } catch (err) {
-      console.log("External link failed:", url);
+      // 1. Handle Special "Intent" Schemes (Android)
+      if (url.startsWith("intent://") || url.includes("#Intent;")) {
+        await handleIntent(url);
+        return;
+      }
+
+      // 2. Handle Standard External Schemes (mailto, tel, market, etc.)
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback: Attempt to open anyway, sometimes canOpenURL returns false on Android 11+ but openURL works
+        await Linking.openURL(url);
+      }
+    } catch (err: any) {
       Alert.alert(
-        "Cannot Open Link",
-        `No application found to handle this link.\n${url}`,
+        "Link Error",
+        `Could not open this link.\n\nError: ${err.message || "Unknown error"}\n\nURL: ${url}`,
         [{ text: "OK" }]
       );
-      return false;
+    }
+  };
+
+  const handleIntent = async (intentUrl: string) => {
+    try {
+      // Attempt 1: Open the intent URL directly
+      await Linking.openURL(intentUrl);
+    } catch (err) {
+
+      // Attempt 2: Extract the "browser_fallback_url"
+      const fallbackMatch = intentUrl.match(/browser_fallback_url=([^;]+)/);
+      if (fallbackMatch && fallbackMatch[1]) {
+        const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
+        // Load fallback in OUR browser
+        if (activeTabIdRef.current === activeTabId) {
+          setTabs((prev) =>
+            prev.map((t) =>
+              t.id === activeTabId ? { ...t, url: fallbackUrl } : t
+            )
+          );
+          setActiveUrl(fallbackUrl);
+          setInputUrl(getDisplayHost(fallbackUrl));
+        }
+        return;
+      }
+
+      // Attempt 3: Extract the underlying scheme/URL (Fix for YouTube "App not installed")
+      // Intents often look like: intent://host/path#Intent;scheme=https;...
+      const schemeMatch = intentUrl.match(/scheme=([^;]+)/);
+      if (schemeMatch && schemeMatch[1]) {
+        const scheme = schemeMatch[1];
+        // We reconstruct a standard URL (e.g. https://youtube.com/...)
+        // The host and path are usually in the first part of the intent string: intent://host/path...
+        const pathPart = intentUrl.replace("intent://", "").split("#")[0];
+        const reconstructedUrl = `${scheme}://${pathPart}`;
+        
+        try {
+          // Try opening this clean URL externally. Android OS should catch it and offer the app.
+          await Linking.openURL(reconstructedUrl);
+          return;
+        } catch (e) {
+        }
+      }
+
+      // Attempt 4: Extract Package ID and offer Play Store
+      const packageMatch = intentUrl.match(/package=([^;]+)/);
+      if (packageMatch && packageMatch[1]) {
+        const packageName = packageMatch[1];
+        Alert.alert(
+          "App Required",
+          `This feature requires an external app (${packageName}). Would you like to view it in the store?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            { 
+              text: "View Store", 
+              onPress: () => Linking.openURL(`market://details?id=${packageName}`) 
+            }
+          ]
+        );
+        return;
+      }
+
+      // Final Fail
+      Alert.alert(
+        "Action Failed",
+        "Could not handle this action and no fallback was provided by the website.",
+        [{ text: "OK" }]
+      );
     }
   };
 
@@ -243,7 +318,11 @@ export default function App() {
       if (savedSettings) {
         setThemeMode(savedSettings.themeMode ?? "dark");
         setAccentColor(savedSettings.accentColor ?? "#007AFF");
-        setSearchEngineIndex(savedSettings.searchEngineIndex ?? 0);
+        const savedIndex = savedSettings.searchEngineIndex ?? 0;
+        // Safety check: ensure the saved index actually exists in your current constants
+        setSearchEngineIndex(
+          savedIndex >= 0 && savedIndex < SEARCH_ENGINES.length ? savedIndex : 0
+        );
         setCornerRadius(savedSettings.cornerRadius ?? 22);
         setUiPadding(savedSettings.uiPadding ?? "normal");
         setFontScale(savedSettings.fontScale ?? 1);
@@ -468,22 +547,26 @@ export default function App() {
     return () => subscription.remove();
   }, []);
 
-  const getTheme = () => {
-    if (themeMode === "light") return COLORS.light;
-    if (themeMode === "dark") return COLORS.dark;
-    return generateAdaptiveTheme(accentColor);
-  };
+  const effectiveTheme = useMemo(() => {
+    let selectedTheme;
+    if (themeMode === "light") selectedTheme = COLORS.light;
+    else if (themeMode === "dark") selectedTheme = COLORS.dark;
+    else if (themeMode === "gray") selectedTheme = COLORS.gray; // <--- Uses the constant now
+    else selectedTheme = generateAdaptiveTheme(accentColor);
 
-  const theme = getTheme();
+    const finalTheme = { ...selectedTheme };
 
-  const effectiveTheme = theme;
-
-  if (themeMode === "adaptive") {
-    let alpha = "F2";
-    if (barTransparency === "opaque") alpha = "FF";
-    if (barTransparency === "ghost") alpha = "99";
-    effectiveTheme.glass = effectiveTheme.bg.substring(0, 7) + alpha;
-  }
+    if (themeMode === "adaptive" || themeMode === "gray") {
+      let alpha = "F2";
+      if (barTransparency === "opaque") alpha = "FF";
+      if (barTransparency === "ghost") alpha = "99";
+      
+      if (finalTheme.bg && finalTheme.bg.startsWith("#")) {
+        finalTheme.glass = finalTheme.bg.substring(0, 7) + alpha;
+      }
+    }
+    return finalTheme;
+  }, [themeMode, accentColor, barTransparency]);
 
   const getTabHeight = () => {
     let base = 70;
@@ -650,12 +733,25 @@ export default function App() {
         targetUrl = text;
       }
     } else {
-      // 2. Robust Domain Detection (looks for "word.tld" or "word.tld/path")
-      // This allows "example.com" or "sub.site.org" but sends "hello world" to search
+      // 2. Advanced URL Detection
+      // Standard Domains (example.com, sub.site.co.uk)
       const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+      // IPv4 Addresses (192.168.1.1, 127.0.0.1:8080)
+      const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
+      // Localhost (localhost, localhost:3000)
+      const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
 
-      if (domainRegex.test(text) && !text.includes(" ")) {
-        targetUrl = `https://${text}`;
+      // Check if it matches any valid URL pattern and has no spaces
+      if (
+        !text.includes(" ") &&
+        (domainRegex.test(text) || ipRegex.test(text) || localhostRegex.test(text))
+      ) {
+        // Localhost and IPs usually need HTTP, not HTTPS (unless specified)
+        if (localhostRegex.test(text) || ipRegex.test(text)) {
+          targetUrl = `http://${text}`;
+        } else {
+          targetUrl = `https://${text}`;
+        }
       } else {
         // 3. Fallback to Search Engine
         targetUrl = `${
@@ -669,12 +765,12 @@ export default function App() {
     setTabs((prev) =>
       prev.map((t) =>
         t.id === activeTabId
-          ? { ...t, url: targetUrl, title: text } // Set title to text initially
+          ? { ...t, url: targetUrl, title: text }
           : t
       )
     );
 
-    // Force reload if URL is identical (e.g. user hit enter on same URL to refresh)
+    // Force reload if URL is identical
     if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
       webViewRefs.current[activeTabId]?.reload();
     }
@@ -765,9 +861,13 @@ export default function App() {
 
   const deleteTab = (idToDelete: string) => {
     // 1. Clean up the WebView ref
-    if (webViewRefs.current[idToDelete]) {
-      // Stop loading to prevent callbacks firing after state update
-      webViewRefs.current[idToDelete]?.stopLoading();
+    const ref = webViewRefs.current[idToDelete];
+    if (ref) {
+      try {
+        ref.stopLoading();
+      } catch (e) {
+        // Ignore errors if the view is already detached
+      }
       webViewRefs.current[idToDelete] = null;
       delete webViewRefs.current[idToDelete];
     }
@@ -939,10 +1039,12 @@ export default function App() {
   };
 
   const handleWebViewMessage = (event: any) => {
-    try {
-      const data = event.nativeEvent.data;
-      const message = typeof data === "string" ? JSON.parse(data) : data;
-    } catch (e) {}
+    // Placeholder for future JS Bridge implementation
+    // try {
+    //   const data = event.nativeEvent.data;
+    //   const message = typeof data === "string" ? JSON.parse(data) : data;
+    //   console.log("Message from page:", message);
+    // } catch (e) {}
   };
 
   // --- Pan Responders ---
@@ -1559,60 +1661,85 @@ export default function App() {
 
           <SettingsGroup title="Look & Feel">
             <SettingRow label="Theme">
-              <Text
-                style={[
-                  styles.settingText,
-                  {
-                    color: effectiveTheme.text,
-                    fontFamily: "Nunito_600SemiBold",
-                    fontSize: 16 * fontScale,
-                  },
-                ]}
-              >
-                Theme
-              </Text>
-              {/* FIXED: Horizontal ScrollView to prevent cut-off */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  flexDirection: "row",
-                  alignItems: "center",
+              <View
+                style={{
+                  flexDirection: "column",
+                  width: "100%",
+                  justifyContent: "center",
                   paddingVertical: 5,
                 }}
               >
-                {["light", "dark", "adaptive"].map((m) => (
-                  <TouchableOpacity
-                    key={m}
-                    onPress={() => setThemeMode(m as any)}
+                {/* Header: Icon + Label */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 15,
+                  }}
+                >
+                  <Ionicons
+                    name="color-palette-outline"
+                    size={22}
+                    color={effectiveTheme.text}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
                     style={[
-                      styles.modeBtn,
-                      themeMode === m && { backgroundColor: accentColor },
+                      styles.settingText,
+                      {
+                        color: effectiveTheme.text,
+                        fontFamily: "Nunito_600SemiBold",
+                        fontSize: 16 * fontScale,
+                      },
                     ]}
                   >
-                    <Text
+                    Theme
+                  </Text>
+                </View>
+
+                {/* Horizontal Options */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  {["light", "gray", "dark", "adaptive"].map((m) => (
+                    <TouchableOpacity
+                      key={m}
+                      onPress={() => setThemeMode(m as any)}
                       style={[
-                        styles.modeBtnText,
-                        themeMode === m
-                          ? { color: "#fff" }
-                          : { color: effectiveTheme.text },
-                        {
-                          fontFamily: "Nunito_700Bold",
-                          fontSize: 12 * fontScale,
-                        },
+                        styles.modeBtn,
+                        themeMode === m && { backgroundColor: accentColor },
+                        { paddingHorizontal: 20 },
                       ]}
                     >
-                      {m.charAt(0).toUpperCase() + m.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                      <Text
+                        style={[
+                          styles.modeBtnText,
+                          themeMode === m
+                            ? { color: "#fff" }
+                            : { color: effectiveTheme.text },
+                          {
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 12 * fontScale,
+                          },
+                        ]}
+                      >
+                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             </SettingRow>
 
             <SettingRow label="Accent">
               <View style={{ width: '100%', flexDirection: 'column', paddingVertical: 5 }}>
-                 {/* Header Row with Label and Toggle */}
-                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                 {/* Header Row */}
+                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
                     <Text
                         style={[
                         styles.settingText,
@@ -1638,17 +1765,18 @@ export default function App() {
                     </TouchableOpacity>
                  </View>
 
-                  {/* Expandable Grid */}
+                  {/* Grid Container 
+                     - justifyContent: 'space-between' automatically handles the horizontal gaps.
+                     - Since 18 is divisible by 6, every row will look identical.
+                  */}
                   <View 
                     style={{ 
                       flexDirection: 'row', 
                       flexWrap: 'wrap', 
                       width: '100%',
-                      justifyContent: 'space-between', 
-                      rowGap: 12, 
+                      justifyContent: 'space-between',
                     }}
                   >
-                    {/* Logically slice the data based on state */}
                     {(isAccentExpanded ? ACCENTS : ACCENTS.slice(0, 6)).map((color) => (
                       <TouchableOpacity
                         key={color}
@@ -1657,14 +1785,17 @@ export default function App() {
                           styles.colorDot,
                           { 
                               backgroundColor: color, 
-                              width: '14.5%', 
+                              // 15% * 6 = 90%. Fits 6 items perfectly.
+                              // 15% * 7 = 105%. Forces 7th item to wrap.
+                              width: '15%', 
                               aspectRatio: 1, 
-                              borderRadius: 8, 
-                              margin: 0,
+                              borderRadius: 10, 
+                              // Vertical spacing only. Horizontal is handled by space-between.
+                              marginBottom: 15,
+                              // Ensure no side margins interfere with calculation
                               marginLeft: 0,
                               marginRight: 0,
                               marginTop: 0,
-                              marginBottom: 0
                           },
                           accentColor === color && {
                             borderWidth: 3,
@@ -2922,62 +3053,10 @@ export default function App() {
       return false;
     }
 
-    // --- 3. CRITICAL: Block "urn:" and non-standard schemes from WebView ---
-    // If WebView tries to render 'urn:aaid', it WILL crash the app.
-    // We pass it to the OS instead.
-    if (url.startsWith("urn:")) {
-      safeOpenURL(url);
-      return false;
-    }
-
-    // --- 4. Handle "Intent" links (The goo.gl / Android App Links) ---
-    // This catches "intent://" AND standard https links that have the #Intent fragment.
-    const isIntent = url.startsWith("intent://") || url.includes("#Intent;");
-
-    if (isIntent) {
-      // 1. Try to launch the target app
-      Linking.openURL(url)
-        .then(() => {
-          // Success: App opened. Do nothing.
-        })
-        .catch(() => {
-          // 2. Failure: App not installed. Look for fallback URL.
-          // Format: ...;S.browser_fallback_url=encoded_url;...
-          try {
-            const fallbackMatch = url.match(/browser_fallback_url=([^;]+)/);
-            if (fallbackMatch && fallbackMatch[1]) {
-              const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
-
-              // Navigate to the fallback (Play Store or Web Version) in the browser
-              if (activeTabIdRef.current === activeTabId) {
-                setTabs((prev) =>
-                  prev.map((t) =>
-                    t.id === activeTabId ? { ...t, url: fallbackUrl } : t
-                  )
-                );
-                setActiveUrl(fallbackUrl);
-                setInputUrl(getDisplayHost(fallbackUrl));
-              }
-            } else {
-              // No fallback? Tell the user.
-              Alert.alert(
-                "App Not Installed",
-                "This link requires an external app which is not installed."
-              );
-            }
-          } catch (e) {
-            console.warn("Failed to parse fallback", e);
-          }
-        });
-
-      // ALWAYS return false for intents. Never let WebView load them directly.
-      return false;
-    }
-
-    // --- 5. Handle HTTPS Only Mode (for standard http/https) ---
+    // --- 3. Strict HTTPS Only Mode ---
     if (httpsOnly && url.startsWith("http://")) {
       const secureUrl = url.replace(/^http:\/\//i, "https://");
-
+      // Redirect internally
       if (activeTabIdRef.current === activeTabId) {
         setTabs((prev) =>
           prev.map((t) => (t.id === activeTabId ? { ...t, url: secureUrl } : t))
@@ -2988,20 +3067,142 @@ export default function App() {
       return false;
     }
 
-    // --- 6. Allow Standard HTTP/HTTPS ---
-    // This is the ONLY thing the WebView should actually load.
-    if (url.startsWith("http") || url.startsWith("about:")) {
-      return true;
+    // --- 4. EXPLICITLY BLOCK KNOWN "BAD" SCHEMES ---
+    // Google Image Search often redirects to 'googleapp://' or 'intent://...package=com.google.android.googlequicksearchbox'
+    // If we let WebView try to load 'googleapp://', it shows the error page.
+    if (url.startsWith("googleapp://")) {
+       return false; // Simply block it. Usually Google falls back to the web version automatically if this is blocked silently.
     }
 
-    // --- 7. Catch-All for other external schemes (mailto:, tel:, maps:, market:) ---
-    // We return false to keep WebView safe, and try to open externally.
-    safeOpenURL(url);
+    // --- 5. THE CORE RULE: ONLY Allow Standard Web Schemes in WebView ---
+    // We explicitly check for the valid web protocols.
+    const isStandardScheme = 
+      url.startsWith("http://") || 
+      url.startsWith("https://") || 
+      url.startsWith("about:");
+
+    if (isStandardScheme) {
+      // ONE EXCEPTION: Check if it's an Intent masquerading as https (rare but happens with deep linking)
+      // Usually these are caught by the OS, but sometimes not.
+      if (url.includes("intent://") || url.includes("#Intent;")) {
+          handleExternalLink(url);
+          return false;
+      }
+      return true; // Load inside the browser
+    }
+
+    // --- 6. Handle Everything Else Externally ---
+    // If we are here, it is NOT http, https, or about. It is an external app scheme.
+    handleExternalLink(url);
     return false;
+  };
+
+  const renderErrorView = (tabId: string) => (
+    errorDomain: string | undefined,
+    errorCode: number,
+    errorDesc: string
+  ) => {
+    // 1. Get the URL that failed from your tabs state
+    const targetUrl = tabs.find((t) => t.id === tabId)?.url || "Unknown URL";
+
+    // 2. Translate cryptic errors into human-readable text
+    let friendlyTitle = "Can't Load Page";
+    let friendlyDesc = "Something went wrong while loading this website.";
+    let iconName = "alert-circle-outline";
+
+    // Common Android & iOS WebKit Errors
+    if (errorDesc.includes("ERR_NAME_NOT_RESOLVED") || errorCode === -2 || errorCode === -1003) {
+        friendlyTitle = "Site Not Found";
+        friendlyDesc = "We couldn't find this site. Please check your spelling.";
+        iconName = "search-outline";
+    } else if (errorDesc.includes("ERR_INTERNET_DISCONNECTED") || errorCode === -1009) {
+        friendlyTitle = "No Internet";
+        friendlyDesc = "Please check your Wi-Fi or mobile data connection.";
+        iconName = "wifi-outline";
+    } else if (errorDesc.includes("ERR_CONNECTION_TIMED_OUT") || errorCode === -1001) {
+        friendlyTitle = "Connection Timed Out";
+        friendlyDesc = "The server took too long to respond.";
+        iconName = "time-outline";
+    } else if (errorDesc.includes("ERR_CONNECTION_REFUSED") || errorCode === -1004) {
+        friendlyTitle = "Connection Refused";
+        friendlyDesc = "The website refused the connection.";
+        iconName = "hand-left-outline";
+    } else if (errorDesc.includes("ERR_CLEARTEXT_NOT_PERMITTED")) {
+        friendlyTitle = "Security Error";
+        friendlyDesc = "This site requires a secure HTTPS connection.";
+        iconName = "lock-closed-outline";
+    }
+
+    return (
+      <View
+        style={[
+          styles.errorContainer,
+          // Ensure opaque background to cover native error
+          { backgroundColor: effectiveTheme.bg }, 
+        ]}
+      >
+        <Ionicons
+          name={iconName as any}
+          size={64}
+          color={effectiveTheme.textSec}
+          style={{ marginBottom: 20 }}
+        />
+        
+        <Text
+          style={[
+            styles.errorTitle,
+            { color: effectiveTheme.text, fontFamily: "Nunito_800ExtraBold" },
+          ]}
+        >
+          {friendlyTitle}
+        </Text>
+
+        {/* Display the URL that failed */}
+        <Text
+            numberOfLines={1}
+            style={{
+                color: accentColor,
+                fontFamily: "Nunito_700Bold",
+                fontSize: 14,
+                marginBottom: 10,
+                marginTop: 0,
+                maxWidth: '85%',
+                textAlign: 'center'
+            }}
+        >
+            {targetUrl}
+        </Text>
+
+        <Text
+          style={[
+            styles.errorDesc,
+            { color: effectiveTheme.textSec, fontFamily: "Nunito_600SemiBold" },
+          ]}
+        >
+          {friendlyDesc}
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.retryBtn, { backgroundColor: accentColor }]}
+          onPress={() => webViewRefs.current[tabId]?.reload()}
+        >
+          <Text
+            style={{
+              color: "#fff",
+              fontFamily: "Nunito_700Bold",
+              fontSize: 16,
+            }}
+          >
+            Try Again
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   const getWebViewProps = (tabId: string) => ({
     ref: (ref: WebView | null) => (webViewRefs.current[tabId] = ref),
+    renderError: renderErrorView(tabId),
     source: { uri: tabs.find((t) => t.id === tabId)?.url || "" },
     originWhitelist: ["*"],
     onShouldStartLoadWithRequest: handleShouldStartLoadWithRequest,
@@ -3824,7 +4025,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(120,120,120,0.1)",
   },
   modeBtnText: { fontSize: 12 },
-  colorDot: { width: 24, height: 24, borderRadius: 12, marginLeft: 10 },
+  colorDot: { width: 20, height: 20, borderRadius: 12, marginLeft: 10 },
   fabContainer: { position: "absolute", bottom: 40, right: 20 },
   fabButton: {
     width: 60,
@@ -3870,5 +4071,39 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     marginHorizontal: 3,
     opacity: 0.7,
+  },
+  errorContainer: {
+    position: "absolute", // <--- Forces it to detach from the flex stack
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100, // <--- Ensures it sits on top of the native error page
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 30,
+  },
+  errorTitle: {
+    fontSize: 24,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  errorDesc: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 30,
+    lineHeight: 22,
+  },
+  retryBtn: {
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
 });
