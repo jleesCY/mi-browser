@@ -19,6 +19,7 @@ import {
   Modal,
   PanResponder,
   ScrollView,
+  SectionList,
   Share,
   StatusBar,
   StyleSheet,
@@ -27,13 +28,13 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 
-import SwipeableHistoryRow from "../src/components/SwipeableHistoryRow";
-import SwipeableTabRow from "../src/components/SwipeableTabRow";
+import SwipeableHistoryRow from "@/src/components/SwipeableHistoryRow";
+import SwipeableTabRow from "@/src/components/SwipeableTabRow";
 import {
   ACCENTS,
   APP_VERSION,
@@ -45,12 +46,14 @@ import {
   SNAP_CLOSED,
   SNAP_DEFAULT,
   SNAP_FULL,
-  SWAP_DISTANCE,
+  SWAP_DISTANCE
 } from "../src/constants";
 import { HistoryItem, TabItem } from "../src/types";
 import {
   generateAdaptiveTheme,
   getDisplayHost,
+  getSmartDate,
+  groupHistoryByDate,
   loadStorage,
   saveStorage,
 } from "../src/utils";
@@ -327,7 +330,7 @@ export default function App() {
         setUiPadding(savedSettings.uiPadding ?? "normal");
         setFontScale(savedSettings.fontScale ?? 1);
         setBarTransparency(savedSettings.barTransparency ?? "frosted");
-        setShowStatusBar(savedSettings.showStatusBar ?? true);
+        setShowStatusBar(savedSettings.showStatusBar !== undefined ? savedSettings.showStatusBar : true);
         setPillHeight(savedSettings.pillHeight ?? 70);
         setProgressBarMode(savedSettings.progressBarMode ?? "ltr");
         setRecallPosition(savedSettings.recallPosition ?? "center");
@@ -493,6 +496,7 @@ export default function App() {
     uiPadding,
     fontScale,
     barTransparency,
+    showStatusBar,
     pillHeight,
     progressBarMode,
     recallPosition,
@@ -627,6 +631,7 @@ export default function App() {
   const viewShotRef = useRef<View>(null);
 
   const ignoreNextScroll = useRef(false);
+  const isBarHidden = useRef(false);
 
   useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
@@ -972,18 +977,21 @@ export default function App() {
     }).start();
   };
   const showBar = () => {
+    isBarHidden.current = false; // <--- Update state
     currentScrollTrans.current = 0;
     Animated.timing(scrollTranslateY, {
       toValue: 0,
-      duration: 200,
+      duration: 100, // <--- Faster
       useNativeDriver: false,
     }).start();
   };
+
   const hideBar = () => {
+    isBarHidden.current = true;
     currentScrollTrans.current = HIDDEN_TRANSLATE_Y;
     Animated.timing(scrollTranslateY, {
       toValue: HIDDEN_TRANSLATE_Y,
-      duration: 250,
+      duration: 100,
       useNativeDriver: false,
     }).start();
   };
@@ -1020,15 +1028,20 @@ export default function App() {
     }
 
     if (isInputFocused || activeView !== "none" || y < 0) return;
+
     const dy = y - lastScrollY.current;
-    const newTrans = Math.max(
-      0,
-      Math.min(HIDDEN_TRANSLATE_Y, currentScrollTrans.current + dy)
-    );
-    if (newTrans !== currentScrollTrans.current) {
-      scrollTranslateY.setValue(newTrans);
-      currentScrollTrans.current = newTrans;
+
+    // Use a small threshold (10px) to prevent jitter on tiny movements
+    if (Math.abs(dy) > 1) {
+      if (dy > 0 && !isBarHidden.current) {
+        // Scrolling Down -> Immediately Hide
+        hideBar();
+      } else if (dy < 0 && isBarHidden.current) {
+        // Scrolling Up -> Immediately Show
+        showBar();
+      }
     }
+    
     lastScrollY.current = y;
   };
 
@@ -1263,6 +1276,16 @@ export default function App() {
     outputRange: [1, 0, 0],
     extrapolate: "clamp",
   });
+  const containerScale = scrollTranslateY.interpolate({
+    inputRange: [0, HIDDEN_TRANSLATE_Y],
+    outputRange: [1, 0.6],
+    extrapolate: "clamp",
+  });
+  const containerOpacity = scrollTranslateY.interpolate({
+    inputRange: [0, HIDDEN_TRANSLATE_Y * 0.75, HIDDEN_TRANSLATE_Y],
+    outputRange: [1, 0.5, 0],
+    extrapolate: "clamp",
+  });
   const recallOpacity = scrollTranslateY.interpolate({
     inputRange: [0, HIDDEN_TRANSLATE_Y - 20, HIDDEN_TRANSLATE_Y],
     outputRange: [0, 0, 1],
@@ -1357,6 +1380,14 @@ export default function App() {
   };
 
   const renderOverlayContent = () => {
+    // Create a specific theme for rows that forces them to use the 'Card' background color
+    // This makes them stand out against the main background
+    const rowTheme = {
+      ...effectiveTheme,
+      surface: effectiveTheme.card,
+      bg: effectiveTheme.card,
+    };
+
     let content = null;
     let title = "";
 
@@ -1370,8 +1401,12 @@ export default function App() {
           item.url.toLowerCase().includes(historySearch.toLowerCase())
       );
 
+      // Group history items by date (Today, Yesterday, etc.)
+      const historySections = groupHistoryByDate(filteredHistory);
+
       content = (
         <View style={{ flex: 1 }}>
+          {/* History Search Bar */}
           <View
             style={{
               marginHorizontal: 20,
@@ -1425,33 +1460,38 @@ export default function App() {
             )}
           </View>
 
-          <FlatList
-            data={filteredHistory}
+          {/* SectionList for Grouped History */}
+          <SectionList
+            sections={historySections}
             keyExtractor={(item, index) => item.id + index}
             contentContainerStyle={{ padding: 20, paddingTop: 0 }}
-            keyboardShouldPersistTaps="handled" // FIX: Allow tap through keyboard
-            ListHeaderComponent={
+            keyboardShouldPersistTaps="handled"
+            stickySectionHeadersEnabled={false}
+            renderSectionHeader={({ section: { title } }) => (
               <Text
                 style={[
                   styles.sectionHeader,
                   {
                     color: effectiveTheme.textSec,
                     fontFamily: "Nunito_700Bold",
+                    marginTop: 20,
+                    marginBottom: 10,
                   },
                 ]}
               >
-                Recently Visited
+                {title}
               </Text>
-            }
+            )}
             renderItem={({ item }) => (
               <SwipeableHistoryRow
                 item={item}
-                theme={effectiveTheme}
+                theme={rowTheme} // Use the higher contrast rowTheme
                 accent={accentColor}
                 radius={cornerRadius}
                 height={getHistoryHeight()}
                 margin={getMargin()}
                 fontScale={fontScale}
+                timeString={getSmartDate(item.timestamp)} // Pass formatted time string
                 onPress={() => {
                   const targetUrl = item.url;
                   setActiveUrl(targetUrl);
@@ -1562,7 +1602,7 @@ export default function App() {
           <FlatList
             data={filteredTabs}
             keyExtractor={(item) => item.id}
-            keyboardShouldPersistTaps="handled" // FIX: Allow tap through keyboard
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
               padding: 20,
               paddingBottom: 100,
@@ -1571,7 +1611,7 @@ export default function App() {
             renderItem={({ item }) => (
               <SwipeableTabRow
                 item={item}
-                theme={effectiveTheme}
+                theme={rowTheme} // Use the higher contrast rowTheme
                 accent={accentColor}
                 radius={cornerRadius}
                 height={getTabHeight()}
@@ -1605,9 +1645,10 @@ export default function App() {
       content = (
         <ScrollView
           style={{ flex: 1 }}
-          keyboardShouldPersistTaps="handled" // FIX: Allow tap through keyboard
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
         >
+          {/* Settings Search Bar */}
           <View
             style={{
               marginBottom: 20,
@@ -1659,7 +1700,9 @@ export default function App() {
             )}
           </View>
 
+          {/* --- Look & Feel --- */}
           <SettingsGroup title="Look & Feel">
+            {/* UPDATED THEME UI */}
             <SettingRow label="Theme">
               <View
                 style={{
@@ -1809,7 +1852,7 @@ export default function App() {
               </View>
             </SettingRow>
 
-            {/* NEW: Status Bar Toggle */}
+            {/* Status Bar Toggle */}
             <SettingRow label="Show Status Bar">
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
@@ -1840,6 +1883,7 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
+          {/* --- Interface Settings --- */}
           <SettingsGroup title="Interface">
             <SettingRow label="Font Size">
               <View
@@ -2056,7 +2100,6 @@ export default function App() {
                     UI Spacing
                   </Text>
                 </View>
-                {/* FIXED: Horizontal ScrollView */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -2226,7 +2269,6 @@ export default function App() {
                     Pill Transparency
                   </Text>
                 </View>
-                {/* FIXED: Horizontal ScrollView */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -2301,7 +2343,6 @@ export default function App() {
                     Pill Loading Bar
                   </Text>
                 </View>
-                {/* FIXED: Horizontal ScrollView */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -2347,6 +2388,7 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
+          {/* --- Browsing Settings --- */}
           <SettingsGroup title="Browsing">
             {shouldShow("Search Engine") && (
               <View label="Search Engine">
@@ -2499,7 +2541,6 @@ export default function App() {
                     On Startup
                   </Text>
                 </View>
-                {/* FIXED: Horizontal ScrollView and removed flex: 1 from children */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -2519,7 +2560,6 @@ export default function App() {
                           backgroundColor: accentColor,
                         },
                         {
-                          // Removed flex: 1 so they don't crush each other
                           alignItems: "center",
                           justifyContent: "center",
                           paddingHorizontal: 20,
@@ -2576,6 +2616,7 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
+          {/* --- Privacy Settings --- */}
           <SettingsGroup title="Privacy">
             <SettingRow label="Enable JavaScript">
               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -2665,8 +2706,9 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
+          {/* --- Data Settings --- */}
           <SettingsGroup title="Data">
-            {/* NEW: Reset Settings Option */}
+            {/* Reset Settings Option */}
             <SettingRow
               label="Reset all settings"
               onPress={requestResetSettings}
@@ -2675,7 +2717,7 @@ export default function App() {
                 <Ionicons
                   name="refresh-circle-outline"
                   size={22}
-                  color="#ff3b30" // Red to indicate destructive/reset action
+                  color="#ff3b30"
                   style={{ marginRight: 10 }}
                 />
                 <Text
@@ -3547,7 +3589,7 @@ export default function App() {
                   styles.bottomAreaContainer,
                   {
                     paddingBottom: Math.max(insets.bottom + 10, 10),
-
+                    opacity: containerOpacity,
                     transform: [
                       {
                         translateY: Animated.subtract(
@@ -3555,6 +3597,7 @@ export default function App() {
                           keyboardHeight
                         ),
                       },
+                      { scale: containerScale }, // <--- Shrink effect
                     ],
                   },
                 ]}

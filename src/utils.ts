@@ -83,3 +83,62 @@ export const loadStorage = async (key: string) => {
     return null;
   }
 };
+
+export const getSmartDate = (timestamp: number) => {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = yesterday.toDateString() === date.toDateString();
+
+  if (isToday) {
+    // Just time: "10:45 AM"
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else if (isYesterday) {
+    // "Yesterday, 10:45 AM"
+    return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else {
+    // "Jan 15, 10:45 AM"
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+};
+
+export const groupHistoryByDate = (historyItems: any[]) => {
+  const sections: { title: string; data: any[] }[] = [];
+  
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  // Last 7 days cutoff
+  const lastWeek = new Date();
+  lastWeek.setDate(lastWeek.getDate() - 7);
+
+  const groups = {
+    "Today": [] as any[],
+    "Yesterday": [] as any[],
+    "Last 7 Days": [] as any[],
+    "Older": [] as any[],
+  };
+
+  historyItems.forEach((item) => {
+    const date = new Date(item.timestamp);
+    if (date.toDateString() === today.toDateString()) {
+      groups["Today"].push(item);
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      groups["Yesterday"].push(item);
+    } else if (date > lastWeek) {
+      groups["Last 7 Days"].push(item);
+    } else {
+      groups["Older"].push(item);
+    }
+  });
+
+  if (groups["Today"].length > 0) sections.push({ title: "Today", data: groups["Today"] });
+  if (groups["Yesterday"].length > 0) sections.push({ title: "Yesterday", data: groups["Yesterday"] });
+  if (groups["Last 7 Days"].length > 0) sections.push({ title: "Last 7 Days", data: groups["Last 7 Days"] });
+  if (groups["Older"].length > 0) sections.push({ title: "Older", data: groups["Older"] });
+
+  return sections;
+};
