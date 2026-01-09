@@ -6,6 +6,8 @@ import {
   useFonts,
 } from "@expo-google-fonts/nunito";
 import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -58,6 +60,39 @@ import {
   saveStorage,
 } from "../src/utils";
 
+const INJECTED_CONTEXT_MENU_SCRIPT = `
+  (function() {
+    function getParentLink(el) {
+      while (el && el.tagName !== 'A') {
+        el = el.parentElement;
+      }
+      return el;
+    }
+
+    window.oncontextmenu = function(e) {
+      var target = e.target;
+      var link = getParentLink(target);
+      var img = target.tagName === 'IMG' ? target : null;
+      
+      // Only capture if it's a link or an image
+      if (link || img) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'CONTEXT_MENU',
+          data: {
+            url: link ? link.href : null,
+            imgUrl: img ? img.src : null,
+            text: link ? link.innerText.substring(0, 50) : (img ? (img.alt || 'Image') : '')
+          }
+        }));
+        return false;
+      }
+    };
+  })();
+`;
+
 export default function App() {
   const insets = useSafeAreaInsets();
 
@@ -97,6 +132,13 @@ export default function App() {
   const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{
     ms: number;
     label: string;
+  } | null>(null);
+
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuData, setContextMenuData] = useState<{
+    url: string | null;
+    imgUrl: string | null;
+    text: string;
   } | null>(null);
 
   const [activeView, setActiveView] = useState<
@@ -1051,13 +1093,74 @@ export default function App() {
     StatusBar.setHidden(fullScreen);
   };
 
+  const handleDownloadImage = async () => {
+    const url = contextMenuData?.imgUrl;
+    if (!url) return;
+
+    try {
+      // FIX: Pass 'true' to request write-only access.
+      // This avoids asking for Audio permissions which causes the crash.
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please allow storage access to save images.');
+        return;
+      }
+
+      // 2. Determine File Extension
+      let extension = '.jpg';
+      if (url.includes('.png')) extension = '.png';
+      else if (url.includes('.gif')) extension = '.gif';
+      else if (url.includes('.webp')) extension = '.webp';
+      else if (url.startsWith('data:image/png')) extension = '.png';
+      
+      const fileName = `download_${Date.now()}${extension}`; 
+      const fileUri = FileSystem.documentDirectory + fileName;
+
+      // 3. Download or Write File
+      if (url.startsWith('data:')) {
+        const base64Code = url.split('base64,')[1];
+        await FileSystem.writeAsStringAsync(fileUri, base64Code, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } else {
+        const downloadRes = await FileSystem.downloadAsync(url, fileUri);
+        if (downloadRes.status !== 200) {
+          throw new Error(`Download failed with status: ${downloadRes.status}`);
+        }
+      }
+
+      // 4. Save to Device Gallery
+      await MediaLibrary.saveToLibraryAsync(fileUri);
+      
+      Alert.alert("Success", "Image saved to gallery!");
+      setContextMenuVisible(false);
+
+    } catch (e: any) {
+      console.error(e);
+      Alert.alert("Save Error", e.message || "An unknown error occurred.");
+    }
+  };
+
   const handleWebViewMessage = (event: any) => {
-    // Placeholder for future JS Bridge implementation
-    // try {
-    //   const data = event.nativeEvent.data;
-    //   const message = typeof data === "string" ? JSON.parse(data) : data;
-    //   console.log("Message from page:", message);
-    // } catch (e) {}
+    const nativeEvent = event.nativeEvent;
+    if (!nativeEvent.data) return;
+
+    try {
+      const dataString = nativeEvent.data;
+      if (typeof dataString === 'string' && dataString.includes('CONTEXT_MENU')) {
+        const parsed = JSON.parse(dataString);
+        if (parsed.type === 'CONTEXT_MENU') {
+          // Force update on next tick
+          setTimeout(() => {
+            setContextMenuData(parsed.data);
+            setContextMenuVisible(true);
+          }, 0);
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
   };
 
   // --- Pan Responders ---
@@ -1380,8 +1483,6 @@ export default function App() {
   };
 
   const renderOverlayContent = () => {
-    // Create a specific theme for rows that forces them to use the 'Card' background color
-    // This makes them stand out against the main background
     const rowTheme = {
       ...effectiveTheme,
       surface: effectiveTheme.card,
@@ -1401,12 +1502,10 @@ export default function App() {
           item.url.toLowerCase().includes(historySearch.toLowerCase())
       );
 
-      // Group history items by date (Today, Yesterday, etc.)
       const historySections = groupHistoryByDate(filteredHistory);
 
       content = (
         <View style={{ flex: 1 }}>
-          {/* History Search Bar */}
           <View
             style={{
               marginHorizontal: 20,
@@ -1460,7 +1559,6 @@ export default function App() {
             )}
           </View>
 
-          {/* SectionList for Grouped History */}
           <SectionList
             sections={historySections}
             keyExtractor={(item, index) => item.id + index}
@@ -1648,7 +1746,6 @@ export default function App() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
         >
-          {/* Settings Search Bar */}
           <View
             style={{
               marginBottom: 20,
@@ -1700,9 +1797,7 @@ export default function App() {
             )}
           </View>
 
-          {/* --- Look & Feel --- */}
           <SettingsGroup title="Look & Feel">
-            {/* UPDATED THEME UI */}
             <SettingRow label="Theme">
               <View
                 style={{
@@ -1712,7 +1807,6 @@ export default function App() {
                   paddingVertical: 5,
                 }}
               >
-                {/* Header: Icon + Label */}
                 <View
                   style={{
                     flexDirection: "row",
@@ -1739,8 +1833,6 @@ export default function App() {
                     Theme
                   </Text>
                 </View>
-
-                {/* Horizontal Options */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -1781,7 +1873,6 @@ export default function App() {
 
             <SettingRow label="Accent">
               <View style={{ width: '100%', flexDirection: 'column', paddingVertical: 5 }}>
-                 {/* Header Row */}
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
                     <Text
                         style={[
@@ -1807,11 +1898,6 @@ export default function App() {
                         </Text>
                     </TouchableOpacity>
                  </View>
-
-                  {/* Grid Container 
-                     - justifyContent: 'space-between' automatically handles the horizontal gaps.
-                     - Since 18 is divisible by 6, every row will look identical.
-                  */}
                   <View 
                     style={{ 
                       flexDirection: 'row', 
@@ -1852,7 +1938,6 @@ export default function App() {
               </View>
             </SettingRow>
 
-            {/* Status Bar Toggle */}
             <SettingRow label="Show Status Bar">
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
@@ -1883,7 +1968,6 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
-          {/* --- Interface Settings --- */}
           <SettingsGroup title="Interface">
             <SettingRow label="Font Size">
               <View
@@ -2388,7 +2472,6 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
-          {/* --- Browsing Settings --- */}
           <SettingsGroup title="Browsing">
             {shouldShow("Search Engine") && (
               <View label="Search Engine">
@@ -2616,7 +2699,6 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
-          {/* --- Privacy Settings --- */}
           <SettingsGroup title="Privacy">
             <SettingRow label="Enable JavaScript">
               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -2706,9 +2788,7 @@ export default function App() {
             </SettingRow>
           </SettingsGroup>
 
-          {/* --- Data Settings --- */}
           <SettingsGroup title="Data">
-            {/* Reset Settings Option */}
             <SettingRow
               label="Reset all settings"
               onPress={requestResetSettings}
@@ -2893,7 +2973,6 @@ export default function App() {
           </Animated.View>
         </Animated.View>
 
-        {/* Confirmation Modal */}
         <Modal
           visible={isConfirmModalVisible}
           transparent
@@ -2975,7 +3054,6 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* Rename Modal */}
         <Modal
           visible={isRenameModalVisible}
           transparent
@@ -3199,7 +3277,6 @@ export default function App() {
           {friendlyTitle}
         </Text>
 
-        {/* Display the URL that failed */}
         <Text
             numberOfLines={1}
             style={{
@@ -3248,6 +3325,8 @@ export default function App() {
     source: { uri: tabs.find((t) => t.id === tabId)?.url || "" },
     originWhitelist: ["*"],
     onShouldStartLoadWithRequest: handleShouldStartLoadWithRequest,
+
+    injectedJavaScript: INJECTED_CONTEXT_MENU_SCRIPT,
 
     // NAVIGATION CHANGE
     // Inside getWebViewProps...
@@ -3448,8 +3527,7 @@ export default function App() {
           },
         ]}
       >
-        {/* 1. RENDER ALL TABS WITH URLs */}
-        {/* 1. RENDER TABS */}
+
         {tabs.map((tab) => {
           // If the tab has no URL (New Tab Page), don't render a WebView
           if (!tab.url) return null;
@@ -3492,7 +3570,6 @@ export default function App() {
           );
         })}
 
-        {/* 2. RENDER HOME SCREEN (If active tab has no URL) */}
         {!activeUrl && (
           <View
             style={[
@@ -3515,7 +3592,7 @@ export default function App() {
               }}
               {...logoResponder.panHandlers}
             >
-              {/* FIXED: Hardcoded 'mi.' with explicit styling to ensure visibility */}
+
               <Text
                 style={[
                   styles.homeText,
@@ -3532,7 +3609,6 @@ export default function App() {
         )}
       </Animated.View>
 
-      {/* WRAP THE REST OF THE UI IN A CONDITIONAL CHECK */}
       {!isFullscreen && (
         <>
           {activeView !== "none" && (
@@ -3606,7 +3682,6 @@ export default function App() {
                   style={[styles.gestureArea, { height: pillHeight }]}
                   {...panResponder.panHandlers}
                 >
-                  {/* Menu Pill */}
                   <Animated.View
                     style={[
                       styles.pillBase,
@@ -3737,7 +3812,6 @@ export default function App() {
                     </View>
                   </Animated.View>
 
-                  {/* Search Pill */}
                   <Animated.View
                     style={[
                       styles.pillBase,
@@ -3789,7 +3863,6 @@ export default function App() {
                         />
                       </Animated.View>
 
-                      {/* Input Wrapper */}
                       <Animated.View
                         style={[
                           styles.inputWrapper,
@@ -3802,7 +3875,7 @@ export default function App() {
                           },
                         ]}
                       >
-                        {/* Progress Bar (Restricted to Input Area) */}
+
                         {progressBarMode !== "none" && isLoading && (
                           <Animated.View
                             style={{
@@ -3892,6 +3965,128 @@ export default function App() {
           )}
         </>
       )}
+
+      {contextMenuVisible && (
+        <View 
+          style={[
+            StyleSheet.absoluteFill, 
+            { 
+              zIndex: 99999, 
+              elevation: 99999, 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              backgroundColor: 'rgba(0,0,0,0.4)' 
+            }
+          ]}
+        >
+          <TouchableWithoutFeedback onPress={() => setContextMenuVisible(false)}>
+             <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+
+          <View 
+            style={{ 
+               width: '70%',      
+               maxWidth: 280,     
+               backgroundColor: effectiveTheme.surface, 
+               borderRadius: cornerRadius, 
+               shadowColor: "#000",
+               shadowOffset: { width: 0, height: 10 },
+               shadowOpacity: 0.3,
+               shadowRadius: 20,
+               elevation: 10,
+               overflow: 'hidden'
+            }}
+          >
+
+            <View style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }}>
+              <Text numberOfLines={2} style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale, marginBottom: 2 }}>
+                {contextMenuData?.text || (contextMenuData?.imgUrl ? "Image" : "Link")}
+              </Text>
+              <Text numberOfLines={1} style={{ color: effectiveTheme.textSec, fontFamily: 'Nunito_600SemiBold', fontSize: 11 * fontScale }}>
+                {contextMenuData?.url || contextMenuData?.imgUrl}
+              </Text>
+            </View>
+
+            <View style={{ paddingVertical: 2 }}>
+              
+              {(contextMenuData?.url || contextMenuData?.imgUrl) && (
+                <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}
+                  onPress={() => {
+                    const target = contextMenuData?.url || contextMenuData?.imgUrl;
+                    if (target) addNewTab(target);
+                    setContextMenuVisible(false);
+                  }}
+                >
+                  <Ionicons name="open-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                  <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>
+                    Open in New Tab
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}
+                onPress={() => {
+                   const target = contextMenuData?.url || contextMenuData?.imgUrl;
+                   if (target) {
+                     setInputUrl(target);
+                     setIsInputFocused(true);
+                     setActiveView('none'); 
+                   }
+                   setContextMenuVisible(false);
+                }}
+              >
+                 <Ionicons name="copy-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                 <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>
+                    Copy to Address Bar
+                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}
+                onPress={async () => {
+                   const target = contextMenuData?.url || contextMenuData?.imgUrl;
+                   if (target) await Share.share({ message: target, url: target });
+                   setContextMenuVisible(false);
+                }}
+              >
+                 <Ionicons name="share-social-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                 <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>
+                    Share
+                 </Text>
+              </TouchableOpacity>
+
+              {contextMenuData?.imgUrl && (
+                <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}
+                  onPress={handleDownloadImage}
+                >
+                  <Ionicons name="download-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                  <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>
+                    Save Image
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+            </View>
+
+            <TouchableOpacity 
+              onPress={() => setContextMenuVisible(false)}
+              style={{ 
+                padding: 12, 
+                alignItems: 'center', 
+                backgroundColor: effectiveTheme.card, 
+                borderTopWidth: 1, 
+                borderTopColor: effectiveTheme.bg 
+              }}
+            >
+              <Text style={{ color: effectiveTheme.textSec, fontFamily: 'Nunito_700Bold', fontSize: 13 * fontScale }}>Cancel</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -3962,7 +4157,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     width: "100%",
     justifyContent: "flex-start",
-    gap: 10, // Adds space between wrapped items (React Native 0.71+)
+    gap: 10,
     marginBottom: 5,
   },
   inputWrapper: {
@@ -4116,12 +4311,12 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   errorContainer: {
-    position: "absolute", // <--- Forces it to detach from the flex stack
+    position: "absolute",
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 100, // <--- Ensures it sits on top of the native error page
+    zIndex: 100,
     width: "100%",
     height: "100%",
     justifyContent: "center",
