@@ -9,7 +9,7 @@
 You can find the latest Android APKs directly in this repository.
 
 1.  Navigate to the **`builds`** folder in the file list above.
-2.  Find the apk with the largest build number to your device.
+2.  Find the apk with the largest build number and download it to your device.
 1.  Install and browse.
 
 ## 🪶 Why mi.?
