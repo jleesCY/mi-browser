@@ -198,68 +198,82 @@ export default function App() {
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // --- HELPER TO HANDLE INCOMING LINKS ---
-  const handleIncomingUrl = (url: string | null) => {
-    if (!url) return;
+  // --- HELPER: Parse Deep Links (Expo Go & Production) ---
+  const parseDeepLinkUrl = (originalUrl: string) => {
+    let payload = originalUrl;
 
-    let targetUrl = url;
-
-    // Handle "mibrowser://" schemes
-    if (url.startsWith("mibrowser://")) {
-      // Remove the scheme
-      const stripped = url.replace("mibrowser://", "");
-
-      // Handle "mibrowser://https://google.com" vs "mibrowser://?url=..."
-      // We use a safe try-catch for decoding because malformed URI components crash the app
-      try {
-        if (stripped.startsWith("?url=") || stripped.startsWith("url?=")) {
-          const match = stripped.match(/[?&]url=([^&]+)/);
-          if (match && match[1]) {
-            targetUrl = decodeURIComponent(match[1]);
-          } else {
-            targetUrl = stripped.replace(/^(?:\?url=|url\?=)/, "");
-          }
+    // 1. Strip Scheme / Prefix
+    if (payload.startsWith("exp://") || payload.startsWith("exps://")) {
+        // Handle Expo Go: exp://IP:PORT/--/payload
+        const split = payload.split("/--/");
+        if (split.length > 1) {
+            payload = split[1];
+            console.log("Parsed Expo Go deep link payload:", payload);
         } else {
-          targetUrl = stripped;
+            // Just opening the app root (no link)
+            return null; 
         }
-      } catch (e) {
-        // Fallback: use the stripped string raw if decoding failed
-        targetUrl = stripped.replace(/^(?:\?url=|url\?=)/, "");
-      }
-
-      // Ensure protocol exists if missing
-      if (
-        !targetUrl.startsWith("http://") &&
-        !targetUrl.startsWith("https://")
-      ) {
-        targetUrl = "https://" + targetUrl;
-      }
+    } else if (payload.startsWith("mibrowser://")) {
+        payload = payload.replace("mibrowser://", "");
     }
 
+    // 2. Handle specific "url=" query param (common in Android Intents)
+    if (payload.includes("url=") || payload.includes("URL=")) {
+        try {
+          const match = payload.match(/(?:url|URL)=([^&]+)/);
+          if (match && match[1]) {
+            return decodeURIComponent(match[1]);
+          }
+        } catch(e) {}
+    }
+
+    // 3. General Cleanup: Remove leading query markers and decode
+    payload = payload.replace(/^[?&]/, "");
+    try {
+        payload = decodeURIComponent(payload);
+    } catch (e) {}
+
+    // 4. Ensure Protocol
+    if (
+        payload &&
+        !payload.startsWith("http://") &&
+        !payload.startsWith("https://") &&
+        !payload.startsWith("about:")
+    ) {
+        payload = "https://" + payload;
+    }
+
+    return payload;
+  };
+
+  // --- HELPER TO HANDLE INCOMING LINKS ---
+  const handleIncomingUrl = React.useCallback((url: string | null) => {
+    if (!url) return;
+
+    // Use the shared parser to clean the URL
+    const targetUrl = parseDeepLinkUrl(url);
+
+    // Verify it's a valid web URL before opening
     if (
       targetUrl &&
       (targetUrl.startsWith("http://") || targetUrl.startsWith("https://"))
     ) {
       const newId = Date.now().toString();
-      const isDuplicate = tabs.some((t) => t.url === targetUrl);
+      const newTab = {
+        id: newId,
+        url: targetUrl,
+        initialUrl: targetUrl,
+        title: "External Link",
+        showLogo: false,
+      };
 
-      if (!isDuplicate) {
-        const newTab = {
-          id: newId,
-          url: targetUrl,
-          initialUrl: targetUrl,
-          title: "External Link",
-          showLogo: false,
-        };
-
-        setTabs((prev) => [newTab, ...prev]);
-        setActiveTabId(newId);
-        setActiveUrl(targetUrl);
-        setInputUrl(getDisplayHost(targetUrl));
-        setActiveView("none");
-      }
+      setTabs((prev) => [newTab, ...prev]);
+      setActiveTabId(newId);
+      setActiveUrl(targetUrl);
+      setInputUrl(getDisplayHost(targetUrl));
+      setActiveView("none"); 
     }
-  };
+  }, []);
 
   // --- ROBUST EXTERNAL LINK HANDLER ---
   const handleExternalLink = async (url: string) => {
@@ -359,14 +373,12 @@ export default function App() {
     const loadAllData = async () => {
       // 1. Load Settings First
       const savedSettings = await loadStorage("settings");
-
       let currentStartupMode = "new";
 
       if (savedSettings) {
         setThemeMode(savedSettings.themeMode ?? "dark");
         setAccentColor(savedSettings.accentColor ?? "#007AFF");
         const savedIndex = savedSettings.searchEngineIndex ?? 0;
-        // Safety check: ensure the saved index actually exists in your current constants
         setSearchEngineIndex(
           savedIndex >= 0 && savedIndex < SEARCH_ENGINES.length ? savedIndex : 0
         );
@@ -390,37 +402,42 @@ export default function App() {
         setStartupTabMode(currentStartupMode as any);
       }
 
-      // 2. Load Data
+      // 2. Load History
       const savedHistory = await loadStorage("history");
       if (savedHistory) setHistory(savedHistory);
 
+      // 3. Load Tabs
       const savedTabs = await loadStorage("tabs");
       const existingTabs = (savedTabs || []).map((t: any) => ({
-          ...t,
-          initialUrl: t.initialUrl || t.url // Polyfill missing initialUrl
+        ...t,
+        initialUrl: t.initialUrl || t.url // Polyfill
       }));
 
-      // 3. Handle Startup Logic
+      // 4. Handle Startup Logic
       const initialUrl = await Linking.getInitialURL();
 
-      // If initial URL exists, handle it (Deep Link Case)
       if (initialUrl) {
-        // If we have an initial URL, we process it.
-        // Note: If we had existing tabs, we add this on top.
-        handleIncomingUrl(initialUrl);
-        // Ensure existing tabs are loaded underneath if needed
-        if (existingTabs.length > 0) {
-          // We just add the new one to state in handleIncomingUrl
-          // But we need to make sure we don't overwrite if handleIncomingUrl didn't fire yet?
-          // Actually handleIncomingUrl sets state completely.
-          // Let's mix efficiently:
-          setTabs((currentTabs) => {
-            // The handleIncomingUrl is async state update, so we can't easily rely on 'currentTabs' here
-            // simpler approach:
-            return currentTabs.length > 0 ? currentTabs : existingTabs;
-          });
+        // --- CASE A: Launched via Deep Link ---
+        const targetUrl = parseDeepLinkUrl(initialUrl);
+
+        if (targetUrl) {
+          const newId = Date.now().toString();
+          const startupTab = {
+              id: newId,
+              url: targetUrl,
+              initialUrl: targetUrl,
+              title: "External Link",
+              showLogo: false
+          };
+
+          setTabs([startupTab, ...existingTabs]);
+          setActiveTabId(newId);
+          setActiveUrl(targetUrl);
+          setInputUrl(getDisplayHost(targetUrl));
         } else {
-          // No existing tabs, and handleIncomingUrl will create one.
+           if (currentStartupMode === "last" && existingTabs.length > 0) {
+             setTabs(existingTabs);
+           }
         }
       } else if (currentStartupMode === "last" && existingTabs.length > 0) {
         // --- CASE B: Resume Last Session ---
@@ -437,8 +454,10 @@ export default function App() {
         setActiveTabId(targetTab.id);
         setActiveUrl(targetTab.url);
         setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
+
       } else {
         // --- CASE C: Start Fresh (New Tab) ---
+        // Check if we already have a blank tab in the saved list to reuse
         const existingBlankTab = existingTabs.find((t: any) => !t.url);
 
         if (existingBlankTab) {
@@ -603,7 +622,7 @@ export default function App() {
 
     const subscription = Linking.addEventListener("url", handleDeepLink);
     return () => subscription.remove();
-  }, []);
+  }, [handleIncomingUrl]);
 
   const effectiveTheme = useMemo(() => {
     let selectedTheme;
@@ -3611,7 +3630,7 @@ export default function App() {
                 // Pausing javascript on background tabs saves massive CPU/Battery
                 // Only strictly pause if not active and desktop mode isn't forcing keep-alive
                 pauseJavaScriptBeforeUnmount={true}
-                source={{ uri: tab.initialUrl || tab.url || "" }}
+                source={{ uri: tab.url || tab.initialUrl || "" }}
                 containerStyle={
                   isFullscreen ? { backgroundColor: "#000" } : undefined
                 }
