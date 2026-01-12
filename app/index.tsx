@@ -128,7 +128,7 @@ export default function App() {
   // Confirmation Modal State
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [confirmActionType, setConfirmActionType] = useState<
-    "history" | "resetSettings" | null
+    "history" | "resetSettings" | "bgRefresh" | null
   >(null);
   const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{
     ms: number;
@@ -156,6 +156,8 @@ export default function App() {
   const [searchEngineIndex, setSearchEngineIndex] = useState(0);
   const [isSearchEngineOpen, setIsSearchEngineOpen] = useState(false);
   const [isClearHistoryOpen, setIsClearHistoryOpen] = useState(false);
+
+  const [backgroundRefresh, setBackgroundRefresh] = useState(false);
 
   // Cosmetic settings
   const [cornerRadius, setCornerRadius] = useState(22);
@@ -301,13 +303,41 @@ export default function App() {
     }
   };
 
+  // --- ROBUST EXTERNAL LINK HANDLER ---
   const handleIntent = async (intentUrl: string) => {
     try {
-      // Attempt 1: Open the intent URL directly
-      await Linking.openURL(intentUrl);
-    } catch (err) {
+      // Attempt 1: Extract and Open the Clean Deep Link (Best for installed apps)
+      // We do this FIRST because Linking.openURL often fails on the raw "intent://" string
+      // but succeeds on "scheme://" if the app is installed.
+      const schemeMatch = intentUrl.match(/scheme=([^;]+)/);
+      if (schemeMatch && schemeMatch[1]) {
+        const scheme = schemeMatch[1];
+        // Extract the path part: "intent://example.com/foo#Intent;..." -> "example.com/foo"
+        let pathPart = intentUrl.substring(0, intentUrl.indexOf("#Intent;"));
+        pathPart = pathPart.replace(/^intent:\/\/|^intent:/, "");
 
-      // Attempt 2: Extract the "browser_fallback_url"
+        // Reconstruct standard deep link: "myscheme://example.com/foo"
+        const cleanDeepLink = `${scheme}://${pathPart}`;
+
+        try {
+          await Linking.openURL(cleanDeepLink);
+          return; // Success! App opened.
+        } catch (e) {
+          // If this fails, the app is likely not installed. 
+          // Continue to the next attempts (Fallback URL or Store).
+        }
+      }
+
+      // Attempt 2: Open the intent URL directly
+      // Sometimes the OS can handle the intent wrapper if the package is known
+      try {
+        await Linking.openURL(intentUrl);
+        return;
+      } catch(e) {
+        // Continue if this fails
+      }
+
+      // Attempt 3: Extract the "browser_fallback_url"
       const fallbackMatch = intentUrl.match(/browser_fallback_url=([^;]+)/);
       if (fallbackMatch && fallbackMatch[1]) {
         const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
@@ -322,24 +352,6 @@ export default function App() {
           setInputUrl(getDisplayHost(fallbackUrl));
         }
         return;
-      }
-
-      // Attempt 3: Extract the underlying scheme/URL (Fix for YouTube "App not installed")
-      // Intents often look like: intent://host/path#Intent;scheme=https;...
-      const schemeMatch = intentUrl.match(/scheme=([^;]+)/);
-      if (schemeMatch && schemeMatch[1]) {
-        const scheme = schemeMatch[1];
-        // We reconstruct a standard URL (e.g. https://youtube.com/...)
-        // The host and path are usually in the first part of the intent string: intent://host/path...
-        const pathPart = intentUrl.replace("intent://", "").split("#")[0];
-        const reconstructedUrl = `${scheme}://${pathPart}`;
-        
-        try {
-          // Try opening this clean URL externally. Android OS should catch it and offer the app.
-          await Linking.openURL(reconstructedUrl);
-          return;
-        } catch (e) {
-        }
       }
 
       // Attempt 4: Extract Package ID and offer Play Store
@@ -366,6 +378,8 @@ export default function App() {
         "Could not handle this action and no fallback was provided by the website.",
         [{ text: "OK" }]
       );
+    } catch (err: any) {
+       console.log("Intent Error:", err);
     }
   };
 
@@ -374,6 +388,8 @@ export default function App() {
       // 1. Load Settings First
       const savedSettings = await loadStorage("settings");
       let currentStartupMode = "new";
+      // Default to false (save resources) if not set
+      let shouldBackgroundRefresh = false;
 
       if (savedSettings) {
         setThemeMode(savedSettings.themeMode ?? "dark");
@@ -395,6 +411,10 @@ export default function App() {
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
+        
+        // Load the new setting
+        shouldBackgroundRefresh = savedSettings.backgroundRefresh ?? false;
+        setBackgroundRefresh(shouldBackgroundRefresh);
 
         if (savedSettings.startupTabMode) {
           currentStartupMode = savedSettings.startupTabMode;
@@ -408,9 +428,15 @@ export default function App() {
 
       // 3. Load Tabs
       const savedTabs = await loadStorage("tabs");
+      const savedActiveTabId = await loadStorage("activeTabId");
+
+      // Initialize existing tabs. 
+      // If background refresh is ON, mark all as loaded. 
+      // If OFF, mark all as NOT loaded (we will manually set the active one to true in the specific cases below).
       const existingTabs = (savedTabs || []).map((t: any) => ({
         ...t,
-        initialUrl: t.initialUrl || t.url // Polyfill
+        initialUrl: t.initialUrl || t.url, // Polyfill
+        hasLoadedOnce: shouldBackgroundRefresh
       }));
 
       // 4. Handle Startup Logic
@@ -427,7 +453,8 @@ export default function App() {
               url: targetUrl,
               initialUrl: targetUrl,
               title: "External Link",
-              showLogo: false
+              showLogo: false,
+              hasLoadedOnce: true // Deep link tab must always load
           };
 
           setTabs([startupTab, ...existingTabs]);
@@ -435,15 +462,24 @@ export default function App() {
           setActiveUrl(targetUrl);
           setInputUrl(getDisplayHost(targetUrl));
         } else {
+           // Fallback if deep link parsing failed: check startup mode
            if (currentStartupMode === "last" && existingTabs.length > 0) {
-             setTabs(existingTabs);
+             // We need to identify the active tab and force it to load
+             let targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId);
+             if (!targetTab) targetTab = existingTabs[0];
+
+             const finalTabs = existingTabs.map((t: any) => 
+               t.id === targetTab.id ? { ...t, hasLoadedOnce: true } : t
+             );
+             
+             setTabs(finalTabs);
+             setActiveTabId(targetTab.id);
+             setActiveUrl(targetTab.url);
+             setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
            }
         }
       } else if (currentStartupMode === "last" && existingTabs.length > 0) {
         // --- CASE B: Resume Last Session ---
-        setTabs(existingTabs);
-        const savedActiveTabId = await loadStorage("activeTabId");
-
         let targetTab = existingTabs.find(
           (t: any) => t.id === savedActiveTabId
         );
@@ -451,6 +487,12 @@ export default function App() {
           targetTab = existingTabs.find((t: any) => t.url) || existingTabs[0];
         }
 
+        // Ensure the active tab is marked loaded, even if background refresh is off
+        const finalTabs = existingTabs.map((t: any) => 
+            t.id === targetTab.id ? { ...t, hasLoadedOnce: true } : t
+        );
+
+        setTabs(finalTabs);
         setActiveTabId(targetTab.id);
         setActiveUrl(targetTab.url);
         setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
@@ -461,7 +503,12 @@ export default function App() {
         const existingBlankTab = existingTabs.find((t: any) => !t.url);
 
         if (existingBlankTab) {
-          setTabs(existingTabs);
+          // Mark the blank tab as loaded (it's empty anyway, but for consistency)
+          const finalTabs = existingTabs.map((t: any) => 
+             t.id === existingBlankTab.id ? { ...t, hasLoadedOnce: true } : t
+          );
+
+          setTabs(finalTabs);
           setActiveTabId(existingBlankTab.id);
           setActiveUrl(null);
           setInputUrl("");
@@ -472,6 +519,7 @@ export default function App() {
             url: null,
             title: "New Tab",
             showLogo: true,
+            hasLoadedOnce: true // New active tab must load
           };
 
           setTabs([newTab, ...existingTabs]);
@@ -489,6 +537,18 @@ export default function App() {
   // Keep the ref in sync with state
   useEffect(() => {
     activeTabIdRef.current = activeTabId;
+  }, [activeTabId]);
+
+  useEffect(() => {
+    setTabs((prev) => 
+      prev.map((t) => {
+        // If this is the active tab and it hasn't loaded yet, mark it
+        if (t.id === activeTabId && !t.hasLoadedOnce) {
+          return { ...t, hasLoadedOnce: true };
+        }
+        return t;
+      })
+    );
   }, [activeTabId]);
 
   // --- SYNC UI WHEN SWITCHING TABS ---
@@ -520,11 +580,11 @@ export default function App() {
 
     const saveTimeout = setTimeout(() => {
       const cleanTabs = tabs.map(
-        ({ loading, canGoBack, canGoForward, ...rest }) => rest
+        ({ loading, canGoBack, canGoForward, hasLoadedOnce, ...rest }) => rest
       );
       saveStorage("tabs", cleanTabs);
       saveStorage("activeTabId", activeTabId);
-    }, 500); // Wait 1 second after the last change
+    }, 500); 
 
     return () => clearTimeout(saveTimeout);
   }, [tabs, activeTabId, isAppReady]);
@@ -558,6 +618,7 @@ export default function App() {
         jsEnabled,
         httpsOnly,
         blockCookies,
+        backgroundRefresh,
       };
       saveStorage("settings", settingsToSave);
     }
@@ -579,6 +640,7 @@ export default function App() {
     httpsOnly,
     blockCookies,
     isAppReady,
+    backgroundRefresh
   ]);
 
   // --- FIX: Handle Android Hardware Back Button ---
@@ -888,6 +950,15 @@ export default function App() {
     setIsConfirmModalVisible(true);
   };
 
+  const toggleBackgroundRefresh = (value: boolean) => {
+  if (value) {
+    setConfirmActionType("bgRefresh");
+    setIsConfirmModalVisible(true);
+  } else {
+    setBackgroundRefresh(false);
+  }
+};
+
   const executeConfirmAction = () => {
     if (confirmActionType === "history" && confirmHistoryPayload) {
       deleteHistory(confirmHistoryPayload.ms);
@@ -911,6 +982,9 @@ export default function App() {
 
       // Clear settings from storage
       saveStorage("settings", null);
+    }
+    else if (confirmActionType === "bgRefresh") {
+      setBackgroundRefresh(true);
     }
     setIsConfirmModalVisible(false);
   };
@@ -2663,6 +2737,39 @@ export default function App() {
               </View>
             )}
 
+            <SettingRow label="Background Refresh">
+              <View style={{ flexDirection: "column", width: "100%" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Ionicons
+                      name="flash-outline"
+                      size={22}
+                      color={effectiveTheme.text}
+                      style={{ marginRight: 10 }}
+                    />
+                    <Text
+                      style={[
+                        styles.settingText,
+                        {
+                          color: effectiveTheme.text,
+                          fontFamily: "Nunito_600SemiBold",
+                          fontSize: 16 * fontScale,
+                        },
+                      ]}
+                    >
+                      Background Refresh
+                    </Text>
+                  </View>
+                  <Switch
+                    value={backgroundRefresh}
+                    onValueChange={toggleBackgroundRefresh}
+                    trackColor={{ false: "#767577", true: accentColor }}
+                    thumbColor={"#f4f3f4"}
+                  />
+                </View>
+              </View>
+            </SettingRow>
+
             <SettingRow label="Startup Behavior">
               <View
                 style={{
@@ -3081,6 +3188,8 @@ export default function App() {
               >
                 {confirmActionType === "history"
                   ? `This will permanently delete history for: ${confirmHistoryPayload?.label}.`
+                  : confirmActionType === "bgRefresh"
+                  ? "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data if you have many tabs open."
                   : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
               </Text>
 
@@ -3117,8 +3226,8 @@ export default function App() {
                   >
                     {confirmActionType === "resetSettings"
                       ? "Reset"
-                      : confirmActionType === "cache"
-                      ? "Clear Cache"
+                      : confirmActionType === "bgRefresh" 
+                      ? "Enable"
                       : "Delete"}
                   </Text>
                 </TouchableOpacity>
@@ -3403,6 +3512,10 @@ export default function App() {
     onNavigationStateChange: (navState: any) => {
       const { url, title, canGoBack, canGoForward, loading } = navState;
 
+      if (url && (url.startsWith("intent://") || url.startsWith("android-app://"))) {
+        return;
+      }
+
       // 1. PERFORMANCE FIX: Only update state if something meaningful changed
       const currentTab = tabs.find((t) => t.id === tabId);
       if (currentTab) {
@@ -3505,20 +3618,34 @@ export default function App() {
       const { nativeEvent } = e;
       const currentTime = Date.now();
 
-      // 1. LOOP BREAKER: If errors are firing too fast (< 1 second apart), ignore them.
+      // 1. LOOP BREAKER
       if (currentTime - lastErrorTimestamp.current < 1000) {
         return;
       }
       lastErrorTimestamp.current = currentTime;
 
+      // NEW: Handle Intent Redirects that bypassed onShouldStartLoadWithRequest
+      // -10 is ERR_UNKNOWN_URL_SCHEME often used for intents/custom schemes
+      const isUnknownScheme = nativeEvent.code === -10 || nativeEvent.description?.includes("ERR_UNKNOWN_URL_SCHEME");
+      const isIntent = nativeEvent.url?.startsWith("intent://") || nativeEvent.url?.startsWith("android-app://");
+
+      if (isUnknownScheme || isIntent) {
+        // Hand off to the external handler
+        handleExternalLink(nativeEvent.url);
+        
+        // Go back to the previous page so we don't sit on an error screen
+        // Use the ref directly to avoid closure stale state
+        const ref = webViewRefs.current[tabId];
+        if (ref) ref.goBack();
+        return;
+      }
+
+      // Existing Auto-Search Logic for DNS errors
       if (
         nativeEvent.description === "net::ERR_NAME_NOT_RESOLVED" ||
         nativeEvent.code === -2
       ) {
         const failedUrl = nativeEvent.url;
-        
-        // 2. STRICT CHECK: Check if the failed URL is ALREADY a search engine URL.
-        // This prevents the infinite loop: Search Fails -> Search Again -> Search Fails...
         const currentSearchEngine = SEARCH_ENGINES[searchEngineIndex];
         const isAlreadySearch = failedUrl?.startsWith(currentSearchEngine.url);
 
@@ -3615,12 +3742,9 @@ export default function App() {
 
           const isActive = tab.id === activeTabId;
 
-          // MEMORY OPTIMIZATION:
-          // On Android, if we render too many WebViews, the app crashes.
-          // We can detach the WebView from the view hierarchy using 'display: none' logic
-          // or simple conditional rendering. However, conditional rendering resets state.
-          // For a production browser, you usually keep ~3 tabs in memory (Active, Left, Right).
-          // For this code, we will stick to the hidden view method but ensure it's optimized.
+          if (!tab.hasLoadedOnce) {
+             return null; 
+          }
 
           return (
             <View

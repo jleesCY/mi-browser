@@ -14,4 +14,5 @@ export interface TabItem {
   loading?: boolean;
   canGoBack?: boolean;
   canGoForward?: boolean;
+  hasLoadedOnce?: boolean; 
 }
