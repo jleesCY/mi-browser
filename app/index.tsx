@@ -951,37 +951,50 @@ export default function App() {
       delete webViewRefs.current[idToDelete];
     }
 
-    // 2. Logic to switch tabs if we close the active one
-    if (activeTabId === idToDelete) {
-      const indexToDelete = tabs.findIndex((t) => t.id === idToDelete);
-      const remainingTabs = tabs.filter((t) => t.id !== idToDelete);
-
-      if (remainingTabs.length > 0) {
-        // Try to go to the left (previous) tab, otherwise the one to the right
-        const nextIndex = Math.max(0, indexToDelete - 1);
-        const nextTab = remainingTabs[nextIndex];
-        setActiveTabId(nextTab.id);
-        setActiveUrl(nextTab.url);
-        setInputUrl(nextTab.url ? getDisplayHost(nextTab.url) : "");
-      }
-    }
-
-    // 3. Update State
+    // 2. Update State Atomically
     setTabs((prevTabs) => {
       const newTabs = prevTabs.filter((t) => t.id !== idToDelete);
+      
+      // Use Ref to ensure we compare against the truly current active ID inside this callback
+      const currentActiveId = activeTabIdRef.current;
+
+      // If we are deleting the currently active tab...
+      if (currentActiveId === idToDelete) {
+        if (newTabs.length > 0) {
+          // Calculate the new tab to focus on based on the PREVIOUS list state
+          const indexToDelete = prevTabs.findIndex((t) => t.id === idToDelete);
+          
+          // Try to go to the left (previous) tab, otherwise stay at index 0
+          const nextIndex = Math.max(0, indexToDelete - 1);
+          
+          // Ensure index is within bounds of the NEW array
+          const safeIndex = Math.min(nextIndex, newTabs.length - 1);
+          const nextTab = newTabs[safeIndex];
+
+          // Defer the side-effect state updates to avoid conflicts during rendering
+          setTimeout(() => {
+            setActiveTabId(nextTab.id);
+            setActiveUrl(nextTab.url);
+            setInputUrl(nextTab.url ? getDisplayHost(nextTab.url) : "");
+          }, 0);
+        }
+      }
+
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
       // Handle "Empty List" - Create a new blank tab
       if (newTabs.length === 0) {
         const freshId = Date.now().toString();
-        // Use timeout to allow state to settle before setting active
+        const freshTab = { id: freshId, url: null, title: "New Tab", showLogo: true };
+        
         setTimeout(() => {
           setActiveTabId(freshId);
           setActiveUrl(null);
           setInputUrl("");
         }, 0);
-        return [{ id: freshId, url: null, title: "New Tab", showLogo: true }];
+        return [freshTab];
       }
+      
       return newTabs;
     });
   };
