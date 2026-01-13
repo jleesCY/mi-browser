@@ -1,5 +1,35 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export const hexToRgba = (hex: string, alphaStr?: string) => {
+  let r = 0, g = 0, b = 0, a = 1;
+
+  if (hex.startsWith('#')) {
+    hex = hex.substring(1);
+  }
+
+  if (hex.length === 6) {
+    r = parseInt(hex.substring(0, 2), 16);
+    g = parseInt(hex.substring(2, 4), 16);
+    b = parseInt(hex.substring(4, 6), 16);
+  } else if (hex.length === 8) {
+    // Already has alpha? Not handling this case in basic helper if we append alpha separate
+    // But let's support it just in case
+    r = parseInt(hex.substring(0, 2), 16);
+    g = parseInt(hex.substring(2, 4), 16);
+    b = parseInt(hex.substring(4, 6), 16);
+    a = parseInt(hex.substring(6, 8), 16) / 255;
+  }
+
+  if (alphaStr) {
+    // alphaStr is like "FF", "F2", "99"
+    const alphaVal = parseInt(alphaStr, 16) / 255;
+    // If hex already had alpha, multiply? Or override? Override is simpler for our usage.
+    a = alphaVal;
+  }
+
+  return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
+};
+
 export const generateAdaptiveTheme = (accentHex: string) => {
   // SANITY CHECK: Fallback if accentHex is missing or invalid
   const safeAccent = (accentHex && accentHex.startsWith('#') && accentHex.length === 7) 
@@ -27,9 +57,9 @@ export const generateAdaptiveTheme = (accentHex: string) => {
 
     const bg = `#${toHex(bgR)}${toHex(bgG)}${toHex(bgB)}`;
 
-    const surfaceR = mix(36, r, 0.2);
-    const surfaceG = mix(36, g, 0.2);
-    const surfaceB = mix(36, b, 0.2);
+    const surfaceR = mix(25, r, 0.2);
+    const surfaceG = mix(25, g, 0.2);
+    const surfaceB = mix(25, b, 0.2);
     const surface = `#${toHex(surfaceR)}${toHex(surfaceG)}${toHex(surfaceB)}`;
 
     const cardR = mix(45, r, 0.2);
@@ -37,17 +67,37 @@ export const generateAdaptiveTheme = (accentHex: string) => {
     const cardB = mix(45, b, 0.2);
     const card = `#${toHex(cardR)}${toHex(cardG)}${toHex(cardB)}`;
 
+    // Calculate luminance of the background to determine if text should be light or dark
+    // Formula: 0.299*R + 0.587*G + 0.114*B
+    const luminance = 0.299 * bgR + 0.587 * bgG + 0.114 * bgB;
+    const isDark = luminance < 128;
+
+    // Calculate a distinct glass color (lighter base 60) for better contrast against BG (base 10)
+    const glassR = mix(30, r, 0.15);
+    const glassG = mix(30, g, 0.15);
+    const glassB = mix(30, b, 0.15);
+    const glassColor = `#${toHex(glassR)}${toHex(glassG)}${toHex(glassB)}`;
+    
+    const glassBorderColor = glassColor; 
+
+    // Calculate adaptive solid inputBg (base 25 is lighter than bg base 10)
+    const inR = mix(50, r, 0.15);
+    const inG = mix(50, g, 0.15);
+    const inB = mix(50, b, 0.15);
+    const adaptiveInputBg = `#${toHex(inR)}${toHex(inG)}${toHex(inB)}`;
+
     return {
       bg: bg,
       surface: surface,
       card: card,
       text: "#eaeaea",
       textSec: "#aaaaaa",
-      glass: bg + "F5",
-      glassBorder: safeAccent + "30",
+      glass: glassColor,
+      glassBorder: glassBorderColor,
       sheetHeader: card,
-      inputBg: "#ffffff15",
+      inputBg: adaptiveInputBg, 
       placeholder: "#888",
+      isDark: isDark, 
     };
   } catch (e) {
     // FALLBACK THEME (Dark Mode Standard) if math fails
@@ -57,11 +107,12 @@ export const generateAdaptiveTheme = (accentHex: string) => {
       card: '#2c2c2e',
       text: '#ffffff',
       textSec: '#888888',
-      glass: 'rgba(30, 30, 30, 0.95)',
-      glassBorder: 'rgba(255,255,255,0.1)',
+      glass: '#1c1c1e',
+      glassBorder: '#1c1c1e',
       sheetHeader: '#252527',
-      inputBg: 'rgba(255,255,255,0.1)',
+      inputBg: '#2c2c2e',
       placeholder: '#aaa',
+      isDark: true,
     };
   }
 };
@@ -163,4 +214,52 @@ export const groupHistoryByDate = (historyItems: any[]) => {
   if (groups["Older"].length > 0) sections.push({ title: "Older", data: groups["Older"] });
 
   return sections;
+};
+
+// --- HELPER: Parse Deep Links (Expo Go & Production) ---
+export const parseDeepLinkUrl = (originalUrl: string) => {
+  let payload = originalUrl;
+
+  // 1. Strip Scheme / Prefix
+  if (payload.startsWith("exp://") || payload.startsWith("exps://")) {
+      // Handle Expo Go: exp://IP:PORT/--/payload
+      const split = payload.split("/--/");
+      if (split.length > 1) {
+          payload = split[1];
+          console.log("Parsed Expo Go deep link payload:", payload);
+      } else {
+          // Just opening the app root (no link)
+          return null; 
+      }
+  } else if (payload.startsWith("mibrowser://")) {
+      payload = payload.replace("mibrowser://", "");
+  }
+
+  // 2. Handle specific "url=" query param (common in Android Intents)
+  if (payload.includes("url=") || payload.includes("URL=")) {
+      try {
+        const match = payload.match(/(?:url|URL)=([^&]+)/);
+        if (match && match[1]) {
+          return decodeURIComponent(match[1]);
+        }
+      } catch(e) {}
+  }
+
+  // 3. General Cleanup: Remove leading query markers and decode
+  payload = payload.replace(/^[?&]/, "");
+  try {
+      payload = decodeURIComponent(payload);
+  } catch (e) {}
+
+  // 4. Ensure Protocol
+  if (
+      payload &&
+      !payload.startsWith("http://") &&
+      !payload.startsWith("https://") &&
+      !payload.startsWith("about:")
+  ) {
+      payload = "https://" + payload;
+  }
+
+  return payload;
 };

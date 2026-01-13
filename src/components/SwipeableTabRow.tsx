@@ -48,6 +48,12 @@ const SwipeableTabRow = ({
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
         );
       },
+      onPanResponderGrant: () => {
+        // Dismiss keyboard when user starts interacting with the row
+        // This prevents accidental focus/keyboard persistence issues
+        const { Keyboard } = require('react-native');
+        Keyboard.dismiss();
+      },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dx < 0) {
           translateX.setValue(gestureState.dx);

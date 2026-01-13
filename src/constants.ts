@@ -1,6 +1,6 @@
 import { Dimensions, Platform, UIManager } from 'react-native';
 
-export const APP_VERSION = "0.4.5";
+export const APP_VERSION = "0.5.0";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -22,38 +22,28 @@ export const COLORS = {
     light: {
         bg: '#E5E5EA',
         surface: '#ffffff',
-        glass: 'rgba(255, 255, 255, 0.95)',
-        glassBorder: 'rgba(0,0,0,0.1)',
+        glass: '#FFFFFF',
+        glassBorder: '#FFFFFF',
         text: '#000000',
         textSec: '#666666',
         card: '#f0f0f0',
         sheetHeader: '#f2f2f7',
-        inputBg: 'rgba(0,0,0,0.05)',
+        inputBg: '#F2F2F7',
         placeholder: '#999',
-    },
-    gray: {
-        bg: '#252525',           
-        surface: '#333333',      
-        glass: 'rgba(37, 37, 37, 0.95)',
-        glassBorder: 'rgba(255,255,255,0.1)',
-        text: '#FFFFFF',
-        textSec: '#AAAAAA',
-        card: '#404040',
-        sheetHeader: '#3E3E3E',
-        inputBg: '#404040',
-        placeholder: '#808080',
+        isDark: false,
     },
     dark: {
         bg: '#000000',
         surface: '#1c1c1e',
-        glass: 'rgba(30, 30, 30, 0.95)',
-        glassBorder: 'rgba(255,255,255,0.1)',
+        glass: '#1C1C1E',
+        glassBorder: '#1C1C1E',
         text: '#ffffff',
         textSec: '#888888',
         card: '#2c2c2e',
         sheetHeader: '#252527',
-        inputBg: 'rgba(255,255,255,0.1)',
+        inputBg: '#2C2C2E',
         placeholder: '#aaa',
+        isDark: true,
     }
 };
 
@@ -99,6 +89,40 @@ export const HISTORY_RANGES = [
     { label: 'Last Hour', ms: 3600000 },
     { label: 'Last 24 Hours', ms: 86400000 },
     { label: 'Last 7 Days', ms: 604800000 },
-    { label: 'Last 4 Weeks', ms: 2419200000 },
-    { label: 'All Time', ms: -1 },
-];
+        { label: 'Last 4 Weeks', ms: 2419200000 },
+        { label: 'All Time', ms: -1 },
+    ];
+    
+    export const INJECTED_CONTEXT_MENU_SCRIPT = `
+      (function() {
+        function getParentLink(el) {
+          while (el && el.tagName !== 'A') {
+            el = el.parentElement;
+          }
+          return el;
+        }
+    
+        window.oncontextmenu = function(e) {
+          var target = e.target;
+          var link = getParentLink(target);
+          var img = target.tagName === 'IMG' ? target : null;
+          
+          // Only capture if it's a link or an image
+          if (link || img) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'CONTEXT_MENU',
+              data: {
+                url: link ? link.href : null,
+                imgUrl: img ? img.src : null,
+                text: link ? link.innerText.substring(0, 50) : (img ? (img.alt || 'Image') : '')
+              }
+            }));
+            return false;
+          }
+        };
+      })();
+    `;
+    
