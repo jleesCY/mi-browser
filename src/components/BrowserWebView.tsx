@@ -57,8 +57,11 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     readerModeEnabled // <--- Added
   } = settings;
 
+  const isDesktop = tab.desktopMode ?? desktopMode;
+  const isReader = tab.readerMode ?? readerModeEnabled;
+
   // READER MODE SCRIPT
-  const readerScript = readerModeEnabled ? `
+  const readerScript = isReader ? `
     (function() {
       var style = document.createElement('style');
       style.type = 'text/css';
@@ -241,8 +244,9 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         // @ts-ignore
         pauseJavaScriptBeforeUnmount={true}
         source={{ uri: tab.url || tab.initialUrl || "" }}
+        style={{ backgroundColor: effectiveTheme.bg }}
         containerStyle={
-            isFullscreen ? { backgroundColor: "#000" } : undefined
+            isFullscreen ? { backgroundColor: "#000" } : { backgroundColor: effectiveTheme.bg }
         }
         renderError={renderError}
         originWhitelist={["*"]}
@@ -305,20 +309,9 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         onTouchStart={onTouchStart}
         overScrollMode="never"
         scrollEventThrottle={16}
-        startInLoadingState={true}
-        renderLoading={() => (
-            <View style={{
-                position: 'absolute',
-                top: 0, left: 0, right: 0, bottom: 0,
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: effectiveTheme.bg 
-            }}>
-                <ActivityIndicator size="large" color={accentColor} />
-            </View>
-        )}
+        startInLoadingState={false}
         javaScriptEnabled={jsEnabled}
-        userAgent={desktopMode
+        userAgent={isDesktop
             ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             : "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"}
         sharedCookiesEnabled={!blockCookies}

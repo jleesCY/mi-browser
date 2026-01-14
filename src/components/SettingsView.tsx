@@ -745,31 +745,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </View>
         </SettingRow>
 
-        <SettingRow label="Reader Mode">
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="book-outline"
-                  size={22}
-                  color={effectiveTheme.text}
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  style={{
-                    color: effectiveTheme.text,
-                    fontFamily: "Nunito_600SemiBold",
-                    fontSize: 16 * fontScale,
-                  }}
-                >
-                  Reader Mode
-                </Text>
-              </View>
-              <Switch
-                value={settings.readerModeEnabled}
-                onValueChange={settings.setReaderModeEnabled}
-                trackColor={{ false: "#767577", true: accentColor }}
-                thumbColor={"#f4f3f4"}
-              />
-        </SettingRow>
+
 
         <SettingRow label="Background Refresh">
             <View style={{ flexDirection: "column", width: "100%" }}>
@@ -804,31 +780,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </View>
         </SettingRow>
         
-        <SettingRow label="Desktop Mode">
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="desktop-outline"
-                  size={22}
-                  color={effectiveTheme.text}
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  style={{
-                    color: effectiveTheme.text,
-                    fontFamily: "Nunito_600SemiBold",
-                    fontSize: 16 * fontScale,
-                  }}
-                >
-                  Desktop Mode
-                </Text>
-              </View>
-              <Switch
-                value={desktopMode}
-                onValueChange={setDesktopMode}
-                trackColor={{ false: "#767577", true: accentColor }}
-                thumbColor={"#f4f3f4"}
-              />
-            </SettingRow>
+
       </SettingsGroup>
 
       <SettingsGroup title="Privacy">

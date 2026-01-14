@@ -8,6 +8,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+import * as Clipboard from 'expo-clipboard';
+import * as Print from 'expo-print';
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -26,7 +28,8 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View
+  View,
+  Image
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -42,7 +45,7 @@ import {
   SWAP_DISTANCE
 } from "../src/constants";
 import { handleExternalLink } from "../src/navigationUtils";
-import { getDisplayHost } from "../src/utils";
+import { getDisplayHost, getFaviconUrl } from "../src/utils";
 
 // Custom Hooks
 import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
@@ -83,6 +86,8 @@ export default function App() {
     areTabsLoaded, addNewTab, deleteTab, updateTab, activeTabIdRef
   } = useTabs({ areSettingsLoaded, startupTabMode, backgroundRefresh });
 
+  const currentTab = tabs.find((t) => t.id === activeTabId);
+
   const isAppReady = fontsLoaded && areSettingsLoaded && areTabsLoaded;
 
   // --- LOCAL UI STATE ---
@@ -121,6 +126,13 @@ export default function App() {
   const [renameText, setRenameText] = useState("");
   const [renameShowLogo, setRenameShowLogo] = useState(true);
 
+  // Shortcut Modal
+  const [isShortcutModalVisible, setIsShortcutModalVisible] = useState(false);
+  const [shortcutTitle, setShortcutTitle] = useState("");
+
+  // Sub Menu State
+  const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Refs
@@ -137,12 +149,12 @@ export default function App() {
   const overlayHeightAnim = useRef(new Animated.Value(SNAP_CLOSED)).current;
   const currentOverlayHeight = useRef(SNAP_CLOSED);
   const keyboardHeight = useRef(new Animated.Value(0)).current;
+  const isPillFocusedAnim = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(1)).current;
   const logoPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   // --- SYNC UI WHEN SWITCHING TABS ---
   useEffect(() => {
-    const currentTab = tabs.find((t) => t.id === activeTabId);
     if (currentTab) {
       ignoreNextScroll.current = true;
       // URL/Input handled by hook mostly, but we sync just in case
@@ -159,11 +171,21 @@ export default function App() {
   }, [activeTabId, tabs]);
 
   useEffect(() => {
+    Animated.timing(isPillFocusedAnim, {
+      toValue: isInputFocused ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false
+    }).start();
+  }, [isInputFocused]);
+
+  useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
+    if (isSearchActive) setIsSubMenuVisible(false);
   }, [isSearchActive]);
 
   useEffect(() => {
     if (activeView !== "none") {
+        setIsSubMenuVisible(false);
         settings.setIsSearchEngineOpen(false);
         settings.setIsClearHistoryOpen(false);
 
@@ -284,6 +306,35 @@ export default function App() {
     try {
       await Share.share({ message: activeUrl, url: activeUrl, title: "Share Link" });
     } catch (error) {}
+  };
+
+  const handleCopyLink = async () => {
+    if (!activeUrl) return;
+    setIsSubMenuVisible(false);
+    await Clipboard.setStringAsync(activeUrl);
+    Alert.alert("Copied", "Link copied to clipboard");
+  };
+
+  const handlePrint = async () => {
+    if (!activeUrl) return;
+    setIsSubMenuVisible(false);
+    
+    if (webViewRefs.current[activeTabId]) {
+        const js = `
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'PRINT_HTML',
+                html: document.documentElement.outerHTML
+            }));
+        `;
+        webViewRefs.current[activeTabId]?.injectJavaScript(js);
+    } else {
+        // Fallback if webview ref not found (shouldn't happen if active)
+        try {
+            await Print.printAsync({ uri: activeUrl });
+        } catch (error) {
+            Alert.alert("Error", "Could not print this page.");
+        }
+    }
   };
 
   const handleDownloadImage = async () => {
@@ -415,6 +466,7 @@ export default function App() {
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10 || Math.abs(gestureState.dx) > 10,
       onPanResponderGrant: () => { animVal.stopAnimation(); scrollTranslateY.stopAnimation(); },
       onPanResponderMove: (_, gestureState) => {
@@ -525,37 +577,40 @@ export default function App() {
   const effectivePillRadius = cornerRadius >= 20 ? pillHeight / 2 : cornerRadius * 2;
 
   // Keyboard Adaptation Interpolations
-  const pillCornerRadiusAnim = keyboardHeight.interpolate({
+  // Only adapt pill visuals if the PILL INPUT itself is focused
+  const effectiveKeyboardHeight = Animated.multiply(keyboardHeight, isPillFocusedAnim);
+
+  const pillCornerRadiusAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 100],
     outputRange: [effectivePillRadius, 0],
     extrapolate: "clamp",
   });
-  const pillShadowOpacityAnim = keyboardHeight.interpolate({
+  const pillShadowOpacityAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 100],
     outputRange: [0.2, 0],
     extrapolate: "clamp",
   });
-  const containerPaddingHAnim = keyboardHeight.interpolate({
+  const containerPaddingHAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 100],
     outputRange: [10, 0],
     extrapolate: "clamp",
   });
-  const containerPaddingBAnim = keyboardHeight.interpolate({
+  const containerPaddingBAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 100],
     outputRange: [Math.max(insets.bottom + 10, 10), 0],
     extrapolate: "clamp",
   });
-  const pillBackgroundAnim = keyboardHeight.interpolate({
+  const pillBackgroundAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 100],
     outputRange: [effectiveTheme.glass, effectiveTheme.glass],
     extrapolate: "clamp",
   });
-  const inputBackgroundAnim = keyboardHeight.interpolate({
+  const inputBackgroundAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 100],
     outputRange: [effectiveTheme.inputBg, effectiveTheme.inputBg],
     extrapolate: "clamp",
   });
-  const pillElevationAnim = keyboardHeight.interpolate({
+  const pillElevationAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 10],
     outputRange: [10, 0],
     extrapolate: "clamp",
@@ -564,7 +619,7 @@ export default function App() {
   if (!isAppReady) {
     return (
       <View style={{ flex: 1, backgroundColor: "#000", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={accentColor || "#007AFF"} />
       </View>
     );
   }
@@ -629,12 +684,20 @@ export default function App() {
                     if (nativeEvent.data) {
                         try {
                             const dataString = nativeEvent.data;
-                            if (typeof dataString === 'string' && dataString.includes('CONTEXT_MENU')) {
+                            if (typeof dataString === 'string') {
                                 const parsed = JSON.parse(dataString);
                                 if (parsed.type === 'CONTEXT_MENU') {
                                     setTimeout(() => {
                                         setContextMenuData(parsed.data);
                                         setContextMenuVisible(true);
+                                    }, 0);
+                                } else if (parsed.type === 'PRINT_HTML') {
+                                    setTimeout(async () => {
+                                        try {
+                                            await Print.printAsync({ html: parsed.html });
+                                        } catch (err) {
+                                            Alert.alert("Print Error", "Could not print content.");
+                                        }
                                     }, 0);
                                 }
                             }
@@ -759,7 +822,7 @@ export default function App() {
             </View>
           )}
 
-          <Animated.View style={[styles.recallContainer, { opacity: recallOpacity, bottom: Math.max(insets.bottom + 10, 10) }]} pointerEvents="box-none">
+          <Animated.View style={[styles.recallContainer, { opacity: recallOpacity, bottom: Math.max(insets.bottom + 10, 10), zIndex: 3 }]}>
             <TouchableOpacity activeOpacity={0.8} onPress={showBar} {...recallPanResponder.panHandlers} style={[styles.recallButton, { backgroundColor: effectiveTheme.glass, borderWidth: 0, borderRadius: 25, overflow: "hidden" }]}>
               <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: effectiveTheme.inputBg }} />
               <Ionicons name="chevron-up" size={24} color={effectiveTheme.text} />
@@ -768,10 +831,92 @@ export default function App() {
 
           {activeView === "none" && (
             <View style={styles.floatingLayer} pointerEvents="box-none">
+              {isSubMenuVisible && (
+                <TouchableWithoutFeedback onPress={() => setIsSubMenuVisible(false)}>
+                  <View style={StyleSheet.absoluteFill} />
+                </TouchableWithoutFeedback>
+              )}
+
               <Animated.View style={[styles.bottomAreaContainer, { paddingBottom: containerPaddingBAnim, paddingHorizontal: containerPaddingHAnim, opacity: containerOpacity }]}>
-                <Animated.View style={{ width: "100%", alignItems: "center", transform: [{ translateY: Animated.subtract(scrollTranslateY, keyboardHeight) }, { scale: containerScale }] }}>
+                <Animated.View style={{ width: "100%", alignItems: "center", transform: [{ translateY: Animated.subtract(scrollTranslateY, effectiveKeyboardHeight) }, { scale: containerScale }] }}>
+                  
+                  {isSubMenuVisible && (
+                    <Animated.View style={{
+                        position: 'absolute',
+                        bottom: pillHeight + 4,
+                        right: 0,
+                        width: 220,
+                        backgroundColor: pillBackgroundAnim,
+                        borderRadius: cornerRadius,
+                        overflow: 'hidden',
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 8,
+                        elevation: 20,
+                        zIndex: 10
+                    }}>
+                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={() => { handleShare(); setIsSubMenuVisible(false); }}>
+                         <Ionicons name="share-social-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Share</Text>
+                       </TouchableOpacity>
+                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={handleCopyLink}>
+                         <Ionicons name="copy-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Copy Link</Text>
+                       </TouchableOpacity>
+                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={handlePrint}>
+                         <Ionicons name="print-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Print</Text>
+                       </TouchableOpacity>
+                       <TouchableOpacity 
+                         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 0, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg, minHeight: 44 }}
+                         onPress={() => {
+                            const val = !(currentTab?.desktopMode ?? desktopMode);
+                            updateTab(activeTabId, { desktopMode: val });
+                            if (webViewRefs.current[activeTabId]) {
+                                webViewRefs.current[activeTabId]?.reload();
+                            }
+                         }}
+                       >
+                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="desktop-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                            <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Desktop Mode</Text>
+                         </View>
+                         <View pointerEvents="none">
+                           <Switch
+                              value={currentTab?.desktopMode ?? desktopMode}
+                              trackColor={{ false: "#767577", true: accentColor }}
+                              thumbColor={"#f4f3f4"}
+                           />
+                         </View>
+                       </TouchableOpacity>
+                       <TouchableOpacity 
+                         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 0, paddingHorizontal: 15, minHeight: 44 }}
+                         onPress={() => {
+                            const val = !(currentTab?.readerMode ?? readerModeEnabled);
+                            updateTab(activeTabId, { readerMode: val });
+                            if (webViewRefs.current[activeTabId]) {
+                                webViewRefs.current[activeTabId]?.reload();
+                            }
+                         }}
+                       >
+                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="book-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                            <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Reader Mode</Text>
+                         </View>
+                         <View pointerEvents="none">
+                           <Switch
+                              value={currentTab?.readerMode ?? readerModeEnabled}
+                              trackColor={{ false: "#767577", true: accentColor }}
+                              thumbColor={"#f4f3f4"}
+                           />
+                         </View>
+                       </TouchableOpacity>
+                    </Animated.View>
+                  )}
+
                   <View style={[styles.gestureArea, { height: pillHeight }]} {...panResponder.panHandlers}>
-                    <Animated.View style={[styles.pillBase, { height: pillHeight, backgroundColor: pillBackgroundAnim, borderTopLeftRadius: effectivePillRadius, borderTopRightRadius: effectivePillRadius, borderBottomLeftRadius: pillCornerRadiusAnim, borderBottomRightRadius: pillCornerRadiusAnim, shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: pillShadowOpacityAnim, shadowRadius: 15, elevation: pillElevationAnim }, { zIndex: 1, opacity: menuPillOpacity, transform: [{ scale: menuPillScale }] }]}>
+                    <Animated.View style={[styles.pillBase, { height: pillHeight, backgroundColor: pillBackgroundAnim, borderTopLeftRadius: effectivePillRadius, borderTopRightRadius: effectivePillRadius, borderBottomLeftRadius: pillCornerRadiusAnim, borderBottomRightRadius: pillCornerRadiusAnim, shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: pillShadowOpacityAnim, shadowRadius: 15, elevation: pillElevationAnim }, { zIndex: 1, opacity: menuPillOpacity, transform: [{ scale: menuPillScale }] }]} pointerEvents={!isSearchActive ? "auto" : "none"}>
                       <View style={styles.barTabContent}>
                         <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView("tabs")}>
                           <Ionicons name="copy-outline" size={24} color={effectiveTheme.text} />
@@ -785,13 +930,13 @@ export default function App() {
                           <Ionicons name="settings-outline" size={24} color={effectiveTheme.text} />
                           <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Settings</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={handleShare}>
-                          <Ionicons name="share-social-outline" size={24} color={effectiveTheme.text} />
-                          <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Share</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity style={styles.menuItem} onPress={goHome}>
                           <Ionicons name="home-outline" size={24} color={effectiveTheme.text} />
                           <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Home</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => setIsSubMenuVisible(!isSubMenuVisible)}>
+                          <Ionicons name="menu-outline" size={24} color={effectiveTheme.text} />
+                          <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Menu</Text>
                         </TouchableOpacity>
                       </View>
                     </Animated.View>
@@ -881,43 +1026,79 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* --- RENAME TAB MODAL --- */}
-      <Modal visible={isRenameModalVisible} transparent animationType="fade" onRequestClose={() => setIsRenameModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: effectiveTheme.surface, borderRadius: cornerRadius }]}>
-            <Text style={[styles.modalTitle, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" }]}>Edit Tab</Text>
-            <TextInput
-              style={[styles.modalInput, { backgroundColor: effectiveTheme.inputBg, color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", borderRadius: cornerRadius / 2 }]}
-              value={renameText}
-              onChangeText={setRenameText}
-              autoFocus
-            />
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold" }}>Show Site Logo</Text>
-              <Switch value={renameShowLogo} onValueChange={setRenameShowLogo} trackColor={{ false: "#767577", true: accentColor }} thumbColor={"#f4f3f4"} />
-            </View>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setIsRenameModalVisible(false)} style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}>
-                <Text style={{ color: effectiveTheme.textSec, fontFamily: "Nunito_700Bold" }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  if (tabToRename) {
-                    updateTab(tabToRename, { title: renameText || "New Tab", showLogo: renameShowLogo });
-                  }
-                  setIsRenameModalVisible(false);
-                  setTabToRename(null);
-                }}
-                style={[styles.modalBtn, { backgroundColor: accentColor, borderRadius: cornerRadius / 2 }]}
-              >
-                <Text style={{ color: "#fff", fontWeight: "bold", fontFamily: "Nunito_700Bold" }}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+            {/* --- RENAME TAB MODAL --- */}
 
-      {/* --- CONTEXT MENU (Global) --- */}
+            <Modal visible={isRenameModalVisible} transparent animationType="fade" onRequestClose={() => setIsRenameModalVisible(false)}>
+
+              <View style={styles.modalOverlay}>
+
+                <View style={[styles.modalContent, { backgroundColor: effectiveTheme.surface, borderRadius: cornerRadius }]}>
+
+                  <Text style={[styles.modalTitle, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" }]}>Edit Tab</Text>
+
+                  <TextInput
+
+                    style={[styles.modalInput, { backgroundColor: effectiveTheme.inputBg, color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", borderRadius: cornerRadius / 2 }]}
+
+                    value={renameText}
+
+                    onChangeText={setRenameText}
+
+                    autoFocus
+
+                  />
+
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+
+                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold" }}>Show Site Logo</Text>
+
+                    <Switch value={renameShowLogo} onValueChange={setRenameShowLogo} trackColor={{ false: "#767577", true: accentColor }} thumbColor={"#f4f3f4"} />
+
+                  </View>
+
+                  <View style={styles.modalButtons}>
+
+                    <TouchableOpacity onPress={() => setIsRenameModalVisible(false)} style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}>
+
+                      <Text style={{ color: effectiveTheme.textSec, fontFamily: "Nunito_700Bold" }}>Cancel</Text>
+
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+
+                      onPress={() => {
+
+                        if (tabToRename) {
+
+                          updateTab(tabToRename, { title: renameText || "New Tab", showLogo: renameShowLogo });
+
+                        }
+
+                        setIsRenameModalVisible(false);
+
+                        setTabToRename(null);
+
+                      }}
+
+                      style={[styles.modalBtn, { backgroundColor: accentColor, borderRadius: cornerRadius / 2 }]}
+
+                    >
+
+                      <Text style={{ color: "#fff", fontWeight: "bold", fontFamily: "Nunito_700Bold" }}>Save</Text>
+
+                    </TouchableOpacity>
+
+                  </View>
+
+                </View>
+
+              </View>
+
+            </Modal>
+
+      
+
+            {/* --- CONTEXT MENU (Global) --- */}
       {contextMenuVisible && (
         <View style={[StyleSheet.absoluteFill, { zIndex: 99999, elevation: 99999, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }]}>
           <TouchableWithoutFeedback onPress={() => setContextMenuVisible(false)}><View style={StyleSheet.absoluteFill} /></TouchableWithoutFeedback>
@@ -980,9 +1161,10 @@ const styles = StyleSheet.create({
   },
   recallContainer: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    zIndex: 1,
+    left: "50%",
+    marginLeft: -25, // Half of width (50)
+    width: 50,
+    zIndex: 3,
     alignItems: "center",
   },
   recallButton: {

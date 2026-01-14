@@ -121,6 +121,8 @@ const SwipeableTabRow = ({
               backgroundColor: isActive ? theme.card : theme.surface,
               borderRadius: radius,
               height: "100%",
+              borderWidth: 2,
+              borderColor: isActive ? accent : 'transparent'
             },
           ]}
         >
