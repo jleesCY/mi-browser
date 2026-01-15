@@ -1,6 +1,6 @@
 import { Dimensions, Platform, UIManager } from 'react-native';
 
-export const APP_VERSION = "0.6.0";
+export const APP_VERSION = "0.6.1";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -78,10 +78,10 @@ export const ACCENTS = [
 // EXPANDED SEARCH ENGINES
 export const SEARCH_ENGINES = [
     { name: 'Google', url: 'https://www.google.com/search?q=', icon: 'logo-google' },
-    { name: 'Bing', url: 'https://www.bing.com/search?q=', icon: 'search' },
-    { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=', icon: 'shield-checkmark-outline' },
-    { name: 'Brave', url: 'https://search.brave.com/search?q=', icon: 'shield-outline' },
-    { name: 'Ecosia', url: 'https://www.ecosia.org/search?q=', icon: 'leaf-outline' },
+    { name: 'Bing', url: 'https://www.bing.com/search?q=', icon: 'grid-sharp' },
+    { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=', icon: 'logo-tux' },
+    { name: 'Brave', url: 'https://search.brave.com/search?q=', icon: 'shield-half-outline' },
+    { name: 'Ecosia', url: 'https://www.ecosia.org/search?q=', icon: 'leaf' },
     { name: 'Yahoo', url: 'https://search.yahoo.com/search?p=', icon: 'logo-yahoo' },
 ];
 

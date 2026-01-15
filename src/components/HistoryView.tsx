@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Keyboard, LayoutAnimation, SectionList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { HistoryItem } from '../types';
 import { getSmartDate, groupHistoryByDate } from '../utils';
@@ -46,6 +46,57 @@ const getMargin = (uiPadding: string) => {
   }
 };
 
+const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText }: any) => (
+  <View
+    style={{
+      marginBottom: 10,
+      backgroundColor: theme.card,
+      borderRadius: cornerRadius,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 15,
+      height: 50,
+    }}
+  >
+    <Ionicons
+      name="search"
+      size={20}
+      color={theme.textSec}
+      style={{ marginRight: 10 }}
+    />
+    <TextInput
+      style={{
+        flex: 1,
+        color: theme.text,
+        fontFamily: "Nunito_600SemiBold",
+        fontSize: 16,
+      }}
+      placeholder="Search History..."
+      placeholderTextColor={theme.textSec}
+      value={searchText}
+      onFocus={onFocusSearch}
+      onChangeText={(text) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setSearchText(text);
+      }}
+    />
+    {searchText !== "" && (
+      <TouchableOpacity
+        onPress={() => {
+          setSearchText("");
+          Keyboard.dismiss();
+        }}
+      >
+        <Ionicons
+          name="close-circle"
+          size={20}
+          color={theme.textSec}
+        />
+      </TouchableOpacity>
+    )}
+  </View>
+));
+
 export const HistoryView: React.FC<HistoryViewProps> = ({
   history,
   theme,
@@ -59,6 +110,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   onDeleteItem,
   onFocusSearch
 }) => {
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const sectionListRef = useRef<SectionList>(null);
+
   const filteredHistory = history.filter(
     (item) =>
       (item.title || "")
@@ -78,69 +132,37 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   return (
     <View style={{ flex: 1 }}>
-      <View
-        style={{
-          marginHorizontal: 20,
-          marginTop: 20,
-          marginBottom: 10,
-          backgroundColor: theme.card,
-          borderRadius: cornerRadius,
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 15,
-          height: 50,
-        }}
-      >
-        <Ionicons
-          name="search"
-          size={20}
-          color={theme.textSec}
-          style={{ marginRight: 10 }}
-        />
-        <TextInput
-          style={{
-            flex: 1,
-            color: theme.text,
-            fontFamily: "Nunito_600SemiBold",
-            fontSize: 16,
-          }}
-          placeholder="Search History..."
-          placeholderTextColor={theme.textSec}
-          value={searchText}
-          onFocus={onFocusSearch}
-          onChangeText={(text) => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSearchText(text);
-          }}
-        />
-        {searchText !== "" && (
-          <TouchableOpacity
-            onPress={() => {
-              setSearchText("");
-              Keyboard.dismiss();
-            }}
-          >
-            <Ionicons
-              name="close-circle"
-              size={20}
-              color={theme.textSec}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-
       <SectionList
+        ref={sectionListRef}
         sections={historySections}
         keyExtractor={(item, index) => item.id + index}
-        contentContainerStyle={{ padding: 20, paddingTop: 0 }}
+        contentContainerStyle={{ padding: 20, paddingTop: 20, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled={false}
+        ListHeaderComponent={
+            <SearchHeader 
+                theme={theme} 
+                cornerRadius={cornerRadius} 
+                searchText={searchText} 
+                onFocusSearch={onFocusSearch} 
+                setSearchText={setSearchText} 
+            />
+        }
+        onScroll={(e) => {
+            const offsetY = e.nativeEvent.contentOffset.y;
+            if (offsetY > 100 && !showScrollTop) {
+                setShowScrollTop(true);
+            } else if (offsetY <= 100 && showScrollTop) {
+                setShowScrollTop(false);
+            }
+        }}
+        scrollEventThrottle={16}
         renderSectionHeader={({ section: { title } }) => (
           <Text
             style={{
               color: theme.textSec,
               fontFamily: "Nunito_700Bold",
-              marginTop: 20,
+              marginTop: 10,
               marginBottom: 10,
               fontSize: 14 * fontScale
             }}
@@ -181,6 +203,31 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           </View>
         }
       />
+       {showScrollTop && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            bottom: 20,
+            right: 20,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: theme.card,
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+            borderWidth: 1,
+            borderColor: theme.bg
+          }}
+          onPress={() => sectionListRef.current?.scrollToLocation({ sectionIndex: 0, itemIndex: 0, animated: true })}
+        >
+          <Ionicons name="arrow-up" size={24} color={theme.text} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

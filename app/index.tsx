@@ -74,7 +74,7 @@ export default function App() {
   const {
     themeMode, accentColor, searchEngineIndex, cornerRadius, uiPadding,
     fontScale, showStatusBar, pillHeight, progressBarMode,
-    recallPosition, startupTabMode, desktopMode, jsEnabled, httpsOnly, blockCookies,
+    recallPosition, startupTabMode, desktopMode, forceSearchMode, setForceSearchMode, jsEnabled, httpsOnly, blockCookies,
     effectiveTheme, areSettingsLoaded, backgroundRefresh, readerModeEnabled
   } = settings;
 
@@ -269,31 +269,36 @@ export default function App() {
     if (!text) return;
 
     let targetUrl = "";
-    // 1. Check if it explicitly starts with http/https
-    if (/^(http|https):\/\//i.test(text)) {
-      if (httpsOnly && text.startsWith("http://")) {
-        targetUrl = text.replace(/^http:\/\//i, "https://");
-      } else {
-        targetUrl = text;
-      }
+    
+    if (forceSearchMode) {
+       targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
     } else {
-      const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
-      const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
-      const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
-
-      if (!text.includes(" ") && (domainRegex.test(text) || ipRegex.test(text) || localhostRegex.test(text))) {
-        if (localhostRegex.test(text) || ipRegex.test(text)) {
-          targetUrl = `http://${text}`;
+        // 1. Check if it explicitly starts with http/https
+        if (/^(http|https):\/\//i.test(text)) {
+          if (httpsOnly && text.startsWith("http://")) {
+            targetUrl = text.replace(/^http:\/\//i, "https://");
+          } else {
+            targetUrl = text;
+          }
         } else {
-          targetUrl = `https://${text}`;
+          const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+          const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
+          const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
+
+          if (!text.includes(" ") && (domainRegex.test(text) || ipRegex.test(text) || localhostRegex.test(text))) {
+            if (localhostRegex.test(text) || ipRegex.test(text)) {
+              targetUrl = `http://${text}`;
+            } else {
+              targetUrl = `https://${text}`;
+            }
+          } else {
+            targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
+          }
         }
-      } else {
-        targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
-      }
     }
 
     setActiveUrl(targetUrl);
-    updateTab(activeTabId, { url: targetUrl, title: text });
+    updateTab(activeTabId, { url: targetUrl, requestedUrl: targetUrl, title: text });
 
     if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
       webViewRefs.current[activeTabId]?.reload();
@@ -379,7 +384,7 @@ export default function App() {
   const goHome = () => {
     setActiveUrl(null);
     setInputUrl("");
-    updateTab(activeTabId, { url: null, title: "New Tab", showLogo: true });
+    updateTab(activeTabId, { url: null, requestedUrl: null, title: "New Tab", showLogo: true });
     snapToSearch();
   };
 
@@ -747,7 +752,7 @@ export default function App() {
                             setSearchText={setHistorySearch}
                             onPressItem={(item) => {
                                 setActiveUrl(item.url);
-                                updateTab(activeTabId, { url: item.url, title: item.title || getDisplayHost(item.url) });
+                                updateTab(activeTabId, { url: item.url, requestedUrl: item.url, title: item.title || getDisplayHost(item.url) });
                                 closeOverlay();
                             }}
                             onDeleteItem={deleteHistoryItem}
@@ -872,7 +877,7 @@ export default function App() {
                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 0, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg, minHeight: 44 }}
                          onPress={() => {
                             const val = !(currentTab?.desktopMode ?? desktopMode);
-                            updateTab(activeTabId, { desktopMode: val });
+                            updateTab(activeTabId, { desktopMode: val, requestedUrl: currentTab?.url });
                             if (webViewRefs.current[activeTabId]) {
                                 webViewRefs.current[activeTabId]?.reload();
                             }
@@ -894,7 +899,7 @@ export default function App() {
                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 0, paddingHorizontal: 15, minHeight: 44 }}
                          onPress={() => {
                             const val = !(currentTab?.readerMode ?? readerModeEnabled);
-                            updateTab(activeTabId, { readerMode: val });
+                            updateTab(activeTabId, { readerMode: val, requestedUrl: currentTab?.url });
                             if (webViewRefs.current[activeTabId]) {
                                 webViewRefs.current[activeTabId]?.reload();
                             }
@@ -968,7 +973,10 @@ export default function App() {
                             onFocus={() => { setIsInputFocused(true); setInputUrl(activeUrl || ""); }}
                             onBlur={() => { setIsInputFocused(false); setInputUrl(getDisplayHost(activeUrl)); }}
                           />
-                          <View style={[styles.actionButtons, { zIndex: 1 }]}>
+                          <View style={[styles.actionButtons, { zIndex: 1, flexDirection: 'row' }]}>
+                            <TouchableOpacity onPress={() => setForceSearchMode(!forceSearchMode)} style={{ marginRight: 8 }}>
+                                <Ionicons name={SEARCH_ENGINES[searchEngineIndex].icon as any} size={22} color={forceSearchMode ? accentColor : effectiveTheme.textSec} />
+                            </TouchableOpacity>
                             {isInputFocused ? (
                               <TouchableOpacity onPress={handleGoPress}><Ionicons name="search" size={22} color={accentColor} /></TouchableOpacity>
                             ) : (

@@ -38,6 +38,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
       const existingTabs = (savedTabs || []).map((t: any) => ({
         ...t,
         initialUrl: t.initialUrl || t.url,
+        requestedUrl: t.url, // Reset requestedUrl to last known url on startup
         hasLoadedOnce: backgroundRefresh
       }));
 
@@ -51,6 +52,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
           const startupTab = {
               id: newId,
               url: targetUrl,
+              requestedUrl: targetUrl,
               initialUrl: targetUrl,
               title: "External Link",
               showLogo: false,
@@ -162,6 +164,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     const newTab = {
       id: newId,
       url: overrideUrl || null,
+      requestedUrl: overrideUrl || null,
       initialUrl: overrideUrl || null,
       title: "New Tab",
       showLogo: true,
@@ -198,7 +201,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
 
       if (newTabs.length === 0) {
         const freshId = Date.now().toString();
-        const freshTab = { id: freshId, url: null, title: "New Tab", showLogo: true, hasLoadedOnce: true };
+        const freshTab = { id: freshId, url: null, requestedUrl: null, title: "New Tab", showLogo: true, hasLoadedOnce: true };
         
         setTimeout(() => {
           setActiveTabId(freshId);

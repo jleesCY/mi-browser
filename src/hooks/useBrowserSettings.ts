@@ -15,6 +15,7 @@ export interface BrowserSettings {
   recallPosition: "left" | "center" | "right";
   startupTabMode: "new" | "last";
   desktopMode: boolean;
+  forceSearchMode: boolean;
   readerModeEnabled: boolean;
   jsEnabled: boolean;
   httpsOnly: boolean;
@@ -40,6 +41,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
 
   // Functional settings
   const [desktopMode, setDesktopMode] = useState(false);
+  const [forceSearchMode, setForceSearchMode] = useState(false);
   const [readerModeEnabled, setReaderModeEnabled] = useState(false);
   const [jsEnabled, setJsEnabled] = useState(true);
   const [httpsOnly, setHttpsOnly] = useState(false);
@@ -72,6 +74,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setRecallPosition(savedSettings.recallPosition ?? "center");
 
         setDesktopMode(savedSettings.desktopMode ?? false);
+        setForceSearchMode(savedSettings.forceSearchMode ?? false);
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
@@ -103,6 +106,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         recallPosition,
         startupTabMode,
         desktopMode,
+        forceSearchMode,
         readerModeEnabled,
         jsEnabled,
         httpsOnly,
@@ -124,6 +128,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     recallPosition,
     startupTabMode,
     desktopMode,
+    forceSearchMode,
     readerModeEnabled,
     jsEnabled,
     httpsOnly,
@@ -153,6 +158,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setRecallPosition("center");
     setStartupTabMode("new");
     setDesktopMode(false);
+    setForceSearchMode(false);
     setReaderModeEnabled(false);
     setJsEnabled(true);
     setHttpsOnly(false);
@@ -176,6 +182,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     recallPosition, setRecallPosition,
     startupTabMode, setStartupTabMode,
     desktopMode, setDesktopMode,
+    forceSearchMode, setForceSearchMode,
     readerModeEnabled, setReaderModeEnabled,
     jsEnabled, setJsEnabled,
     httpsOnly, setHttpsOnly,

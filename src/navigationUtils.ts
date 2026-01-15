@@ -74,7 +74,7 @@ export const handleIntent = async (
       // Load fallback in OUR browser
       setTabs((prev) =>
         prev.map((t) =>
-          t.id === activeTabId ? { ...t, url: fallbackUrl } : t
+          t.id === activeTabId ? { ...t, url: fallbackUrl, requestedUrl: fallbackUrl } : t
         )
       );
       setActiveUrl(fallbackUrl);

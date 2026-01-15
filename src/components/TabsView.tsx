@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View } from 'react-native';
 import { TabItem } from '../types';
 import SwipeableTabRow from "./SwipeableTabRow";
@@ -50,6 +50,58 @@ const getMargin = (uiPadding: string) => {
   }
 };
 
+const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText }: any) => (
+  <View
+    style={{
+      marginBottom: 10,
+      backgroundColor: theme.card,
+      borderRadius: cornerRadius,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 15,
+      height: 50,
+      width: '100%'
+    }}
+  >
+    <Ionicons
+      name="search"
+      size={20}
+      color={theme.textSec}
+      style={{ marginRight: 10 }}
+    />
+    <TextInput
+      style={{
+        flex: 1,
+        color: theme.text,
+        fontFamily: "Nunito_600SemiBold",
+        fontSize: 16,
+      }}
+      placeholder="Search Tabs..."
+      placeholderTextColor={theme.textSec}
+      value={searchText}
+      onFocus={onFocusSearch}
+      onChangeText={(text) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setSearchText(text);
+      }}
+    />
+    {searchText !== "" && (
+      <TouchableOpacity
+        onPress={() => {
+          setSearchText("");
+          Keyboard.dismiss();
+        }}
+      >
+        <Ionicons
+          name="close-circle"
+          size={20}
+          color={theme.textSec}
+        />
+      </TouchableOpacity>
+    )}
+  </View>
+));
+
 export const TabsView: React.FC<TabsViewProps> = ({
   tabs,
   activeTabId,
@@ -67,6 +119,9 @@ export const TabsView: React.FC<TabsViewProps> = ({
   onFocusSearch,
   overlayHeightAnim
 }) => {
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+
   const filteredTabs = tabs.filter(
     (item) =>
       (item.title || "").toLowerCase().includes(searchText.toLowerCase()) ||
@@ -81,66 +136,34 @@ export const TabsView: React.FC<TabsViewProps> = ({
 
   return (
     <View style={{ flex: 1 }}>
-      <View
-        style={{
-          marginHorizontal: 20,
-          marginTop: 20,
-          marginBottom: 10,
-          backgroundColor: theme.card,
-          borderRadius: cornerRadius,
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 15,
-          height: 50,
-        }}
-      >
-        <Ionicons
-          name="search"
-          size={20}
-          color={theme.textSec}
-          style={{ marginRight: 10 }}
-        />
-        <TextInput
-          style={{
-            flex: 1,
-            color: theme.text,
-            fontFamily: "Nunito_600SemiBold",
-            fontSize: 16,
-          }}
-          placeholder="Search Tabs..."
-          placeholderTextColor={theme.textSec}
-          value={searchText}
-          onFocus={onFocusSearch}
-          onChangeText={(text) => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSearchText(text);
-          }}
-        />
-        {searchText !== "" && (
-          <TouchableOpacity
-            onPress={() => {
-              setSearchText("");
-              Keyboard.dismiss();
-            }}
-          >
-            <Ionicons
-              name="close-circle"
-              size={20}
-              color={theme.textSec}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-
       <FlatList
+        ref={flatListRef}
         data={filteredTabs}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           padding: 20,
           paddingBottom: 100,
-          paddingTop: 0,
+          paddingTop: 20,
         }}
+        ListHeaderComponent={
+            <SearchHeader 
+                theme={theme} 
+                cornerRadius={cornerRadius} 
+                searchText={searchText} 
+                onFocusSearch={onFocusSearch} 
+                setSearchText={setSearchText} 
+            />
+        }
+        onScroll={(e) => {
+            const offsetY = e.nativeEvent.contentOffset.y;
+            if (offsetY > 100 && !showScrollTop) {
+                setShowScrollTop(true);
+            } else if (offsetY <= 100 && showScrollTop) {
+                setShowScrollTop(false);
+            }
+        }}
+        scrollEventThrottle={16}
         renderItem={({ item }) => (
           <SwipeableTabRow
             item={item}
@@ -165,7 +188,31 @@ export const TabsView: React.FC<TabsViewProps> = ({
             extrapolate: 'clamp'
         }),
         right: 20,
+        alignItems: 'center'
       }}>
+        {showScrollTop && (
+             <TouchableOpacity
+             style={{
+               width: 40,
+               height: 40,
+               borderRadius: 20,
+               backgroundColor: theme.card,
+               justifyContent: 'center',
+               alignItems: 'center',
+               shadowColor: "#000",
+               shadowOffset: { width: 0, height: 2 },
+               shadowOpacity: 0.25,
+               shadowRadius: 3.84,
+               elevation: 5,
+               marginBottom: 15,
+               borderWidth: 1,
+               borderColor: theme.bg
+             }}
+             onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
+           >
+             <Ionicons name="arrow-up" size={24} color={theme.text} />
+           </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={{
             width: 56,

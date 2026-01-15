@@ -204,6 +204,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     if (httpsOnly && url.startsWith("http://")) {
       const secureUrl = url.replace(/^http:\/\//i, "https://");
       // Redirect
+      onUpdateTab(tab.id, { url: secureUrl, requestedUrl: secureUrl, loading: true });
       onActiveTabUpdate({ canGoBack: tab.canGoBack || false, canGoForward: tab.canGoForward || false, loading: true, url: secureUrl });
       return false;
     }
@@ -243,7 +244,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         ref={ref}
         // @ts-ignore
         pauseJavaScriptBeforeUnmount={true}
-        source={{ uri: tab.url || tab.initialUrl || "" }}
+        source={{ uri: tab.requestedUrl || tab.url || tab.initialUrl || "" }}
         style={{ backgroundColor: effectiveTheme.bg }}
         containerStyle={
             isFullscreen ? { backgroundColor: "#000" } : { backgroundColor: effectiveTheme.bg }
