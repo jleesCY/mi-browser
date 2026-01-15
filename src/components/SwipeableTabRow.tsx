@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Image,
+  Keyboard,
   PanResponder,
   StyleSheet,
   Text,
@@ -37,7 +38,7 @@ const SwipeableTabRow = ({
       duration: 200,
       useNativeDriver: false,
     }).start();
-  }, [height]);
+  }, [height, itemHeight]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -51,7 +52,6 @@ const SwipeableTabRow = ({
       onPanResponderGrant: () => {
         // Dismiss keyboard when user starts interacting with the row
         // This prevents accidental focus/keyboard persistence issues
-        const { Keyboard } = require('react-native');
         Keyboard.dismiss();
       },
       onPanResponderMove: (_, gestureState) => {

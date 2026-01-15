@@ -34,7 +34,7 @@ const SwipeableHistoryRow = ({
       duration: 200,
       useNativeDriver: false,
     }).start();
-  }, [height]);
+  }, [height, itemHeight]);
 
   const panResponder = useRef(
     PanResponder.create({

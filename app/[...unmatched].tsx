@@ -14,7 +14,7 @@ export default function Unmatched() {
 
       return () => clearTimeout(timer);
     }
-  }, [rootNavigationState?.key]);
+  }, [rootNavigationState?.key, router]);
 
   return <View style={{ flex: 1, backgroundColor: '#000' }} />;
 }

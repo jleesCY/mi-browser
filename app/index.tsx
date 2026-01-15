@@ -6,11 +6,11 @@ import {
   useFonts,
 } from "@expo-google-fonts/nunito";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
-import * as Clipboard from 'expo-clipboard';
 import * as Print from 'expo-print';
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,8 +28,7 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
-  Image
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -45,7 +44,7 @@ import {
   SWAP_DISTANCE
 } from "../src/constants";
 import { handleExternalLink } from "../src/navigationUtils";
-import { getDisplayHost, getFaviconUrl } from "../src/utils";
+import { getDisplayHost } from "../src/utils";
 
 // Custom Hooks
 import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
@@ -72,9 +71,9 @@ export default function App() {
   // --- STATE MANAGEMENT VIA HOOKS ---
   const settings = useBrowserSettings(fontsLoaded); // Pass true/false or separate ready state
   const {
-    themeMode, accentColor, searchEngineIndex, cornerRadius, uiPadding,
+    accentColor, searchEngineIndex, cornerRadius, uiPadding,
     fontScale, showStatusBar, pillHeight, progressBarMode,
-    recallPosition, startupTabMode, desktopMode, forceSearchMode, setForceSearchMode, jsEnabled, httpsOnly, blockCookies,
+    startupTabMode, desktopMode, forceSearchMode, setForceSearchMode, jsEnabled, httpsOnly, blockCookies,
     effectiveTheme, areSettingsLoaded, backgroundRefresh, readerModeEnabled
   } = settings;
 
@@ -91,16 +90,12 @@ export default function App() {
   const isAppReady = fontsLoaded && areSettingsLoaded && areTabsLoaded;
 
   // --- LOCAL UI STATE ---
-  const [progress, setProgress] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const [isLoading, setIsLoading] = useState(false);
 
   // Navigation State (UI reflection)
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
   const canGoBackRef = useRef(false);
   const canGoForwardRef = useRef(false);
-  const lastErrorTimestamp = useRef(0);
 
   // Modals & Overlays
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
@@ -126,14 +121,11 @@ export default function App() {
   const [renameText, setRenameText] = useState("");
   const [renameShowLogo, setRenameShowLogo] = useState(true);
 
-  // Shortcut Modal
-  const [isShortcutModalVisible, setIsShortcutModalVisible] = useState(false);
-  const [shortcutTitle, setShortcutTitle] = useState("");
-
   // Sub Menu State
   const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isBarHiddenState, setIsBarHiddenState] = useState(false);
 
   // Refs
   const webViewRefs = useRef<{ [key: string]: WebView | null }>({});
@@ -159,8 +151,6 @@ export default function App() {
       ignoreNextScroll.current = true;
       // URL/Input handled by hook mostly, but we sync just in case
       // Buttons
-      setCanGoBack(currentTab.canGoBack || false);
-      setCanGoForward(currentTab.canGoForward || false);
       canGoBackRef.current = currentTab.canGoBack || false;
       canGoForwardRef.current = currentTab.canGoForward || false;
       // Loading
@@ -168,7 +158,7 @@ export default function App() {
       // Progress
       progressAnim.setValue(currentTab.loading ? 0.2 : 0);
     }
-  }, [activeTabId, tabs]);
+  }, [activeTabId, tabs, currentTab, progressAnim]);
 
   useEffect(() => {
     Animated.timing(isPillFocusedAnim, {
@@ -176,7 +166,7 @@ export default function App() {
       duration: 200,
       useNativeDriver: false
     }).start();
-  }, [isInputFocused]);
+  }, [isInputFocused, isPillFocusedAnim]);
 
   useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
@@ -197,7 +187,7 @@ export default function App() {
       }).start();
       currentOverlayHeight.current = SNAP_DEFAULT;
     }
-  }, [activeView]);
+  }, [activeView, overlayHeightAnim, settings]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (e) =>
@@ -218,7 +208,63 @@ export default function App() {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [keyboardHeight]);
+
+  // --- UI ACTIONS ---
+  const snapToSearch = useCallback(() => {
+    setIsSearchActive(true);
+    Animated.spring(animVal, {
+      toValue: 0,
+      tension: 60,
+      friction: 9,
+      useNativeDriver: false,
+    }).start();
+  }, [animVal]);
+
+  const goHome = useCallback(() => {
+    setActiveUrl(null);
+    setInputUrl("");
+    updateTab(activeTabId, { url: null, requestedUrl: null, title: "New Tab", showLogo: true });
+    snapToSearch();
+  }, [activeTabId, updateTab, snapToSearch, setActiveUrl, setInputUrl]);
+
+  const closeOverlay = useCallback(() => {
+    Keyboard.dismiss();
+    Animated.timing(overlayHeightAnim, {
+      toValue: SNAP_CLOSED,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => {
+      setActiveView("none");
+      snapToSearch();
+      setSettingsSearch("");
+      setTabsSearch("");
+      setHistorySearch("");
+    });
+    currentOverlayHeight.current = SNAP_CLOSED;
+  }, [overlayHeightAnim, snapToSearch]);
+
+  const showBar = useCallback(() => {
+    isBarHidden.current = false;
+    setIsBarHiddenState(false);
+    currentScrollTrans.current = 0;
+    Animated.timing(scrollTranslateY, {
+      toValue: 0,
+      duration: 100,
+      useNativeDriver: false,
+    }).start();
+  }, [scrollTranslateY]);
+
+  const hideBar = useCallback(() => {
+    isBarHidden.current = true;
+    setIsBarHiddenState(true);
+    currentScrollTrans.current = HIDDEN_TRANSLATE_Y;
+    Animated.timing(scrollTranslateY, {
+      toValue: HIDDEN_TRANSLATE_Y,
+      duration: 100,
+      useNativeDriver: false,
+    }).start();
+  }, [scrollTranslateY]);
 
   // --- NAVIGATION LOGIC ---
   const handleIncomingUrl = React.useCallback((url: string | null) => {
@@ -261,7 +307,7 @@ export default function App() {
     };
     const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => subscription.remove();
-  }, [activeView, isInputFocused, activeTabId]);
+  }, [activeView, isInputFocused, activeTabId, closeOverlay, showBar]);
 
   const handleGoPress = () => {
     Keyboard.dismiss();
@@ -310,7 +356,7 @@ export default function App() {
     if (!activeUrl) return;
     try {
       await Share.share({ message: activeUrl, url: activeUrl, title: "Share Link" });
-    } catch (error) {}
+    } catch {}
   };
 
   const handleCopyLink = async () => {
@@ -336,7 +382,7 @@ export default function App() {
         // Fallback if webview ref not found (shouldn't happen if active)
         try {
             await Print.printAsync({ uri: activeUrl });
-        } catch (error) {
+        } catch {
             Alert.alert("Error", "Could not print this page.");
         }
     }
@@ -380,59 +426,7 @@ export default function App() {
     }
   };
 
-  // --- UI ACTIONS ---
-  const goHome = () => {
-    setActiveUrl(null);
-    setInputUrl("");
-    updateTab(activeTabId, { url: null, requestedUrl: null, title: "New Tab", showLogo: true });
-    snapToSearch();
-  };
 
-  const closeOverlay = () => {
-    Keyboard.dismiss();
-    Animated.timing(overlayHeightAnim, {
-      toValue: SNAP_CLOSED,
-      duration: 250,
-      useNativeDriver: false,
-    }).start(() => {
-      setActiveView("none");
-      snapToSearch();
-      setSettingsSearch("");
-      setTabsSearch("");
-      setHistorySearch("");
-    });
-    currentOverlayHeight.current = SNAP_CLOSED;
-  };
-
-  const snapToSearch = () => {
-    setIsSearchActive(true);
-    Animated.spring(animVal, {
-      toValue: 0,
-      tension: 60,
-      friction: 9,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const showBar = () => {
-    isBarHidden.current = false;
-    currentScrollTrans.current = 0;
-    Animated.timing(scrollTranslateY, {
-      toValue: 0,
-      duration: 100,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const hideBar = () => {
-    isBarHidden.current = true;
-    currentScrollTrans.current = HIDDEN_TRANSLATE_Y;
-    Animated.timing(scrollTranslateY, {
-      toValue: HIDDEN_TRANSLATE_Y,
-      duration: 100,
-      useNativeDriver: false,
-    }).start();
-  };
 
   const handleScroll = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
@@ -652,8 +646,6 @@ export default function App() {
                 effectiveTheme={effectiveTheme}
                 onUpdateTab={updateTab}
                 onActiveTabUpdate={(updates) => {
-                    setCanGoBack(updates.canGoBack);
-                    setCanGoForward(updates.canGoForward);
                     canGoBackRef.current = updates.canGoBack;
                     canGoForwardRef.current = updates.canGoForward;
                     setIsLoading(updates.loading);
@@ -700,13 +692,13 @@ export default function App() {
                                     setTimeout(async () => {
                                         try {
                                             await Print.printAsync({ html: parsed.html });
-                                        } catch (err) {
+                                        } catch {
                                             Alert.alert("Print Error", "Could not print content.");
                                         }
                                     }, 0);
                                 }
                             }
-                        } catch (e) {}
+                        } catch {}
                     }
                 }}
                 injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
@@ -842,7 +834,7 @@ export default function App() {
                 </TouchableWithoutFeedback>
               )}
 
-              <Animated.View style={[styles.bottomAreaContainer, { paddingBottom: containerPaddingBAnim, paddingHorizontal: containerPaddingHAnim, opacity: containerOpacity }]}>
+              <Animated.View style={[styles.bottomAreaContainer, { paddingBottom: containerPaddingBAnim, paddingHorizontal: containerPaddingHAnim, opacity: containerOpacity }]} pointerEvents={isBarHiddenState ? 'none' : 'box-none'}>
                 <Animated.View style={{ width: "100%", alignItems: "center", transform: [{ translateY: Animated.subtract(scrollTranslateY, effectiveKeyboardHeight) }, { scale: containerScale }] }}>
                   
                   {isSubMenuVisible && (

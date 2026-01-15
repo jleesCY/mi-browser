@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from "@expo/vector-icons";
 import { TabItem } from '../types';
@@ -53,7 +53,6 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     accentColor,
     pillHeight,
     httpsOnly,
-    searchEngineIndex,
     readerModeEnabled // <--- Added
   } = settings;
 
@@ -333,3 +332,5 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     </View>
   );
 });
+
+BrowserWebView.displayName = 'BrowserWebView';

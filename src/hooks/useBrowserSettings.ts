@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { loadStorage, saveStorage, generateAdaptiveTheme, hexToRgba } from '../utils';
+import { loadStorage, saveStorage, generateAdaptiveTheme } from '../utils';
 import { COLORS, SEARCH_ENGINES } from '../constants';
 
 export interface BrowserSettings {

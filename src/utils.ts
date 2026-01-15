@@ -99,7 +99,7 @@ export const generateAdaptiveTheme = (accentHex: string) => {
       placeholder: "#888",
       isDark: isDark, 
     };
-  } catch (e) {
+  } catch {
     // FALLBACK THEME (Dark Mode Standard) if math fails
     return {
       bg: '#000000',
@@ -122,7 +122,7 @@ export const getDisplayHost = (url: string | null) => {
   try {
     const parsed = new URL(url);
     return parsed.hostname;
-  } catch (e) {
+  } catch {
     return url;
   }
 };
@@ -132,7 +132,7 @@ export const getFaviconUrl = (url: string | null) => {
   try {
     const domain = new URL(url).hostname;
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -242,14 +242,14 @@ export const parseDeepLinkUrl = (originalUrl: string) => {
         if (match && match[1]) {
           return decodeURIComponent(match[1]);
         }
-      } catch(e) {}
+      } catch {}
   }
 
   // 3. General Cleanup: Remove leading query markers and decode
   payload = payload.replace(/^[?&]/, "");
   try {
       payload = decodeURIComponent(payload);
-  } catch (e) {}
+  } catch {}
 
   // 4. Ensure Protocol
   if (

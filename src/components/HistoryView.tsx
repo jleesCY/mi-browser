@@ -97,6 +97,8 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
   </View>
 ));
 
+SearchHeader.displayName = 'SearchHeader';
+
 export const HistoryView: React.FC<HistoryViewProps> = ({
   history,
   theme,

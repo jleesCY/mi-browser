@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react';
 import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View } from 'react-native';
 import { TabItem } from '../types';
 import SwipeableTabRow from "./SwipeableTabRow";
-import { SNAP_DEFAULT, SNAP_FULL } from '../constants';
+import { SNAP_DEFAULT } from '../constants';
 
 interface TabsViewProps {
   tabs: TabItem[];
@@ -101,6 +101,8 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
     )}
   </View>
 ));
+
+SearchHeader.displayName = 'SearchHeader';
 
 export const TabsView: React.FC<TabsViewProps> = ({
   tabs,

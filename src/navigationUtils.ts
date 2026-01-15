@@ -54,7 +54,7 @@ export const handleIntent = async (
       try {
         await Linking.openURL(cleanDeepLink);
         return; 
-      } catch (e) {
+      } catch {
         // Continue
       }
     }
@@ -63,7 +63,7 @@ export const handleIntent = async (
     try {
       await Linking.openURL(intentUrl);
       return;
-    } catch(e) {
+    } catch {
       // Continue
     }
 

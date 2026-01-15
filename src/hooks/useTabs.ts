@@ -21,6 +21,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
   const activeTabIdRef = useRef(activeTabId);
 
   const [areTabsLoaded, setAreTabsLoaded] = useState(false);
+  const hasLoadedTabs = useRef(false);
 
   // Sync ref
   useEffect(() => {
@@ -29,7 +30,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
 
   // Load Tabs on Startup
   useEffect(() => {
-    if (!areSettingsLoaded) return;
+    if (!areSettingsLoaded || hasLoadedTabs.current) return;
+    hasLoadedTabs.current = true;
 
     const loadTabs = async () => {
       const savedTabs = await loadStorage("tabs");
@@ -130,7 +132,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     };
 
     loadTabs();
-  }, [areSettingsLoaded]); // Run once when settings are ready
+  }, [areSettingsLoaded, startupTabMode, backgroundRefresh]); // Run once when settings are ready
 
   // Save Tabs
   useEffect(() => {
