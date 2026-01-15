@@ -27,16 +27,42 @@ echo "Running: eas build -p android --local"
 BUILD_OUTPUT=$(eas build -p android --local | tee /dev/tty)
 
 # ==========================================
-# 3. Extract the .aab File Path
+# 3. Extract the Artifact File Path
 # ==========================================
-AAB_PATH=$(echo "$BUILD_OUTPUT" | grep "You can find the build artifacts in" | awk '{print $NF}')
+ARTIFACT_PATH=$(echo "$BUILD_OUTPUT" | grep "You can find the build artifacts in" | awk '{print $NF}')
 
-if [ -z "$AAB_PATH" ]; then
-    echo "Error: Could not find the .aab file path in the build output."
+if [ -z "$ARTIFACT_PATH" ]; then
+    echo "Error: Could not find the build artifact path in the build output."
     exit 1
 fi
 
-echo "Captured AAB path: $AAB_PATH"
+echo "Captured artifact path: $ARTIFACT_PATH"
+
+# Check if the artifact is a tar.gz file
+if [[ "$ARTIFACT_PATH" == *.tar.gz ]]; then
+    echo "Artifact is a tar.gz file. Extracting..."
+    
+    # Create a temp dir for extraction
+    EXTRACT_DIR="./builds/temp_extract_${VERSION}"
+    mkdir -p "$EXTRACT_DIR"
+    
+    # Extract the tar.gz
+    tar -xzf "$ARTIFACT_PATH" -C "$EXTRACT_DIR"
+    
+    # Find the .aab file (expected in bundle/release/)
+    AAB_PATH=$(find "$EXTRACT_DIR" -name "*.aab" | head -n 1)
+    
+    if [ -z "$AAB_PATH" ]; then
+        echo "Error: Could not find an .aab file inside the extracted tar.gz."
+        rm -rf "$EXTRACT_DIR"
+        exit 1
+    fi
+    
+    echo "Found .aab file at: $AAB_PATH"
+else
+    # Assume it's directly the .aab file (legacy behavior)
+    AAB_PATH="$ARTIFACT_PATH"
+fi
 
 # ==========================================
 # 4. Run Bundletool (Generate APKS)
@@ -73,6 +99,9 @@ else
     echo "Error: 'universal.apk' was not found inside the generated zip!"
     # Clean up temp dir before exiting so we don't leave trash
     rm -rf "$TEMP_DIR"
+    if [[ "$ARTIFACT_PATH" == *.tar.gz ]]; then
+        rm -rf "$EXTRACT_DIR"
+    fi
     exit 1
 fi
 
@@ -87,8 +116,13 @@ rm "$ZIP_FILE"
 # Delete the temporary extraction folder and its contents
 rm -rf "$TEMP_DIR"
 
-# Delete the original .aab file from Step 2
-rm "$AAB_PATH"
+# Delete the artifact (AAB or tar.gz) and extraction dir if applicable
+if [[ "$ARTIFACT_PATH" == *.tar.gz ]]; then
+    rm "$ARTIFACT_PATH"
+    rm -rf "$EXTRACT_DIR"
+else
+    rm "$AAB_PATH"
+fi
 
 echo "------------------------------------------------"
 echo "Success! The final file is ready:"
