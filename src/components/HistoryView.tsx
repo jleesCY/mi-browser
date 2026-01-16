@@ -127,17 +127,19 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   }, [searchText, CHUNK_SIZE]);
 
   const toggleSection = (title: string) => {
-      setCollapsedSections(prev => {
-          const newSet = new Set(prev);
-          if (newSet.has(title)) {
-              newSet.delete(title);
-          } else {
-              newSet.add(title);
-          }
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          return newSet;
-      });
+    setCollapsedSections(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(title)) {
+            newSet.delete(title);
+        } else {
+            newSet.add(title);
+        }
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        return newSet;
+    });
   };
+
+  const isSearching = searchText.trim().length > 0;
 
   const filteredHistory = history.filter(
     (item) =>
@@ -149,6 +151,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   const visibleHistory = filteredHistory.slice(0, visibleCount);
   const historySections = groupHistoryByDate(visibleHistory);
+
+  // Auto-load more if nothing is visible due to collapses (ignore collapse if searching)
+  useEffect(() => {
+    if (visibleCount < filteredHistory.length) {
+      const hasAnyVisible = historySections.some(s => (isSearching || !collapsedSections.has(s.title)) && s.data.length > 0);
+      if (!hasAnyVisible && visibleHistory.length > 0) {
+        setVisibleCount(prev => prev + CHUNK_SIZE);
+      }
+    }
+  }, [collapsedSections, visibleHistory, historySections, filteredHistory.length, CHUNK_SIZE, isSearching]);
 
   const loadMore = () => {
     if (visibleCount < filteredHistory.length) {
@@ -203,11 +215,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             >
                 {title}
             </Text>
-            <Ionicons name={collapsedSections.has(title) ? "chevron-down" : "chevron-up"} size={16} color={theme.textSec} />
+            <Ionicons name={(collapsedSections.has(title) && !isSearching) ? "chevron-down" : "chevron-up"} size={16} color={theme.textSec} />
           </TouchableOpacity>
         )}
         renderItem={({ item, section }) => {
-          if (collapsedSections.has(section.title)) return null;
+          if (collapsedSections.has(section.title) && !isSearching) return null;
           return (
             <SwipeableHistoryRow
                 item={item}
