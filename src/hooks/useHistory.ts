@@ -45,7 +45,7 @@ export const useHistory = (isAppReady: boolean) => {
         timestamp: Date.now(),
       };
 
-      return [newItem, ...cleanedHistory].slice(0, 100);
+      return [newItem, ...cleanedHistory].slice(0, 1000);
     });
   };
 

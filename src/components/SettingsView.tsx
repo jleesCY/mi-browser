@@ -862,6 +862,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </SettingsGroup>
 
       <SettingsGroup title="Data">
+        <SettingRow label="History Load Count">
+            <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                    <Ionicons name="list-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>History Load Count</Text>
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", width: "100%", gap: 10 }}>
+                    {[10, 25, 50, 100].map((count) => (
+                    <TouchableOpacity key={count} onPress={() => settings.setHistoryLoadCount(count)} style={[{ alignItems: "center", justifyContent: "center", paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius }, settings.historyLoadCount === count && { backgroundColor: accentColor }]}>
+                        <Text style={[{ fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" }, settings.historyLoadCount === count ? { color: "#fff" } : { color: effectiveTheme.text }]}>
+                        {count}
+                        </Text>
+                    </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+        </SettingRow>
+
         <SettingRow
             label="Reset all settings"
             onPress={onRequestReset}

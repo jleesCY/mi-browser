@@ -46,6 +46,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [jsEnabled, setJsEnabled] = useState(true);
   const [httpsOnly, setHttpsOnly] = useState(false);
   const [blockCookies, setBlockCookies] = useState(false);
+  const [historyLoadCount, setHistoryLoadCount] = useState(10);
 
   // UI state for settings (not persisted per se, but part of the settings UI)
   const [isAccentExpanded, setIsAccentExpanded] = useState(false);
@@ -78,6 +79,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
+        setHistoryLoadCount(savedSettings.historyLoadCount ?? 10);
         
         setBackgroundRefresh(savedSettings.backgroundRefresh ?? false);
 
@@ -111,6 +113,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         jsEnabled,
         httpsOnly,
         blockCookies,
+        historyLoadCount,
         backgroundRefresh,
       };
       saveStorage("settings", settingsToSave);
@@ -133,6 +136,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     jsEnabled,
     httpsOnly,
     blockCookies,
+    historyLoadCount,
     isAppReady,
     backgroundRefresh
   ]);
@@ -163,6 +167,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setJsEnabled(true);
     setHttpsOnly(false);
     setBlockCookies(false);
+    setHistoryLoadCount(10);
     setBackgroundRefresh(false);
 
     saveStorage("settings", null);
@@ -187,6 +192,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     jsEnabled, setJsEnabled,
     httpsOnly, setHttpsOnly,
     blockCookies, setBlockCookies,
+    historyLoadCount, setHistoryLoadCount,
     isAccentExpanded, setIsAccentExpanded,
     isSearchEngineOpen, setIsSearchEngineOpen,
     isClearHistoryOpen, setIsClearHistoryOpen,

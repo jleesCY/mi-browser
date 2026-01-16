@@ -187,7 +187,7 @@ export default function App() {
       }).start();
       currentOverlayHeight.current = SNAP_DEFAULT;
     }
-  }, [activeView, overlayHeightAnim, settings]);
+  }, [activeView]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (e) =>
@@ -740,6 +740,7 @@ export default function App() {
                             cornerRadius={cornerRadius}
                             fontScale={fontScale}
                             uiPadding={uiPadding}
+                            historyLoadCount={settings.historyLoadCount}
                             searchText={historySearch}
                             setSearchText={setHistorySearch}
                             onPressItem={(item) => {

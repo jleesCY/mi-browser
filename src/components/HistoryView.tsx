@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, LayoutAnimation, SectionList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { HistoryItem } from '../types';
 import { getSmartDate, groupHistoryByDate } from '../utils';
@@ -17,6 +17,7 @@ interface HistoryViewProps {
   onPressItem: (item: HistoryItem) => void;
   onDeleteItem: (id: string) => void;
   onFocusSearch: () => void;
+  historyLoadCount: number;
 }
 
 const getHistoryHeight = (uiPadding: string, fontScale: number) => {
@@ -110,10 +111,33 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   setSearchText,
   onPressItem,
   onDeleteItem,
-  onFocusSearch
+  onFocusSearch,
+  historyLoadCount
 }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  const CHUNK_SIZE = historyLoadCount || 25;
+  const [visibleCount, setVisibleCount] = useState(CHUNK_SIZE);
+
+  // Reset visible count when search changes or load count changes
+  useEffect(() => {
+    setVisibleCount(CHUNK_SIZE);
+  }, [searchText, CHUNK_SIZE]);
+
+  const toggleSection = (title: string) => {
+      setCollapsedSections(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(title)) {
+              newSet.delete(title);
+          } else {
+              newSet.add(title);
+          }
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          return newSet;
+      });
+  };
 
   const filteredHistory = history.filter(
     (item) =>
@@ -123,7 +147,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       item.url.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const historySections = groupHistoryByDate(filteredHistory);
+  const visibleHistory = filteredHistory.slice(0, visibleCount);
+  const historySections = groupHistoryByDate(visibleHistory);
+
+  const loadMore = () => {
+    if (visibleCount < filteredHistory.length) {
+        setVisibleCount((prev) => prev + CHUNK_SIZE);
+    }
+  };
 
   // Use a higher contrast theme for rows if needed, or just pass the theme
   const rowTheme = {
@@ -141,6 +172,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         contentContainerStyle={{ padding: 20, paddingTop: 20, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         ListHeaderComponent={
             <SearchHeader 
                 theme={theme} 
@@ -160,21 +193,24 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         }}
         scrollEventThrottle={16}
         renderSectionHeader={({ section: { title } }) => (
-          <Text
-            style={{
-              color: theme.textSec,
-              fontFamily: "Nunito_700Bold",
-              marginTop: 10,
-              marginBottom: 10,
-              fontSize: 14 * fontScale
-            }}
-          >
-            {title}
-          </Text>
+          <TouchableOpacity onPress={() => toggleSection(title)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 }}>
+            <Text
+                style={{
+                color: theme.textSec,
+                fontFamily: "Nunito_700Bold",
+                fontSize: 14 * fontScale
+                }}
+            >
+                {title}
+            </Text>
+            <Ionicons name={collapsedSections.has(title) ? "chevron-down" : "chevron-up"} size={16} color={theme.textSec} />
+          </TouchableOpacity>
         )}
-        renderItem={({ item }) => (
-          <SwipeableHistoryRow
-            item={item}
+        renderItem={({ item, section }) => {
+          if (collapsedSections.has(section.title)) return null;
+          return (
+            <SwipeableHistoryRow
+                item={item}
             theme={rowTheme}
             accent={accentColor}
             radius={cornerRadius}
@@ -185,7 +221,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             onPress={() => onPressItem(item)}
             onDelete={() => onDeleteItem(item.id)}
           />
-        )}
+          );
+        }}
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 }}>
             <Ionicons
