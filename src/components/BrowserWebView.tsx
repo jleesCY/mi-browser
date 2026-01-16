@@ -12,7 +12,7 @@ interface BrowserWebViewProps {
   settings: any; // BrowserSettings
   effectiveTheme: any;
   onUpdateTab: (id: string, updates: Partial<TabItem>) => void;
-  onActiveTabUpdate: (updates: { canGoBack: boolean; canGoForward: boolean; loading: boolean; url?: string }) => void;
+  onActiveTabUpdate: (updates: { canGoBack: boolean; canGoForward: boolean; loading: boolean; url?: string; title?: string }) => void;
   onLoadProgress: (progress: number) => void;
   onLoadStart: () => void;
   onLoadEnd: () => void;
@@ -285,7 +285,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
             });
 
             if (isActive) {
-                onActiveTabUpdate({ canGoBack, canGoForward, loading, url });
+                onActiveTabUpdate({ canGoBack, canGoForward, loading, url, title: newTitle });
             }
         }}
         onLoadProgress={({ nativeEvent }) => {

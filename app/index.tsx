@@ -652,7 +652,7 @@ export default function App() {
                     if (!isInputFocused && updates.url) {
                         setActiveUrl(updates.url);
                         setInputUrl(getDisplayHost(updates.url));
-                        if (!updates.loading && updates.url !== "about:blank") addToHistory(updates.url);
+                        if (!updates.loading && updates.url !== "about:blank") addToHistory(updates.url, updates.title);
                     }
                 }}
                 onLoadProgress={(p) => Animated.timing(progressAnim, { toValue: p, duration: 200, useNativeDriver: false }).start()}

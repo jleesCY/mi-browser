@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LayoutAnimation } from 'react-native';
-import { loadStorage, saveStorage, getDisplayHost } from '../utils';
+import { loadStorage, saveStorage, getDisplayHost, getHistoryTitle } from '../utils';
 import { HistoryItem } from '../types';
 
 export const useHistory = (isAppReady: boolean) => {
@@ -24,10 +24,10 @@ export const useHistory = (isAppReady: boolean) => {
     return () => clearTimeout(saveTimeout);
   }, [history, isAppReady]);
 
-  const addToHistory = (url: string) => {
+  const addToHistory = (url: string, title?: string | null) => {
     if (!url || url === "about:blank") return;
 
-    const title = getDisplayHost(url);
+    const finalTitle = getHistoryTitle(url, title);
 
     setHistory((prevHistory) => {
       if (prevHistory.length > 0 && prevHistory[0].url === url) {
@@ -41,7 +41,7 @@ export const useHistory = (isAppReady: boolean) => {
       const newItem = {
         id: Date.now().toString(),
         url,
-        title,
+        title: finalTitle,
         timestamp: Date.now(),
       };
 

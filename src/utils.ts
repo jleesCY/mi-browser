@@ -118,10 +118,37 @@ export const generateAdaptiveTheme = (accentHex: string) => {
 };
 
 import { LayoutAnimation, Platform, UIManager } from 'react-native';
+import { SEARCH_ENGINES } from "./constants";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+export const getHistoryTitle = (url: string, pageTitle?: string | null) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+
+    // Check against known search engines
+    for (const engine of SEARCH_ENGINES) {
+      const engineUrl = new URL(engine.url);
+      if (host.includes(engineUrl.hostname.replace("www.", ""))) {
+        // Find the query parameter (q or p)
+        const params = new URLSearchParams(parsed.search);
+        const query = params.get("q") || params.get("p");
+        if (query) {
+          return `${engine.name} Search: ${query}`;
+        }
+      }
+    }
+  } catch (e) {}
+
+  // Fallback to title or hostname
+  if (pageTitle && pageTitle.length > 0 && !pageTitle.includes("://")) {
+    return pageTitle;
+  }
+  return getDisplayHost(url);
+};
 
 export const getDisplayHost = (url: string | null) => {
   if (!url) return "";
