@@ -642,6 +642,7 @@ export default function App() {
                 tab={tab}
                 isActive={isActive}
                 isFullscreen={isFullscreen}
+                blockGestures={isInputFocused}
                 settings={{ jsEnabled, desktopMode, blockCookies, accentColor, pillHeight, httpsOnly, searchEngineIndex, readerModeEnabled }}
                 effectiveTheme={effectiveTheme}
                 onUpdateTab={updateTab}
@@ -820,7 +821,7 @@ export default function App() {
             </View>
           )}
 
-          <Animated.View style={[styles.recallContainer, { opacity: recallOpacity, bottom: Math.max(insets.bottom + 10, 10), zIndex: 3 }]}>
+          <Animated.View style={[styles.recallContainer, { opacity: recallOpacity, bottom: Math.max(insets.bottom + 10, 10), zIndex: 3 }]} pointerEvents={isBarHiddenState ? 'auto' : 'none'}>
             <TouchableOpacity activeOpacity={0.8} onPress={showBar} {...recallPanResponder.panHandlers} style={[styles.recallButton, { backgroundColor: effectiveTheme.glass, borderWidth: 0, borderRadius: 25, overflow: "hidden" }]}>
               <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: effectiveTheme.inputBg }} />
               <Ionicons name="chevron-up" size={24} color={effectiveTheme.text} />

@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +24,7 @@ interface BrowserWebViewProps {
   onExternalLink: (url: string) => void;
   onMessage: (event: any) => void;
   injectedJavaScript: string;
+  blockGestures?: boolean;
 }
 
 export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
@@ -44,8 +45,10 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   onPermissionRequest,
   onExternalLink,
   onMessage,
-  injectedJavaScript
+  injectedJavaScript,
+  blockGestures = false
 }, ref) => {
+  const localRef = useRef<WebView>(null);
   const {
     jsEnabled,
     desktopMode,
@@ -106,11 +109,16 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     return (
       <View
         style={{
-          flex: 1,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          right: 0,
           justifyContent: 'center',
           alignItems: 'center',
           padding: 20,
           backgroundColor: effectiveTheme.bg,
+          zIndex: 100,
         }}
       >
         <Ionicons
@@ -166,12 +174,8 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
             backgroundColor: accentColor
           }}
           onPress={() => {
-              if (ref && 'current' in ref && ref.current) {
-                  (ref.current as any).reload();
-              } else if (ref && typeof ref === 'function') {
-                  // Cannot easily reload if ref is a callback function without storing it
-              } else if (ref) {
-                  (ref as any).reload();
+              if (localRef.current) {
+                  localRef.current.reload();
               }
           }}
         >
@@ -240,7 +244,11 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         pointerEvents={isActive ? "auto" : "none"}
     >
         <WebView
-        ref={ref}
+        ref={(r) => {
+          localRef.current = r;
+          if (typeof ref === 'function') ref(r);
+          else if (ref) ref.current = r;
+        }}
         // @ts-ignore
         pauseJavaScriptBeforeUnmount={true}
         source={{ uri: tab.requestedUrl || tab.url || tab.initialUrl || "" }}
@@ -329,6 +337,15 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         onPermissionRequest={onPermissionRequest}
         allowsBackForwardNavigationGestures={true}
         />
+        {blockGestures && (
+            <View
+                style={[
+                    StyleSheet.absoluteFill,
+                    { zIndex: 99, backgroundColor: 'transparent' }
+                ]}
+                onTouchStart={onTouchStart}
+            />
+        )}
     </View>
   );
 });
