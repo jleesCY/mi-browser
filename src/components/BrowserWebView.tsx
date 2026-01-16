@@ -244,7 +244,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         // @ts-ignore
         pauseJavaScriptBeforeUnmount={true}
         source={{ uri: tab.requestedUrl || tab.url || tab.initialUrl || "" }}
-        style={{ backgroundColor: effectiveTheme.bg }}
+        style={{ backgroundColor: '#ffffff' }}
         containerStyle={
             isFullscreen ? { backgroundColor: "#000" } : { backgroundColor: effectiveTheme.bg }
         }
