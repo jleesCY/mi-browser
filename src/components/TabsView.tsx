@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from 'react';
-import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
+import { NativeViewGestureHandler } from "react-native-gesture-handler";
 import { TabItem } from '../types';
 import SwipeableTabRow from "./SwipeableTabRow";
 import TabCard from "./TabCard";
-import { SNAP_DEFAULT } from '../constants';
+import { SNAP_DEFAULT, SCREEN_WIDTH } from '../constants';
+import { SortableGrid } from './SortableGrid';
 
 interface TabsViewProps {
   tabs: TabItem[];
@@ -19,6 +21,7 @@ interface TabsViewProps {
   showTabPreview: boolean;
   searchText: string;
   setSearchText: (text: string) => void;
+  onReorderTabs: (from: number, to: number) => void;
   onPressTab: (id: string, url: string | null) => void;
   onCloseTab: (id: string) => void;
   onRenameTab: (id: string, title: string) => void;
@@ -73,22 +76,25 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
       color={theme.textSec}
       style={{ marginRight: 10 }}
     />
-    <TextInput
-      style={{
-        flex: 1,
-        color: theme.text,
-        fontFamily: "Nunito_600SemiBold",
-        fontSize: 16,
-      }}
-      placeholder="Search Tabs..."
-      placeholderTextColor={theme.textSec}
-      value={searchText}
-      onFocus={onFocusSearch}
-      onChangeText={(text) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setSearchText(text);
-      }}
-    />
+    <NativeViewGestureHandler disallowInterruption={true} shouldActivateOnStart={true}>
+        <TextInput
+        style={{
+            flex: 1,
+            color: theme.text,
+            fontFamily: "Nunito_600SemiBold",
+            fontSize: 16,
+            height: '100%' // Ensure it fills the handler
+        }}
+        placeholder="Search Tabs..."
+        placeholderTextColor={theme.textSec}
+        value={searchText}
+        onFocus={onFocusSearch}
+        onChangeText={(text) => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSearchText(text);
+        }}
+        />
+    </NativeViewGestureHandler>
     {searchText !== "" && (
       <TouchableOpacity
         onPress={() => {
@@ -121,6 +127,7 @@ export const TabsView: React.FC<TabsViewProps> = ({
   showTabPreview,
   searchText,
   setSearchText,
+  onReorderTabs,
   onPressTab,
   onCloseTab,
   onRenameTab,
@@ -129,7 +136,7 @@ export const TabsView: React.FC<TabsViewProps> = ({
   overlayHeightAnim
 }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const flatListRef = useRef<FlatList>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const filteredTabs = tabs.filter(
     (item) =>
@@ -143,30 +150,44 @@ export const TabsView: React.FC<TabsViewProps> = ({
     bg: theme.card,
   };
 
+  // Dimensions
+  const isCards = tabViewMode === "cards";
+  const numColumns = isCards ? 2 : 1;
+  
+  // Card dims
+  const cardWidth = (SCREEN_WIDTH - 60) / 2;
+  const cardHeight = (cardWidth / 0.85) + 16; // 16 is vertical margin total
+
+  // Row dims
+  const rowHeightItem = getTabHeight(uiPadding, fontScale);
+  const rowMargin = getMargin(uiPadding);
+  const rowTotalHeight = rowHeightItem + rowMargin;
+
+  const slotWidth = isCards ? (SCREEN_WIDTH - 40) / 2 : SCREEN_WIDTH - 40;
+  const slotHeight = isCards ? cardHeight : rowTotalHeight;
+
   return (
     <View style={{ flex: 1 }}>
-      <FlatList
-        ref={flatListRef}
+      <SortableGrid
+        ref={scrollViewRef}
         data={filteredTabs}
-        key={tabViewMode} // Force re-render when switching modes
-        numColumns={tabViewMode === "cards" ? 2 : 1}
-        columnWrapperStyle={tabViewMode === "cards" ? { justifyContent: 'space-between', paddingHorizontal: 0 } : undefined}
+        key={tabViewMode}
         keyExtractor={(item) => item.id}
-        keyboardShouldPersistTaps="handled"
+        numColumns={numColumns}
+        itemHeight={slotHeight}
+        itemWidth={slotWidth}
+        gridPaddingTop={20}
+        gridPaddingSide={20}
         contentContainerStyle={{
-          padding: 20,
+          paddingHorizontal: 20, 
           paddingBottom: 100,
           paddingTop: 20,
         }}
-        ListHeaderComponent={
-            <SearchHeader 
-                theme={theme} 
-                cornerRadius={cornerRadius} 
-                searchText={searchText} 
-                onFocusSearch={onFocusSearch} 
-                setSearchText={setSearchText} 
-            />
-        }
+        onReorder={(from, to) => {
+            if (searchText === "") {
+                onReorderTabs(from, to);
+            }
+        }}
         onScroll={(e) => {
             const offsetY = e.nativeEvent.contentOffset.y;
             if (offsetY > 100 && !showScrollTop) {
@@ -175,8 +196,18 @@ export const TabsView: React.FC<TabsViewProps> = ({
                 setShowScrollTop(false);
             }
         }}
-        scrollEventThrottle={16}
-        renderItem={({ item }) => 
+        headerComponent={
+            <View style={{ width: '100%' }}>
+                <SearchHeader 
+                    theme={theme} 
+                    cornerRadius={cornerRadius} 
+                    searchText={searchText} 
+                    onFocusSearch={onFocusSearch} 
+                    setSearchText={setSearchText} 
+                />
+            </View>
+        }
+        renderItem={({ item, isActive }) => 
           tabViewMode === "cards" ? (
             <TabCard
               item={item}
@@ -237,7 +268,7 @@ export const TabsView: React.FC<TabsViewProps> = ({
                borderWidth: 1,
                borderColor: theme.bg
              }}
-             onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
+             onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
            >
              <Ionicons name="arrow-up" size={24} color={theme.text} />
            </TouchableOpacity>

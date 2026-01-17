@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from 'react';
-import { Keyboard, LayoutAnimation, SectionList, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View } from 'react-native';
 import { HistoryItem } from '../types';
-import { getSmartDate, groupHistoryByDate } from '../utils';
 import SwipeableHistoryRow from "./SwipeableHistoryRow";
 
 interface HistoryViewProps {

@@ -25,11 +25,11 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  findNodeHandle
+  findNodeHandle,
+  TextInput
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from 'react-native-view-shot';
@@ -85,7 +85,7 @@ export default function App() {
   const {
     tabs, setTabs, activeTabId, setActiveTabId, 
     activeUrl, setActiveUrl, inputUrl, setInputUrl, 
-    areTabsLoaded, addNewTab, deleteTab, updateTab, activeTabIdRef
+    areTabsLoaded, addNewTab, deleteTab, updateTab, reorderTabs, activeTabIdRef
   } = useTabs({ areSettingsLoaded, startupTabMode, backgroundRefresh });
 
   const currentTab = tabs.find((t) => t.id === activeTabId);
@@ -841,6 +841,7 @@ export default function App() {
                             showTabPreview={showTabPreview}
                             searchText={tabsSearch}
                             setSearchText={setTabsSearch}
+                            onReorderTabs={reorderTabs}
                             onPressTab={(id, url) => {
                                 setActiveTabId(id);
                                 setActiveUrl(url);

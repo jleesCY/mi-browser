@@ -221,6 +221,15 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     setTabs(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
+  const reorderTabs = (fromIndex: number, toIndex: number) => {
+    setTabs((prevTabs) => {
+      const newTabs = [...prevTabs];
+      const [movedTab] = newTabs.splice(fromIndex, 1);
+      newTabs.splice(toIndex, 0, movedTab);
+      return newTabs;
+    });
+  };
+
   return {
     tabs, setTabs,
     activeTabId, setActiveTabId,
@@ -230,6 +239,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     addNewTab,
     deleteTab,
     updateTab,
+    reorderTabs,
     activeTabIdRef
   };
 };
