@@ -33,6 +33,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     showStatusBar, setShowStatusBar,
     pillHeight, setPillHeight,
     progressBarMode, setProgressBarMode,
+    tabViewMode, setTabViewMode,
+    showTabLogo, setShowTabLogo,
+    showTabPreview, setShowTabPreview,
     startupTabMode, setStartupTabMode,
     jsEnabled, setJsEnabled,
     httpsOnly, setHttpsOnly,
@@ -538,6 +541,78 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </View>
           </View>
         </SettingRow>
+
+        <SettingRow label="Tab View">
+            <View style={{ flexDirection: "column", width: "100%", justifyContent: "center", paddingVertical: 5 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                    <Ionicons name="grid-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Tab View</Text>
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                    {["rows", "cards"].map((mode) => (
+                    <TouchableOpacity key={mode} onPress={() => setTabViewMode(mode as any)} style={[{ paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius }, tabViewMode === mode && { backgroundColor: accentColor }]}>
+                        <Text style={[{ fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" }, tabViewMode === mode ? { color: "#fff" } : { color: effectiveTheme.text }]}>
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </Text>
+                    </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+        </SettingRow>
+
+        <SettingRow label="Show Tab Logo">
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+                name="image-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+            />
+            <Text
+                style={{
+                color: effectiveTheme.text,
+                fontFamily: "Nunito_600SemiBold",
+                fontSize: 16 * fontScale,
+                }}
+            >
+                Show Tab Logo
+            </Text>
+            </View>
+            <Switch
+            value={showTabLogo}
+            onValueChange={setShowTabLogo}
+            trackColor={{ false: "#767577", true: accentColor }}
+            thumbColor={"#f4f3f4"}
+            />
+        </SettingRow>
+
+        {tabViewMode === "cards" && (
+            <SettingRow label="Show Tab Preview">
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                    name="easel-outline"
+                    size={22}
+                    color={effectiveTheme.text}
+                    style={{ marginRight: 10 }}
+                />
+                <Text
+                    style={{
+                    color: effectiveTheme.text,
+                    fontFamily: "Nunito_600SemiBold",
+                    fontSize: 16 * fontScale,
+                    }}
+                >
+                    Show Tab Preview
+                </Text>
+                </View>
+                <Switch
+                value={showTabPreview}
+                onValueChange={setShowTabPreview}
+                trackColor={{ false: "#767577", true: accentColor }}
+                thumbColor={"#f4f3f4"}
+                />
+            </SettingRow>
+        )}
 
         <SettingRow label="UI Spacing">
             <View style={{ flexDirection: "column", width: "100%", justifyContent: "center", paddingVertical: 5 }}>

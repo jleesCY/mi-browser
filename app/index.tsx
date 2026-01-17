@@ -28,9 +28,11 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View
+  View,
+  findNodeHandle
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { captureRef } from 'react-native-view-shot';
 import { WebView } from "react-native-webview";
 
 import {
@@ -72,7 +74,8 @@ export default function App() {
   const settings = useBrowserSettings(fontsLoaded); // Pass true/false or separate ready state
   const {
     accentColor, searchEngineIndex, cornerRadius, uiPadding,
-    fontScale, showStatusBar, pillHeight, progressBarMode,
+    fontScale, showStatusBar, pillHeight, progressBarMode, tabViewMode,
+    showTabLogo, showTabPreview,
     startupTabMode, desktopMode, forceSearchMode, setForceSearchMode, jsEnabled, httpsOnly, blockCookies,
     effectiveTheme, areSettingsLoaded, backgroundRefresh, readerModeEnabled
   } = settings;
@@ -119,7 +122,8 @@ export default function App() {
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
   const [tabToRename, setTabToRename] = useState<string | null>(null);
   const [renameText, setRenameText] = useState("");
-  const [renameShowLogo, setRenameShowLogo] = useState(true);
+  // const [renameShowLogo, setRenameShowLogo] = useState(true); // Moved to global settings
+  // const [renameShowPreview, setRenameShowPreview] = useState(true); // Moved to global settings
 
   // Sub Menu State
   const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
@@ -129,6 +133,7 @@ export default function App() {
 
   // Refs
   const webViewRefs = useRef<{ [key: string]: WebView | null }>({});
+  const viewShotRefs = useRef<{ [key: string]: View | null }>({});
   const ignoreNextScroll = useRef(false);
   const isBarHidden = useRef(false);
 
@@ -265,6 +270,71 @@ export default function App() {
       useNativeDriver: false,
     }).start();
   }, [scrollTranslateY]);
+
+  const captureTabPreview = useCallback(async (tabId: string) => {
+    try {
+      if (viewShotRefs.current[tabId]) {
+         // Check if tab has showPreview enabled
+         if (!showTabPreview) return;
+
+         const currentTab = tabs.find(t => t.id === tabId);
+         const oldImage = currentTab?.previewImage;
+
+         const viewHandle = findNodeHandle(viewShotRefs.current[tabId]);
+         if (!viewHandle) return;
+
+         const tempUri = await captureRef(viewHandle, {
+          format: "png", 
+          quality: 0.5, 
+          result: "tmpfile"
+        });
+        
+        // Generate unique path with timestamp to force refresh
+        const uniquePath = `${FileSystem.cacheDirectory}preview_${tabId}_${Date.now()}.png`;
+        
+        // Use copy + delete instead of move to avoid "isn't movable" errors on Android
+        await FileSystem.copyAsync({ from: tempUri, to: uniquePath });
+        
+        try {
+            await FileSystem.deleteAsync(tempUri, { idempotent: true });
+        } catch (e) {
+            // Ignore temp file deletion errors
+            console.log("Could not delete temp capture file:", e);
+        }
+        
+        updateTab(tabId, { previewImage: uniquePath });
+
+        // Delete old image AFTER updating to the new one to prevent flickering
+        if (oldImage) {
+            try {
+                // Fire and forget deletion of old file
+                FileSystem.deleteAsync(oldImage, { idempotent: true }).catch(() => {});
+            } catch (err) {}
+        }
+
+        // Log cache count
+        try {
+            const files = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory || "");
+            const previewFiles = files.filter(f => f.startsWith("preview_"));
+            console.log(`Total preview images in cache: ${previewFiles.length}`);
+        } catch (err) {}
+      }
+
+      // Sanitization: If no tabs have URLs, clear all previews
+      if (!tabs.some(t => t.url)) {
+          try {
+            const files = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory || "");
+            const previewFiles = files.filter(f => f.startsWith("preview_"));
+            for (const f of previewFiles) {
+                await FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${f}`, { idempotent: true });
+            }
+            if (previewFiles.length > 0) console.log("Sanitized all preview images.");
+          } catch (e) {}
+      }
+    } catch (e) {
+      console.log("Failed to capture preview", e);
+    }
+  }, [showTabPreview, tabs, updateTab]);
 
   // --- NAVIGATION LOGIC ---
   const handleIncomingUrl = React.useCallback((url: string | null) => {
@@ -639,6 +709,7 @@ export default function App() {
             <BrowserWebView
                 key={tab.id}
                 ref={(ref: any) => webViewRefs.current[tab.id] = ref}
+                containerRef={(ref: any) => viewShotRefs.current[tab.id] = ref}
                 tab={tab}
                 isActive={isActive}
                 isFullscreen={isFullscreen}
@@ -765,6 +836,9 @@ export default function App() {
                             cornerRadius={cornerRadius}
                             fontScale={fontScale}
                             uiPadding={uiPadding}
+                            tabViewMode={tabViewMode}
+                            showTabLogo={showTabLogo}
+                            showTabPreview={showTabPreview}
                             searchText={tabsSearch}
                             setSearchText={setTabsSearch}
                             onPressTab={(id, url) => {
@@ -772,14 +846,21 @@ export default function App() {
                                 setActiveUrl(url);
                                 setInputUrl(url ? getDisplayHost(url) : "");
                             }}
-                            onCloseTab={(id) => {
+                            onCloseTab={async (id) => {
                                 Keyboard.dismiss();
+                                const tabToDelete = tabs.find(t => t.id === id);
+                                if (tabToDelete?.previewImage) {
+                                    try {
+                                        await FileSystem.deleteAsync(tabToDelete.previewImage, { idempotent: true });
+                                    } catch (e) {
+                                        console.log("Failed to delete tab preview image", e);
+                                    }
+                                }
                                 deleteTab(id);
                             }}
-                            onRenameTab={(id, title, showLogo) => {
+                            onRenameTab={(id, title) => {
                                 setTabToRename(id);
                                 setRenameText(title);
-                                setRenameShowLogo(showLogo);
                                 setIsRenameModalVisible(true);
                             }}
                             onNewTab={() => {
@@ -917,7 +998,7 @@ export default function App() {
                   <View style={[styles.gestureArea, { height: pillHeight }]} {...panResponder.panHandlers}>
                     <Animated.View style={[styles.pillBase, { height: pillHeight, backgroundColor: pillBackgroundAnim, borderTopLeftRadius: effectivePillRadius, borderTopRightRadius: effectivePillRadius, borderBottomLeftRadius: pillCornerRadiusAnim, borderBottomRightRadius: pillCornerRadiusAnim, shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: pillShadowOpacityAnim, shadowRadius: 15, elevation: pillElevationAnim }, { zIndex: 1, opacity: menuPillOpacity, transform: [{ scale: menuPillScale }] }]} pointerEvents={!isSearchActive ? "auto" : "none"}>
                       <View style={styles.barTabContent}>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView("tabs")}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { captureTabPreview(activeTabId); setActiveView("tabs"); }}>
                           <Ionicons name="copy-outline" size={24} color={effectiveTheme.text} />
                           <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Tabs</Text>
                         </TouchableOpacity>
@@ -1050,14 +1131,6 @@ export default function App() {
 
                   />
 
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-
-                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold" }}>Show Site Logo</Text>
-
-                    <Switch value={renameShowLogo} onValueChange={setRenameShowLogo} trackColor={{ false: "#767577", true: accentColor }} thumbColor={"#f4f3f4"} />
-
-                  </View>
-
                   <View style={styles.modalButtons}>
 
                     <TouchableOpacity onPress={() => setIsRenameModalVisible(false)} style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}>
@@ -1072,7 +1145,7 @@ export default function App() {
 
                         if (tabToRename) {
 
-                          updateTab(tabToRename, { title: renameText || "New Tab", showLogo: renameShowLogo });
+                          updateTab(tabToRename, { title: renameText || "New Tab" });
 
                         }
 

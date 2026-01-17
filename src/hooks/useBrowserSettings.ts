@@ -14,6 +14,9 @@ export interface BrowserSettings {
   progressBarMode: "ltr" | "center" | "none";
   recallPosition: "left" | "center" | "right";
   startupTabMode: "new" | "last";
+  tabViewMode: "rows" | "cards";
+  showTabLogo: boolean;
+  showTabPreview: boolean;
   desktopMode: boolean;
   forceSearchMode: boolean;
   readerModeEnabled: boolean;
@@ -38,6 +41,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [progressBarMode, setProgressBarMode] = useState<"ltr" | "center" | "none">("ltr");
   const [recallPosition, setRecallPosition] = useState<"left" | "center" | "right">("center");
   const [startupTabMode, setStartupTabMode] = useState<"new" | "last">("new");
+  const [tabViewMode, setTabViewMode] = useState<"rows" | "cards">("rows");
+  const [showTabLogo, setShowTabLogo] = useState(true);
+  const [showTabPreview, setShowTabPreview] = useState(true);
 
   // Functional settings
   const [desktopMode, setDesktopMode] = useState(false);
@@ -86,6 +92,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         if (savedSettings.startupTabMode) {
           setStartupTabMode(savedSettings.startupTabMode);
         }
+        setTabViewMode(savedSettings.tabViewMode ?? "rows");
+        setShowTabLogo(savedSettings.showTabLogo ?? true);
+        setShowTabPreview(savedSettings.showTabPreview ?? true);
         setReaderModeEnabled(savedSettings.readerModeEnabled ?? false);
       }
       setAreSettingsLoaded(true);
@@ -107,6 +116,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         progressBarMode,
         recallPosition,
         startupTabMode,
+        tabViewMode,
+        showTabLogo,
+        showTabPreview,
         desktopMode,
         forceSearchMode,
         readerModeEnabled,
@@ -130,6 +142,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     progressBarMode,
     recallPosition,
     startupTabMode,
+    tabViewMode,
+    showTabLogo,
+    showTabPreview,
     desktopMode,
     forceSearchMode,
     readerModeEnabled,
@@ -161,6 +176,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setProgressBarMode("ltr");
     setRecallPosition("center");
     setStartupTabMode("new");
+    setTabViewMode("rows");
+    setShowTabLogo(true);
+    setShowTabPreview(true);
     setDesktopMode(false);
     setForceSearchMode(false);
     setReaderModeEnabled(false);
@@ -186,6 +204,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     progressBarMode, setProgressBarMode,
     recallPosition, setRecallPosition,
     startupTabMode, setStartupTabMode,
+    tabViewMode, setTabViewMode,
+    showTabLogo, setShowTabLogo,
+    showTabPreview, setShowTabPreview,
     desktopMode, setDesktopMode,
     forceSearchMode, setForceSearchMode,
     readerModeEnabled, setReaderModeEnabled,

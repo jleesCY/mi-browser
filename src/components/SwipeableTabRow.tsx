@@ -25,6 +25,7 @@ const SwipeableTabRow = ({
   height,
   margin,
   fontScale,
+  showTabLogo
 }: any) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const itemHeight = useRef(new Animated.Value(height)).current;
@@ -127,7 +128,7 @@ const SwipeableTabRow = ({
           ]}
         >
           <View style={[styles.faviconContainer, { backgroundColor: isActive ? accent : '#555' }]}>
-            {item.showLogo && item.url ? (
+            {showTabLogo && item.url ? (
                 <Image 
                     source={{ uri: getFaviconUrl(item.url) || '' }} 
                     style={{ width: 42, height: 42, borderRadius: 21, resizeMode: 'cover' }}

@@ -18,4 +18,6 @@ export interface TabItem {
   hasLoadedOnce?: boolean;
   desktopMode?: boolean;
   readerMode?: boolean;
+  previewImage?: string;
+  showPreview?: boolean;
 }

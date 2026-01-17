@@ -3,6 +3,7 @@ import React, { useRef, useState } from 'react';
 import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View } from 'react-native';
 import { TabItem } from '../types';
 import SwipeableTabRow from "./SwipeableTabRow";
+import TabCard from "./TabCard";
 import { SNAP_DEFAULT } from '../constants';
 
 interface TabsViewProps {
@@ -13,11 +14,14 @@ interface TabsViewProps {
   cornerRadius: number;
   fontScale: number;
   uiPadding: "compact" | "normal" | "airy";
+  tabViewMode: "rows" | "cards";
+  showTabLogo: boolean;
+  showTabPreview: boolean;
   searchText: string;
   setSearchText: (text: string) => void;
   onPressTab: (id: string, url: string | null) => void;
   onCloseTab: (id: string) => void;
-  onRenameTab: (id: string, title: string, showLogo: boolean) => void;
+  onRenameTab: (id: string, title: string) => void;
   onNewTab: () => void;
   onFocusSearch: () => void;
   overlayHeightAnim: Animated.Value;
@@ -112,6 +116,9 @@ export const TabsView: React.FC<TabsViewProps> = ({
   cornerRadius,
   fontScale,
   uiPadding,
+  tabViewMode,
+  showTabLogo,
+  showTabPreview,
   searchText,
   setSearchText,
   onPressTab,
@@ -141,6 +148,9 @@ export const TabsView: React.FC<TabsViewProps> = ({
       <FlatList
         ref={flatListRef}
         data={filteredTabs}
+        key={tabViewMode} // Force re-render when switching modes
+        numColumns={tabViewMode === "cards" ? 2 : 1}
+        columnWrapperStyle={tabViewMode === "cards" ? { justifyContent: 'space-between', paddingHorizontal: 0 } : undefined}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
@@ -166,21 +176,38 @@ export const TabsView: React.FC<TabsViewProps> = ({
             }
         }}
         scrollEventThrottle={16}
-        renderItem={({ item }) => (
-          <SwipeableTabRow
-            item={item}
-            theme={rowTheme}
-            accent={accentColor}
-            radius={cornerRadius}
-            height={getTabHeight(uiPadding, fontScale)}
-            margin={getMargin(uiPadding)}
-            fontScale={fontScale}
-            isActive={item.id === activeTabId}
-            onPress={() => onPressTab(item.id, item.url)}
-            onDelete={() => onCloseTab(item.id)}
-            onRename={() => onRenameTab(item.id, item.title, item.showLogo)}
-          />
-        )}
+        renderItem={({ item }) => 
+          tabViewMode === "cards" ? (
+            <TabCard
+              item={item}
+              theme={theme}
+              accent={accentColor}
+              radius={cornerRadius}
+              fontScale={fontScale}
+              isActive={item.id === activeTabId}
+              showTabLogo={showTabLogo}
+              showTabPreview={showTabPreview}
+              onPress={() => onPressTab(item.id, item.url)}
+              onDelete={() => onCloseTab(item.id)}
+              onRename={() => onRenameTab(item.id, item.title)}
+            />
+          ) : (
+            <SwipeableTabRow
+              item={item}
+              theme={rowTheme}
+              accent={accentColor}
+              radius={cornerRadius}
+              height={getTabHeight(uiPadding, fontScale)}
+              margin={getMargin(uiPadding)}
+              fontScale={fontScale}
+              isActive={item.id === activeTabId}
+              showTabLogo={showTabLogo}
+              onPress={() => onPressTab(item.id, item.url)}
+              onDelete={() => onCloseTab(item.id)}
+              onRename={() => onRenameTab(item.id, item.title)}
+            />
+          )
+        }
       />
       <Animated.View style={{
         position: 'absolute',

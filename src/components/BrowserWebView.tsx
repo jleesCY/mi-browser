@@ -25,6 +25,7 @@ interface BrowserWebViewProps {
   onMessage: (event: any) => void;
   injectedJavaScript: string;
   blockGestures?: boolean;
+  containerRef?: React.Ref<View>;
 }
 
 export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
@@ -46,7 +47,8 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   onExternalLink,
   onMessage,
   injectedJavaScript,
-  blockGestures = false
+  blockGestures = false,
+  containerRef
 }, ref) => {
   const localRef = useRef<WebView>(null);
   const {
@@ -233,6 +235,8 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
 
   return (
     <View
+        ref={containerRef}
+        collapsable={false}
         style={[
         StyleSheet.absoluteFill,
         {
@@ -324,7 +328,6 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
             : "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"}
         sharedCookiesEnabled={!blockCookies}
         domStorageEnabled={true}
-        androidLayerType="hardware"
         pullToRefreshEnabled={false}
         allowsFullscreenVideo={true}
         mediaPlaybackRequiresUserAction={false}
