@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Animated, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
 import { NativeViewGestureHandler } from "react-native-gesture-handler";
 import { TabItem } from '../types';
@@ -136,7 +136,22 @@ export const TabsView: React.FC<TabsViewProps> = ({
   overlayHeightAnim
 }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", () => {
+        setIsKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+        setIsKeyboardVisible(false);
+    });
+
+    return () => {
+        if (showSub) showSub.remove();
+        if (hideSub) hideSub.remove();
+    };
+  }, []);
 
   const filteredTabs = tabs.filter(
     (item) =>
@@ -240,16 +255,20 @@ export const TabsView: React.FC<TabsViewProps> = ({
           )
         }
       />
-      <Animated.View style={{
-        position: 'absolute',
-        bottom: overlayHeightAnim.interpolate({
-            inputRange: [0, SNAP_DEFAULT],
-            outputRange: [-100, 20],
-            extrapolate: 'clamp'
-        }),
-        right: 20,
-        alignItems: 'center'
-      }}>
+      <Animated.View 
+        pointerEvents={isKeyboardVisible ? "none" : "auto"}
+        style={{
+            position: 'absolute',
+            bottom: overlayHeightAnim.interpolate({
+                inputRange: [0, SNAP_DEFAULT],
+                outputRange: [-100, 20],
+                extrapolate: 'clamp'
+            }),
+            right: 20,
+            alignItems: 'center',
+            opacity: isKeyboardVisible ? 0 : 1 // Hide when keyboard is active
+        }}
+      >
         {showScrollTop && (
              <TouchableOpacity
              style={{

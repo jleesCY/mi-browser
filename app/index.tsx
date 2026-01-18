@@ -16,6 +16,7 @@ import {
   Alert,
   Animated,
   BackHandler,
+  findNodeHandle,
   Keyboard,
   Linking,
   Modal,
@@ -25,11 +26,10 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
-  findNodeHandle,
-  TextInput
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from 'react-native-view-shot';
@@ -122,8 +122,16 @@ export default function App() {
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
   const [tabToRename, setTabToRename] = useState<string | null>(null);
   const [renameText, setRenameText] = useState("");
-  // const [renameShowLogo, setRenameShowLogo] = useState(true); // Moved to global settings
-  // const [renameShowPreview, setRenameShowPreview] = useState(true); // Moved to global settings
+  const renameInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (isRenameModalVisible) {
+        // Longer timeout to ensure modal transition is complete
+        setTimeout(() => {
+            renameInputRef.current?.focus();
+        }, 300);
+    }
+  }, [isRenameModalVisible]);
 
   // Sub Menu State
   const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
@@ -1121,14 +1129,12 @@ export default function App() {
                   <Text style={[styles.modalTitle, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" }]}>Edit Tab</Text>
 
                   <TextInput
-
+                    ref={renameInputRef}
                     style={[styles.modalInput, { backgroundColor: effectiveTheme.inputBg, color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", borderRadius: cornerRadius / 2 }]}
 
                     value={renameText}
 
                     onChangeText={setRenameText}
-
-                    autoFocus
 
                   />
 
