@@ -344,6 +344,16 @@ export default function App() {
     }
   }, [showTabPreview, tabs, updateTab]);
 
+  const handleFocusSearch = useCallback(() => {
+    Animated.spring(overlayHeightAnim, {
+      toValue: SNAP_FULL,
+      tension: 60,
+      friction: 9,
+      useNativeDriver: false,
+    }).start();
+    currentOverlayHeight.current = SNAP_FULL;
+  }, [overlayHeightAnim]);
+
   // --- NAVIGATION LOGIC ---
   const handleIncomingUrl = React.useCallback((url: string | null) => {
     // This is now mostly handled by useTabs startup logic for INITIAL url.
@@ -450,10 +460,14 @@ export default function App() {
     
     if (webViewRefs.current[activeTabId]) {
         const js = `
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'PRINT_HTML',
-                html: document.documentElement.outerHTML
-            }));
+            (function() {
+                const html = new XMLSerializer().serializeToString(document);
+                const printContent = html.startsWith('<!DOCTYPE') ? html : '<!DOCTYPE html>' + html;
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'PRINT_HTML',
+                    html: printContent
+                }));
+            })();
         `;
         webViewRefs.current[activeTabId]?.injectJavaScript(js);
     } else {
@@ -829,10 +843,7 @@ export default function App() {
                                 closeOverlay();
                             }}
                             onDeleteItem={deleteHistoryItem}
-                            onFocusSearch={() => {
-                                Animated.spring(overlayHeightAnim, { toValue: SNAP_FULL, tension: 60, friction: 9, useNativeDriver: false }).start();
-                                currentOverlayHeight.current = SNAP_FULL;
-                            }}
+                            onFocusSearch={handleFocusSearch}
                         />
                     )}
                     {activeView === 'tabs' && (
@@ -876,10 +887,7 @@ export default function App() {
                                 addNewTab();
                                 closeOverlay();
                             }}
-                            onFocusSearch={() => {
-                                Animated.spring(overlayHeightAnim, { toValue: SNAP_FULL, tension: 60, friction: 9, useNativeDriver: false }).start();
-                                currentOverlayHeight.current = SNAP_FULL;
-                            }}
+                            onFocusSearch={handleFocusSearch}
                             overlayHeightAnim={overlayHeightAnim}
                         />
                     )}
@@ -888,10 +896,7 @@ export default function App() {
                             settings={settings}
                             searchText={settingsSearch}
                             setSearchText={setSettingsSearch}
-                            onFocusSearch={() => {
-                                Animated.spring(overlayHeightAnim, { toValue: SNAP_FULL, tension: 60, friction: 9, useNativeDriver: false }).start();
-                                currentOverlayHeight.current = SNAP_FULL;
-                            }}
+                            onFocusSearch={handleFocusSearch}
                             onRequestReset={() => {
                                 setConfirmActionType("resetSettings");
                                 setIsConfirmModalVisible(true);

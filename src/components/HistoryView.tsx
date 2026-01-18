@@ -180,7 +180,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       <SectionList
         ref={sectionListRef}
         sections={historySections}
-        keyExtractor={(item, index) => item.id + index}
+        keyExtractor={(item) => item.id}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews={true}
         contentContainerStyle={{ padding: 20, paddingTop: 20, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled={false}
@@ -222,7 +226,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           if (collapsedSections.has(section.title) && !isSearching) return null;
           return (
             <SwipeableHistoryRow
-                item={item}
+            item={item}
             theme={rowTheme}
             accent={accentColor}
             radius={cornerRadius}
@@ -230,8 +234,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             margin={getMargin(uiPadding)}
             fontScale={fontScale}
             timeString={getSmartDate(item.timestamp)}
-            onPress={() => onPressItem(item)}
-            onDelete={() => onDeleteItem(item.id)}
+            onPress={onPressItem}
+            onDelete={onDeleteItem}
           />
           );
         }}

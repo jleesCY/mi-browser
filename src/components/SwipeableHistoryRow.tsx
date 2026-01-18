@@ -67,7 +67,7 @@ const SwipeableHistoryRow = ({
               duration: 200,
               useNativeDriver: false,
             }),
-          ]).start(() => onDelete());
+          ]).start(() => onDelete(item.id));
         } else {
           Animated.spring(translateX, {
             toValue: 0,
@@ -83,9 +83,6 @@ const SwipeableHistoryRow = ({
     outputRange: [1.2, 0.5, 0],
     extrapolate: "clamp",
   });
-
-  // REMOVED: The internal timeStr calculation
-  // const timeStr = ... 
 
   return (
     <Animated.View
@@ -129,7 +126,7 @@ const SwipeableHistoryRow = ({
               borderRadius: radius,
             },
           ]}
-          onPress={onPress}
+          onPress={() => onPress(item)}
         >
           <View style={[styles.historyIconBox, { width: 28, height: 28 }]}>
             <Ionicons name="time-outline" size={16} color="#555" />
@@ -202,4 +199,4 @@ const styles = StyleSheet.create({
   historyUrl: { fontSize: 12 },
 });
 
-export default SwipeableHistoryRow;
+export default React.memo(SwipeableHistoryRow);

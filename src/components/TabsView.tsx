@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState, useEffect } from 'react';
 import { Animated, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
-import { NativeViewGestureHandler } from "react-native-gesture-handler";
 import { TabItem } from '../types';
 import SwipeableTabRow from "./SwipeableTabRow";
 import TabCard from "./TabCard";
@@ -76,25 +75,22 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
       color={theme.textSec}
       style={{ marginRight: 10 }}
     />
-    <NativeViewGestureHandler disallowInterruption={true} shouldActivateOnStart={true}>
-        <TextInput
-        style={{
-            flex: 1,
-            color: theme.text,
-            fontFamily: "Nunito_600SemiBold",
-            fontSize: 16,
-            height: '100%' // Ensure it fills the handler
-        }}
-        placeholder="Search Tabs..."
-        placeholderTextColor={theme.textSec}
-        value={searchText}
-        onFocus={onFocusSearch}
-        onChangeText={(text) => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSearchText(text);
-        }}
-        />
-    </NativeViewGestureHandler>
+    <TextInput
+      style={{
+          flex: 1,
+          color: theme.text,
+          fontFamily: "Nunito_600SemiBold",
+          fontSize: 16,
+      }}
+      placeholder="Search Tabs..."
+      placeholderTextColor={theme.textSec}
+      value={searchText}
+      onFocus={onFocusSearch}
+      onChangeText={(text) => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setSearchText(text);
+      }}
+    />
     {searchText !== "" && (
       <TouchableOpacity
         onPress={() => {
