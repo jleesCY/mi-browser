@@ -253,7 +253,10 @@ export const SortableGrid = React.forwardRef<ScrollView, SortableGridProps<any>>
     positions.value = newPositions;
   }, [data, keyExtractor]); // Dependency on data ensures sync
 
-  const containerHeight = Math.ceil(data.length / numColumns) * itemHeight + headerHeight + gridPaddingTop * 2;
+  const flatStyle = (Array.isArray(contentContainerStyle) ? Object.assign({}, ...contentContainerStyle) : contentContainerStyle) || {};
+  const bottomPadding = (flatStyle.paddingBottom as number) || 0;
+
+  const containerHeight = Math.ceil(data.length / numColumns) * itemHeight + headerHeight + gridPaddingTop + bottomPadding;
   const isHeaderReady = !headerComponent || headerHeight > 0;
 
   return (

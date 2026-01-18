@@ -65,7 +65,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     const loadSettings = async () => {
       const savedSettings = await loadStorage("settings");
 
-      if (savedSettings) {
+      if (savedSettings && typeof savedSettings === 'object' && !Array.isArray(savedSettings)) {
         setThemeMode(savedSettings.themeMode ?? "dark");
         setAccentColor(savedSettings.accentColor ?? "#007AFF");
         const savedIndex = savedSettings.searchEngineIndex ?? 0;

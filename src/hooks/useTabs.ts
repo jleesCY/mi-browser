@@ -34,15 +34,18 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     hasLoadedTabs.current = true;
 
     const loadTabs = async () => {
-      const savedTabs = await loadStorage("tabs");
+      const rawTabs = await loadStorage("tabs");
+      const savedTabs = Array.isArray(rawTabs) ? rawTabs : [];
       const savedActiveTabId = await loadStorage("activeTabId");
 
-      const existingTabs = (savedTabs || []).map((t: any) => ({
-        ...t,
-        initialUrl: t.initialUrl || t.url,
-        requestedUrl: t.url, // Reset requestedUrl to last known url on startup
-        hasLoadedOnce: backgroundRefresh
-      }));
+      const existingTabs = savedTabs
+        .filter((t: any) => t && typeof t === 'object')
+        .map((t: any) => ({
+          ...t,
+          initialUrl: t.initialUrl || t.url,
+          requestedUrl: t.url, // Reset requestedUrl to last known url on startup
+          hasLoadedOnce: backgroundRefresh
+        }));
 
       const initialUrl = await Linking.getInitialURL();
 

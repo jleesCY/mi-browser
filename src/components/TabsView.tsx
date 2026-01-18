@@ -195,7 +195,7 @@ export const TabsView: React.FC<TabsViewProps> = ({
         gridPaddingSide={20}
         contentContainerStyle={{
           paddingHorizontal: 20, 
-          paddingBottom: 100,
+          paddingBottom: 140,
           paddingTop: 20,
         }}
         onReorder={(from, to) => {

@@ -9,7 +9,10 @@ export const useHistory = (isAppReady: boolean) => {
   useEffect(() => {
     const loadHistory = async () => {
       const savedHistory = await loadStorage("history");
-      if (savedHistory) setHistory(savedHistory);
+      if (Array.isArray(savedHistory)) {
+        const validHistory = savedHistory.filter((item: any) => item && typeof item === 'object' && item.url);
+        setHistory(validHistory);
+      }
     };
     loadHistory();
   }, []);
