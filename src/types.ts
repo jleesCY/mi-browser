@@ -22,4 +22,5 @@ export interface TabItem {
   showPreview?: boolean;
   historyStack?: string[];
   currentIndex?: number;
+  isCustomTitle?: boolean;
 }

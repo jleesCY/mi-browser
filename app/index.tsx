@@ -1255,9 +1255,14 @@ export default function App() {
                       onPress={() => {
 
                         if (tabToRename) {
-
-                          updateTab(tabToRename, { title: renameText || "New Tab" });
-
+                          const trimmed = renameText.trim();
+                          if (trimmed.length > 0) {
+                              updateTab(tabToRename, { title: trimmed, isCustomTitle: true });
+                          } else {
+                              const t = tabs.find(tab => tab.id === tabToRename);
+                              const fallback = t?.url ? getDisplayHost(t.url) : "New Tab";
+                              updateTab(tabToRename, { title: fallback, isCustomTitle: false });
+                          }
                         }
 
                         setIsRenameModalVisible(false);

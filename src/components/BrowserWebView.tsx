@@ -290,13 +290,18 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
                 ? getDisplayHost(url)
                 : "New Tab";
 
-            onUpdateTab(tab.id, {
+            const updatePayload: Partial<TabItem> = {
                 url,
-                title: newTitle,
                 canGoBack,
                 canGoForward,
                 loading,
-            });
+            };
+
+            if (!tab.isCustomTitle) {
+                updatePayload.title = newTitle;
+            }
+
+            onUpdateTab(tab.id, updatePayload);
 
             if (isActive) {
                 onActiveTabUpdate({ canGoBack, canGoForward, loading, url, title: newTitle });
