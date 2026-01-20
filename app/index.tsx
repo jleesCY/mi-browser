@@ -47,6 +47,7 @@ import {
 } from "../src/constants";
 import { handleExternalLink } from "../src/navigationUtils";
 import { getDisplayHost } from "../src/utils";
+import { TabItem } from "../src/types";
 
 // Custom Hooks
 import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
@@ -92,9 +93,67 @@ export default function App() {
 
   const isAppReady = fontsLoaded && areSettingsLoaded && areTabsLoaded;
 
+  // Keep a ref to tabs for access inside PanResponder closure
+  const tabsRef = useRef(tabs);
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
+
   // --- LOCAL UI STATE ---
   const progressAnim = useRef(new Animated.Value(0)).current;
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleTabUpdate = useCallback((id: string, updates: Partial<TabItem>) => {
+    setTabs((prevTabs) => {
+      return prevTabs.map((t) => {
+        if (t.id !== id) return t;
+
+        let newHistoryStack = [...(t.historyStack || (t.url ? [t.url] : []))];
+        let newCurrentIndex = t.currentIndex !== undefined ? t.currentIndex : (t.url ? 0 : -1);
+
+        if (updates.url) {
+           const targetUrl = updates.url;
+           // Aggressive normalization to handle protocol/www/trailing slash differences
+           const normalize = (u: string) => u.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "").replace(/\/index\.html$/, "").toLowerCase();
+           
+           // 1. Current Page Update (e.g. http -> https redirect, or reload)
+           // We check against the current stack entry to avoid truncating future history on reloads/redirects
+           if (newCurrentIndex >= 0 && newHistoryStack[newCurrentIndex] && normalize(newHistoryStack[newCurrentIndex]) === normalize(targetUrl)) {
+               // Update the stack entry to the exact new URL (e.g. capturing canonical form)
+               newHistoryStack[newCurrentIndex] = targetUrl;
+           } 
+           // 2. Back Navigation
+           else if (newCurrentIndex > 0 && newHistoryStack[newCurrentIndex - 1] && normalize(newHistoryStack[newCurrentIndex - 1]) === normalize(targetUrl)) {
+               newCurrentIndex--;
+           } 
+           // 3. Forward Navigation
+           else if (newCurrentIndex < newHistoryStack.length - 1 && newHistoryStack[newCurrentIndex + 1] && normalize(newHistoryStack[newCurrentIndex + 1]) === normalize(targetUrl)) {
+               newCurrentIndex++;
+           } 
+           // 4. New Navigation / Mismatch
+           else if (normalize(t.url || "") !== normalize(targetUrl)) {
+               // If WebView says we can go forward, we shouldn't wipe our custom history.
+               // This likely means a redirect happened while we were 'back' in the stack.
+               if (updates.canGoForward) {
+                   newHistoryStack[newCurrentIndex] = targetUrl;
+               } else {
+                   // Genuine new navigation (or we are at the end): Truncate forward history and push new
+                   if (newCurrentIndex < newHistoryStack.length - 1) {
+                       newHistoryStack = newHistoryStack.slice(0, newCurrentIndex + 1);
+                   }
+                   // Avoid duplicates at the tip
+                   if (newHistoryStack.length === 0 || normalize(newHistoryStack[newHistoryStack.length - 1]) !== normalize(targetUrl)) {
+                       newHistoryStack.push(targetUrl);
+                       newCurrentIndex = newHistoryStack.length - 1;
+                   }
+               }
+           }
+        }
+        
+        return { ...t, ...updates, historyStack: newHistoryStack, currentIndex: newCurrentIndex };
+      });
+    });
+  }, [setTabs]);
 
   // Navigation State (UI reflection)
   const canGoBackRef = useRef(false);
@@ -386,11 +445,23 @@ export default function App() {
         setIsInputFocused(false);
         return true;
       }
-      if (canGoBackRef.current && webViewRefs.current[activeTabId]) {
+      
+      const activeTab = tabs.find(t => t.id === activeTabId);
+
+      // Strict Check: Only native back if we are logically deeper than index 0
+      if (canGoBackRef.current && webViewRefs.current[activeTabId] && (activeTab?.currentIndex ?? 0) > 0) {
         webViewRefs.current[activeTabId]?.goBack();
         showBar();
         return true;
       }
+      
+      if (activeTab && activeTab.currentIndex !== undefined && activeTab.currentIndex > 0 && activeTab.historyStack) {
+         const prevUrl = activeTab.historyStack[activeTab.currentIndex - 1];
+         // Trigger load via useTab's updateTab (to force prop update)
+         updateTab(activeTabId, { url: prevUrl, requestedUrl: prevUrl });
+         return true;
+      }
+
       return false;
     };
     const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
@@ -582,8 +653,23 @@ export default function App() {
           if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
             const currentTabId = activeTabIdRef.current;
             const currentWebView = webViewRefs.current[currentTabId];
-            if (dx > 0) currentWebView?.goBack();
-            else if (dx < 0) currentWebView?.goForward();
+            const currentTab = tabsRef.current.find(t => t.id === currentTabId);
+
+            if (dx > 0) {
+                 if (currentTab?.canGoBack && (currentTab?.currentIndex ?? 0) > 0) {
+                     currentWebView?.goBack();
+                 } else if (currentTab && (currentTab.currentIndex ?? 0) > 0) {
+                     const prev = currentTab.historyStack?.[(currentTab.currentIndex ?? 0) - 1];
+                     if(prev) updateTab(currentTabId, { requestedUrl: prev, url: prev });
+                 }
+            } else if (dx < 0) {
+                 if (currentTab?.canGoForward && (currentTab?.currentIndex ?? 0) < (currentTab.historyStack?.length ?? 0) - 1) {
+                     currentWebView?.goForward();
+                 } else if (currentTab && (currentTab.currentIndex ?? 0) < (currentTab.historyStack?.length ?? 0) - 1) {
+                     const next = currentTab.historyStack?.[(currentTab.currentIndex ?? 0) + 1];
+                     if(next) updateTab(currentTabId, { requestedUrl: next, url: next });
+                 }
+            }
 
             Animated.spring(horizontalDrag, { toValue: 0, useNativeDriver: false }).start();
             Animated.spring(animVal, { toValue: 0, useNativeDriver: false }).start();
@@ -738,7 +824,7 @@ export default function App() {
                 blockGestures={isInputFocused}
                 settings={{ jsEnabled, desktopMode, blockCookies, accentColor, pillHeight, httpsOnly, searchEngineIndex, readerModeEnabled }}
                 effectiveTheme={effectiveTheme}
-                onUpdateTab={updateTab}
+                onUpdateTab={handleTabUpdate}
                 onActiveTabUpdate={(updates) => {
                     canGoBackRef.current = updates.canGoBack;
                     canGoForwardRef.current = updates.canGoForward;
@@ -770,6 +856,7 @@ export default function App() {
                     event.nativeEvent.grant(event.nativeEvent.resources); 
                 }}
                 onExternalLink={(url) => handleExternalLink(url, activeTabId, setTabs, setActiveUrl, setInputUrl)}
+                onNewWindow={(url) => addNewTab(url)}
                 onMessage={(event) => {
                     const nativeEvent = event.nativeEvent;
                     if (nativeEvent.data) {
@@ -1038,10 +1125,14 @@ export default function App() {
                     <Animated.View style={[styles.pillBase, { height: pillHeight, backgroundColor: pillBackgroundAnim, borderTopLeftRadius: effectivePillRadius, borderTopRightRadius: effectivePillRadius, borderBottomLeftRadius: pillCornerRadiusAnim, borderBottomRightRadius: pillCornerRadiusAnim, shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: pillShadowOpacityAnim, shadowRadius: 15, elevation: pillElevationAnim }, { zIndex: 2, opacity: searchPillOpacity, transform: [{ translateY: searchPillTranslateY }] }]} pointerEvents={isSearchActive ? "auto" : "none"}>
                       <View style={styles.barTabContent}>
                         <Animated.View pointerEvents="none" style={[styles.navArrowContainer, { left: 20, opacity: backArrowOpacity }]}>
-                          <Ionicons name="arrow-back" size={28} color={effectiveTheme.text} />
+                          {(currentTab?.canGoBack || (currentTab?.currentIndex ?? 0) > 0) && (
+                              <Ionicons name="arrow-back" size={28} color={effectiveTheme.text} />
+                          )}
                         </Animated.View>
                         <Animated.View pointerEvents="none" style={[styles.navArrowContainer, { right: 20, opacity: forwardArrowOpacity }]}>
-                          <Ionicons name="arrow-forward" size={28} color={effectiveTheme.text} />
+                          {(currentTab?.canGoForward || (currentTab?.currentIndex ?? 0) < (currentTab?.historyStack?.length ?? 0) - 1) && (
+                              <Ionicons name="arrow-forward" size={28} color={effectiveTheme.text} />
+                          )}
                         </Animated.View>
 
                         <Animated.View style={[styles.inputWrapper, { backgroundColor: inputBackgroundAnim, opacity: contentOpacity, borderRadius: cornerRadius * 1.5, height: pillHeight * 0.7, overflow: "hidden" }]}>

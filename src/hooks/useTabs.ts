@@ -44,7 +44,9 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
           ...t,
           initialUrl: t.initialUrl || t.url,
           requestedUrl: t.url, // Reset requestedUrl to last known url on startup
-          hasLoadedOnce: backgroundRefresh
+          hasLoadedOnce: backgroundRefresh,
+          historyStack: t.historyStack || (t.url ? [t.url] : []),
+          currentIndex: t.currentIndex !== undefined ? t.currentIndex : (t.url ? 0 : -1)
         }));
 
       const initialUrl = await Linking.getInitialURL();
@@ -61,7 +63,9 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
               initialUrl: targetUrl,
               title: "External Link",
               showLogo: false,
-              hasLoadedOnce: true
+              hasLoadedOnce: true,
+              historyStack: [targetUrl],
+              currentIndex: 0
           };
 
           setTabs([startupTab, ...existingTabs]);
@@ -122,7 +126,9 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
             initialUrl: null,
             title: "New Tab",
             showLogo: true,
-            hasLoadedOnce: true
+            hasLoadedOnce: true,
+            historyStack: [],
+            currentIndex: -1
           };
 
           setTabs([newTab, ...existingTabs]);
@@ -173,7 +179,9 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
       initialUrl: overrideUrl || null,
       title: "New Tab",
       showLogo: true,
-      hasLoadedOnce: true
+      hasLoadedOnce: true,
+      historyStack: overrideUrl ? [overrideUrl] : [],
+      currentIndex: overrideUrl ? 0 : -1
     };
     setTabs((prev) => [newTab, ...prev]);
     setActiveTabId(newId);
@@ -206,7 +214,16 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
 
       if (newTabs.length === 0) {
         const freshId = Date.now().toString();
-        const freshTab = { id: freshId, url: null, requestedUrl: null, title: "New Tab", showLogo: true, hasLoadedOnce: true };
+        const freshTab = { 
+            id: freshId, 
+            url: null, 
+            requestedUrl: null, 
+            title: "New Tab", 
+            showLogo: true, 
+            hasLoadedOnce: true,
+            historyStack: [],
+            currentIndex: -1
+        };
         
         setTimeout(() => {
           setActiveTabId(freshId);

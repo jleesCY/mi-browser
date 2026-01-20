@@ -22,6 +22,7 @@ interface BrowserWebViewProps {
   onFullScreen: (isFullScreen: boolean) => void;
   onPermissionRequest: (event: any) => void;
   onExternalLink: (url: string) => void;
+  onNewWindow?: (url: string) => void;
   onMessage: (event: any) => void;
   injectedJavaScript: string;
   blockGestures?: boolean;
@@ -45,6 +46,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   onFullScreen,
   onPermissionRequest,
   onExternalLink,
+  onNewWindow,
   onMessage,
   injectedJavaScript,
   blockGestures = false,
@@ -332,6 +334,17 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         allowsFullscreenVideo={true}
         mediaPlaybackRequiresUserAction={false}
         javaScriptCanOpenWindowsAutomatically={true}
+        setSupportMultipleWindows={true}
+        onCreateWindow={(syntheticEvent: any) => {
+            const { targetUrl } = syntheticEvent.nativeEvent;
+            if (targetUrl) {
+                if (onNewWindow) {
+                    onNewWindow(targetUrl);
+                } else {
+                    onExternalLink(targetUrl);
+                }
+            }
+        }}
         onFullScreen={(event: any) => onFullScreen(event.nativeEvent.fullScreen)}
         contentInset={isFullscreen
             ? { top: 0, bottom: 0, left: 0, right: 0 }

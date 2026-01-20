@@ -20,4 +20,6 @@ export interface TabItem {
   readerMode?: boolean;
   previewImage?: string;
   showPreview?: boolean;
+  historyStack?: string[];
+  currentIndex?: number;
 }
