@@ -10,6 +10,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Print from 'expo-print';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -850,7 +851,14 @@ export default function App() {
                 onScroll={handleScroll}
                 onScrollEnd={() => { if (isBarHidden.current) hideBar(); else showBar(); }}
                 onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}
-                onFullScreen={setIsFullscreen}
+                onFullScreen={async (isFull) => {
+                    setIsFullscreen(isFull);
+                    if (isFull) {
+                        await ScreenOrientation.unlockAsync();
+                    } else {
+                        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+                    }
+                }}
                 onPermissionRequest={(event) => {
                     // Simple wrapper for now, or extract logic if complex
                     event.nativeEvent.grant(event.nativeEvent.resources); 

@@ -3,7 +3,7 @@
     "name": "mi",
     "slug": "mi-browser",
     "version": "0.6.7",
-    "orientation": "default",
+    "orientation": "portrait",
     "scheme": "mibrowser",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "dark",
