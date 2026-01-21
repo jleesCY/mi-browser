@@ -11,6 +11,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Print from 'expo-print';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as QuickActions from 'expo-quick-actions';
+import { useQuickAction } from 'expo-quick-actions/hooks';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,6 +24,7 @@ import {
   Linking,
   Modal,
   PanResponder,
+  Platform,
   Share,
   StatusBar,
   StyleSheet,
@@ -61,6 +64,8 @@ import { BrowserWebView } from "../src/components/BrowserWebView";
 import { HistoryView } from "../src/components/HistoryView";
 import { SettingsView } from "../src/components/SettingsView";
 import { TabsView } from "../src/components/TabsView";
+import { QRScannerView } from "../src/components/QRScannerView";
+import { QRGeneratorView } from "../src/components/QRGeneratorView";
 
 export default function App() {
   const insets = useSafeAreaInsets();
@@ -93,6 +98,28 @@ export default function App() {
   const currentTab = tabs.find((t) => t.id === activeTabId);
 
   const isAppReady = fontsLoaded && areSettingsLoaded && areTabsLoaded;
+
+  // --- QUICK ACTIONS ---
+  const quickAction = useQuickAction();
+
+  useEffect(() => {
+    QuickActions.setItems([
+      {
+        id: "scan_qr",
+        title: "Scan QR Code",
+        subtitle: "Open camera to scan",
+        icon: Platform.OS === 'ios' ? 'symbol:qrcode' : undefined,
+        params: { href: "/?action=scan_qr" },
+      },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    if (quickAction?.id === 'scan_qr') {
+      // Ensure app is ready before showing scanner, or just set it
+      setIsQRScannerVisible(true);
+    }
+  }, [quickAction]);
 
   // Keep a ref to tabs for access inside PanResponder closure
   const tabsRef = useRef(tabs);
@@ -195,6 +222,19 @@ export default function App() {
 
   // Sub Menu State
   const [isSubMenuVisible, setIsSubMenuVisible] = useState(false);
+  const [isQRScannerVisible, setIsQRScannerVisible] = useState(false);
+  const [isQRGeneratorVisible, setIsQRGeneratorVisible] = useState(false);
+
+  const handleScanResult = (data: string) => {
+    setIsQRScannerVisible(false);
+    // Basic URL validation
+    const urlPattern = /^(http|https):\/\/[^ "]+$/i;
+    if (urlPattern.test(data)) {
+        updateTab(activeTabId, { url: data, requestedUrl: data });
+    } else {
+        Alert.alert("Invalid QR Code", "The scanned code is not a valid URL.");
+    }
+  };
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isBarHiddenState, setIsBarHiddenState] = useState(false);
@@ -1045,15 +1085,31 @@ export default function App() {
                         elevation: 20,
                         zIndex: 10
                     }}>
-                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={() => { handleShare(); setIsSubMenuVisible(false); }}>
+                       <TouchableOpacity 
+                         style={[{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }, !activeUrl && { opacity: 0.5 }]} 
+                         onPress={() => { if (activeUrl) { handleShare(); setIsSubMenuVisible(false); } }}
+                         disabled={!activeUrl}
+                       >
                          <Ionicons name="share-social-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
                          <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Share</Text>
                        </TouchableOpacity>
-                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={handleCopyLink}>
-                         <Ionicons name="copy-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Copy Link</Text>
+                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={() => { setIsSubMenuVisible(false); setIsQRScannerVisible(true); }}>
+                         <Ionicons name="qr-code-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Scan QR Code</Text>
                        </TouchableOpacity>
-                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={handlePrint}>
+                       <TouchableOpacity 
+                         style={[{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }, !activeUrl && { opacity: 0.5 }]} 
+                         onPress={() => { if (activeUrl) { setIsSubMenuVisible(false); setIsQRGeneratorVisible(true); } }}
+                         disabled={!activeUrl}
+                       >
+                         <Ionicons name="barcode-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Generate QR Code</Text>
+                       </TouchableOpacity>
+                       <TouchableOpacity 
+                         style={[{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }, !activeUrl && { opacity: 0.5 }]} 
+                         onPress={() => { if (activeUrl) handlePrint(); }}
+                         disabled={!activeUrl}
+                       >
                          <Ionicons name="print-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
                          <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Print</Text>
                        </TouchableOpacity>
@@ -1183,6 +1239,23 @@ export default function App() {
           )}
         </>
       )}
+
+      <QRScannerView
+        isVisible={isQRScannerVisible}
+        onClose={() => setIsQRScannerVisible(false)}
+        onScan={handleScanResult}
+        theme={effectiveTheme}
+        accentColor={accentColor}
+      />
+
+      <QRGeneratorView
+        isVisible={isQRGeneratorVisible}
+        onClose={() => setIsQRGeneratorVisible(false)}
+        url={activeUrl || ""}
+        theme={effectiveTheme}
+        accentColor={accentColor}
+        fontScale={fontScale}
+      />
 
       {/* --- CONFIRM MODAL --- */}
       <Modal visible={isConfirmModalVisible} transparent animationType="fade" onRequestClose={() => setIsConfirmModalVisible(false)}>
