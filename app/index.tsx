@@ -227,13 +227,47 @@ export default function App() {
 
   const handleScanResult = (data: string) => {
     setIsQRScannerVisible(false);
-    // Basic URL validation
-    const urlPattern = /^(http|https):\/\/[^ "]+$/i;
-    if (urlPattern.test(data)) {
-        updateTab(activeTabId, { url: data, requestedUrl: data });
+    setInputUrl(data);
+
+    const text = data.trim();
+    if (!text) return;
+
+    let targetUrl = "";
+    
+    if (forceSearchMode) {
+       targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
     } else {
-        Alert.alert("Invalid QR Code", "The scanned code is not a valid URL.");
+        // 1. Check if it explicitly starts with http/https
+        if (/^(http|https):\/\//i.test(text)) {
+          if (httpsOnly && text.startsWith("http://")) {
+            targetUrl = text.replace(/^http:\/\//i, "https://");
+          } else {
+            targetUrl = text;
+          }
+        } else {
+          const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+          const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
+          const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
+
+          if (!text.includes(" ") && (domainRegex.test(text) || ipRegex.test(text) || localhostRegex.test(text))) {
+            if (localhostRegex.test(text) || ipRegex.test(text)) {
+              targetUrl = `http://${text}`;
+            } else {
+              targetUrl = `https://${text}`;
+            }
+          } else {
+            targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
+          }
+        }
     }
+
+    setActiveUrl(targetUrl);
+    updateTab(activeTabId, { url: targetUrl, requestedUrl: targetUrl, title: text });
+
+    if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
+      webViewRefs.current[activeTabId]?.reload();
+    }
+    snapToSearch();
   };
 
   const [isFullscreen, setIsFullscreen] = useState(false);
