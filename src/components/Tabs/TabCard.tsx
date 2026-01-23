@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getDisplayHost, getFaviconUrl } from "../utils";
-import { TabItem } from "../types";
-import { SCREEN_WIDTH } from "../constants";
+import { getDisplayHost, getFaviconUrl } from "../../utils";
+import { TabItem } from "../../types";
+import { SCREEN_WIDTH } from "../../constants";
 
 interface TabCardProps {
   item: TabItem;

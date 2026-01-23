@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { ReactNode } from 'react';
 import { Keyboard, LayoutAnimation, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { ACCENTS, APP_VERSION, HISTORY_RANGES, SEARCH_ENGINES } from '../constants';
+import { ACCENTS, APP_VERSION, HISTORY_RANGES, SEARCH_ENGINES } from '../../constants';
 
 interface SettingsViewProps {
   settings: any;

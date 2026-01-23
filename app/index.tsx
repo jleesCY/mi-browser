@@ -61,11 +61,12 @@ import { useTabs } from "../src/hooks/useTabs";
 // Components
 import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
 import { BrowserWebView } from "../src/components/BrowserWebView";
-import { HistoryView } from "../src/components/HistoryView";
-import { SettingsView } from "../src/components/SettingsView";
-import { TabsView } from "../src/components/TabsView";
-import { QRScannerView } from "../src/components/QRScannerView";
-import { QRGeneratorView } from "../src/components/QRGeneratorView";
+import { HistoryView } from "../src/components/History/HistoryView";
+import { SettingsView } from "../src/components/Settings/SettingsView";
+import { TabsView } from "../src/components/Tabs/TabsView";
+import { QRScannerView } from "../src/components/QR/QRScannerView";
+import { QRGeneratorView } from "../src/components/QR/QRGeneratorView";
+import { IncognitoHomeBadge, IncognitoFloatingBadge } from "../src/components/Incognito/IncognitoIndicators";
 
 export default function App() {
   const insets = useSafeAreaInsets();
@@ -1065,10 +1066,7 @@ export default function App() {
             <Animated.View style={{ transform: [{ scale: logoScale }, { translateX: logoPan.x }, { translateY: logoPan.y }], zIndex: 10, padding: 20, alignItems: 'center', justifyContent: 'center' }} {...logoResponder.panHandlers}>
               <Text style={[styles.homeText, { color: effectiveTheme.text, fontFamily: "Nunito_800ExtraBold", fontSize: 60 * fontScale }]}>{HOME_LOGO_TEXT}</Text>
               {isIncognito && (
-                <View style={{ position: 'absolute', bottom: -5, flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="glasses" size={20 * fontScale} color={effectiveTheme.textSec} style={{ marginRight: 6 }} />
-                    <Text style={{ color: effectiveTheme.textSec, fontFamily: "Nunito_700Bold", fontSize: 14 * fontScale }}>Incognito</Text>
-                </View>
+                <IncognitoHomeBadge theme={effectiveTheme} fontScale={fontScale} />
               )}
             </Animated.View>
           </View>
@@ -1202,11 +1200,7 @@ export default function App() {
                 <Animated.View style={{ width: "100%", alignItems: "center", transform: [{ translateY: Animated.subtract(scrollTranslateY, effectiveKeyboardHeight) }, { scale: containerScale }] }}>
                   
                   {isIncognito && !isSubMenuVisible && (
-                     <Animated.View style={{ marginBottom: -12, zIndex: 10, opacity: searchPillOpacity, alignItems: 'center' }}>
-                         <View style={{ backgroundColor: effectiveTheme.card, width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, borderWidth: 2, borderColor: effectiveTheme.bg }}>
-                             <Ionicons name="glasses" size={20} color={accentColor} />
-                         </View>
-                     </Animated.View>
+                     <IncognitoFloatingBadge theme={effectiveTheme} accentColor={accentColor} opacity={searchPillOpacity} />
                   )}
 
                   {isSubMenuVisible && (

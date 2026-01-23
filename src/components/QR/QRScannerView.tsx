@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicat
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
-import { detectQRPureJS } from '../utils/qrPolyfill';
+import { detectQRPureJS } from '../../utils/qrPolyfill';
 
 interface QRScannerViewProps {
   isVisible: boolean;

@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SCREEN_WIDTH } from "../constants";
-import { getDisplayHost } from "../utils";
+import { SCREEN_WIDTH } from "../../constants";
+import { getDisplayHost } from "../../utils";
 
 const SwipeableHistoryRow = ({
   item,

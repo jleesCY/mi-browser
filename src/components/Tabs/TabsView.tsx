@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState, useEffect } from 'react';
 import { Animated, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
-import { TabItem } from '../types';
+import { TabItem } from '../../types';
 import SwipeableTabRow from "./SwipeableTabRow";
 import TabCard from "./TabCard";
-import { SNAP_DEFAULT, SCREEN_WIDTH } from '../constants';
+import { SNAP_DEFAULT, SCREEN_WIDTH } from '../../constants';
 import { SortableGrid } from './SortableGrid';
 
 interface TabsViewProps {

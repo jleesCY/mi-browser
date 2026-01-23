@@ -10,8 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SCREEN_WIDTH } from "../constants";
-import { getDisplayHost, getFaviconUrl } from "../utils";
+import { SCREEN_WIDTH } from "../../constants";
+import { getDisplayHost, getFaviconUrl } from "../../utils";
 
 const SwipeableTabRow = ({
   item,
