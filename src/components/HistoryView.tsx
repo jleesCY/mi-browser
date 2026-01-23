@@ -18,6 +18,7 @@ interface HistoryViewProps {
   onDeleteItem: (id: string) => void;
   onFocusSearch: () => void;
   historyLoadCount: number;
+  isIncognito?: boolean;
 }
 
 const getHistoryHeight = (uiPadding: string, fontScale: number) => {
@@ -112,7 +113,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   onPressItem,
   onDeleteItem,
   onFocusSearch,
-  historyLoadCount
+  historyLoadCount,
+  isIncognito = false
 }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
@@ -191,6 +193,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={
+            !isIncognito ? (
             <SearchHeader 
                 theme={theme} 
                 cornerRadius={cornerRadius} 
@@ -198,6 +201,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 onFocusSearch={onFocusSearch} 
                 setSearchText={setSearchText} 
             />
+            ) : null
         }
         onScroll={(e) => {
             const offsetY = e.nativeEvent.contentOffset.y;
@@ -242,7 +246,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 }}>
             <Ionicons
-              name="time-outline"
+              name={isIncognito ? "glasses" : "time-outline"}
               size={50}
               color={theme.textSec}
             />
@@ -253,7 +257,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 marginTop: 10
               }}
             >
-              No history found.
+              {isIncognito ? "Incognito mode does not save history." : "No history found."}
             </Text>
           </View>
         }

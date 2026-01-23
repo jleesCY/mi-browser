@@ -92,7 +92,8 @@ export default function App() {
   const {
     tabs, setTabs, activeTabId, setActiveTabId, 
     activeUrl, setActiveUrl, inputUrl, setInputUrl, 
-    areTabsLoaded, addNewTab, deleteTab, updateTab, reorderTabs, activeTabIdRef
+    areTabsLoaded, addNewTab, deleteTab, updateTab, reorderTabs, activeTabIdRef,
+    isIncognito, toggleIncognitoMode
   } = useTabs({ areSettingsLoaded, startupTabMode, backgroundRefresh });
 
   const currentTab = tabs.find((t) => t.id === activeTabId);
@@ -883,96 +884,192 @@ export default function App() {
       )}
 
       <Animated.View style={[styles.webViewContainer, { paddingBottom: isFullscreen ? 0 : Animated.add(keyboardHeight, insets.bottom), backgroundColor: effectiveTheme.bg }]}>
-        {tabs.map((tab) => {
-          if (!tab.url) return null;
-          const isActive = tab.id === activeTabId;
-          if (!tab.hasLoadedOnce) return null;
+        {isIncognito ? (
+           // --- INCOGNITO TABS RENDER LOOP ---
+           tabs.map((tab) => {
+              if (!tab.url) return null;
+              const isActive = tab.id === activeTabId;
+              if (!tab.hasLoadedOnce) return null;
 
-          return (
-            <BrowserWebView
-                key={tab.id}
-                ref={(ref: any) => webViewRefs.current[tab.id] = ref}
-                containerRef={(ref: any) => viewShotRefs.current[tab.id] = ref}
-                tab={tab}
-                isActive={isActive}
-                isFullscreen={isFullscreen}
-                blockGestures={isInputFocused}
-                settings={{ jsEnabled, desktopMode, blockCookies, accentColor, pillHeight, httpsOnly, searchEngineIndex, readerModeEnabled }}
-                effectiveTheme={effectiveTheme}
-                onUpdateTab={handleTabUpdate}
-                onActiveTabUpdate={(updates) => {
-                    canGoBackRef.current = updates.canGoBack;
-                    canGoForwardRef.current = updates.canGoForward;
-                    setIsLoading(updates.loading);
-                    if (!isInputFocused && updates.url) {
-                        setActiveUrl(updates.url);
-                        setInputUrl(getDisplayHost(updates.url));
-                        if (!updates.loading && updates.url !== "about:blank") addToHistory(updates.url, updates.title);
-                    }
-                }}
-                onLoadProgress={(p) => Animated.timing(progressAnim, { toValue: p, duration: 200, useNativeDriver: false }).start()}
-                onLoadStart={() => {
-                    ignoreNextScroll.current = true;
-                    showBar();
-                    setIsLoading(true);
-                    progressAnim.setValue(0);
-                    Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
-                }}
-                onLoadEnd={() => {
-                    setIsLoading(false);
-                    Animated.timing(progressAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start(() => setTimeout(() => progressAnim.setValue(0), 200));
-                }}
-                onScroll={handleScroll}
-                onScrollEnd={() => { if (isBarHidden.current) hideBar(); else showBar(); }}
-                onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}
-                onFullScreen={async (isFull) => {
-                    setIsFullscreen(isFull);
-                    if (isFull) {
-                        await ScreenOrientation.unlockAsync();
-                    } else {
-                        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-                    }
-                }}
-                onPermissionRequest={(event) => {
-                    // Simple wrapper for now, or extract logic if complex
-                    event.nativeEvent.grant(event.nativeEvent.resources); 
-                }}
-                onExternalLink={(url) => handleExternalLink(url, activeTabId, setTabs, setActiveUrl, setInputUrl)}
-                onNewWindow={(url) => addNewTab(url)}
-                onMessage={(event) => {
-                    const nativeEvent = event.nativeEvent;
-                    if (nativeEvent.data) {
-                        try {
-                            const dataString = nativeEvent.data;
-                            if (typeof dataString === 'string') {
-                                const parsed = JSON.parse(dataString);
-                                if (parsed.type === 'CONTEXT_MENU') {
-                                    setTimeout(() => {
-                                        setContextMenuData(parsed.data);
-                                        setContextMenuVisible(true);
-                                    }, 0);
-                                } else if (parsed.type === 'PRINT_HTML') {
-                                    setTimeout(async () => {
-                                        try {
-                                            await Print.printAsync({ html: parsed.html });
-                                        } catch {
-                                            Alert.alert("Print Error", "Could not print content.");
-                                        }
-                                    }, 0);
+              return (
+                <BrowserWebView
+                    key={tab.id}
+                    ref={(ref: any) => webViewRefs.current[tab.id] = ref}
+                    containerRef={(ref: any) => viewShotRefs.current[tab.id] = ref}
+                    tab={tab}
+                    isActive={isActive}
+                    isFullscreen={isFullscreen}
+                    blockGestures={isInputFocused}
+                    incognito={true}
+                    settings={{ jsEnabled, desktopMode, blockCookies, accentColor, pillHeight, httpsOnly, searchEngineIndex, readerModeEnabled }}
+                    effectiveTheme={effectiveTheme}
+                    onUpdateTab={handleTabUpdate}
+                    onActiveTabUpdate={(updates) => {
+                        canGoBackRef.current = updates.canGoBack;
+                        canGoForwardRef.current = updates.canGoForward;
+                        setIsLoading(updates.loading);
+                        if (!isInputFocused && updates.url) {
+                            setActiveUrl(updates.url);
+                            setInputUrl(getDisplayHost(updates.url));
+                            // Never save history in incognito
+                        }
+                    }}
+                    onLoadProgress={(p) => Animated.timing(progressAnim, { toValue: p, duration: 200, useNativeDriver: false }).start()}
+                    onLoadStart={() => {
+                        ignoreNextScroll.current = true;
+                        showBar();
+                        setIsLoading(true);
+                        progressAnim.setValue(0);
+                        Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
+                    }}
+                    onLoadEnd={() => {
+                        setIsLoading(false);
+                        Animated.timing(progressAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start(() => setTimeout(() => progressAnim.setValue(0), 200));
+                    }}
+                    onScroll={handleScroll}
+                    onScrollEnd={() => { if (isBarHidden.current) hideBar(); else showBar(); }}
+                    onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}
+                    onFullScreen={async (isFull) => {
+                        setIsFullscreen(isFull);
+                        if (isFull) {
+                            await ScreenOrientation.unlockAsync();
+                        } else {
+                            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+                        }
+                    }}
+                    onPermissionRequest={(event) => {
+                        event.nativeEvent.grant(event.nativeEvent.resources); 
+                    }}
+                    onExternalLink={(url) => handleExternalLink(url, activeTabId, setTabs, setActiveUrl, setInputUrl)}
+                    onNewWindow={(url) => addNewTab(url)}
+                    onMessage={(event) => {
+                        const nativeEvent = event.nativeEvent;
+                        if (nativeEvent.data) {
+                            try {
+                                const dataString = nativeEvent.data;
+                                if (typeof dataString === 'string') {
+                                    const parsed = JSON.parse(dataString);
+                                    if (parsed.type === 'CONTEXT_MENU') {
+                                        setTimeout(() => {
+                                            setContextMenuData(parsed.data);
+                                            setContextMenuVisible(true);
+                                        }, 0);
+                                    } else if (parsed.type === 'PRINT_HTML') {
+                                        setTimeout(async () => {
+                                            try {
+                                                await Print.printAsync({ html: parsed.html });
+                                            } catch {
+                                                Alert.alert("Print Error", "Could not print content.");
+                                            }
+                                        }, 0);
+                                    }
                                 }
-                            }
-                        } catch {}
-                    }
-                }}
-                injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
-            />
-          );
-        })}
+                            } catch {}
+                        }
+                    }}
+                    injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
+                />
+              );
+            })
+        ) : (
+           // --- REGULAR TABS RENDER LOOP ---
+           tabs.map((tab) => {
+              if (!tab.url) return null;
+              const isActive = tab.id === activeTabId;
+              if (!tab.hasLoadedOnce) return null;
+
+              return (
+                <BrowserWebView
+                    key={tab.id}
+                    ref={(ref: any) => webViewRefs.current[tab.id] = ref}
+                    containerRef={(ref: any) => viewShotRefs.current[tab.id] = ref}
+                    tab={tab}
+                    isActive={isActive}
+                    isFullscreen={isFullscreen}
+                    blockGestures={isInputFocused}
+                    incognito={false}
+                    settings={{ jsEnabled, desktopMode, blockCookies, accentColor, pillHeight, httpsOnly, searchEngineIndex, readerModeEnabled }}
+                    effectiveTheme={effectiveTheme}
+                    onUpdateTab={handleTabUpdate}
+                    onActiveTabUpdate={(updates) => {
+                        canGoBackRef.current = updates.canGoBack;
+                        canGoForwardRef.current = updates.canGoForward;
+                        setIsLoading(updates.loading);
+                        if (!isInputFocused && updates.url) {
+                            setActiveUrl(updates.url);
+                            setInputUrl(getDisplayHost(updates.url));
+                            if (!updates.loading && updates.url !== "about:blank") addToHistory(updates.url, updates.title);
+                        }
+                    }}
+                    onLoadProgress={(p) => Animated.timing(progressAnim, { toValue: p, duration: 200, useNativeDriver: false }).start()}
+                    onLoadStart={() => {
+                        ignoreNextScroll.current = true;
+                        showBar();
+                        setIsLoading(true);
+                        progressAnim.setValue(0);
+                        Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
+                    }}
+                    onLoadEnd={() => {
+                        setIsLoading(false);
+                        Animated.timing(progressAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start(() => setTimeout(() => progressAnim.setValue(0), 200));
+                    }}
+                    onScroll={handleScroll}
+                    onScrollEnd={() => { if (isBarHidden.current) hideBar(); else showBar(); }}
+                    onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}
+                    onFullScreen={async (isFull) => {
+                        setIsFullscreen(isFull);
+                        if (isFull) {
+                            await ScreenOrientation.unlockAsync();
+                        } else {
+                            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+                        }
+                    }}
+                    onPermissionRequest={(event) => {
+                        event.nativeEvent.grant(event.nativeEvent.resources); 
+                    }}
+                    onExternalLink={(url) => handleExternalLink(url, activeTabId, setTabs, setActiveUrl, setInputUrl)}
+                    onNewWindow={(url) => addNewTab(url)}
+                    onMessage={(event) => {
+                        const nativeEvent = event.nativeEvent;
+                        if (nativeEvent.data) {
+                            try {
+                                const dataString = nativeEvent.data;
+                                if (typeof dataString === 'string') {
+                                    const parsed = JSON.parse(dataString);
+                                    if (parsed.type === 'CONTEXT_MENU') {
+                                        setTimeout(() => {
+                                            setContextMenuData(parsed.data);
+                                            setContextMenuVisible(true);
+                                        }, 0);
+                                    } else if (parsed.type === 'PRINT_HTML') {
+                                        setTimeout(async () => {
+                                            try {
+                                                await Print.printAsync({ html: parsed.html });
+                                            } catch {
+                                                Alert.alert("Print Error", "Could not print content.");
+                                            }
+                                        }, 0);
+                                    }
+                                }
+                            } catch {}
+                        }
+                    }}
+                    injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
+                />
+              );
+            })
+        )}
 
         {!activeUrl && (
           <View style={[styles.homeContainer, { backgroundColor: effectiveTheme.bg }]} onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}>
-            <Animated.View style={{ transform: [{ scale: logoScale }, { translateX: logoPan.x }, { translateY: logoPan.y }], zIndex: 10, padding: 20 }} {...logoResponder.panHandlers}>
+            <Animated.View style={{ transform: [{ scale: logoScale }, { translateX: logoPan.x }, { translateY: logoPan.y }], zIndex: 10, padding: 20, alignItems: 'center', justifyContent: 'center' }} {...logoResponder.panHandlers}>
               <Text style={[styles.homeText, { color: effectiveTheme.text, fontFamily: "Nunito_800ExtraBold", fontSize: 60 * fontScale }]}>{HOME_LOGO_TEXT}</Text>
+              {isIncognito && (
+                <View style={{ position: 'absolute', bottom: -5, flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="glasses" size={20 * fontScale} color={effectiveTheme.textSec} style={{ marginRight: 6 }} />
+                    <Text style={{ color: effectiveTheme.textSec, fontFamily: "Nunito_700Bold", fontSize: 14 * fontScale }}>Incognito</Text>
+                </View>
+              )}
             </Animated.View>
           </View>
         )}
@@ -997,7 +1094,8 @@ export default function App() {
                 >
                     {activeView === 'history' && (
                         <HistoryView
-                            history={history}
+                            history={isIncognito ? [] : history}
+                            isIncognito={isIncognito}
                             theme={effectiveTheme}
                             accentColor={accentColor}
                             cornerRadius={cornerRadius}
@@ -1103,6 +1201,14 @@ export default function App() {
               <Animated.View style={[styles.bottomAreaContainer, { paddingBottom: containerPaddingBAnim, paddingHorizontal: containerPaddingHAnim, opacity: containerOpacity }]} pointerEvents={isBarHiddenState ? 'none' : 'box-none'}>
                 <Animated.View style={{ width: "100%", alignItems: "center", transform: [{ translateY: Animated.subtract(scrollTranslateY, effectiveKeyboardHeight) }, { scale: containerScale }] }}>
                   
+                  {isIncognito && !isSubMenuVisible && (
+                     <Animated.View style={{ marginBottom: -12, zIndex: 10, opacity: searchPillOpacity, alignItems: 'center' }}>
+                         <View style={{ backgroundColor: effectiveTheme.card, width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, borderWidth: 2, borderColor: effectiveTheme.bg }}>
+                             <Ionicons name="glasses" size={20} color={accentColor} />
+                         </View>
+                     </Animated.View>
+                  )}
+
                   {isSubMenuVisible && (
                     <Animated.View style={{
                         position: 'absolute',
@@ -1119,6 +1225,10 @@ export default function App() {
                         elevation: 20,
                         zIndex: 10
                     }}>
+                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={() => { setIsSubMenuVisible(false); goHome(); }}>
+                         <Ionicons name="home-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
+                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Home</Text>
+                       </TouchableOpacity>
                        <TouchableOpacity 
                          style={[{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }, !activeUrl && { opacity: 0.5 }]} 
                          onPress={() => { if (activeUrl) { handleShare(); setIsSubMenuVisible(false); } }}
@@ -1209,9 +1319,9 @@ export default function App() {
                           <Ionicons name="settings-outline" size={24} color={effectiveTheme.text} />
                           <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Settings</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={goHome}>
-                          <Ionicons name="home-outline" size={24} color={effectiveTheme.text} />
-                          <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Home</Text>
+                        <TouchableOpacity style={styles.menuItem} onPress={toggleIncognitoMode}>
+                          <Ionicons name={isIncognito ? "glasses" : "glasses-outline"} size={24} color={isIncognito ? accentColor : effectiveTheme.text} />
+                          <Text style={[styles.menuLabel, { color: isIncognito ? accentColor : effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Incognito</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.menuItem} onPress={() => setIsSubMenuVisible(!isSubMenuVisible)}>
                           <Ionicons name="menu-outline" size={24} color={effectiveTheme.text} />

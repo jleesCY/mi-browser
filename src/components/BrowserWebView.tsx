@@ -27,6 +27,7 @@ interface BrowserWebViewProps {
   injectedJavaScript: string;
   blockGestures?: boolean;
   containerRef?: React.Ref<View>;
+  incognito?: boolean;
 }
 
 export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
@@ -50,7 +51,8 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   onMessage,
   injectedJavaScript,
   blockGestures = false,
-  containerRef
+  containerRef,
+  incognito = false
 }, ref) => {
   const localRef = useRef<WebView>(null);
   const [ignoredHosts, setIgnoredHosts] = useState<Set<string>>(new Set());
@@ -316,6 +318,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         pointerEvents={isActive ? "auto" : "none"}
     >
         <WebView
+        key={`${tab.id}-${incognito ? 'incog' : 'reg'}`}
         ref={(r) => {
           localRef.current = r;
           if (typeof ref === 'function') ref(r);
@@ -332,7 +335,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         originWhitelist={["*"]}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         injectedJavaScript={finalInjectedJavaScript}
-        onReceivedSslError={(event) => {
+        onReceivedSslError={(event: any) => {
             const url = event.nativeEvent.url;
             const host = getDisplayHost(url);
             if (ignoredHosts.has(host)) {
@@ -405,11 +408,17 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         scrollEventThrottle={16}
         startInLoadingState={false}
         javaScriptEnabled={jsEnabled}
+        incognito={incognito}
         userAgent={isDesktop
             ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             : "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"}
-        sharedCookiesEnabled={!blockCookies}
-        domStorageEnabled={true}
+        sharedCookiesEnabled={incognito ? false : !blockCookies}
+        cacheEnabled={!incognito}
+        thirdPartyCookiesEnabled={incognito ? false : undefined}
+        domStorageEnabled={!incognito}
+        saveFormDataDisabled={incognito}
+        databaseEnabled={!incognito}
+        geolocationEnabled={!incognito}
         pullToRefreshEnabled={false}
         allowsFullscreenVideo={true}
         mediaPlaybackRequiresUserAction={false}
@@ -429,7 +438,6 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         contentInset={isFullscreen
             ? { top: 0, bottom: 0, left: 0, right: 0 }
             : { bottom: pillHeight + 20 }}
-        geolocationEnabled={true}
         onPermissionRequest={onPermissionRequest}
         allowsBackForwardNavigationGestures={true}
         />

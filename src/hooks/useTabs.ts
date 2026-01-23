@@ -10,25 +10,53 @@ interface UseTabsProps {
 }
 
 export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }: UseTabsProps) => {
-  const [tabs, setTabs] = useState<TabItem[]>([
+  // --- REGULAR TABS STATE ---
+  const [regularTabs, setRegularTabs] = useState<TabItem[]>([
     { id: "1", url: null, title: "New Tab", showLogo: true },
   ]);
-  const [activeTabId, setActiveTabId] = useState("1");
+  const [activeRegularTabId, setActiveRegularTabId] = useState("1");
+
+  // --- INCOGNITO TABS STATE ---
+  const [isIncognito, setIsIncognito] = useState(false);
+  const [incognitoTabs, setIncognitoTabs] = useState<TabItem[]>([]);
+  const [activeIncognitoTabId, setActiveIncognitoTabId] = useState<string | null>(null);
+
+  // --- SHARED UI STATE (Derived or Synced) ---
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [inputUrl, setInputUrl] = useState("");
+  const [areTabsLoaded, setAreTabsLoaded] = useState(false);
+  const hasLoadedTabs = useRef(false);
+
+  // Helpers to get current active set
+  const tabs = isIncognito ? incognitoTabs : regularTabs;
+  const activeTabId = isIncognito ? (activeIncognitoTabId || "") : activeRegularTabId;
   
   // Ref to track active ID for async operations/callbacks
   const activeTabIdRef = useRef(activeTabId);
 
-  const [areTabsLoaded, setAreTabsLoaded] = useState(false);
-  const hasLoadedTabs = useRef(false);
-
-  // Sync ref
+  // Update activeTabIdRef whenever activeTabId changes
   useEffect(() => {
     activeTabIdRef.current = activeTabId;
   }, [activeTabId]);
 
-  // Load Tabs on Startup
+  // Sync activeUrl and inputUrl when switching modes or active tab changes
+  useEffect(() => {
+    const currentTabs = isIncognito ? incognitoTabs : regularTabs;
+    const currentId = isIncognito ? activeIncognitoTabId : activeRegularTabId;
+    const tab = currentTabs.find(t => t.id === currentId);
+
+    if (tab) {
+        setActiveUrl(tab.url);
+        setInputUrl(tab.url ? getDisplayHost(tab.url) : "");
+    } else {
+        // Fallback if no tab (shouldn't happen often)
+        setActiveUrl(null);
+        setInputUrl("");
+    }
+  }, [isIncognito, activeIncognitoTabId, activeRegularTabId, regularTabs, incognitoTabs]);
+
+
+  // Load Tabs on Startup (Regular Only)
   useEffect(() => {
     if (!areSettingsLoaded || hasLoadedTabs.current) return;
     hasLoadedTabs.current = true;
@@ -68,10 +96,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
               currentIndex: 0
           };
 
-          setTabs([startupTab, ...existingTabs]);
-          setActiveTabId(newId);
-          setActiveUrl(targetUrl);
-          setInputUrl(getDisplayHost(targetUrl));
+          setRegularTabs([startupTab, ...existingTabs]);
+          setActiveRegularTabId(newId);
         } else {
            if (startupTabMode === "last" && existingTabs.length > 0) {
              let targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId);
@@ -81,10 +107,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
                t.id === targetTab.id ? { ...t, hasLoadedOnce: true } : t
              );
              
-             setTabs(finalTabs);
-             setActiveTabId(targetTab.id);
-             setActiveUrl(targetTab.url);
-             setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
+             setRegularTabs(finalTabs);
+             setActiveRegularTabId(targetTab.id);
            }
         }
       } else if (startupTabMode === "last" && existingTabs.length > 0) {
@@ -99,10 +123,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
             t.id === targetTab.id ? { ...t, hasLoadedOnce: true } : t
         );
 
-        setTabs(finalTabs);
-        setActiveTabId(targetTab.id);
-        setActiveUrl(targetTab.url);
-        setInputUrl(targetTab.url ? getDisplayHost(targetTab.url) : "");
+        setRegularTabs(finalTabs);
+        setActiveRegularTabId(targetTab.id);
 
       } else {
         // CASE: New
@@ -114,10 +136,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
              t.id === existingBlankTab.id ? { ...t, hasLoadedOnce: true } : t
           );
 
-          setTabs(finalTabs);
-          setActiveTabId(existingBlankTab.id);
-          setActiveUrl(null);
-          setInputUrl("");
+          setRegularTabs(finalTabs);
+          setActiveRegularTabId(existingBlankTab.id);
         } else {
           const newTabId = Date.now().toString();
           const newTab = {
@@ -131,44 +151,105 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
             currentIndex: -1
           };
 
-          setTabs([newTab, ...existingTabs]);
-          setActiveTabId(newTabId);
-          setActiveUrl(null);
-          setInputUrl("");
+          setRegularTabs([newTab, ...existingTabs]);
+          setActiveRegularTabId(newTabId);
         }
       }
       setAreTabsLoaded(true);
     };
 
     loadTabs();
-  }, [areSettingsLoaded, startupTabMode, backgroundRefresh]); // Run once when settings are ready
+  }, [areSettingsLoaded, startupTabMode, backgroundRefresh]); 
 
-  // Save Tabs
+  // Save Tabs (Regular Only)
   useEffect(() => {
     if (!areTabsLoaded) return;
 
     const saveTimeout = setTimeout(() => {
-      const cleanTabs = tabs.map(
+      const cleanTabs = regularTabs.map(
         ({ loading, canGoBack, canGoForward, hasLoadedOnce, ...rest }) => rest
       );
       saveStorage("tabs", cleanTabs);
-      saveStorage("activeTabId", activeTabId);
+      saveStorage("activeTabId", activeRegularTabId);
     }, 500); 
 
     return () => clearTimeout(saveTimeout);
-  }, [tabs, activeTabId, areTabsLoaded]);
+  }, [regularTabs, activeRegularTabId, areTabsLoaded]);
 
   // Mark active tab as loaded
   useEffect(() => {
-    setTabs((prev) => 
-      prev.map((t) => {
-        if (t.id === activeTabId && !t.hasLoadedOnce) {
-          return { ...t, hasLoadedOnce: true };
-        }
-        return t;
-      })
-    );
-  }, [activeTabId]);
+    // Only applies to Regular tabs for now as Incognito are always "loaded" in session or don't need persistence opt-in
+    // But we should set hasLoadedOnce for incognito too to render the WebView
+    if (isIncognito) {
+        setIncognitoTabs((prev) => 
+            prev.map((t) => {
+              if (t.id === activeIncognitoTabId && !t.hasLoadedOnce) {
+                return { ...t, hasLoadedOnce: true };
+              }
+              return t;
+            })
+          );
+    } else {
+        setRegularTabs((prev) => 
+            prev.map((t) => {
+              if (t.id === activeRegularTabId && !t.hasLoadedOnce) {
+                return { ...t, hasLoadedOnce: true };
+              }
+              return t;
+            })
+          );
+    }
+  }, [activeRegularTabId, activeIncognitoTabId, isIncognito]);
+
+  const toggleIncognitoMode = () => {
+      if (!isIncognito) {
+          // Switching TO Incognito
+          // If no incognito tabs exist, create one
+          if (incognitoTabs.length === 0) {
+            const newId = Date.now().toString();
+            const newTab = {
+                id: newId,
+                url: null,
+                requestedUrl: null,
+                initialUrl: null,
+                title: "Incognito Tab",
+                showLogo: true,
+                hasLoadedOnce: true,
+                historyStack: [],
+                currentIndex: -1
+            };
+            setIncognitoTabs([newTab]);
+            setActiveIncognitoTabId(newId);
+          }
+      } else {
+          // Switching OFF Incognito (Exit)
+          // Clear all incognito tabs to ensure fresh session next time
+          setTimeout(() => {
+            setIncognitoTabs([]);
+            setActiveIncognitoTabId(null);
+          }, 500); // Small delay to allow fade out animation if any, or just immediate. 
+          // Actually, instant clear is safer for "leaving".
+          setIncognitoTabs([]);
+          setActiveIncognitoTabId(null);
+      }
+      setIsIncognito(!isIncognito);
+  };
+
+  const setTabs = (action: React.SetStateAction<TabItem[]>) => {
+      if (isIncognito) {
+          setIncognitoTabs(action);
+      } else {
+          setRegularTabs(action);
+      }
+  };
+
+  const setActiveTabId = (id: string) => {
+      if (isIncognito) {
+          setActiveIncognitoTabId(id);
+      } else {
+          setActiveRegularTabId(id);
+      }
+  };
 
   const addNewTab = (overrideUrl?: string) => {
     const newId = Date.now().toString();
@@ -177,23 +258,34 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
       url: overrideUrl || null,
       requestedUrl: overrideUrl || null,
       initialUrl: overrideUrl || null,
-      title: "New Tab",
+      title: isIncognito ? "Incognito Tab" : "New Tab",
       showLogo: true,
       hasLoadedOnce: true,
       historyStack: overrideUrl ? [overrideUrl] : [],
       currentIndex: overrideUrl ? 0 : -1
     };
-    setTabs((prev) => [newTab, ...prev]);
-    setActiveTabId(newId);
-    setActiveUrl(overrideUrl || null);
-    setInputUrl(overrideUrl ? getDisplayHost(overrideUrl) : "");
+
+    if (isIncognito) {
+        setIncognitoTabs((prev) => [newTab, ...prev]);
+        setActiveIncognitoTabId(newId);
+    } else {
+        setRegularTabs((prev) => [newTab, ...prev]);
+        setActiveRegularTabId(newId);
+    }
+    
+    // UI state sync happens via Effect
   };
 
   const deleteTab = (idToDelete: string) => {
-    setTabs((prevTabs) => {
+    const setTargetTabs = isIncognito ? setIncognitoTabs : setRegularTabs;
+    const targetActiveIdRef = isIncognito ? activeIncognitoTabId : activeRegularTabId;
+
+    setTargetTabs((prevTabs) => {
       const newTabs = prevTabs.filter((t) => t.id !== idToDelete);
       
-      const currentActiveId = activeTabIdRef.current;
+      // We use the passed-in param or state, but inside setState updater 'activeTabId' might be stale?
+      // We used a ref in original code.
+      const currentActiveId = targetActiveIdRef;
 
       if (currentActiveId === idToDelete) {
         if (newTabs.length > 0) {
@@ -203,9 +295,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
           const nextTab = newTabs[safeIndex];
 
           setTimeout(() => {
-            setActiveTabId(nextTab.id);
-            setActiveUrl(nextTab.url);
-            setInputUrl(nextTab.url ? getDisplayHost(nextTab.url) : "");
+            if (isIncognito) setActiveIncognitoTabId(nextTab.id);
+            else setActiveRegularTabId(nextTab.id);
           }, 0);
         }
       }
@@ -213,12 +304,13 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
       if (newTabs.length === 0) {
+        // If we deleted the last tab, create a new blank one
         const freshId = Date.now().toString();
         const freshTab = { 
             id: freshId, 
             url: null, 
             requestedUrl: null, 
-            title: "New Tab", 
+            title: isIncognito ? "Incognito Tab" : "New Tab", 
             showLogo: true, 
             hasLoadedOnce: true,
             historyStack: [],
@@ -226,9 +318,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
         };
         
         setTimeout(() => {
-          setActiveTabId(freshId);
-          setActiveUrl(null);
-          setInputUrl("");
+          if (isIncognito) setActiveIncognitoTabId(freshId);
+          else setActiveRegularTabId(freshId);
         }, 0);
         return [freshTab];
       }
@@ -238,11 +329,16 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
   };
 
   const updateTab = (id: string, updates: Partial<TabItem>) => {
-    setTabs(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    if (isIncognito) {
+        setIncognitoTabs(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    } else {
+        setRegularTabs(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    }
   };
 
   const reorderTabs = (fromIndex: number, toIndex: number) => {
-    setTabs((prevTabs) => {
+    const setTargetTabs = isIncognito ? setIncognitoTabs : setRegularTabs;
+    setTargetTabs((prevTabs) => {
       const newTabs = [...prevTabs];
       const [movedTab] = newTabs.splice(fromIndex, 1);
       newTabs.splice(toIndex, 0, movedTab);
@@ -260,6 +356,8 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     deleteTab,
     updateTab,
     reorderTabs,
-    activeTabIdRef
+    activeTabIdRef,
+    isIncognito, toggleIncognitoMode
   };
 };
+
