@@ -23,18 +23,27 @@ export const useTabState = (initialTabs: TabItem[], initialActiveId: string) => 
           const safeIndex = Math.min(nextIndex, newTabs.length - 1);
           const nextTab = newTabs[safeIndex];
 
-          // Use timeout to ensure state updates don't conflict during render cycle if called from UI
           setTimeout(() => {
             setActiveTabId(nextTab.id);
           }, 0);
         } else {
-             // Handled by consumer if empty list needs a new tab, 
-             // but strictly this hook just manages the list.
-             // We can optionally return "wasEmpty" or handle it here?
-             // Let's handle "ensure one tab" in the consumer to keep this generic.
+             // Create a new tab if list is empty
+             const freshId = Date.now().toString();
+             const freshTab: TabItem = { 
+                 id: freshId, 
+                 url: null, 
+                 requestedUrl: null, 
+                 title: "New Tab", 
+                 showLogo: true, 
+                 hasLoadedOnce: true,
+                 historyStack: [],
+                 currentIndex: -1
+             };
+             
              setTimeout(() => {
-                setActiveTabId(null);
+                setActiveTabId(freshId);
              }, 0);
+             return [freshTab];
         }
       }
 

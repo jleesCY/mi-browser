@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Linking } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { loadStorage, saveStorage, getDisplayHost, parseDeepLinkUrl } from '../utils';
 import { TabItem } from '../types';
 import { useTabState } from './useTabState';
@@ -208,6 +209,14 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
       } else {
           // Switching OFF Incognito (Exit)
           // Clear all incognito tabs to ensure fresh session next time
+          
+          // Delete preview images
+          incognito.tabs.forEach(tab => {
+              if (tab.previewImage) {
+                  FileSystem.deleteAsync(tab.previewImage, { idempotent: true }).catch(() => {});
+              }
+          });
+
           setTimeout(() => {
             incognito.resetTabs([], null);
           }, 500); 
