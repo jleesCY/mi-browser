@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef } from 'react';
+import React, { forwardRef, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from "@expo/vector-icons";
@@ -53,6 +53,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   containerRef
 }, ref) => {
   const localRef = useRef<WebView>(null);
+  const [ignoredHosts, setIgnoredHosts] = useState<Set<string>>(new Set());
   const {
     jsEnabled,
     desktopMode,
@@ -88,6 +89,10 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     let friendlyDesc = "Something went wrong while loading this website.";
     let iconName = "alert-circle-outline";
 
+    // Detect common SSL/Security errors to offer specific actions
+    const isSslError = errorDesc.includes("ERR_CERT") || errorDesc.includes("ERR_SSL") || errorDesc.includes("ssl_error") || errorCode === -11 || errorCode === -1200 || errorCode === -1201 || errorCode === -1202;
+    const isCleartextError = errorDesc.includes("ERR_CLEARTEXT_NOT_PERMITTED");
+
     if (errorDesc.includes("ERR_NAME_NOT_RESOLVED") || errorCode === -2 || errorCode === -1003) {
         friendlyTitle = "Site Not Found";
         friendlyDesc = "We couldn't find this site. Please check your spelling.";
@@ -104,10 +109,14 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         friendlyTitle = "Connection Refused";
         friendlyDesc = "The website refused the connection.";
         iconName = "hand-left-outline";
-    } else if (errorDesc.includes("ERR_CLEARTEXT_NOT_PERMITTED")) {
+    } else if (isCleartextError) {
         friendlyTitle = "Security Error";
         friendlyDesc = "This site requires a secure HTTPS connection.";
         iconName = "lock-closed-outline";
+    } else if (isSslError) {
+        friendlyTitle = "Security Warning";
+        friendlyDesc = "The connection to this site is not secure.";
+        iconName = "warning-outline";
     }
 
     return (
@@ -193,6 +202,63 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
             Try Again
           </Text>
         </TouchableOpacity>
+
+        {/* Upgrade to HTTPS Option */}
+        {(tab.url && tab.url.startsWith("http://")) && (
+             <TouchableOpacity
+             style={{
+               marginTop: 15,
+               paddingHorizontal: 20,
+               paddingVertical: 12,
+               borderRadius: 12,
+               backgroundColor: effectiveTheme.card
+             }}
+             onPress={() => {
+                 const newUrl = tab.url!.replace(/^http:\/\//i, "https://");
+                 onUpdateTab(tab.id, { url: newUrl, requestedUrl: newUrl });
+                 if (isActive) {
+                    onActiveTabUpdate({ canGoBack: tab.canGoBack || false, canGoForward: tab.canGoForward || false, loading: true, url: newUrl });
+                 }
+             }}
+           >
+             <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 16 }}>
+               Upgrade to HTTPS
+             </Text>
+           </TouchableOpacity>
+        )}
+
+        {/* Proceed to Unsafe Site Option */}
+        {(isSslError || isCleartextError) && (
+             <TouchableOpacity
+             style={{
+               marginTop: 15,
+               paddingHorizontal: 20,
+               paddingVertical: 12,
+               borderRadius: 12,
+               backgroundColor: "#ff3b30"
+             }}
+             onPress={() => {
+                 const host = getDisplayHost(tab.url);
+                 if (host) {
+                    setIgnoredHosts(prev => {
+                        const next = new Set(prev);
+                        next.add(host);
+                        return next;
+                    });
+                    // Short delay to let state update then reload
+                    setTimeout(() => {
+                        if (localRef.current) {
+                            localRef.current.reload();
+                        }
+                    }, 100);
+                 }
+             }}
+           >
+             <Text style={{ color: "#fff", fontFamily: "Nunito_700Bold", fontSize: 16 }}>
+               Proceed to Unsafe Site
+             </Text>
+           </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -266,6 +332,15 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         originWhitelist={["*"]}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         injectedJavaScript={finalInjectedJavaScript}
+        onReceivedSslError={(event) => {
+            const url = event.nativeEvent.url;
+            const host = getDisplayHost(url);
+            if (ignoredHosts.has(host)) {
+                event.nativeEvent.proceed();
+            } else {
+                event.nativeEvent.cancel();
+            }
+        }}
         onNavigationStateChange={(navState) => {
             const { url, title, canGoBack, canGoForward, loading } = navState;
 
