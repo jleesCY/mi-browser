@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { LayoutAnimation } from 'react-native';
 import { TabItem } from '../types';
 
-export const useTabState = (initialTabs: TabItem[], initialActiveId: string) => {
+export const useTabState = (
+  initialTabs: TabItem[], 
+  initialActiveId: string | null,
+  createFallbackTab?: () => TabItem
+) => {
   const [tabs, setTabs] = useState<TabItem[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(initialActiveId);
   
@@ -16,8 +20,31 @@ export const useTabState = (initialTabs: TabItem[], initialActiveId: string) => 
     setTabs((prevTabs) => {
       const newTabs = prevTabs.filter((t) => t.id !== idToDelete);
       
+      if (newTabs.length === 0) {
+           let freshTab: TabItem;
+           if (createFallbackTab) {
+               freshTab = createFallbackTab();
+           } else {
+               const freshId = Date.now().toString();
+               freshTab = { 
+                   id: freshId, 
+                   url: null, 
+                   requestedUrl: null, 
+                   title: "New Tab", 
+                   showLogo: true, 
+                   hasLoadedOnce: true,
+                   historyStack: [],
+                   currentIndex: -1
+               };
+           }
+           
+           setTimeout(() => {
+              setActiveTabId(freshTab.id);
+           }, 0);
+           return [freshTab];
+      }
+
       if (activeTabId === idToDelete) {
-        if (newTabs.length > 0) {
           const indexToDelete = prevTabs.findIndex((t) => t.id === idToDelete);
           const nextIndex = Math.max(0, indexToDelete - 1);
           const safeIndex = Math.min(nextIndex, newTabs.length - 1);
@@ -26,25 +53,6 @@ export const useTabState = (initialTabs: TabItem[], initialActiveId: string) => 
           setTimeout(() => {
             setActiveTabId(nextTab.id);
           }, 0);
-        } else {
-             // Create a new tab if list is empty
-             const freshId = Date.now().toString();
-             const freshTab: TabItem = { 
-                 id: freshId, 
-                 url: null, 
-                 requestedUrl: null, 
-                 title: "New Tab", 
-                 showLogo: true, 
-                 hasLoadedOnce: true,
-                 historyStack: [],
-                 currentIndex: -1
-             };
-             
-             setTimeout(() => {
-                setActiveTabId(freshId);
-             }, 0);
-             return [freshTab];
-        }
       }
 
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

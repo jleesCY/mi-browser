@@ -15,10 +15,31 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
   // --- STATE MANAGEMENT ---
   const regular = useTabState(
     [{ id: "1", url: null, title: "New Tab", showLogo: true }], 
-    "1"
+    "1",
+    () => ({
+        id: Date.now().toString(),
+        url: null,
+        requestedUrl: null,
+        initialUrl: null,
+        title: "New Tab",
+        showLogo: true,
+        hasLoadedOnce: true,
+        historyStack: [],
+        currentIndex: -1
+    })
   );
   
-  const incognito = useTabState([], null); // Incognito starts empty
+  const incognito = useTabState([], null, () => ({
+        id: Date.now().toString(),
+        url: null,
+        requestedUrl: null,
+        initialUrl: null,
+        title: "Incognito Tab",
+        showLogo: true,
+        hasLoadedOnce: true,
+        historyStack: [],
+        currentIndex: -1
+  }));
 
   const [isIncognito, setIsIncognito] = useState(false);
 
