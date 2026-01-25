@@ -6,13 +6,13 @@ import {
   useFonts,
 } from "@expo-google-fonts/nunito";
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
-import * as Print from 'expo-print';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import * as QuickActions from 'expo-quick-actions';
-import { useQuickAction } from 'expo-quick-actions/hooks';
+import * as Clipboard from "expo-clipboard";
+import * as FileSystem from "expo-file-system/legacy";
+import * as MediaLibrary from "expo-media-library";
+import * as Print from "expo-print";
+import * as QuickActions from "expo-quick-actions";
+import { useQuickAction } from "expo-quick-actions/hooks";
+import * as ScreenOrientation from "expo-screen-orientation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,10 +33,10 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { captureRef } from 'react-native-view-shot';
+import { captureRef } from "react-native-view-shot";
 import { WebView } from "react-native-webview";
 
 import {
@@ -47,11 +47,11 @@ import {
   SNAP_CLOSED,
   SNAP_DEFAULT,
   SNAP_FULL,
-  SWAP_DISTANCE
+  SWAP_DISTANCE,
 } from "../src/constants";
 import { handleExternalLink } from "../src/navigationUtils";
-import { getDisplayHost } from "../src/utils";
 import { TabItem } from "../src/types";
+import { getDisplayHost } from "../src/utils";
 
 // Custom Hooks
 import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
@@ -62,11 +62,10 @@ import { useTabs } from "../src/hooks/useTabs";
 import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
 import { BrowserWebView } from "../src/components/BrowserWebView";
 import { HistoryView } from "../src/components/History/HistoryView";
+import { QRGeneratorView } from "../src/components/QR/QRGeneratorView";
+import { QRScannerView } from "../src/components/QR/QRScannerView";
 import { SettingsView } from "../src/components/Settings/SettingsView";
 import { TabsView } from "../src/components/Tabs/TabsView";
-import { QRScannerView } from "../src/components/QR/QRScannerView";
-import { QRGeneratorView } from "../src/components/QR/QRGeneratorView";
-import { IncognitoHomeBadge, IncognitoFloatingBadge } from "../src/components/Incognito/IncognitoIndicators";
 
 export default function App() {
   const insets = useSafeAreaInsets();
@@ -81,20 +80,48 @@ export default function App() {
   // --- STATE MANAGEMENT VIA HOOKS ---
   const settings = useBrowserSettings(fontsLoaded); // Pass true/false or separate ready state
   const {
-    accentColor, searchEngineIndex, cornerRadius, uiPadding,
-    fontScale, showStatusBar, pillHeight, progressBarMode, tabViewMode,
-    showTabLogo, showTabPreview,
-    startupTabMode, desktopMode, forceSearchMode, setForceSearchMode, jsEnabled, httpsOnly, blockCookies,
-    effectiveTheme, areSettingsLoaded, backgroundRefresh, readerModeEnabled
+    accentColor,
+    searchEngineIndex,
+    cornerRadius,
+    uiPadding,
+    fontScale,
+    showStatusBar,
+    pillHeight,
+    progressBarMode,
+    tabViewMode,
+    showTabLogo,
+    showTabPreview,
+    startupTabMode,
+    desktopMode,
+    forceSearchMode,
+    setForceSearchMode,
+    jsEnabled,
+    httpsOnly,
+    blockCookies,
+    effectiveTheme,
+    areSettingsLoaded,
+    backgroundRefresh,
+    readerModeEnabled,
   } = settings;
 
-  const { history, addToHistory, deleteHistory, deleteHistoryItem } = useHistory(areSettingsLoaded);
-  
+  const { history, addToHistory, deleteHistory, deleteHistoryItem } =
+    useHistory(areSettingsLoaded);
+
   const {
-    tabs, setTabs, activeTabId, setActiveTabId, 
-    activeUrl, setActiveUrl, inputUrl, setInputUrl, 
-    areTabsLoaded, addNewTab, deleteTab, updateTab, reorderTabs, activeTabIdRef,
-    isIncognito, toggleIncognitoMode
+    tabs,
+    setTabs,
+    activeTabId,
+    setActiveTabId,
+    activeUrl,
+    setActiveUrl,
+    inputUrl,
+    setInputUrl,
+    areTabsLoaded,
+    addNewTab,
+    deleteTab,
+    updateTab,
+    reorderTabs,
+    activeTabIdRef,
   } = useTabs({ areSettingsLoaded, startupTabMode, backgroundRefresh });
 
   const currentTab = tabs.find((t) => t.id === activeTabId);
@@ -110,14 +137,14 @@ export default function App() {
         id: "scan_qr",
         title: "Scan QR Code",
         subtitle: "Open camera to scan",
-        icon: Platform.OS === 'ios' ? 'symbol:qrcode' : undefined,
+        icon: Platform.OS === "ios" ? "symbol:qrcode" : undefined,
         params: { href: "/?action=scan_qr" },
       },
     ]);
   }, []);
 
   useEffect(() => {
-    if (quickAction?.id === 'scan_qr') {
+    if (quickAction?.id === "scan_qr") {
       // Ensure app is ready before showing scanner, or just set it
       setIsQRScannerVisible(true);
     }
@@ -133,57 +160,94 @@ export default function App() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleTabUpdate = useCallback((id: string, updates: Partial<TabItem>) => {
-    setTabs((prevTabs) => {
-      return prevTabs.map((t) => {
-        if (t.id !== id) return t;
+  const handleTabUpdate = useCallback(
+    (id: string, updates: Partial<TabItem>) => {
+      setTabs((prevTabs) => {
+        return prevTabs.map((t) => {
+          if (t.id !== id) return t;
 
-        let newHistoryStack = [...(t.historyStack || (t.url ? [t.url] : []))];
-        let newCurrentIndex = t.currentIndex !== undefined ? t.currentIndex : (t.url ? 0 : -1);
+          let newHistoryStack = [...(t.historyStack || (t.url ? [t.url] : []))];
+          let newCurrentIndex =
+            t.currentIndex !== undefined ? t.currentIndex : t.url ? 0 : -1;
 
-        if (updates.url) {
-           const targetUrl = updates.url;
-           // Aggressive normalization to handle protocol/www/trailing slash differences
-           const normalize = (u: string) => u.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "").replace(/\/index\.html$/, "").toLowerCase();
-           
-           // 1. Current Page Update (e.g. http -> https redirect, or reload)
-           // We check against the current stack entry to avoid truncating future history on reloads/redirects
-           if (newCurrentIndex >= 0 && newHistoryStack[newCurrentIndex] && normalize(newHistoryStack[newCurrentIndex]) === normalize(targetUrl)) {
-               // Update the stack entry to the exact new URL (e.g. capturing canonical form)
-               newHistoryStack[newCurrentIndex] = targetUrl;
-           } 
-           // 2. Back Navigation
-           else if (newCurrentIndex > 0 && newHistoryStack[newCurrentIndex - 1] && normalize(newHistoryStack[newCurrentIndex - 1]) === normalize(targetUrl)) {
-               newCurrentIndex--;
-           } 
-           // 3. Forward Navigation
-           else if (newCurrentIndex < newHistoryStack.length - 1 && newHistoryStack[newCurrentIndex + 1] && normalize(newHistoryStack[newCurrentIndex + 1]) === normalize(targetUrl)) {
-               newCurrentIndex++;
-           } 
-           // 4. New Navigation / Mismatch
-           else if (normalize(t.url || "") !== normalize(targetUrl)) {
-               // If WebView says we can go forward, we shouldn't wipe our custom history.
-               // This likely means a redirect happened while we were 'back' in the stack.
-               if (updates.canGoForward) {
-                   newHistoryStack[newCurrentIndex] = targetUrl;
-               } else {
-                   // Genuine new navigation (or we are at the end): Truncate forward history and push new
-                   if (newCurrentIndex < newHistoryStack.length - 1) {
-                       newHistoryStack = newHistoryStack.slice(0, newCurrentIndex + 1);
-                   }
-                   // Avoid duplicates at the tip
-                   if (newHistoryStack.length === 0 || normalize(newHistoryStack[newHistoryStack.length - 1]) !== normalize(targetUrl)) {
-                       newHistoryStack.push(targetUrl);
-                       newCurrentIndex = newHistoryStack.length - 1;
-                   }
-               }
-           }
-        }
-        
-        return { ...t, ...updates, historyStack: newHistoryStack, currentIndex: newCurrentIndex };
+          if (updates.url) {
+            const targetUrl = updates.url;
+            // Aggressive normalization to handle protocol/www/trailing slash differences
+            const normalize = (u: string) =>
+              u
+                .replace(/^https?:\/\//, "")
+                .replace(/^www\./, "")
+                .replace(/\/$/, "")
+                .replace(/\/index\.html$/, "")
+                .toLowerCase();
+
+            // 1. Current Page Update (e.g. http -> https redirect, or reload)
+            // We check against the current stack entry to avoid truncating future history on reloads/redirects
+            if (
+              newCurrentIndex >= 0 &&
+              newHistoryStack[newCurrentIndex] &&
+              normalize(newHistoryStack[newCurrentIndex]) ===
+                normalize(targetUrl)
+            ) {
+              // Update the stack entry to the exact new URL (e.g. capturing canonical form)
+              newHistoryStack[newCurrentIndex] = targetUrl;
+            }
+            // 2. Back Navigation
+            else if (
+              newCurrentIndex > 0 &&
+              newHistoryStack[newCurrentIndex - 1] &&
+              normalize(newHistoryStack[newCurrentIndex - 1]) ===
+                normalize(targetUrl)
+            ) {
+              newCurrentIndex--;
+            }
+            // 3. Forward Navigation
+            else if (
+              newCurrentIndex < newHistoryStack.length - 1 &&
+              newHistoryStack[newCurrentIndex + 1] &&
+              normalize(newHistoryStack[newCurrentIndex + 1]) ===
+                normalize(targetUrl)
+            ) {
+              newCurrentIndex++;
+            }
+            // 4. New Navigation / Mismatch
+            else if (normalize(t.url || "") !== normalize(targetUrl)) {
+              // If WebView says we can go forward, we shouldn't wipe our custom history.
+              // This likely means a redirect happened while we were 'back' in the stack.
+              if (updates.canGoForward) {
+                newHistoryStack[newCurrentIndex] = targetUrl;
+              } else {
+                // Genuine new navigation (or we are at the end): Truncate forward history and push new
+                if (newCurrentIndex < newHistoryStack.length - 1) {
+                  newHistoryStack = newHistoryStack.slice(
+                    0,
+                    newCurrentIndex + 1,
+                  );
+                }
+                // Avoid duplicates at the tip
+                if (
+                  newHistoryStack.length === 0 ||
+                  normalize(newHistoryStack[newHistoryStack.length - 1]) !==
+                    normalize(targetUrl)
+                ) {
+                  newHistoryStack.push(targetUrl);
+                  newCurrentIndex = newHistoryStack.length - 1;
+                }
+              }
+            }
+          }
+
+          return {
+            ...t,
+            ...updates,
+            historyStack: newHistoryStack,
+            currentIndex: newCurrentIndex,
+          };
+        });
       });
-    });
-  }, [setTabs]);
+    },
+    [setTabs],
+  );
 
   // Navigation State (UI reflection)
   const canGoBackRef = useRef(false);
@@ -191,13 +255,24 @@ export default function App() {
 
   // Modals & Overlays
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
-  const [confirmActionType, setConfirmActionType] = useState<"history" | "resetSettings" | "bgRefresh" | null>(null);
-  const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{ ms: number; label: string; } | null>(null);
+  const [confirmActionType, setConfirmActionType] = useState<
+    "history" | "resetSettings" | "bgRefresh" | null
+  >(null);
+  const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{
+    ms: number;
+    label: string;
+  } | null>(null);
 
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
-  const [contextMenuData, setContextMenuData] = useState<{ url: string | null; imgUrl: string | null; text: string; } | null>(null);
+  const [contextMenuData, setContextMenuData] = useState<{
+    url: string | null;
+    imgUrl: string | null;
+    text: string;
+  } | null>(null);
 
-  const [activeView, setActiveView] = useState<"none" | "tabs" | "history" | "settings">("none");
+  const [activeView, setActiveView] = useState<
+    "none" | "tabs" | "history" | "settings"
+  >("none");
   const [isSearchActive, setIsSearchActive] = useState(true);
   const isSearchActiveRef = useRef(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -215,10 +290,10 @@ export default function App() {
 
   useEffect(() => {
     if (isRenameModalVisible) {
-        // Longer timeout to ensure modal transition is complete
-        setTimeout(() => {
-            renameInputRef.current?.focus();
-        }, 300);
+      // Longer timeout to ensure modal transition is complete
+      setTimeout(() => {
+        renameInputRef.current?.focus();
+      }, 300);
     }
   }, [isRenameModalVisible]);
 
@@ -235,36 +310,46 @@ export default function App() {
     if (!text) return;
 
     let targetUrl = "";
-    
+
     if (forceSearchMode) {
-       targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
+      targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
     } else {
-        // 1. Check if it explicitly starts with http/https
-        if (/^(http|https):\/\//i.test(text)) {
-          if (httpsOnly && text.startsWith("http://")) {
-            targetUrl = text.replace(/^http:\/\//i, "https://");
+      // 1. Check if it explicitly starts with http/https
+      if (/^(http|https):\/\//i.test(text)) {
+        if (httpsOnly && text.startsWith("http://")) {
+          targetUrl = text.replace(/^http:\/\//i, "https://");
+        } else {
+          targetUrl = text;
+        }
+      } else {
+        const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+        const ipRegex =
+          /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
+        const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
+
+        if (
+          !text.includes(" ") &&
+          (domainRegex.test(text) ||
+            ipRegex.test(text) ||
+            localhostRegex.test(text))
+        ) {
+          if (localhostRegex.test(text) || ipRegex.test(text)) {
+            targetUrl = `http://${text}`;
           } else {
-            targetUrl = text;
+            targetUrl = `https://${text}`;
           }
         } else {
-          const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
-          const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
-          const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
-
-          if (!text.includes(" ") && (domainRegex.test(text) || ipRegex.test(text) || localhostRegex.test(text))) {
-            if (localhostRegex.test(text) || ipRegex.test(text)) {
-              targetUrl = `http://${text}`;
-            } else {
-              targetUrl = `https://${text}`;
-            }
-          } else {
-            targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
-          }
+          targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
         }
+      }
     }
 
     setActiveUrl(targetUrl);
-    updateTab(activeTabId, { url: targetUrl, requestedUrl: targetUrl, title: text });
+    updateTab(activeTabId, {
+      url: targetUrl,
+      requestedUrl: targetUrl,
+      title: text,
+    });
 
     if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
       webViewRefs.current[activeTabId]?.reload();
@@ -313,7 +398,7 @@ export default function App() {
     Animated.timing(isPillFocusedAnim, {
       toValue: isInputFocused ? 1 : 0,
       duration: 200,
-      useNativeDriver: false
+      useNativeDriver: false,
     }).start();
   }, [isInputFocused, isPillFocusedAnim]);
 
@@ -324,9 +409,9 @@ export default function App() {
 
   useEffect(() => {
     if (activeView !== "none") {
-        setIsSubMenuVisible(false);
-        settings.setIsSearchEngineOpen(false);
-        settings.setIsClearHistoryOpen(false);
+      setIsSubMenuVisible(false);
+      settings.setIsSearchEngineOpen(false);
+      settings.setIsClearHistoryOpen(false);
 
       Animated.spring(overlayHeightAnim, {
         toValue: SNAP_DEFAULT,
@@ -344,14 +429,14 @@ export default function App() {
         toValue: e.endCoordinates.height,
         duration: 150,
         useNativeDriver: false,
-      }).start()
+      }).start(),
     );
     const hideSub = Keyboard.addListener("keyboardDidHide", (e) =>
       Animated.timing(keyboardHeight, {
         toValue: 0,
         duration: 150,
         useNativeDriver: false,
-      }).start()
+      }).start(),
     );
     return () => {
       showSub.remove();
@@ -373,7 +458,12 @@ export default function App() {
   const goHome = useCallback(() => {
     setActiveUrl(null);
     setInputUrl("");
-    updateTab(activeTabId, { url: null, requestedUrl: null, title: "New Tab", showLogo: true });
+    updateTab(activeTabId, {
+      url: null,
+      requestedUrl: null,
+      title: "New Tab",
+      showLogo: true,
+    });
     snapToSearch();
   }, [activeTabId, updateTab, snapToSearch, setActiveUrl, setInputUrl]);
 
@@ -415,70 +505,84 @@ export default function App() {
     }).start();
   }, [scrollTranslateY]);
 
-  const captureTabPreview = useCallback(async (tabId: string) => {
-    try {
-      if (viewShotRefs.current[tabId]) {
-         // Check if tab has showPreview enabled
-         if (!showTabPreview) return;
+  const captureTabPreview = useCallback(
+    async (tabId: string) => {
+      try {
+        if (viewShotRefs.current[tabId]) {
+          // Check if tab has showPreview enabled
+          if (!showTabPreview) return;
 
-         const currentTab = tabs.find(t => t.id === tabId);
-         const oldImage = currentTab?.previewImage;
+          const currentTab = tabs.find((t) => t.id === tabId);
+          const oldImage = currentTab?.previewImage;
 
-         const viewHandle = findNodeHandle(viewShotRefs.current[tabId]);
-         if (!viewHandle) return;
+          const viewHandle = findNodeHandle(viewShotRefs.current[tabId]);
+          if (!viewHandle) return;
 
-         const tempUri = await captureRef(viewHandle, {
-          format: "png", 
-          quality: 0.5, 
-          result: "tmpfile"
-        });
-        
-        // Generate unique path with timestamp to force refresh
-        const uniquePath = `${FileSystem.cacheDirectory}preview_${tabId}_${Date.now()}.png`;
-        
-        // Use copy + delete instead of move to avoid "isn't movable" errors on Android
-        await FileSystem.copyAsync({ from: tempUri, to: uniquePath });
-        
-        try {
+          const tempUri = await captureRef(viewHandle, {
+            format: "png",
+            quality: 0.5,
+            result: "tmpfile",
+          });
+
+          // Generate unique path with timestamp to force refresh
+          const uniquePath = `${FileSystem.cacheDirectory}preview_${tabId}_${Date.now()}.png`;
+
+          // Use copy + delete instead of move to avoid "isn't movable" errors on Android
+          await FileSystem.copyAsync({ from: tempUri, to: uniquePath });
+
+          try {
             await FileSystem.deleteAsync(tempUri, { idempotent: true });
-        } catch (e) {
+          } catch (e) {
             // Ignore temp file deletion errors
             console.log("Could not delete temp capture file:", e);
-        }
-        
-        updateTab(tabId, { previewImage: uniquePath });
+          }
 
-        // Delete old image AFTER updating to the new one to prevent flickering
-        if (oldImage) {
+          updateTab(tabId, { previewImage: uniquePath });
+
+          // Delete old image AFTER updating to the new one to prevent flickering
+          if (oldImage) {
             try {
-                // Fire and forget deletion of old file
-                FileSystem.deleteAsync(oldImage, { idempotent: true }).catch(() => {});
+              // Fire and forget deletion of old file
+              FileSystem.deleteAsync(oldImage, { idempotent: true }).catch(
+                () => {},
+              );
             } catch (err) {}
+          }
+
+          // Log cache count
+          try {
+            const files = await FileSystem.readDirectoryAsync(
+              FileSystem.cacheDirectory || "",
+            );
+            const previewFiles = files.filter((f) => f.startsWith("preview_"));
+            console.log(
+              `Total preview images in cache: ${previewFiles.length}`,
+            );
+          } catch (err) {}
         }
 
-        // Log cache count
-        try {
-            const files = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory || "");
-            const previewFiles = files.filter(f => f.startsWith("preview_"));
-            console.log(`Total preview images in cache: ${previewFiles.length}`);
-        } catch (err) {}
-      }
-
-      // Sanitization: If no tabs have URLs, clear all previews
-      if (!tabs.some(t => t.url)) {
+        // Sanitization: If no tabs have URLs, clear all previews
+        if (!tabs.some((t) => t.url)) {
           try {
-            const files = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory || "");
-            const previewFiles = files.filter(f => f.startsWith("preview_"));
+            const files = await FileSystem.readDirectoryAsync(
+              FileSystem.cacheDirectory || "",
+            );
+            const previewFiles = files.filter((f) => f.startsWith("preview_"));
             for (const f of previewFiles) {
-                await FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${f}`, { idempotent: true });
+              await FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${f}`, {
+                idempotent: true,
+              });
             }
-            if (previewFiles.length > 0) console.log("Sanitized all preview images.");
+            if (previewFiles.length > 0)
+              console.log("Sanitized all preview images.");
           } catch (e) {}
+        }
+      } catch (e) {
+        console.log("Failed to capture preview", e);
       }
-    } catch (e) {
-      console.log("Failed to capture preview", e);
-    }
-  }, [showTabPreview, tabs, updateTab]);
+    },
+    [showTabPreview, tabs, updateTab],
+  );
 
   const handleFocusSearch = useCallback(() => {
     Animated.spring(overlayHeightAnim, {
@@ -491,16 +595,19 @@ export default function App() {
   }, [overlayHeightAnim]);
 
   // --- NAVIGATION LOGIC ---
-  const handleIncomingUrl = React.useCallback((url: string | null) => {
-    // This is now mostly handled by useTabs startup logic for INITIAL url.
-    // For runtime incoming URLs:
-    if (!url) return;
-    // useTabs doesn't export the parser, but we don't strictly need it if we assume addNewTab handles raw logic?
-    // Actually addNewTab expects a URL. We should use Linking listener.
-    // Ideally we'd reuse logic. For now, let's just add new tab.
-    addNewTab(url);
-    setActiveView("none");
-  }, [addNewTab]);
+  const handleIncomingUrl = React.useCallback(
+    (url: string | null) => {
+      // This is now mostly handled by useTabs startup logic for INITIAL url.
+      // For runtime incoming URLs:
+      if (!url) return;
+      // useTabs doesn't export the parser, but we don't strictly need it if we assume addNewTab handles raw logic?
+      // Actually addNewTab expects a URL. We should use Linking listener.
+      // Ideally we'd reuse logic. For now, let's just add new tab.
+      addNewTab(url);
+      setActiveView("none");
+    },
+    [addNewTab],
+  );
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
@@ -522,26 +629,38 @@ export default function App() {
         setIsInputFocused(false);
         return true;
       }
-      
-      const activeTab = tabs.find(t => t.id === activeTabId);
+
+      const activeTab = tabs.find((t) => t.id === activeTabId);
 
       // Strict Check: Only native back if we are logically deeper than index 0
-      if (canGoBackRef.current && webViewRefs.current[activeTabId] && (activeTab?.currentIndex ?? 0) > 0) {
+      if (
+        canGoBackRef.current &&
+        webViewRefs.current[activeTabId] &&
+        (activeTab?.currentIndex ?? 0) > 0
+      ) {
         webViewRefs.current[activeTabId]?.goBack();
         showBar();
         return true;
       }
-      
-      if (activeTab && activeTab.currentIndex !== undefined && activeTab.currentIndex > 0 && activeTab.historyStack) {
-         const prevUrl = activeTab.historyStack[activeTab.currentIndex - 1];
-         // Trigger load via useTab's updateTab (to force prop update)
-         updateTab(activeTabId, { url: prevUrl, requestedUrl: prevUrl });
-         return true;
+
+      if (
+        activeTab &&
+        activeTab.currentIndex !== undefined &&
+        activeTab.currentIndex > 0 &&
+        activeTab.historyStack
+      ) {
+        const prevUrl = activeTab.historyStack[activeTab.currentIndex - 1];
+        // Trigger load via useTab's updateTab (to force prop update)
+        updateTab(activeTabId, { url: prevUrl, requestedUrl: prevUrl });
+        return true;
       }
 
       return false;
     };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress,
+    );
     return () => subscription.remove();
   }, [activeView, isInputFocused, activeTabId, closeOverlay, showBar]);
 
@@ -551,36 +670,46 @@ export default function App() {
     if (!text) return;
 
     let targetUrl = "";
-    
+
     if (forceSearchMode) {
-       targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
+      targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
     } else {
-        // 1. Check if it explicitly starts with http/https
-        if (/^(http|https):\/\//i.test(text)) {
-          if (httpsOnly && text.startsWith("http://")) {
-            targetUrl = text.replace(/^http:\/\//i, "https://");
+      // 1. Check if it explicitly starts with http/https
+      if (/^(http|https):\/\//i.test(text)) {
+        if (httpsOnly && text.startsWith("http://")) {
+          targetUrl = text.replace(/^http:\/\//i, "https://");
+        } else {
+          targetUrl = text;
+        }
+      } else {
+        const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+        const ipRegex =
+          /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
+        const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
+
+        if (
+          !text.includes(" ") &&
+          (domainRegex.test(text) ||
+            ipRegex.test(text) ||
+            localhostRegex.test(text))
+        ) {
+          if (localhostRegex.test(text) || ipRegex.test(text)) {
+            targetUrl = `http://${text}`;
           } else {
-            targetUrl = text;
+            targetUrl = `https://${text}`;
           }
         } else {
-          const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
-          const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(\/.*)?$/;
-          const localhostRegex = /^localhost(?::[0-9]{1,5})?(\/.*)?$/;
-
-          if (!text.includes(" ") && (domainRegex.test(text) || ipRegex.test(text) || localhostRegex.test(text))) {
-            if (localhostRegex.test(text) || ipRegex.test(text)) {
-              targetUrl = `http://${text}`;
-            } else {
-              targetUrl = `https://${text}`;
-            }
-          } else {
-            targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
-          }
+          targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
         }
+      }
     }
 
     setActiveUrl(targetUrl);
-    updateTab(activeTabId, { url: targetUrl, requestedUrl: targetUrl, title: text });
+    updateTab(activeTabId, {
+      url: targetUrl,
+      requestedUrl: targetUrl,
+      title: text,
+    });
 
     if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
       webViewRefs.current[activeTabId]?.reload();
@@ -591,7 +720,11 @@ export default function App() {
   const handleShare = async () => {
     if (!activeUrl) return;
     try {
-      await Share.share({ message: activeUrl, url: activeUrl, title: "Share Link" });
+      await Share.share({
+        message: activeUrl,
+        url: activeUrl,
+        title: "Share Link",
+      });
     } catch {}
   };
 
@@ -605,9 +738,9 @@ export default function App() {
   const handlePrint = async () => {
     if (!activeUrl) return;
     setIsSubMenuVisible(false);
-    
+
     if (webViewRefs.current[activeTabId]) {
-        const js = `
+      const js = `
             (function() {
                 const html = new XMLSerializer().serializeToString(document);
                 const printContent = html.startsWith('<!DOCTYPE') ? html : '<!DOCTYPE html>' + html;
@@ -617,14 +750,14 @@ export default function App() {
                 }));
             })();
         `;
-        webViewRefs.current[activeTabId]?.injectJavaScript(js);
+      webViewRefs.current[activeTabId]?.injectJavaScript(js);
     } else {
-        // Fallback if webview ref not found (shouldn't happen if active)
-        try {
-            await Print.printAsync({ uri: activeUrl });
-        } catch {
-            Alert.alert("Error", "Could not print this page.");
-        }
+      // Fallback if webview ref not found (shouldn't happen if active)
+      try {
+        await Print.printAsync({ uri: activeUrl });
+      } catch {
+        Alert.alert("Error", "Could not print this page.");
+      }
     }
   };
 
@@ -633,22 +766,25 @@ export default function App() {
     if (!url) return;
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
-      if (status !== 'granted') {
-        Alert.alert("Permission Required", "This app needs access to your Photos.");
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "This app needs access to your Photos.",
+        );
         return;
       }
 
-      let extension = '.jpg';
-      if (url.includes('.png')) extension = '.png';
-      else if (url.includes('.gif')) extension = '.gif';
-      else if (url.includes('.webp')) extension = '.webp';
-      else if (url.startsWith('data:image/png')) extension = '.png';
-      
-      const fileName = `download_${Date.now()}${extension}`; 
+      let extension = ".jpg";
+      if (url.includes(".png")) extension = ".png";
+      else if (url.includes(".gif")) extension = ".gif";
+      else if (url.includes(".webp")) extension = ".webp";
+      else if (url.startsWith("data:image/png")) extension = ".png";
+
+      const fileName = `download_${Date.now()}${extension}`;
       const fileUri = FileSystem.documentDirectory + fileName;
 
-      if (url.startsWith('data:')) {
-        const base64Code = url.split('base64,')[1];
+      if (url.startsWith("data:")) {
+        const base64Code = url.split("base64,")[1];
         await FileSystem.writeAsStringAsync(fileUri, base64Code, {
           encoding: FileSystem.EncodingType.Base64,
         });
@@ -660,13 +796,10 @@ export default function App() {
       await MediaLibrary.saveToLibraryAsync(fileUri);
       Alert.alert("Success", "Image saved to gallery!");
       setContextMenuVisible(false);
-
     } catch (e: any) {
       Alert.alert("Save Error", e.message || "Unknown error");
     }
   };
-
-
 
   const handleScroll = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
@@ -690,24 +823,47 @@ export default function App() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        Animated.spring(logoScale, { toValue: 1.2, useNativeDriver: false }).start();
-        logoPan.setOffset({ x: (logoPan.x as any)._value, y: (logoPan.y as any)._value });
+        Animated.spring(logoScale, {
+          toValue: 1.2,
+          useNativeDriver: false,
+        }).start();
+        logoPan.setOffset({
+          x: (logoPan.x as any)._value,
+          y: (logoPan.y as any)._value,
+        });
         logoPan.setValue({ x: 0, y: 0 });
       },
-      onPanResponderMove: Animated.event([null, { dx: logoPan.x, dy: logoPan.y }], { useNativeDriver: false }),
+      onPanResponderMove: Animated.event(
+        [null, { dx: logoPan.x, dy: logoPan.y }],
+        { useNativeDriver: false },
+      ),
       onPanResponderRelease: () => {
         logoPan.flattenOffset();
-        Animated.spring(logoPan, { toValue: { x: 0, y: 0 }, friction: 6, tension: 80, useNativeDriver: false }).start();
-        Animated.spring(logoScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: false }).start();
+        Animated.spring(logoPan, {
+          toValue: { x: 0, y: 0 },
+          friction: 6,
+          tension: 80,
+          useNativeDriver: false,
+        }).start();
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 80,
+          useNativeDriver: false,
+        }).start();
       },
-    })
+    }),
   ).current;
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10 || Math.abs(gestureState.dx) > 10,
-      onPanResponderGrant: () => { animVal.stopAnimation(); scrollTranslateY.stopAnimation(); },
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dy) > 10 || Math.abs(gestureState.dx) > 10,
+      onPanResponderGrant: () => {
+        animVal.stopAnimation();
+        scrollTranslateY.stopAnimation();
+      },
       onPanResponderMove: (_, gestureState) => {
         const { dy, dx } = gestureState;
         if (isSearchActiveRef.current) {
@@ -730,48 +886,93 @@ export default function App() {
           if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
             const currentTabId = activeTabIdRef.current;
             const currentWebView = webViewRefs.current[currentTabId];
-            const currentTab = tabsRef.current.find(t => t.id === currentTabId);
+            const currentTab = tabsRef.current.find(
+              (t) => t.id === currentTabId,
+            );
 
             if (dx > 0) {
-                 if (currentTab?.canGoBack && (currentTab?.currentIndex ?? 0) > 0) {
-                     currentWebView?.goBack();
-                 } else if (currentTab && (currentTab.currentIndex ?? 0) > 0) {
-                     const prev = currentTab.historyStack?.[(currentTab.currentIndex ?? 0) - 1];
-                     if(prev) updateTab(currentTabId, { requestedUrl: prev, url: prev });
-                 }
+              if (
+                currentTab?.canGoBack &&
+                (currentTab?.currentIndex ?? 0) > 0
+              ) {
+                currentWebView?.goBack();
+              } else if (currentTab && (currentTab.currentIndex ?? 0) > 0) {
+                const prev =
+                  currentTab.historyStack?.[(currentTab.currentIndex ?? 0) - 1];
+                if (prev)
+                  updateTab(currentTabId, { requestedUrl: prev, url: prev });
+              }
             } else if (dx < 0) {
-                 if (currentTab?.canGoForward && (currentTab?.currentIndex ?? 0) < (currentTab.historyStack?.length ?? 0) - 1) {
-                     currentWebView?.goForward();
-                 } else if (currentTab && (currentTab.currentIndex ?? 0) < (currentTab.historyStack?.length ?? 0) - 1) {
-                     const next = currentTab.historyStack?.[(currentTab.currentIndex ?? 0) + 1];
-                     if(next) updateTab(currentTabId, { requestedUrl: next, url: next });
-                 }
+              if (
+                currentTab?.canGoForward &&
+                (currentTab?.currentIndex ?? 0) <
+                  (currentTab.historyStack?.length ?? 0) - 1
+              ) {
+                currentWebView?.goForward();
+              } else if (
+                currentTab &&
+                (currentTab.currentIndex ?? 0) <
+                  (currentTab.historyStack?.length ?? 0) - 1
+              ) {
+                const next =
+                  currentTab.historyStack?.[(currentTab.currentIndex ?? 0) + 1];
+                if (next)
+                  updateTab(currentTabId, { requestedUrl: next, url: next });
+              }
             }
 
-            Animated.spring(horizontalDrag, { toValue: 0, useNativeDriver: false }).start();
-            Animated.spring(animVal, { toValue: 0, useNativeDriver: false }).start();
+            Animated.spring(horizontalDrag, {
+              toValue: 0,
+              useNativeDriver: false,
+            }).start();
+            Animated.spring(animVal, {
+              toValue: 0,
+              useNativeDriver: false,
+            }).start();
             showBar();
             return;
           }
-          Animated.spring(horizontalDrag, { toValue: 0, useNativeDriver: false }).start();
+          Animated.spring(horizontalDrag, {
+            toValue: 0,
+            useNativeDriver: false,
+          }).start();
           if (dy < -30) {
             setIsSearchActive(false);
-            Animated.spring(animVal, { toValue: -SWAP_DISTANCE, tension: 60, friction: 9, useNativeDriver: false }).start();
+            Animated.spring(animVal, {
+              toValue: -SWAP_DISTANCE,
+              tension: 60,
+              friction: 9,
+              useNativeDriver: false,
+            }).start();
           } else {
-            Animated.spring(animVal, { toValue: 0, useNativeDriver: false }).start();
-            if (vy > 0.5 || currentScrollTrans.current > HIDDEN_TRANSLATE_Y / 2) hideBar();
+            Animated.spring(animVal, {
+              toValue: 0,
+              useNativeDriver: false,
+            }).start();
+            if (vy > 0.5 || currentScrollTrans.current > HIDDEN_TRANSLATE_Y / 2)
+              hideBar();
             else showBar();
           }
         } else {
           if (dy > 30 || vy > 0.5) {
             setIsSearchActive(true);
-            Animated.spring(animVal, { toValue: 0, tension: 60, friction: 9, useNativeDriver: false }).start();
+            Animated.spring(animVal, {
+              toValue: 0,
+              tension: 60,
+              friction: 9,
+              useNativeDriver: false,
+            }).start();
           } else {
-            Animated.spring(animVal, { toValue: -SWAP_DISTANCE, tension: 60, friction: 9, useNativeDriver: false }).start();
+            Animated.spring(animVal, {
+              toValue: -SWAP_DISTANCE,
+              tension: 60,
+              friction: 9,
+              useNativeDriver: false,
+            }).start();
           }
         }
       },
-    })
+    }),
   ).current;
 
   const recallPanResponder = useRef(
@@ -779,21 +980,36 @@ export default function App() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy < 0) scrollTranslateY.setValue(Math.max(0, HIDDEN_TRANSLATE_Y + gestureState.dy));
+        if (gestureState.dy < 0)
+          scrollTranslateY.setValue(
+            Math.max(0, HIDDEN_TRANSLATE_Y + gestureState.dy),
+          );
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy < -20 || gestureState.vy < -0.5) showBar();
-        else Animated.spring(scrollTranslateY, { toValue: HIDDEN_TRANSLATE_Y, useNativeDriver: false }).start(() => { currentScrollTrans.current = HIDDEN_TRANSLATE_Y; });
+        else
+          Animated.spring(scrollTranslateY, {
+            toValue: HIDDEN_TRANSLATE_Y,
+            useNativeDriver: false,
+          }).start(() => {
+            currentScrollTrans.current = HIDDEN_TRANSLATE_Y;
+          });
       },
-    })
+    }),
   ).current;
 
   const sheetPanResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
-      onPanResponderGrant: () => overlayHeightAnim.stopAnimation((val) => { currentOverlayHeight.current = val; }),
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dy) > 5,
+      onPanResponderGrant: () =>
+        overlayHeightAnim.stopAnimation((val) => {
+          currentOverlayHeight.current = val;
+        }),
       onPanResponderMove: (_, gestureState) => {
-        overlayHeightAnim.setValue(Math.min(currentOverlayHeight.current - gestureState.dy, SNAP_FULL));
+        overlayHeightAnim.setValue(
+          Math.min(currentOverlayHeight.current - gestureState.dy, SNAP_FULL),
+        );
       },
       onPanResponderRelease: (_, gestureState) => {
         const { dy, vy } = gestureState;
@@ -803,36 +1019,82 @@ export default function App() {
         else if (finalHeight > SNAP_DEFAULT * 0.7) target = SNAP_DEFAULT;
         else target = SNAP_CLOSED;
         if (vy < -1) target = SNAP_FULL;
-        if (vy > 1) target = finalHeight > SNAP_DEFAULT ? SNAP_DEFAULT : SNAP_CLOSED;
+        if (vy > 1)
+          target = finalHeight > SNAP_DEFAULT ? SNAP_DEFAULT : SNAP_CLOSED;
         if (target === SNAP_CLOSED) closeOverlay();
         else {
-          Animated.spring(overlayHeightAnim, { toValue: target, tension: 50, friction: 8, useNativeDriver: false }).start();
+          Animated.spring(overlayHeightAnim, {
+            toValue: target,
+            tension: 50,
+            friction: 8,
+            useNativeDriver: false,
+          }).start();
           currentOverlayHeight.current = target;
         }
       },
-    })
+    }),
   ).current;
 
   // --- STYLE INTERPOLATIONS ---
   const searchPillTranslateY = animVal;
-  const searchPillOpacity = animVal.interpolate({ inputRange: [-SWAP_DISTANCE, -SWAP_DISTANCE / 2, 0], outputRange: [0, 0, 1], extrapolate: "clamp" });
-  const menuPillScale = animVal.interpolate({ inputRange: [-SWAP_DISTANCE, 0], outputRange: [1, 0.9], extrapolate: "clamp" });
-  const menuPillOpacity = animVal.interpolate({ inputRange: [-SWAP_DISTANCE, -10, 0], outputRange: [1, 0, 0], extrapolate: "clamp" });
-  const containerScale = scrollTranslateY.interpolate({ inputRange: [0, HIDDEN_TRANSLATE_Y], outputRange: [1, 0.6], extrapolate: "clamp" });
-  const containerOpacity = scrollTranslateY.interpolate({ inputRange: [0, HIDDEN_TRANSLATE_Y * 0.75, HIDDEN_TRANSLATE_Y], outputRange: [1, 0.5, 0], extrapolate: "clamp" });
-  const recallOpacity = scrollTranslateY.interpolate({ inputRange: [0, HIDDEN_TRANSLATE_Y - 20, HIDDEN_TRANSLATE_Y], outputRange: [0, 0, 1], extrapolate: "clamp" });
-  const backArrowOpacity = horizontalDrag.interpolate({ inputRange: [0, 50], outputRange: [0, 1], extrapolate: "clamp" });
-  const forwardArrowOpacity = horizontalDrag.interpolate({ inputRange: [-50, 0], outputRange: [1, 0], extrapolate: "clamp" });
-  const contentOpacity = horizontalDrag.interpolate({ inputRange: [-50, 0, 50], outputRange: [0, 1, 0], extrapolate: "clamp" });
+  const searchPillOpacity = animVal.interpolate({
+    inputRange: [-SWAP_DISTANCE, -SWAP_DISTANCE / 2, 0],
+    outputRange: [0, 0, 1],
+    extrapolate: "clamp",
+  });
+  const menuPillScale = animVal.interpolate({
+    inputRange: [-SWAP_DISTANCE, 0],
+    outputRange: [1, 0.9],
+    extrapolate: "clamp",
+  });
+  const menuPillOpacity = animVal.interpolate({
+    inputRange: [-SWAP_DISTANCE, -10, 0],
+    outputRange: [1, 0, 0],
+    extrapolate: "clamp",
+  });
+  const containerScale = scrollTranslateY.interpolate({
+    inputRange: [0, HIDDEN_TRANSLATE_Y],
+    outputRange: [1, 0.6],
+    extrapolate: "clamp",
+  });
+  const containerOpacity = scrollTranslateY.interpolate({
+    inputRange: [0, HIDDEN_TRANSLATE_Y * 0.75, HIDDEN_TRANSLATE_Y],
+    outputRange: [1, 0.5, 0],
+    extrapolate: "clamp",
+  });
+  const recallOpacity = scrollTranslateY.interpolate({
+    inputRange: [0, HIDDEN_TRANSLATE_Y - 20, HIDDEN_TRANSLATE_Y],
+    outputRange: [0, 0, 1],
+    extrapolate: "clamp",
+  });
+  const backArrowOpacity = horizontalDrag.interpolate({
+    inputRange: [0, 50],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+  const forwardArrowOpacity = horizontalDrag.interpolate({
+    inputRange: [-50, 0],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const contentOpacity = horizontalDrag.interpolate({
+    inputRange: [-50, 0, 50],
+    outputRange: [0, 1, 0],
+    extrapolate: "clamp",
+  });
 
   // Calculate effective radius for the pill based on settings
   // If 'Round' (22) or higher, we force a perfect geometric pill (height/2)
   // Otherwise (Square/Soft), we use the scaled cornerRadius (usually * 2 looks best for container)
-  const effectivePillRadius = cornerRadius >= 20 ? pillHeight / 2 : cornerRadius * 2;
+  const effectivePillRadius =
+    cornerRadius >= 20 ? pillHeight / 2 : cornerRadius * 2;
 
   // Keyboard Adaptation Interpolations
   // Only adapt pill visuals if the PILL INPUT itself is focused
-  const effectiveKeyboardHeight = Animated.multiply(keyboardHeight, isPillFocusedAnim);
+  const effectiveKeyboardHeight = Animated.multiply(
+    keyboardHeight,
+    isPillFocusedAnim,
+  );
 
   const pillCornerRadiusAnim = effectiveKeyboardHeight.interpolate({
     inputRange: [0, 100],
@@ -872,202 +1134,214 @@ export default function App() {
 
   if (!isAppReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#000", justifyContent: "center", alignItems: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#000",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <ActivityIndicator size="large" color={accentColor || "#007AFF"} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: effectiveTheme.bg, paddingTop: showStatusBar && !isFullscreen ? StatusBar.currentHeight || 0 : 0 }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: effectiveTheme.bg,
+          paddingTop:
+            showStatusBar && !isFullscreen ? StatusBar.currentHeight || 0 : 0,
+        },
+      ]}
+    >
       {!isFullscreen && (
-        <StatusBar translucent hidden={!showStatusBar} backgroundColor="transparent" barStyle={effectiveTheme.isDark ? "light-content" : "dark-content"} />
+        <StatusBar
+          translucent
+          hidden={!showStatusBar}
+          backgroundColor="transparent"
+          barStyle={effectiveTheme.isDark ? "light-content" : "dark-content"}
+        />
       )}
 
-      <Animated.View style={[styles.webViewContainer, { paddingBottom: isFullscreen ? 0 : Animated.add(keyboardHeight, insets.bottom), backgroundColor: effectiveTheme.bg }]}>
-        {isIncognito ? (
-           // --- INCOGNITO TABS RENDER LOOP ---
-           tabs.map((tab) => {
-              if (!tab.url) return null;
-              const isActive = tab.id === activeTabId;
-              if (!tab.hasLoadedOnce) return null;
+      <Animated.View
+        style={[
+          styles.webViewContainer,
+          {
+            paddingBottom: isFullscreen
+              ? 0
+              : Animated.add(keyboardHeight, insets.bottom),
+            backgroundColor: effectiveTheme.bg,
+          },
+        ]}
+      >
+        {/* --- REGULAR TABS RENDER LOOP --- */}
+        {tabs.map((tab) => {
+          if (!tab.url) return null;
+          const isActive = tab.id === activeTabId;
+          if (!tab.hasLoadedOnce) return null;
 
-              return (
-                <BrowserWebView
-                    key={tab.id}
-                    ref={(ref: any) => webViewRefs.current[tab.id] = ref}
-                    containerRef={(ref: any) => viewShotRefs.current[tab.id] = ref}
-                    tab={tab}
-                    isActive={isActive}
-                    isFullscreen={isFullscreen}
-                    blockGestures={isInputFocused}
-                    incognito={true}
-                    settings={{ jsEnabled, desktopMode, blockCookies, accentColor, pillHeight, httpsOnly, searchEngineIndex, readerModeEnabled }}
-                    effectiveTheme={effectiveTheme}
-                    onUpdateTab={handleTabUpdate}
-                    onActiveTabUpdate={(updates) => {
-                        canGoBackRef.current = updates.canGoBack;
-                        canGoForwardRef.current = updates.canGoForward;
-                        setIsLoading(updates.loading);
-                        if (!isInputFocused && updates.url) {
-                            setActiveUrl(updates.url);
-                            setInputUrl(getDisplayHost(updates.url));
-                            // Never save history in incognito
-                        }
-                    }}
-                    onLoadProgress={(p) => Animated.timing(progressAnim, { toValue: p, duration: 200, useNativeDriver: false }).start()}
-                    onLoadStart={() => {
-                        ignoreNextScroll.current = true;
-                        showBar();
-                        setIsLoading(true);
-                        progressAnim.setValue(0);
-                        Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
-                    }}
-                    onLoadEnd={() => {
-                        setIsLoading(false);
-                        Animated.timing(progressAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start(() => setTimeout(() => progressAnim.setValue(0), 200));
-                    }}
-                    onScroll={handleScroll}
-                    onScrollEnd={() => { if (isBarHidden.current) hideBar(); else showBar(); }}
-                    onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}
-                    onFullScreen={async (isFull) => {
-                        setIsFullscreen(isFull);
-                        if (isFull) {
-                            await ScreenOrientation.unlockAsync();
-                        } else {
-                            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-                        }
-                    }}
-                    onPermissionRequest={(event) => {
-                        event.nativeEvent.grant(event.nativeEvent.resources); 
-                    }}
-                    onExternalLink={(url) => handleExternalLink(url, activeTabId, setTabs, setActiveUrl, setInputUrl)}
-                    onNewWindow={(url) => addNewTab(url)}
-                    onMessage={(event) => {
-                        const nativeEvent = event.nativeEvent;
-                        if (nativeEvent.data) {
-                            try {
-                                const dataString = nativeEvent.data;
-                                if (typeof dataString === 'string') {
-                                    const parsed = JSON.parse(dataString);
-                                    if (parsed.type === 'CONTEXT_MENU') {
-                                        setTimeout(() => {
-                                            setContextMenuData(parsed.data);
-                                            setContextMenuVisible(true);
-                                        }, 0);
-                                    } else if (parsed.type === 'PRINT_HTML') {
-                                        setTimeout(async () => {
-                                            try {
-                                                await Print.printAsync({ html: parsed.html });
-                                            } catch {
-                                                Alert.alert("Print Error", "Could not print content.");
-                                            }
-                                        }, 0);
-                                    }
-                                }
-                            } catch {}
-                        }
-                    }}
-                    injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
-                />
-              );
-            })
-        ) : (
-           // --- REGULAR TABS RENDER LOOP ---
-           tabs.map((tab) => {
-              if (!tab.url) return null;
-              const isActive = tab.id === activeTabId;
-              if (!tab.hasLoadedOnce) return null;
-
-              return (
-                <BrowserWebView
-                    key={tab.id}
-                    ref={(ref: any) => webViewRefs.current[tab.id] = ref}
-                    containerRef={(ref: any) => viewShotRefs.current[tab.id] = ref}
-                    tab={tab}
-                    isActive={isActive}
-                    isFullscreen={isFullscreen}
-                    blockGestures={isInputFocused}
-                    incognito={false}
-                    settings={{ jsEnabled, desktopMode, blockCookies, accentColor, pillHeight, httpsOnly, searchEngineIndex, readerModeEnabled }}
-                    effectiveTheme={effectiveTheme}
-                    onUpdateTab={handleTabUpdate}
-                    onActiveTabUpdate={(updates) => {
-                        canGoBackRef.current = updates.canGoBack;
-                        canGoForwardRef.current = updates.canGoForward;
-                        setIsLoading(updates.loading);
-                        if (!isInputFocused && updates.url) {
-                            setActiveUrl(updates.url);
-                            setInputUrl(getDisplayHost(updates.url));
-                            if (!updates.loading && updates.url !== "about:blank") addToHistory(updates.url, updates.title);
-                        }
-                    }}
-                    onLoadProgress={(p) => Animated.timing(progressAnim, { toValue: p, duration: 200, useNativeDriver: false }).start()}
-                    onLoadStart={() => {
-                        ignoreNextScroll.current = true;
-                        showBar();
-                        setIsLoading(true);
-                        progressAnim.setValue(0);
-                        Animated.timing(progressAnim, { toValue: 0.1, duration: 300, useNativeDriver: false }).start();
-                    }}
-                    onLoadEnd={() => {
-                        setIsLoading(false);
-                        Animated.timing(progressAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start(() => setTimeout(() => progressAnim.setValue(0), 200));
-                    }}
-                    onScroll={handleScroll}
-                    onScrollEnd={() => { if (isBarHidden.current) hideBar(); else showBar(); }}
-                    onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}
-                    onFullScreen={async (isFull) => {
-                        setIsFullscreen(isFull);
-                        if (isFull) {
-                            await ScreenOrientation.unlockAsync();
-                        } else {
-                            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-                        }
-                    }}
-                    onPermissionRequest={(event) => {
-                        event.nativeEvent.grant(event.nativeEvent.resources); 
-                    }}
-                    onExternalLink={(url) => handleExternalLink(url, activeTabId, setTabs, setActiveUrl, setInputUrl)}
-                    onNewWindow={(url) => addNewTab(url)}
-                    onMessage={(event) => {
-                        const nativeEvent = event.nativeEvent;
-                        if (nativeEvent.data) {
-                            try {
-                                const dataString = nativeEvent.data;
-                                if (typeof dataString === 'string') {
-                                    const parsed = JSON.parse(dataString);
-                                    if (parsed.type === 'CONTEXT_MENU') {
-                                        setTimeout(() => {
-                                            setContextMenuData(parsed.data);
-                                            setContextMenuVisible(true);
-                                        }, 0);
-                                    } else if (parsed.type === 'PRINT_HTML') {
-                                        setTimeout(async () => {
-                                            try {
-                                                await Print.printAsync({ html: parsed.html });
-                                            } catch {
-                                                Alert.alert("Print Error", "Could not print content.");
-                                            }
-                                        }, 0);
-                                    }
-                                }
-                            } catch {}
-                        }
-                    }}
-                    injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
-                />
-              );
-            })
-        )}
+          return (
+            <BrowserWebView
+              key={tab.id}
+              ref={(ref: any) => (webViewRefs.current[tab.id] = ref)}
+              containerRef={(ref: any) => (viewShotRefs.current[tab.id] = ref)}
+              tab={tab}
+              isActive={isActive}
+              isFullscreen={isFullscreen}
+              blockGestures={isInputFocused}
+              settings={{
+                jsEnabled,
+                desktopMode,
+                blockCookies,
+                accentColor,
+                pillHeight,
+                httpsOnly,
+                searchEngineIndex,
+                readerModeEnabled,
+              }}
+              effectiveTheme={effectiveTheme}
+              onUpdateTab={handleTabUpdate}
+              onActiveTabUpdate={(updates) => {
+                canGoBackRef.current = updates.canGoBack;
+                canGoForwardRef.current = updates.canGoForward;
+                setIsLoading(updates.loading);
+                if (!isInputFocused && updates.url) {
+                  setActiveUrl(updates.url);
+                  setInputUrl(getDisplayHost(updates.url));
+                  if (!updates.loading && updates.url !== "about:blank")
+                    addToHistory(updates.url, updates.title);
+                }
+              }}
+              onLoadProgress={(p) =>
+                Animated.timing(progressAnim, {
+                  toValue: p,
+                  duration: 200,
+                  useNativeDriver: false,
+                }).start()
+              }
+              onLoadStart={() => {
+                ignoreNextScroll.current = true;
+                showBar();
+                setIsLoading(true);
+                progressAnim.setValue(0);
+                Animated.timing(progressAnim, {
+                  toValue: 0.1,
+                  duration: 300,
+                  useNativeDriver: false,
+                }).start();
+              }}
+              onLoadEnd={() => {
+                setIsLoading(false);
+                Animated.timing(progressAnim, {
+                  toValue: 1,
+                  duration: 200,
+                  useNativeDriver: false,
+                }).start(() => setTimeout(() => progressAnim.setValue(0), 200));
+              }}
+              onScroll={handleScroll}
+              onScrollEnd={() => {
+                if (isBarHidden.current) hideBar();
+                else showBar();
+              }}
+              onTouchStart={() => {
+                if (isInputFocused) Keyboard.dismiss();
+              }}
+              onFullScreen={async (isFull) => {
+                setIsFullscreen(isFull);
+                if (isFull) {
+                  await ScreenOrientation.unlockAsync();
+                } else {
+                  await ScreenOrientation.lockAsync(
+                    ScreenOrientation.OrientationLock.PORTRAIT_UP,
+                  );
+                }
+              }}
+              onPermissionRequest={(event) => {
+                event.nativeEvent.grant(event.nativeEvent.resources);
+              }}
+              onExternalLink={(url) =>
+                handleExternalLink(
+                  url,
+                  activeTabId,
+                  setTabs,
+                  setActiveUrl,
+                  setInputUrl,
+                )
+              }
+              onNewWindow={(url) => addNewTab(url)}
+              onMessage={(event) => {
+                const nativeEvent = event.nativeEvent;
+                if (nativeEvent.data) {
+                  try {
+                    const dataString = nativeEvent.data;
+                    if (typeof dataString === "string") {
+                      const parsed = JSON.parse(dataString);
+                      if (parsed.type === "CONTEXT_MENU") {
+                        setTimeout(() => {
+                          setContextMenuData(parsed.data);
+                          setContextMenuVisible(true);
+                        }, 0);
+                      } else if (parsed.type === "PRINT_HTML") {
+                        setTimeout(async () => {
+                          try {
+                            await Print.printAsync({ html: parsed.html });
+                          } catch {
+                            Alert.alert(
+                              "Print Error",
+                              "Could not print content.",
+                            );
+                          }
+                        }, 0);
+                      }
+                    }
+                  } catch {}
+                }
+              }}
+              injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
+            />
+          );
+        })}
 
         {!activeUrl && (
-          <View style={[styles.homeContainer, { backgroundColor: effectiveTheme.bg }]} onTouchStart={() => { if (isInputFocused) Keyboard.dismiss(); }}>
-            <Animated.View style={{ transform: [{ scale: logoScale }, { translateX: logoPan.x }, { translateY: logoPan.y }], zIndex: 10, padding: 20, alignItems: 'center', justifyContent: 'center' }} {...logoResponder.panHandlers}>
-              <Text style={[styles.homeText, { color: effectiveTheme.text, fontFamily: "Nunito_800ExtraBold", fontSize: 60 * fontScale }]}>{HOME_LOGO_TEXT}</Text>
-              {isIncognito && (
-                <IncognitoHomeBadge theme={effectiveTheme} fontScale={fontScale} />
-              )}
+          <View
+            style={[
+              styles.homeContainer,
+              { backgroundColor: effectiveTheme.bg },
+            ]}
+            onTouchStart={() => {
+              if (isInputFocused) Keyboard.dismiss();
+            }}
+          >
+            <Animated.View
+              style={{
+                transform: [
+                  { scale: logoScale },
+                  { translateX: logoPan.x },
+                  { translateY: logoPan.y },
+                ],
+                zIndex: 10,
+                padding: 20,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              {...logoResponder.panHandlers}
+            >
+              <Text
+                style={[
+                  styles.homeText,
+                  {
+                    color: effectiveTheme.text,
+                    fontFamily: "Nunito_800ExtraBold",
+                    fontSize: 60 * fontScale,
+                  },
+                ]}
+              >
+                {HOME_LOGO_TEXT}
+              </Text>
             </Animated.View>
           </View>
         )}
@@ -1077,272 +1351,729 @@ export default function App() {
         <>
           {activeView !== "none" && (
             <View style={styles.overlayBackdrop}>
-                <TouchableWithoutFeedback onPress={closeOverlay}><View style={styles.backdropTouchArea} /></TouchableWithoutFeedback>
-                <OverlaySheet
-                    activeView={activeView}
-                    overlayHeightAnim={overlayHeightAnim}
-                    panHandlers={sheetPanResponder.panHandlers}
-                    title={activeView === 'history' ? 'History' : activeView === 'tabs' ? 'Tabs' : 'Settings'}
-                    onClose={closeOverlay}
+              <TouchableWithoutFeedback onPress={closeOverlay}>
+                <View style={styles.backdropTouchArea} />
+              </TouchableWithoutFeedback>
+              <OverlaySheet
+                activeView={activeView}
+                overlayHeightAnim={overlayHeightAnim}
+                panHandlers={sheetPanResponder.panHandlers}
+                title={
+                  activeView === "history"
+                    ? "History"
+                    : activeView === "tabs"
+                      ? "Tabs"
+                      : "Settings"
+                }
+                onClose={closeOverlay}
+                theme={effectiveTheme}
+                cornerRadius={cornerRadius}
+                fontScale={fontScale}
+                accentColor={accentColor}
+                keyboardHeight={keyboardHeight}
+              >
+                {activeView === "history" && (
+                  <HistoryView
+                    history={history}
                     theme={effectiveTheme}
+                    accentColor={accentColor}
                     cornerRadius={cornerRadius}
                     fontScale={fontScale}
+                    uiPadding={uiPadding}
+                    historyLoadCount={settings.historyLoadCount}
+                    searchText={historySearch}
+                    setSearchText={setHistorySearch}
+                    onPressItem={(item) => {
+                      setActiveUrl(item.url);
+                      updateTab(activeTabId, {
+                        url: item.url,
+                        requestedUrl: item.url,
+                        title: item.title || getDisplayHost(item.url),
+                      });
+                      closeOverlay();
+                    }}
+                    onDeleteItem={deleteHistoryItem}
+                    onFocusSearch={handleFocusSearch}
+                  />
+                )}
+                {activeView === "tabs" && (
+                  <TabsView
+                    tabs={tabs}
+                    activeTabId={activeTabId}
+                    theme={effectiveTheme}
                     accentColor={accentColor}
-                    keyboardHeight={keyboardHeight}
-                >
-                    {activeView === 'history' && (
-                        <HistoryView
-                            history={isIncognito ? [] : history}
-                            isIncognito={isIncognito}
-                            theme={effectiveTheme}
-                            accentColor={accentColor}
-                            cornerRadius={cornerRadius}
-                            fontScale={fontScale}
-                            uiPadding={uiPadding}
-                            historyLoadCount={settings.historyLoadCount}
-                            searchText={historySearch}
-                            setSearchText={setHistorySearch}
-                            onPressItem={(item) => {
-                                setActiveUrl(item.url);
-                                updateTab(activeTabId, { url: item.url, requestedUrl: item.url, title: item.title || getDisplayHost(item.url) });
-                                closeOverlay();
-                            }}
-                            onDeleteItem={deleteHistoryItem}
-                            onFocusSearch={handleFocusSearch}
-                        />
-                    )}
-                    {activeView === 'tabs' && (
-                        <TabsView
-                            tabs={tabs}
-                            activeTabId={activeTabId}
-                            theme={effectiveTheme}
-                            accentColor={accentColor}
-                            cornerRadius={cornerRadius}
-                            fontScale={fontScale}
-                            uiPadding={uiPadding}
-                            tabViewMode={tabViewMode}
-                            showTabLogo={showTabLogo}
-                            showTabPreview={showTabPreview}
-                            searchText={tabsSearch}
-                            setSearchText={setTabsSearch}
-                            onReorderTabs={reorderTabs}
-                            onPressTab={(id, url) => {
-                                setActiveTabId(id);
-                                setActiveUrl(url);
-                                setInputUrl(url ? getDisplayHost(url) : "");
-                            }}
-                            onCloseTab={async (id) => {
-                                Keyboard.dismiss();
-                                const tabToDelete = tabs.find(t => t.id === id);
-                                if (tabToDelete?.previewImage) {
-                                    try {
-                                        await FileSystem.deleteAsync(tabToDelete.previewImage, { idempotent: true });
-                                    } catch (e) {
-                                        console.log("Failed to delete tab preview image", e);
-                                    }
-                                }
-                                deleteTab(id);
-                            }}
-                            onRenameTab={(id, title) => {
-                                setTabToRename(id);
-                                setRenameText(title);
-                                setIsRenameModalVisible(true);
-                            }}
-                            onNewTab={() => {
-                                addNewTab();
-                                closeOverlay();
-                            }}
-                            onFocusSearch={handleFocusSearch}
-                            overlayHeightAnim={overlayHeightAnim}
-                        />
-                    )}
-                    {activeView === 'settings' && (
-                        <SettingsView
-                            settings={settings}
-                            searchText={settingsSearch}
-                            setSearchText={setSettingsSearch}
-                            onFocusSearch={handleFocusSearch}
-                            onRequestReset={() => {
-                                setConfirmActionType("resetSettings");
-                                setIsConfirmModalVisible(true);
-                            }}
-                            onRequestClearHistory={(ms, label) => {
-                                setConfirmHistoryPayload({ ms, label });
-                                setConfirmActionType("history");
-                                setIsConfirmModalVisible(true);
-                            }}
-                            onRequestBgRefreshConfirm={(val) => {
-                                setConfirmActionType("bgRefresh");
-                                setIsConfirmModalVisible(true);
-                            }}
-                        />
-                    )}
-                </OverlaySheet>
+                    cornerRadius={cornerRadius}
+                    fontScale={fontScale}
+                    uiPadding={uiPadding}
+                    tabViewMode={tabViewMode}
+                    showTabLogo={showTabLogo}
+                    showTabPreview={showTabPreview}
+                    searchText={tabsSearch}
+                    setSearchText={setTabsSearch}
+                    onReorderTabs={reorderTabs}
+                    onPressTab={(id, url) => {
+                      setActiveTabId(id);
+                      setActiveUrl(url);
+                      setInputUrl(url ? getDisplayHost(url) : "");
+                    }}
+                    onCloseTab={async (id) => {
+                      Keyboard.dismiss();
+                      const tabToDelete = tabs.find((t) => t.id === id);
+                      if (tabToDelete?.previewImage) {
+                        try {
+                          await FileSystem.deleteAsync(
+                            tabToDelete.previewImage,
+                            { idempotent: true },
+                          );
+                        } catch (e) {
+                          console.log("Failed to delete tab preview image", e);
+                        }
+                      }
+                      deleteTab(id);
+                    }}
+                    onRenameTab={(id, title) => {
+                      setTabToRename(id);
+                      setRenameText(title);
+                      setIsRenameModalVisible(true);
+                    }}
+                    onNewTab={() => {
+                      addNewTab();
+                      closeOverlay();
+                    }}
+                    onFocusSearch={handleFocusSearch}
+                    overlayHeightAnim={overlayHeightAnim}
+                  />
+                )}
+                {activeView === "settings" && (
+                  <SettingsView
+                    settings={settings}
+                    searchText={settingsSearch}
+                    setSearchText={setSettingsSearch}
+                    onFocusSearch={handleFocusSearch}
+                    onRequestReset={() => {
+                      setConfirmActionType("resetSettings");
+                      setIsConfirmModalVisible(true);
+                    }}
+                    onRequestClearHistory={(ms, label) => {
+                      setConfirmHistoryPayload({ ms, label });
+                      setConfirmActionType("history");
+                      setIsConfirmModalVisible(true);
+                    }}
+                    onRequestBgRefreshConfirm={(val) => {
+                      setConfirmActionType("bgRefresh");
+                      setIsConfirmModalVisible(true);
+                    }}
+                  />
+                )}
+              </OverlaySheet>
             </View>
           )}
 
-          <Animated.View style={[styles.recallContainer, { opacity: recallOpacity, bottom: Math.max(insets.bottom + 10, 10), zIndex: 3 }]} pointerEvents={isBarHiddenState ? 'auto' : 'none'}>
-            <TouchableOpacity activeOpacity={0.8} onPress={showBar} {...recallPanResponder.panHandlers} style={[styles.recallButton, { backgroundColor: effectiveTheme.glass, borderWidth: 0, borderRadius: 25, overflow: "hidden" }]}>
-              <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: effectiveTheme.inputBg }} />
-              <Ionicons name="chevron-up" size={24} color={effectiveTheme.text} />
+          <Animated.View
+            style={[
+              styles.recallContainer,
+              {
+                opacity: recallOpacity,
+                bottom: Math.max(insets.bottom + 10, 10),
+                zIndex: 3,
+              },
+            ]}
+            pointerEvents={isBarHiddenState ? "auto" : "none"}
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={showBar}
+              {...recallPanResponder.panHandlers}
+              style={[
+                styles.recallButton,
+                {
+                  backgroundColor: effectiveTheme.glass,
+                  borderWidth: 0,
+                  borderRadius: 25,
+                  overflow: "hidden",
+                },
+              ]}
+            >
+              <View
+                style={{
+                  ...StyleSheet.absoluteFillObject,
+                  backgroundColor: effectiveTheme.inputBg,
+                }}
+              />
+              <Ionicons
+                name="chevron-up"
+                size={24}
+                color={effectiveTheme.text}
+              />
             </TouchableOpacity>
           </Animated.View>
 
           {activeView === "none" && (
             <View style={styles.floatingLayer} pointerEvents="box-none">
               {isSubMenuVisible && (
-                <TouchableWithoutFeedback onPress={() => setIsSubMenuVisible(false)}>
+                <TouchableWithoutFeedback
+                  onPress={() => setIsSubMenuVisible(false)}
+                >
                   <View style={StyleSheet.absoluteFill} />
                 </TouchableWithoutFeedback>
               )}
 
-              <Animated.View style={[styles.bottomAreaContainer, { paddingBottom: containerPaddingBAnim, paddingHorizontal: containerPaddingHAnim, opacity: containerOpacity }]} pointerEvents={isBarHiddenState ? 'none' : 'box-none'}>
-                <Animated.View style={{ width: "100%", alignItems: "center", transform: [{ translateY: Animated.subtract(scrollTranslateY, effectiveKeyboardHeight) }, { scale: containerScale }] }}>
-                  
-                  {isIncognito && !isSubMenuVisible && (
-                     <IncognitoFloatingBadge theme={effectiveTheme} accentColor={accentColor} opacity={searchPillOpacity} />
-                  )}
-
+              <Animated.View
+                style={[
+                  styles.bottomAreaContainer,
+                  {
+                    paddingBottom: containerPaddingBAnim,
+                    paddingHorizontal: containerPaddingHAnim,
+                    opacity: containerOpacity,
+                  },
+                ]}
+                pointerEvents={isBarHiddenState ? "none" : "box-none"}
+              >
+                <Animated.View
+                  style={{
+                    width: "100%",
+                    alignItems: "center",
+                    transform: [
+                      {
+                        translateY: Animated.subtract(
+                          scrollTranslateY,
+                          effectiveKeyboardHeight,
+                        ),
+                      },
+                      { scale: containerScale },
+                    ],
+                  }}
+                >
                   {isSubMenuVisible && (
-                    <Animated.View style={{
-                        position: 'absolute',
+                    <Animated.View
+                      style={{
+                        position: "absolute",
                         bottom: pillHeight + 4,
                         right: 0,
                         width: 220,
                         backgroundColor: pillBackgroundAnim,
                         borderRadius: cornerRadius,
-                        overflow: 'hidden',
+                        overflow: "hidden",
                         shadowColor: "#000",
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.2,
                         shadowRadius: 8,
                         elevation: 20,
-                        zIndex: 10
-                    }}>
-                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={() => { setIsSubMenuVisible(false); goHome(); }}>
-                         <Ionicons name="home-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Home</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity 
-                         style={[{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }, !activeUrl && { opacity: 0.5 }]} 
-                         onPress={() => { if (activeUrl) { handleShare(); setIsSubMenuVisible(false); } }}
-                         disabled={!activeUrl}
-                       >
-                         <Ionicons name="share-social-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Share</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }} onPress={() => { setIsSubMenuVisible(false); setIsQRScannerVisible(true); }}>
-                         <Ionicons name="qr-code-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Scan QR Code</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity 
-                         style={[{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }, !activeUrl && { opacity: 0.5 }]} 
-                         onPress={() => { if (activeUrl) { setIsSubMenuVisible(false); setIsQRGeneratorVisible(true); } }}
-                         disabled={!activeUrl}
-                       >
-                         <Ionicons name="barcode-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Generate QR Code</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity 
-                         style={[{ flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }, !activeUrl && { opacity: 0.5 }]} 
-                         onPress={() => { if (activeUrl) handlePrint(); }}
-                         disabled={!activeUrl}
-                       >
-                         <Ionicons name="print-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                         <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Print</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity 
-                         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 0, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg, minHeight: 44 }}
-                         onPress={() => {
-                            const val = !(currentTab?.desktopMode ?? desktopMode);
-                            updateTab(activeTabId, { desktopMode: val, requestedUrl: currentTab?.url });
-                            if (webViewRefs.current[activeTabId]) {
-                                webViewRefs.current[activeTabId]?.reload();
-                            }
-                         }}
-                       >
-                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="desktop-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                            <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Desktop Mode</Text>
-                         </View>
-                         <View pointerEvents="none">
-                           <Switch
-                              value={currentTab?.desktopMode ?? desktopMode}
-                              trackColor={{ false: "#767577", true: accentColor }}
-                              thumbColor={"#f4f3f4"}
-                           />
-                         </View>
-                       </TouchableOpacity>
-                       <TouchableOpacity 
-                         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 0, paddingHorizontal: 15, minHeight: 44 }}
-                         onPress={() => {
-                            const val = !(currentTab?.readerMode ?? readerModeEnabled);
-                            updateTab(activeTabId, { readerMode: val, requestedUrl: currentTab?.url });
-                            if (webViewRefs.current[activeTabId]) {
-                                webViewRefs.current[activeTabId]?.reload();
-                            }
-                         }}
-                       >
-                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="book-outline" size={20} color={effectiveTheme.text} style={{ marginRight: 12 }} />
-                            <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale }}>Reader Mode</Text>
-                         </View>
-                         <View pointerEvents="none">
-                           <Switch
-                              value={currentTab?.readerMode ?? readerModeEnabled}
-                              trackColor={{ false: "#767577", true: accentColor }}
-                              thumbColor={"#f4f3f4"}
-                           />
-                         </View>
-                       </TouchableOpacity>
+                        zIndex: 10,
+                      }}
+                    >
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 15,
+                          borderBottomWidth: 1,
+                          borderBottomColor: effectiveTheme.bg,
+                        }}
+                        onPress={() => {
+                          setIsSubMenuVisible(false);
+                          goHome();
+                        }}
+                      >
+                        <Ionicons
+                          name="home-outline"
+                          size={20}
+                          color={effectiveTheme.text}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text
+                          style={{
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 14 * fontScale,
+                          }}
+                        >
+                          Home
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          {
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 15,
+                            borderBottomWidth: 1,
+                            borderBottomColor: effectiveTheme.bg,
+                          },
+                          !activeUrl && { opacity: 0.5 },
+                        ]}
+                        onPress={() => {
+                          if (activeUrl) {
+                            handleShare();
+                            setIsSubMenuVisible(false);
+                          }
+                        }}
+                        disabled={!activeUrl}
+                      >
+                        <Ionicons
+                          name="share-social-outline"
+                          size={20}
+                          color={effectiveTheme.text}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text
+                          style={{
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 14 * fontScale,
+                          }}
+                        >
+                          Share
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 15,
+                          borderBottomWidth: 1,
+                          borderBottomColor: effectiveTheme.bg,
+                        }}
+                        onPress={() => {
+                          setIsSubMenuVisible(false);
+                          setIsQRScannerVisible(true);
+                        }}
+                      >
+                        <Ionicons
+                          name="qr-code-outline"
+                          size={20}
+                          color={effectiveTheme.text}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text
+                          style={{
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 14 * fontScale,
+                          }}
+                        >
+                          Scan QR Code
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          {
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 15,
+                            borderBottomWidth: 1,
+                            borderBottomColor: effectiveTheme.bg,
+                          },
+                          !activeUrl && { opacity: 0.5 },
+                        ]}
+                        onPress={() => {
+                          if (activeUrl) {
+                            setIsSubMenuVisible(false);
+                            setIsQRGeneratorVisible(true);
+                          }
+                        }}
+                        disabled={!activeUrl}
+                      >
+                        <Ionicons
+                          name="barcode-outline"
+                          size={20}
+                          color={effectiveTheme.text}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text
+                          style={{
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 14 * fontScale,
+                          }}
+                        >
+                          Generate QR Code
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          {
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 15,
+                            borderBottomWidth: 1,
+                            borderBottomColor: effectiveTheme.bg,
+                          },
+                          !activeUrl && { opacity: 0.5 },
+                        ]}
+                        onPress={() => {
+                          if (activeUrl) handlePrint();
+                        }}
+                        disabled={!activeUrl}
+                      >
+                        <Ionicons
+                          name="print-outline"
+                          size={20}
+                          color={effectiveTheme.text}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text
+                          style={{
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 14 * fontScale,
+                          }}
+                        >
+                          Print
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingVertical: 0,
+                          paddingHorizontal: 15,
+                          borderBottomWidth: 1,
+                          borderBottomColor: effectiveTheme.bg,
+                          minHeight: 44,
+                        }}
+                        onPress={() => {
+                          const val = !(currentTab?.desktopMode ?? desktopMode);
+                          updateTab(activeTabId, {
+                            desktopMode: val,
+                            requestedUrl: currentTab?.url,
+                          });
+                          if (webViewRefs.current[activeTabId]) {
+                            webViewRefs.current[activeTabId]?.reload();
+                          }
+                        }}
+                      >
+                        <View
+                          style={{ flexDirection: "row", alignItems: "center" }}
+                        >
+                          <Ionicons
+                            name="desktop-outline"
+                            size={20}
+                            color={effectiveTheme.text}
+                            style={{ marginRight: 12 }}
+                          />
+                          <Text
+                            style={{
+                              color: effectiveTheme.text,
+                              fontFamily: "Nunito_700Bold",
+                              fontSize: 14 * fontScale,
+                            }}
+                          >
+                            Desktop Mode
+                          </Text>
+                        </View>
+                        <View pointerEvents="none">
+                          <Switch
+                            value={currentTab?.desktopMode ?? desktopMode}
+                            trackColor={{ false: "#767577", true: accentColor }}
+                            thumbColor={"#f4f3f4"}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingVertical: 0,
+                          paddingHorizontal: 15,
+                          minHeight: 44,
+                        }}
+                        onPress={() => {
+                          const val = !(
+                            currentTab?.readerMode ?? readerModeEnabled
+                          );
+                          updateTab(activeTabId, {
+                            readerMode: val,
+                            requestedUrl: currentTab?.url,
+                          });
+                          if (webViewRefs.current[activeTabId]) {
+                            webViewRefs.current[activeTabId]?.reload();
+                          }
+                        }}
+                      >
+                        <View
+                          style={{ flexDirection: "row", alignItems: "center" }}
+                        >
+                          <Ionicons
+                            name="book-outline"
+                            size={20}
+                            color={effectiveTheme.text}
+                            style={{ marginRight: 12 }}
+                          />
+                          <Text
+                            style={{
+                              color: effectiveTheme.text,
+                              fontFamily: "Nunito_700Bold",
+                              fontSize: 14 * fontScale,
+                            }}
+                          >
+                            Reader Mode
+                          </Text>
+                        </View>
+                        <View pointerEvents="none">
+                          <Switch
+                            value={currentTab?.readerMode ?? readerModeEnabled}
+                            trackColor={{ false: "#767577", true: accentColor }}
+                            thumbColor={"#f4f3f4"}
+                          />
+                        </View>
+                      </TouchableOpacity>
                     </Animated.View>
                   )}
 
-                  <View style={[styles.gestureArea, { height: pillHeight }]} {...panResponder.panHandlers}>
-                    <Animated.View style={[styles.pillBase, { height: pillHeight, backgroundColor: pillBackgroundAnim, borderTopLeftRadius: effectivePillRadius, borderTopRightRadius: effectivePillRadius, borderBottomLeftRadius: pillCornerRadiusAnim, borderBottomRightRadius: pillCornerRadiusAnim, shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: pillShadowOpacityAnim, shadowRadius: 15, elevation: pillElevationAnim }, { zIndex: 1, opacity: menuPillOpacity, transform: [{ scale: menuPillScale }] }]} pointerEvents={!isSearchActive ? "auto" : "none"}>
+                  <View
+                    style={[styles.gestureArea, { height: pillHeight }]}
+                    {...panResponder.panHandlers}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.pillBase,
+                        {
+                          height: pillHeight,
+                          backgroundColor: pillBackgroundAnim,
+                          borderTopLeftRadius: effectivePillRadius,
+                          borderTopRightRadius: effectivePillRadius,
+                          borderBottomLeftRadius: pillCornerRadiusAnim,
+                          borderBottomRightRadius: pillCornerRadiusAnim,
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 5 },
+                          shadowOpacity: pillShadowOpacityAnim,
+                          shadowRadius: 15,
+                          elevation: pillElevationAnim,
+                        },
+                        {
+                          zIndex: 1,
+                          opacity: menuPillOpacity,
+                          transform: [{ scale: menuPillScale }],
+                        },
+                      ]}
+                      pointerEvents={!isSearchActive ? "auto" : "none"}
+                    >
                       <View style={styles.barTabContent}>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { captureTabPreview(activeTabId); setActiveView("tabs"); }}>
-                          <Ionicons name="copy-outline" size={24} color={effectiveTheme.text} />
-                          <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Tabs</Text>
+                        <TouchableOpacity
+                          style={styles.menuItem}
+                          onPress={() => {
+                            captureTabPreview(activeTabId);
+                            setActiveView("tabs");
+                          }}
+                        >
+                          <Ionicons
+                            name="copy-outline"
+                            size={24}
+                            color={effectiveTheme.text}
+                          />
+                          <Text
+                            style={[
+                              styles.menuLabel,
+                              {
+                                color: effectiveTheme.text,
+                                fontFamily: "Nunito_700Bold",
+                                fontSize: 10 * fontScale,
+                              },
+                            ]}
+                          >
+                            Tabs
+                          </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView("history")}>
-                          <Ionicons name="time-outline" size={24} color={effectiveTheme.text} />
-                          <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>History</Text>
+                        <TouchableOpacity
+                          style={styles.menuItem}
+                          onPress={() => setActiveView("history")}
+                        >
+                          <Ionicons
+                            name="time-outline"
+                            size={24}
+                            color={effectiveTheme.text}
+                          />
+                          <Text
+                            style={[
+                              styles.menuLabel,
+                              {
+                                color: effectiveTheme.text,
+                                fontFamily: "Nunito_700Bold",
+                                fontSize: 10 * fontScale,
+                              },
+                            ]}
+                          >
+                            History
+                          </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => setActiveView("settings")}>
-                          <Ionicons name="settings-outline" size={24} color={effectiveTheme.text} />
-                          <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Settings</Text>
+                        <TouchableOpacity
+                          style={styles.menuItem}
+                          onPress={() => setActiveView("settings")}
+                        >
+                          <Ionicons
+                            name="settings-outline"
+                            size={24}
+                            color={effectiveTheme.text}
+                          />
+                          <Text
+                            style={[
+                              styles.menuLabel,
+                              {
+                                color: effectiveTheme.text,
+                                fontFamily: "Nunito_700Bold",
+                                fontSize: 10 * fontScale,
+                              },
+                            ]}
+                          >
+                            Settings
+                          </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={toggleIncognitoMode}>
-                          <Ionicons name={isIncognito ? "glasses" : "glasses-outline"} size={24} color={isIncognito ? accentColor : effectiveTheme.text} />
-                          <Text style={[styles.menuLabel, { color: isIncognito ? accentColor : effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Incognito</Text>
+                        <TouchableOpacity
+                          style={styles.menuItem}
+                          onPress={goHome}
+                        >
+                          <Ionicons
+                            name="home-outline"
+                            size={24}
+                            color={effectiveTheme.text}
+                          />
+                          <Text
+                            style={[
+                              styles.menuLabel,
+                              {
+                                color: effectiveTheme.text,
+                                fontFamily: "Nunito_700Bold",
+                                fontSize: 10 * fontScale,
+                              },
+                            ]}
+                          >
+                            Home
+                          </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => setIsSubMenuVisible(!isSubMenuVisible)}>
-                          <Ionicons name="menu-outline" size={24} color={effectiveTheme.text} />
-                          <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>Menu</Text>
+                        <TouchableOpacity
+                          style={styles.menuItem}
+                          onPress={() => setIsSubMenuVisible(!isSubMenuVisible)}
+                        >
+                          <Ionicons
+                            name="menu-outline"
+                            size={24}
+                            color={effectiveTheme.text}
+                          />
+                          <Text
+                            style={[
+                              styles.menuLabel,
+                              {
+                                color: effectiveTheme.text,
+                                fontFamily: "Nunito_700Bold",
+                                fontSize: 10 * fontScale,
+                              },
+                            ]}
+                          >
+                            Menu
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     </Animated.View>
 
-                    <Animated.View style={[styles.pillBase, { height: pillHeight, backgroundColor: pillBackgroundAnim, borderTopLeftRadius: effectivePillRadius, borderTopRightRadius: effectivePillRadius, borderBottomLeftRadius: pillCornerRadiusAnim, borderBottomRightRadius: pillCornerRadiusAnim, shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: pillShadowOpacityAnim, shadowRadius: 15, elevation: pillElevationAnim }, { zIndex: 2, opacity: searchPillOpacity, transform: [{ translateY: searchPillTranslateY }] }]} pointerEvents={isSearchActive ? "auto" : "none"}>
+                    <Animated.View
+                      style={[
+                        styles.pillBase,
+                        {
+                          height: pillHeight,
+                          backgroundColor: pillBackgroundAnim,
+                          borderTopLeftRadius: effectivePillRadius,
+                          borderTopRightRadius: effectivePillRadius,
+                          borderBottomLeftRadius: pillCornerRadiusAnim,
+                          borderBottomRightRadius: pillCornerRadiusAnim,
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 5 },
+                          shadowOpacity: pillShadowOpacityAnim,
+                          shadowRadius: 15,
+                          elevation: pillElevationAnim,
+                        },
+                        {
+                          zIndex: 2,
+                          opacity: searchPillOpacity,
+                          transform: [{ translateY: searchPillTranslateY }],
+                        },
+                      ]}
+                      pointerEvents={isSearchActive ? "auto" : "none"}
+                    >
                       <View style={styles.barTabContent}>
-                        <Animated.View pointerEvents="none" style={[styles.navArrowContainer, { left: 20, opacity: backArrowOpacity }]}>
-                          {(currentTab?.canGoBack || (currentTab?.currentIndex ?? 0) > 0) && (
-                              <Ionicons name="arrow-back" size={28} color={effectiveTheme.text} />
+                        <Animated.View
+                          pointerEvents="none"
+                          style={[
+                            styles.navArrowContainer,
+                            { left: 20, opacity: backArrowOpacity },
+                          ]}
+                        >
+                          {(currentTab?.canGoBack ||
+                            (currentTab?.currentIndex ?? 0) > 0) && (
+                            <Ionicons
+                              name="arrow-back"
+                              size={28}
+                              color={effectiveTheme.text}
+                            />
                           )}
                         </Animated.View>
-                        <Animated.View pointerEvents="none" style={[styles.navArrowContainer, { right: 20, opacity: forwardArrowOpacity }]}>
-                          {(currentTab?.canGoForward || (currentTab?.currentIndex ?? 0) < (currentTab?.historyStack?.length ?? 0) - 1) && (
-                              <Ionicons name="arrow-forward" size={28} color={effectiveTheme.text} />
+                        <Animated.View
+                          pointerEvents="none"
+                          style={[
+                            styles.navArrowContainer,
+                            { right: 20, opacity: forwardArrowOpacity },
+                          ]}
+                        >
+                          {(currentTab?.canGoForward ||
+                            (currentTab?.currentIndex ?? 0) <
+                              (currentTab?.historyStack?.length ?? 0) - 1) && (
+                            <Ionicons
+                              name="arrow-forward"
+                              size={28}
+                              color={effectiveTheme.text}
+                            />
                           )}
                         </Animated.View>
 
-                        <Animated.View style={[styles.inputWrapper, { backgroundColor: inputBackgroundAnim, opacity: contentOpacity, borderRadius: cornerRadius * 1.5, height: pillHeight * 0.7, overflow: "hidden" }]}>
+                        <Animated.View
+                          style={[
+                            styles.inputWrapper,
+                            {
+                              backgroundColor: inputBackgroundAnim,
+                              opacity: contentOpacity,
+                              borderRadius: cornerRadius * 1.5,
+                              height: pillHeight * 0.7,
+                              overflow: "hidden",
+                            },
+                          ]}
+                        >
                           {progressBarMode !== "none" && isLoading && (
-                            <Animated.View style={{ position: "absolute", top: 0, bottom: 0, backgroundColor: accentColor, opacity: 0.2, zIndex: 0, ...(progressBarMode === "center" ? { left: 0, right: 0, transform: [{ scaleX: progressAnim }] } : { left: 0, width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }) }} />
+                            <Animated.View
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                bottom: 0,
+                                backgroundColor: accentColor,
+                                opacity: 0.2,
+                                zIndex: 0,
+                                ...(progressBarMode === "center"
+                                  ? {
+                                      left: 0,
+                                      right: 0,
+                                      transform: [{ scaleX: progressAnim }],
+                                    }
+                                  : {
+                                      left: 0,
+                                      width: progressAnim.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ["0%", "100%"],
+                                      }),
+                                    }),
+                              }}
+                            />
                           )}
                           <TextInput
-                            style={[styles.urlInput, { color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", zIndex: 1, fontSize: 16 * fontScale }]}
+                            style={[
+                              styles.urlInput,
+                              {
+                                color: effectiveTheme.text,
+                                fontFamily: "Nunito_600SemiBold",
+                                zIndex: 1,
+                                fontSize: 16 * fontScale,
+                              },
+                            ]}
                             value={inputUrl}
                             onChangeText={setInputUrl}
                             onSubmitEditing={handleGoPress}
@@ -1352,18 +2083,60 @@ export default function App() {
                             keyboardType="url"
                             returnKeyType="go"
                             selectTextOnFocus
-                            onFocus={() => { setIsInputFocused(true); setInputUrl(activeUrl || ""); }}
-                            onBlur={() => { setIsInputFocused(false); setInputUrl(getDisplayHost(activeUrl)); }}
+                            onFocus={() => {
+                              setIsInputFocused(true);
+                              setInputUrl(activeUrl || "");
+                            }}
+                            onBlur={() => {
+                              setIsInputFocused(false);
+                              setInputUrl(getDisplayHost(activeUrl));
+                            }}
                           />
-                          <View style={[styles.actionButtons, { zIndex: 1, flexDirection: 'row' }]}>
-                            <TouchableOpacity onPress={() => setForceSearchMode(!forceSearchMode)} style={{ marginRight: 8 }}>
-                                <Ionicons name={SEARCH_ENGINES[searchEngineIndex].icon as any} size={22} color={forceSearchMode ? accentColor : effectiveTheme.textSec} />
+                          <View
+                            style={[
+                              styles.actionButtons,
+                              { zIndex: 1, flexDirection: "row" },
+                            ]}
+                          >
+                            <TouchableOpacity
+                              onPress={() =>
+                                setForceSearchMode(!forceSearchMode)
+                              }
+                              style={{ marginRight: 8 }}
+                            >
+                              <Ionicons
+                                name={
+                                  SEARCH_ENGINES[searchEngineIndex].icon as any
+                                }
+                                size={22}
+                                color={
+                                  forceSearchMode
+                                    ? accentColor
+                                    : effectiveTheme.textSec
+                                }
+                              />
                             </TouchableOpacity>
                             {isInputFocused ? (
-                              <TouchableOpacity onPress={handleGoPress}><Ionicons name="search" size={22} color={accentColor} /></TouchableOpacity>
+                              <TouchableOpacity onPress={handleGoPress}>
+                                <Ionicons
+                                  name="search"
+                                  size={22}
+                                  color={accentColor}
+                                />
+                              </TouchableOpacity>
                             ) : (
-                              <TouchableOpacity disabled={!activeUrl} onPress={() => webViewRefs.current[activeTabId]?.reload()} style={!activeUrl && styles.disabledBtn}>
-                                <Ionicons name={isLoading ? "close" : "refresh"} size={22} color={effectiveTheme.text} />
+                              <TouchableOpacity
+                                disabled={!activeUrl}
+                                onPress={() =>
+                                  webViewRefs.current[activeTabId]?.reload()
+                                }
+                                style={!activeUrl && styles.disabledBtn}
+                              >
+                                <Ionicons
+                                  name={isLoading ? "close" : "refresh"}
+                                  size={22}
+                                  color={effectiveTheme.text}
+                                />
                               </TouchableOpacity>
                             )}
                           </View>
@@ -1396,24 +2169,64 @@ export default function App() {
       />
 
       {/* --- CONFIRM MODAL --- */}
-      <Modal visible={isConfirmModalVisible} transparent animationType="fade" onRequestClose={() => setIsConfirmModalVisible(false)}>
+      <Modal
+        visible={isConfirmModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsConfirmModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: effectiveTheme.surface, borderRadius: cornerRadius }]}>
-            <Text style={[styles.modalTitle, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" }]}>Are you sure?</Text>
-            <Text style={{ color: effectiveTheme.textSec, fontFamily: "Nunito_600SemiBold", marginBottom: 20, fontSize: 16 }}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: effectiveTheme.surface,
+                borderRadius: cornerRadius,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" },
+              ]}
+            >
+              Are you sure?
+            </Text>
+            <Text
+              style={{
+                color: effectiveTheme.textSec,
+                fontFamily: "Nunito_600SemiBold",
+                marginBottom: 20,
+                fontSize: 16,
+              }}
+            >
               {confirmActionType === "history"
                 ? `This will permanently delete history for: ${confirmHistoryPayload?.label}.`
                 : confirmActionType === "bgRefresh"
-                ? "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data."
-                : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
+                  ? "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data."
+                  : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
             </Text>
             <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setIsConfirmModalVisible(false)} style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}>
-                <Text style={{ color: effectiveTheme.textSec, fontFamily: "Nunito_700Bold" }}>Cancel</Text>
+              <TouchableOpacity
+                onPress={() => setIsConfirmModalVisible(false)}
+                style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}
+              >
+                <Text
+                  style={{
+                    color: effectiveTheme.textSec,
+                    fontFamily: "Nunito_700Bold",
+                  }}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
-                  if (confirmActionType === "history" && confirmHistoryPayload) {
+                  if (
+                    confirmActionType === "history" &&
+                    confirmHistoryPayload
+                  ) {
                     deleteHistory(confirmHistoryPayload.ms);
                   } else if (confirmActionType === "resetSettings") {
                     settings.resetSettings();
@@ -1422,10 +2235,26 @@ export default function App() {
                   }
                   setIsConfirmModalVisible(false);
                 }}
-                style={[styles.modalBtn, { backgroundColor: "#ff3b30", borderRadius: cornerRadius / 2 }]}
+                style={[
+                  styles.modalBtn,
+                  {
+                    backgroundColor: "#ff3b30",
+                    borderRadius: cornerRadius / 2,
+                  },
+                ]}
               >
-                <Text style={{ color: "#fff", fontWeight: "bold", fontFamily: "Nunito_700Bold" }}>
-                  {confirmActionType === "resetSettings" ? "Reset" : confirmActionType === "bgRefresh" ? "Enable" : "Delete"}
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontWeight: "bold",
+                    fontFamily: "Nunito_700Bold",
+                  }}
+                >
+                  {confirmActionType === "resetSettings"
+                    ? "Reset"
+                    : confirmActionType === "bgRefresh"
+                      ? "Enable"
+                      : "Delete"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1433,106 +2262,315 @@ export default function App() {
         </View>
       </Modal>
 
-            {/* --- RENAME TAB MODAL --- */}
+      {/* --- RENAME TAB MODAL --- */}
 
-            <Modal visible={isRenameModalVisible} transparent animationType="fade" onRequestClose={() => setIsRenameModalVisible(false)}>
+      <Modal
+        visible={isRenameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsRenameModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: effectiveTheme.surface,
+                borderRadius: cornerRadius,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" },
+              ]}
+            >
+              Edit Tab
+            </Text>
 
-              <View style={styles.modalOverlay}>
+            <TextInput
+              ref={renameInputRef}
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: effectiveTheme.inputBg,
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  borderRadius: cornerRadius / 2,
+                },
+              ]}
+              value={renameText}
+              onChangeText={setRenameText}
+            />
 
-                <View style={[styles.modalContent, { backgroundColor: effectiveTheme.surface, borderRadius: cornerRadius }]}>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                onPress={() => setIsRenameModalVisible(false)}
+                style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}
+              >
+                <Text
+                  style={{
+                    color: effectiveTheme.textSec,
+                    fontFamily: "Nunito_700Bold",
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
 
-                  <Text style={[styles.modalTitle, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold" }]}>Edit Tab</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (tabToRename) {
+                    const trimmed = renameText.trim();
+                    if (trimmed.length > 0) {
+                      updateTab(tabToRename, {
+                        title: trimmed,
+                        isCustomTitle: true,
+                      });
+                    } else {
+                      const t = tabs.find((tab) => tab.id === tabToRename);
+                      const fallback = t?.url
+                        ? getDisplayHost(t.url)
+                        : "New Tab";
+                      updateTab(tabToRename, {
+                        title: fallback,
+                        isCustomTitle: false,
+                      });
+                    }
+                  }
 
-                  <TextInput
-                    ref={renameInputRef}
-                    style={[styles.modalInput, { backgroundColor: effectiveTheme.inputBg, color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", borderRadius: cornerRadius / 2 }]}
+                  setIsRenameModalVisible(false);
 
-                    value={renameText}
+                  setTabToRename(null);
+                }}
+                style={[
+                  styles.modalBtn,
+                  {
+                    backgroundColor: accentColor,
+                    borderRadius: cornerRadius / 2,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontWeight: "bold",
+                    fontFamily: "Nunito_700Bold",
+                  }}
+                >
+                  Save
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-                    onChangeText={setRenameText}
-
-                  />
-
-                  <View style={styles.modalButtons}>
-
-                    <TouchableOpacity onPress={() => setIsRenameModalVisible(false)} style={[styles.modalBtn, { borderRadius: cornerRadius / 2 }]}>
-
-                      <Text style={{ color: effectiveTheme.textSec, fontFamily: "Nunito_700Bold" }}>Cancel</Text>
-
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-
-                      onPress={() => {
-
-                        if (tabToRename) {
-                          const trimmed = renameText.trim();
-                          if (trimmed.length > 0) {
-                              updateTab(tabToRename, { title: trimmed, isCustomTitle: true });
-                          } else {
-                              const t = tabs.find(tab => tab.id === tabToRename);
-                              const fallback = t?.url ? getDisplayHost(t.url) : "New Tab";
-                              updateTab(tabToRename, { title: fallback, isCustomTitle: false });
-                          }
-                        }
-
-                        setIsRenameModalVisible(false);
-
-                        setTabToRename(null);
-
-                      }}
-
-                      style={[styles.modalBtn, { backgroundColor: accentColor, borderRadius: cornerRadius / 2 }]}
-
-                    >
-
-                      <Text style={{ color: "#fff", fontWeight: "bold", fontFamily: "Nunito_700Bold" }}>Save</Text>
-
-                    </TouchableOpacity>
-
-                  </View>
-
-                </View>
-
-              </View>
-
-            </Modal>
-
-      
-
-            {/* --- CONTEXT MENU (Global) --- */}
+      {/* --- CONTEXT MENU (Global) --- */}
       {contextMenuVisible && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 99999, elevation: 99999, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }]}>
-          <TouchableWithoutFeedback onPress={() => setContextMenuVisible(false)}><View style={StyleSheet.absoluteFill} /></TouchableWithoutFeedback>
-          <View style={{ width: '70%', maxWidth: 280, backgroundColor: effectiveTheme.surface, borderRadius: cornerRadius, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10, overflow: 'hidden' }}>
-            <View style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: effectiveTheme.bg }}>
-              <Text numberOfLines={2} style={{ color: effectiveTheme.text, fontFamily: 'Nunito_700Bold', fontSize: 14 * fontScale, marginBottom: 2 }}>{contextMenuData?.text || (contextMenuData?.imgUrl ? "Image" : "Link")}</Text>
-              <Text numberOfLines={1} style={{ color: effectiveTheme.textSec, fontFamily: 'Nunito_600SemiBold', fontSize: 11 * fontScale }}>{contextMenuData?.url || contextMenuData?.imgUrl}</Text>
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              zIndex: 99999,
+              elevation: 99999,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.4)",
+            },
+          ]}
+        >
+          <TouchableWithoutFeedback
+            onPress={() => setContextMenuVisible(false)}
+          >
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <View
+            style={{
+              width: "70%",
+              maxWidth: 280,
+              backgroundColor: effectiveTheme.surface,
+              borderRadius: cornerRadius,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.3,
+              shadowRadius: 20,
+              elevation: 10,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                padding: 15,
+                borderBottomWidth: 1,
+                borderBottomColor: effectiveTheme.bg,
+              }}
+            >
+              <Text
+                numberOfLines={2}
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_700Bold",
+                  fontSize: 14 * fontScale,
+                  marginBottom: 2,
+                }}
+              >
+                {contextMenuData?.text ||
+                  (contextMenuData?.imgUrl ? "Image" : "Link")}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: effectiveTheme.textSec,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 11 * fontScale,
+                }}
+              >
+                {contextMenuData?.url || contextMenuData?.imgUrl}
+              </Text>
             </View>
             <View style={{ paddingVertical: 2 }}>
               {(contextMenuData?.url || contextMenuData?.imgUrl) && (
-                <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }} onPress={() => { const target = contextMenuData?.url || contextMenuData?.imgUrl; if (target) addNewTab(target); setContextMenuVisible(false); }}>
-                  <Ionicons name="open-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                  <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>Open in New Tab</Text>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 12,
+                  }}
+                  onPress={() => {
+                    const target =
+                      contextMenuData?.url || contextMenuData?.imgUrl;
+                    if (target) addNewTab(target);
+                    setContextMenuVisible(false);
+                  }}
+                >
+                  <Ionicons
+                    name="open-outline"
+                    size={18 * fontScale}
+                    color={effectiveTheme.text}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={{
+                      color: effectiveTheme.text,
+                      fontFamily: "Nunito_600SemiBold",
+                      fontSize: 14 * fontScale,
+                    }}
+                  >
+                    Open in New Tab
+                  </Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }} onPress={() => { const target = contextMenuData?.url || contextMenuData?.imgUrl; if (target) { setInputUrl(target); setIsInputFocused(true); setActiveView('none'); } setContextMenuVisible(false); }}>
-                 <Ionicons name="copy-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                 <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>Copy to Address Bar</Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 12,
+                }}
+                onPress={() => {
+                  const target =
+                    contextMenuData?.url || contextMenuData?.imgUrl;
+                  if (target) {
+                    setInputUrl(target);
+                    setIsInputFocused(true);
+                    setActiveView("none");
+                  }
+                  setContextMenuVisible(false);
+                }}
+              >
+                <Ionicons
+                  name="copy-outline"
+                  size={18 * fontScale}
+                  color={effectiveTheme.text}
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={{
+                    color: effectiveTheme.text,
+                    fontFamily: "Nunito_600SemiBold",
+                    fontSize: 14 * fontScale,
+                  }}
+                >
+                  Copy to Address Bar
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }} onPress={async () => { const target = contextMenuData?.url || contextMenuData?.imgUrl; if (target) await Share.share({ message: target, url: target }); setContextMenuVisible(false); }}>
-                 <Ionicons name="share-social-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                 <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>Share</Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 12,
+                }}
+                onPress={async () => {
+                  const target =
+                    contextMenuData?.url || contextMenuData?.imgUrl;
+                  if (target)
+                    await Share.share({ message: target, url: target });
+                  setContextMenuVisible(false);
+                }}
+              >
+                <Ionicons
+                  name="share-social-outline"
+                  size={18 * fontScale}
+                  color={effectiveTheme.text}
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={{
+                    color: effectiveTheme.text,
+                    fontFamily: "Nunito_600SemiBold",
+                    fontSize: 14 * fontScale,
+                  }}
+                >
+                  Share
+                </Text>
               </TouchableOpacity>
               {contextMenuData?.imgUrl && (
-                <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }} onPress={handleDownloadImage}>
-                  <Ionicons name="download-outline" size={18 * fontScale} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                  <Text style={{ color: effectiveTheme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>Save Image</Text>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 12,
+                  }}
+                  onPress={handleDownloadImage}
+                >
+                  <Ionicons
+                    name="download-outline"
+                    size={18 * fontScale}
+                    color={effectiveTheme.text}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={{
+                      color: effectiveTheme.text,
+                      fontFamily: "Nunito_600SemiBold",
+                      fontSize: 14 * fontScale,
+                    }}
+                  >
+                    Save Image
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity onPress={() => setContextMenuVisible(false)} style={{ padding: 12, alignItems: 'center', backgroundColor: effectiveTheme.card, borderTopWidth: 1, borderTopColor: effectiveTheme.bg }}>
-              <Text style={{ color: effectiveTheme.textSec, fontFamily: 'Nunito_700Bold', fontSize: 13 * fontScale }}>Cancel</Text>
+            <TouchableOpacity
+              onPress={() => setContextMenuVisible(false)}
+              style={{
+                padding: 12,
+                alignItems: "center",
+                backgroundColor: effectiveTheme.card,
+                borderTopWidth: 1,
+                borderTopColor: effectiveTheme.bg,
+              }}
+            >
+              <Text
+                style={{
+                  color: effectiveTheme.textSec,
+                  fontFamily: "Nunito_700Bold",
+                  fontSize: 13 * fontScale,
+                }}
+              >
+                Cancel
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

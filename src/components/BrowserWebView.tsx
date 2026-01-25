@@ -27,7 +27,6 @@ interface BrowserWebViewProps {
   injectedJavaScript: string;
   blockGestures?: boolean;
   containerRef?: React.Ref<View>;
-  incognito?: boolean;
 }
 
 export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
@@ -52,7 +51,6 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   injectedJavaScript,
   blockGestures = false,
   containerRef,
-  incognito = false
 }, ref) => {
   const localRef = useRef<WebView>(null);
   const [ignoredHosts, setIgnoredHosts] = useState<Set<string>>(new Set());
@@ -63,7 +61,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     accentColor,
     pillHeight,
     httpsOnly,
-    readerModeEnabled // <--- Added
+    readerModeEnabled
   } = settings;
 
   const isDesktop = tab.desktopMode ?? desktopMode;
@@ -318,7 +316,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         pointerEvents={isActive ? "auto" : "none"}
     >
         <WebView
-        key={`${tab.id}-${incognito ? 'incog' : 'reg'}`}
+        key={tab.id}
         ref={(r) => {
           localRef.current = r;
           if (typeof ref === 'function') ref(r);
@@ -408,17 +406,15 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         scrollEventThrottle={16}
         startInLoadingState={false}
         javaScriptEnabled={jsEnabled}
-        incognito={incognito}
         userAgent={isDesktop
             ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             : "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"}
-        sharedCookiesEnabled={incognito ? false : !blockCookies}
-        cacheEnabled={!incognito}
-        thirdPartyCookiesEnabled={incognito ? false : undefined}
-        domStorageEnabled={!incognito}
-        saveFormDataDisabled={incognito}
-        databaseEnabled={!incognito}
-        geolocationEnabled={!incognito}
+        sharedCookiesEnabled={!blockCookies}
+        cacheEnabled={true}
+        domStorageEnabled={true}
+        saveFormDataDisabled={false}
+        databaseEnabled={true}
+        geolocationEnabled={true}
         pullToRefreshEnabled={false}
         allowsFullscreenVideo={true}
         mediaPlaybackRequiresUserAction={false}

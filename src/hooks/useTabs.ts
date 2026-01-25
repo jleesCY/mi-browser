@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Linking } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
 import { loadStorage, saveStorage, getDisplayHost, parseDeepLinkUrl } from '../utils';
 import { TabItem } from '../types';
 import { useTabState } from './useTabState';
@@ -29,30 +28,14 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     })
   );
   
-  const incognito = useTabState([], null, () => ({
-        id: Date.now().toString(),
-        url: null,
-        requestedUrl: null,
-        initialUrl: null,
-        title: "Incognito Tab",
-        showLogo: true,
-        hasLoadedOnce: true,
-        historyStack: [],
-        currentIndex: -1
-  }));
-
-  const [isIncognito, setIsIncognito] = useState(false);
-
   // --- SHARED UI STATE (Derived or Synced) ---
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [inputUrl, setInputUrl] = useState("");
   const [areTabsLoaded, setAreTabsLoaded] = useState(false);
   const hasLoadedTabs = useRef(false);
 
-  // Helpers to get current active set
-  const currentManager = isIncognito ? incognito : regular;
-  const tabs = currentManager.tabs;
-  const activeTabId = currentManager.activeTabId || "";
+  const tabs = regular.tabs;
+  const activeTabId = regular.activeTabId || "";
   
   // Ref to track active ID for async operations/callbacks
   const activeTabIdRef = useRef(activeTabId);
@@ -62,10 +45,9 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     activeTabIdRef.current = activeTabId;
   }, [activeTabId]);
 
-  // Sync activeUrl and inputUrl when switching modes or active tab changes
+  // Sync activeUrl and inputUrl when active tab changes
   useEffect(() => {
-    // We look at the "current" manager state
-    const tab = currentManager.tabs.find(t => t.id === currentManager.activeTabId);
+    const tab = regular.tabs.find(t => t.id === regular.activeTabId);
 
     if (tab) {
         setActiveUrl(tab.url);
@@ -75,7 +57,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
         setActiveUrl(null);
         setInputUrl("");
     }
-  }, [isIncognito, currentManager.activeTabId, currentManager.tabs]);
+  }, [regular.activeTabId, regular.tabs]);
 
 
   // Load Tabs on Startup (Regular Only)
@@ -195,56 +177,17 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
 
   // Mark active tab as loaded
   useEffect(() => {
-    // When active tab changes in CURRENT mode, mark it as loaded
-    if (currentManager.activeTabId) {
-        currentManager.setTabs((prev) => 
+    if (regular.activeTabId) {
+        regular.setTabs((prev) => 
             prev.map((t) => {
-              if (t.id === currentManager.activeTabId && !t.hasLoadedOnce) {
+              if (t.id === regular.activeTabId && !t.hasLoadedOnce) {
                 return { ...t, hasLoadedOnce: true };
               }
               return t;
             })
         );
     }
-  }, [currentManager.activeTabId, isIncognito]);
-
-  const toggleIncognitoMode = () => {
-      if (!isIncognito) {
-          // Switching TO Incognito
-          // If no incognito tabs exist, create one
-          if (incognito.tabs.length === 0) {
-            const newId = Date.now().toString();
-            const newTab = {
-                id: newId,
-                url: null,
-                requestedUrl: null,
-                initialUrl: null,
-                title: "Incognito Tab",
-                showLogo: true,
-                hasLoadedOnce: true,
-                historyStack: [],
-                currentIndex: -1
-            };
-            incognito.addTab(newTab);
-          }
-      } else {
-          // Switching OFF Incognito (Exit)
-          // Clear all incognito tabs to ensure fresh session next time
-          
-          // Delete preview images
-          incognito.tabs.forEach(tab => {
-              if (tab.previewImage) {
-                  FileSystem.deleteAsync(tab.previewImage, { idempotent: true }).catch(() => {});
-              }
-          });
-
-          setTimeout(() => {
-            incognito.resetTabs([], null);
-          }, 500); 
-          incognito.resetTabs([], null);
-      }
-      setIsIncognito(!isIncognito);
-  };
+  }, [regular.activeTabId]);
 
   const addNewTab = (overrideUrl?: string) => {
     const newId = Date.now().toString();
@@ -253,24 +196,24 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
       url: overrideUrl || null,
       requestedUrl: overrideUrl || null,
       initialUrl: overrideUrl || null,
-      title: isIncognito ? "Incognito Tab" : "New Tab",
+      title: "New Tab",
       showLogo: true,
       hasLoadedOnce: true,
       historyStack: overrideUrl ? [overrideUrl] : [],
       currentIndex: overrideUrl ? 0 : -1
     };
 
-    currentManager.addTab(newTab);
+    regular.addTab(newTab);
   };
 
-  const deleteTab = (id: string) => currentManager.deleteTab(id);
-  const updateTab = (id: string, updates: Partial<TabItem>) => currentManager.updateTab(id, updates);
-  const reorderTabs = (from: number, to: number) => currentManager.reorderTabs(from, to);
+  const deleteTab = (id: string) => regular.deleteTab(id);
+  const updateTab = (id: string, updates: Partial<TabItem>) => regular.updateTab(id, updates);
+  const reorderTabs = (from: number, to: number) => regular.reorderTabs(from, to);
   
   // Wrapper for setActiveTabId to delegate
-  const setActiveTabId = (id: string) => currentManager.setActiveTabId(id);
+  const setActiveTabId = (id: string) => regular.setActiveTabId(id);
   // Wrapper for setTabs to delegate
-  const setTabsWrapper = (action: any) => currentManager.setTabs(action);
+  const setTabsWrapper = (action: any) => regular.setTabs(action);
 
   return {
     tabs, 
@@ -283,8 +226,6 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     deleteTab,
     updateTab,
     reorderTabs,
-    activeTabIdRef,
-    isIncognito, toggleIncognitoMode
+    activeTabIdRef
   };
 };
-
