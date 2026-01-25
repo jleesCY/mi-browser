@@ -7,12 +7,13 @@ export const handleExternalLink = async (
   activeTabId: string,
   setTabs: (callback: (prev: any[]) => any[]) => void,
   setActiveUrl: (url: string) => void,
-  setInputUrl: (url: string) => void
+  setInputUrl: (url: string) => void,
+  onShowAlert: (title: string, message: string, buttons?: any[]) => void
 ) => {
   try {
     // 1. Handle Special "Intent" Schemes (Android)
     if (url.startsWith("intent://") || url.includes("#Intent;")) {
-      await handleIntent(url, activeTabId, setTabs, setActiveUrl, setInputUrl);
+      await handleIntent(url, activeTabId, setTabs, setActiveUrl, setInputUrl, onShowAlert);
       return;
     }
 
@@ -25,7 +26,7 @@ export const handleExternalLink = async (
       await Linking.openURL(url);
     }
   } catch (err: any) {
-    Alert.alert(
+    onShowAlert(
       "Link Error",
       `Could not open this link.\n\nError: ${err.message || "Unknown error"}\n\nURL: ${url}`,
       [{ text: "OK" }]
@@ -39,7 +40,8 @@ export const handleIntent = async (
     activeTabId: string,
     setTabs: (callback: (prev: any[]) => any[]) => void,
     setActiveUrl: (url: string) => void,
-    setInputUrl: (url: string) => void
+    setInputUrl: (url: string) => void,
+    onShowAlert: (title: string, message: string, buttons?: any[]) => void
 ) => {
   try {
     // Attempt 1: Extract and Open the Clean Deep Link
@@ -86,7 +88,7 @@ export const handleIntent = async (
     const packageMatch = intentUrl.match(/package=([^;]+)/);
     if (packageMatch && packageMatch[1]) {
       const packageName = packageMatch[1];
-      Alert.alert(
+      onShowAlert(
         "App Required",
         `This feature requires an external app (${packageName}). Would you like to view it in the store?`,
         [
@@ -100,7 +102,7 @@ export const handleIntent = async (
       return;
     }
 
-    Alert.alert(
+    onShowAlert(
       "Action Failed",
       "Could not handle this action and no fallback was provided by the website.",
       [{ text: "OK" }]

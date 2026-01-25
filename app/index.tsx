@@ -13,10 +13,11 @@ import * as Print from "expo-print";
 import * as QuickActions from "expo-quick-actions";
 import { useQuickAction } from "expo-quick-actions/hooks";
 import * as ScreenOrientation from "expo-screen-orientation";
+
+import { CustomAlert } from "../src/components/BrowserOverlay/CustomAlert";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   BackHandler,
   findNodeHandle,
@@ -145,10 +146,29 @@ export default function App() {
 
   useEffect(() => {
     if (quickAction?.id === "scan_qr") {
-      // Ensure app is ready before showing scanner, or just set it
-      setIsQRScannerVisible(true);
+        setIsQRScannerVisible(true);
     }
   }, [quickAction]);
+
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [] as any[],
+  });
+
+  const showAlert = useCallback((title: string, message: string, buttons: any[] = []) => {
+     setAlertConfig({ 
+         visible: true, 
+         title, 
+         message, 
+         buttons: buttons.length ? buttons : [{ text: 'OK', onPress: () => setAlertConfig(prev => ({...prev, visible: false})) }] 
+     });
+  }, []);
+
+  const hideAlert = useCallback(() => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  }, []);
 
   // Keep a ref to tabs for access inside PanResponder closure
   const tabsRef = useRef(tabs);
@@ -728,11 +748,58 @@ export default function App() {
     } catch {}
   };
 
+  const handleClearAllTabs = () => {
+    showAlert(
+      "Clear All Tabs",
+      "Are you sure you want to close all tabs?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Clear All",
+          style: "destructive",
+          onPress: async () => {
+            // Cleanup images
+            for (const t of tabs) {
+              if (t.previewImage) {
+                try {
+                  await FileSystem.deleteAsync(t.previewImage, {
+                    idempotent: true,
+                  });
+                } catch {}
+              }
+            }
+
+            const newId = Date.now().toString();
+            const newTab: TabItem = {
+              id: newId,
+              url: null,
+              requestedUrl: null,
+              initialUrl: null,
+              title: "New Tab",
+              showLogo: true,
+              hasLoadedOnce: true,
+              historyStack: [],
+              currentIndex: -1,
+            };
+
+            setTabs([newTab]);
+            setActiveTabId(newId);
+            setActiveUrl(null);
+            setInputUrl("");
+          },
+        },
+      ]
+    );
+  };
+
   const handleCopyLink = async () => {
     if (!activeUrl) return;
     setIsSubMenuVisible(false);
     await Clipboard.setStringAsync(activeUrl);
-    Alert.alert("Copied", "Link copied to clipboard");
+    showAlert("Copied", "Link copied to clipboard");
   };
 
   const handlePrint = async () => {
@@ -756,7 +823,7 @@ export default function App() {
       try {
         await Print.printAsync({ uri: activeUrl });
       } catch {
-        Alert.alert("Error", "Could not print this page.");
+        showAlert("Error", "Could not print this page.");
       }
     }
   };
@@ -767,7 +834,7 @@ export default function App() {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== "granted") {
-        Alert.alert(
+        showAlert(
           "Permission Required",
           "This app needs access to your Photos.",
         );
@@ -794,10 +861,10 @@ export default function App() {
       }
 
       await MediaLibrary.saveToLibraryAsync(fileUri);
-      Alert.alert("Success", "Image saved to gallery!");
+      showAlert("Success", "Image saved to gallery!");
       setContextMenuVisible(false);
     } catch (e: any) {
-      Alert.alert("Save Error", e.message || "Unknown error");
+      showAlert("Save Error", e.message || "Unknown error");
     }
   };
 
@@ -1270,6 +1337,7 @@ export default function App() {
                   setTabs,
                   setActiveUrl,
                   setInputUrl,
+                  showAlert
                 )
               }
               onNewWindow={(url) => addNewTab(url)}
@@ -1290,7 +1358,7 @@ export default function App() {
                           try {
                             await Print.printAsync({ html: parsed.html });
                           } catch {
-                            Alert.alert(
+                            showAlert(
                               "Print Error",
                               "Could not print content.",
                             );
@@ -1394,6 +1462,11 @@ export default function App() {
                     }}
                     onDeleteItem={deleteHistoryItem}
                     onFocusSearch={handleFocusSearch}
+                    onRequestClearHistory={(ms, label) => {
+                      setConfirmHistoryPayload({ ms, label });
+                      setConfirmActionType("history");
+                      setIsConfirmModalVisible(true);
+                    }}
                   />
                 )}
                 {activeView === "tabs" && (
@@ -1440,6 +1513,7 @@ export default function App() {
                       addNewTab();
                       closeOverlay();
                     }}
+                    onClearAllTabs={handleClearAllTabs}
                     onFocusSearch={handleFocusSearch}
                     overlayHeightAnim={overlayHeightAnim}
                   />
@@ -2157,6 +2231,7 @@ export default function App() {
         onScan={handleScanResult}
         theme={effectiveTheme}
         accentColor={accentColor}
+        fontScale={fontScale}
       />
 
       <QRGeneratorView
@@ -2575,6 +2650,16 @@ export default function App() {
           </View>
         </View>
       )}
+
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        theme={effectiveTheme}
+        fontScale={fontScale}
+        onDismiss={hideAlert}
+      />
     </View>
   );
 }

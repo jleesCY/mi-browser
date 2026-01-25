@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState, useEffect } from 'react';
-import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text } from 'react-native';
+import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text, Pressable } from 'react-native';
 import { HistoryItem } from '../../types';
 import SwipeableHistoryRow from "./SwipeableHistoryRow";
 import { groupHistoryByDate, getSmartDate } from "../../utils";
+import { HISTORY_RANGES } from '../../constants';
 
 interface HistoryViewProps {
   history: HistoryItem[];
@@ -18,6 +19,7 @@ interface HistoryViewProps {
   onDeleteItem: (id: string) => void;
   onFocusSearch: () => void;
   historyLoadCount: number;
+  onRequestClearHistory: (ms: number, label: string) => void;
 }
 
 const getHistoryHeight = (uiPadding: string, fontScale: number) => {
@@ -47,56 +49,157 @@ const getMargin = (uiPadding: string) => {
   }
 };
 
-const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText }: any) => (
-  <View
-    style={{
-      marginBottom: 10,
-      backgroundColor: theme.card,
-      borderRadius: cornerRadius,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 15,
-      height: 50,
-    }}
-  >
-    <Ionicons
-      name="search"
-      size={20}
-      color={theme.textSec}
-      style={{ marginRight: 10 }}
-    />
-    <TextInput
+const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText, onRequestClearHistory, fontScale }: any) => {
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [clearHistoryVisible, setClearHistoryVisible] = useState(false);
+
+  return (
+    <View
       style={{
-        flex: 1,
-        color: theme.text,
-        fontFamily: "Nunito_600SemiBold",
-        fontSize: 16,
+        marginBottom: 10,
+        backgroundColor: theme.card,
+        borderRadius: cornerRadius,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 15,
+        height: 50,
+        zIndex: 1000,
+        elevation: 10,
       }}
-      placeholder="Search History..."
-      placeholderTextColor={theme.textSec}
-      value={searchText}
-      onFocus={onFocusSearch}
-      onChangeText={(text) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setSearchText(text);
-      }}
-    />
-    {searchText !== "" && (
-      <TouchableOpacity
-        onPress={() => {
-          setSearchText("");
-          Keyboard.dismiss();
+    >
+      <Ionicons
+        name="search"
+        size={20}
+        color={theme.textSec}
+        style={{ marginRight: 10 }}
+      />
+      <TextInput
+        style={{
+          flex: 1,
+          color: theme.text,
+          fontFamily: "Nunito_600SemiBold",
+          fontSize: 16,
         }}
-      >
-        <Ionicons
-          name="close-circle"
-          size={20}
-          color={theme.textSec}
-        />
-      </TouchableOpacity>
-    )}
-  </View>
-));
+        placeholder="Search History..."
+        placeholderTextColor={theme.textSec}
+        value={searchText}
+        onFocus={onFocusSearch}
+        onChangeText={(text) => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setSearchText(text);
+        }}
+      />
+      {searchText !== "" ? (
+        <TouchableOpacity
+          onPress={() => {
+            setSearchText("");
+            Keyboard.dismiss();
+          }}
+        >
+          <Ionicons
+            name="close-circle"
+            size={20}
+            color={theme.textSec}
+          />
+        </TouchableOpacity>
+      ) : (
+        <View style={{ position: 'relative' }}>
+          <TouchableOpacity
+            onPress={() => setMenuVisible(!menuVisible)}
+            style={{ padding: 5 }}
+          >
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color={theme.textSec}
+            />
+          </TouchableOpacity>
+          {menuVisible && (
+            <>
+              <Pressable
+                style={{
+                  position: 'absolute',
+                  top: -1000,
+                  left: -1000,
+                  right: -1000,
+                  bottom: -1000,
+                  backgroundColor: 'transparent',
+                  zIndex: 1
+                }}
+                onPress={() => {
+                    setMenuVisible(false);
+                    setClearHistoryVisible(false);
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 30,
+                  right: 0,
+                  backgroundColor: theme.surface,
+                  borderRadius: 10,
+                  padding: 5,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                  zIndex: 2,
+                  minWidth: 180,
+                  borderWidth: 1,
+                  borderColor: theme.bg
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: 10,
+                  }}
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setClearHistoryVisible(!clearHistoryVisible);
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="trash-outline" size={18} color={theme.text} style={{ marginRight: 10 }} />
+                    <Text style={{ color: theme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>Clear History</Text>
+                  </View>
+                  <Ionicons name={clearHistoryVisible ? "chevron-up" : "chevron-down"} size={16} color={theme.text} />
+                </TouchableOpacity>
+                
+                {clearHistoryVisible && (
+                    <View style={{ borderTopWidth: 1, borderTopColor: theme.bg, marginTop: 5, paddingTop: 5 }}>
+                        {HISTORY_RANGES.map((range: any, index: number) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={{
+                                    paddingVertical: 10,
+                                    paddingHorizontal: 15,
+                                    paddingLeft: 38, // Indent to align with text above
+                                }}
+                                onPress={() => {
+                                    setMenuVisible(false);
+                                    setClearHistoryVisible(false);
+                                    onRequestClearHistory(range.ms, range.label);
+                                }}
+                            >
+                                <Text style={{ color: theme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 13 * fontScale }}>
+                                    {range.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+              </View>
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+});
 
 SearchHeader.displayName = 'SearchHeader';
 
@@ -112,7 +215,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   onPressItem,
   onDeleteItem,
   onFocusSearch,
-  historyLoadCount
+  historyLoadCount,
+  onRequestClearHistory
 }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
@@ -177,6 +281,23 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   return (
     <View style={{ flex: 1 }}>
+      <View style={{ 
+          width: '100%', 
+          paddingHorizontal: 20, 
+          paddingTop: 20, 
+          zIndex: 1000, 
+          elevation: 10 
+      }}>
+        <SearchHeader 
+            theme={theme} 
+            cornerRadius={cornerRadius} 
+            searchText={searchText} 
+            onFocusSearch={onFocusSearch} 
+            setSearchText={setSearchText}
+            onRequestClearHistory={onRequestClearHistory}
+            fontScale={fontScale}
+        />
+      </View>
       <SectionList
         ref={sectionListRef}
         sections={historySections}
@@ -185,20 +306,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         maxToRenderPerBatch={5}
         windowSize={5}
         removeClippedSubviews={true}
-        contentContainerStyle={{ padding: 20, paddingTop: 20, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: 20, paddingTop: 0, paddingBottom: 100 }} // Reduced top padding
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        ListHeaderComponent={
-            <SearchHeader 
-                theme={theme} 
-                cornerRadius={cornerRadius} 
-                searchText={searchText} 
-                onFocusSearch={onFocusSearch} 
-                setSearchText={setSearchText} 
-            />
-        }
         onScroll={(e) => {
             const offsetY = e.nativeEvent.contentOffset.y;
             if (offsetY > 100 && !showScrollTop) {

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState, useEffect } from 'react';
-import { Animated, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
+import { Animated, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, ScrollView, Text, Pressable } from 'react-native';
 import { TabItem } from '../../types';
 import SwipeableTabRow from "./SwipeableTabRow";
 import TabCard from "./TabCard";
@@ -25,6 +25,7 @@ interface TabsViewProps {
   onCloseTab: (id: string) => void;
   onRenameTab: (id: string, title: string) => void;
   onNewTab: () => void;
+  onClearAllTabs: () => void;
   onFocusSearch: () => void;
   overlayHeightAnim: Animated.Value;
 }
@@ -56,57 +57,124 @@ const getMargin = (uiPadding: string) => {
   }
 };
 
-const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText }: any) => (
-  <View
-    style={{
-      marginBottom: 10,
-      backgroundColor: theme.card,
-      borderRadius: cornerRadius,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 15,
-      height: 50,
-      width: '100%'
-    }}
-  >
-    <Ionicons
-      name="search"
-      size={20}
-      color={theme.textSec}
-      style={{ marginRight: 10 }}
-    />
-    <TextInput
+const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText, onClearAllTabs }: any) => {
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  return (
+    <View
       style={{
-          flex: 1,
-          color: theme.text,
-          fontFamily: "Nunito_600SemiBold",
-          fontSize: 16,
+        marginBottom: 10,
+        backgroundColor: theme.card,
+        borderRadius: cornerRadius,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 15,
+        height: 50,
+        width: '100%',
       }}
-      placeholder="Search Tabs..."
-      placeholderTextColor={theme.textSec}
-      value={searchText}
-      onFocus={onFocusSearch}
-      onChangeText={(text) => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setSearchText(text);
-      }}
-    />
-    {searchText !== "" && (
-      <TouchableOpacity
-        onPress={() => {
-          setSearchText("");
-          Keyboard.dismiss();
+    >
+      <Ionicons
+        name="search"
+        size={20}
+        color={theme.textSec}
+        style={{ marginRight: 10 }}
+      />
+      <TextInput
+        style={{
+            flex: 1,
+            color: theme.text,
+            fontFamily: "Nunito_600SemiBold",
+            fontSize: 16,
         }}
-      >
-        <Ionicons
-          name="close-circle"
-          size={20}
-          color={theme.textSec}
-        />
-      </TouchableOpacity>
-    )}
-  </View>
-));
+        placeholder="Search Tabs..."
+        placeholderTextColor={theme.textSec}
+        value={searchText}
+        onFocus={onFocusSearch}
+        onChangeText={(text) => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSearchText(text);
+        }}
+      />
+      {searchText !== "" ? (
+        <TouchableOpacity
+          onPress={() => {
+            setSearchText("");
+            Keyboard.dismiss();
+          }}
+        >
+          <Ionicons
+            name="close-circle"
+            size={20}
+            color={theme.textSec}
+          />
+        </TouchableOpacity>
+      ) : (
+        <View style={{ position: 'relative' }}>
+          <TouchableOpacity
+            onPress={() => setMenuVisible(!menuVisible)}
+            style={{ padding: 5 }}
+          >
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color={theme.textSec}
+            />
+          </TouchableOpacity>
+          {menuVisible && (
+            <>
+              <Pressable 
+                style={{
+                  position: 'absolute',
+                  top: -1000,
+                  left: -1000,
+                  right: -1000,
+                  bottom: -1000,
+                  backgroundColor: 'transparent',
+                  zIndex: 1
+                }}
+                onPress={() => setMenuVisible(false)}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 30,
+                  right: 0,
+                  backgroundColor: theme.surface,
+                  borderRadius: 10,
+                  padding: 5,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                  zIndex: 2,
+                  minWidth: 150,
+                  borderWidth: 1,
+                  borderColor: theme.bg
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 10,
+                  }}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    onClearAllTabs();
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={18} color={theme.text} style={{ marginRight: 10 }} />
+                  <Text style={{ color: theme.text, fontFamily: 'Nunito_600SemiBold' }}>Clear all tabs</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+});
 
 SearchHeader.displayName = 'SearchHeader';
 
@@ -128,6 +196,7 @@ export const TabsView: React.FC<TabsViewProps> = ({
   onCloseTab,
   onRenameTab,
   onNewTab,
+  onClearAllTabs,
   onFocusSearch,
   overlayHeightAnim
 }) => {
@@ -179,6 +248,22 @@ export const TabsView: React.FC<TabsViewProps> = ({
 
   return (
     <View style={{ flex: 1 }}>
+      <View style={{ 
+          width: '100%', 
+          paddingHorizontal: 20, 
+          paddingTop: 20, 
+          zIndex: 1000, 
+          elevation: 10 
+      }}>
+        <SearchHeader 
+            theme={theme} 
+            cornerRadius={cornerRadius} 
+            searchText={searchText} 
+            onFocusSearch={onFocusSearch} 
+            setSearchText={setSearchText}
+            onClearAllTabs={onClearAllTabs}
+        />
+      </View>
       <SortableGrid
         ref={scrollViewRef}
         data={filteredTabs}
@@ -187,12 +272,12 @@ export const TabsView: React.FC<TabsViewProps> = ({
         numColumns={numColumns}
         itemHeight={slotHeight}
         itemWidth={slotWidth}
-        gridPaddingTop={20}
+        gridPaddingTop={10} // Reduced padding since header is outside
         gridPaddingSide={20}
         contentContainerStyle={{
           paddingHorizontal: 20, 
           paddingBottom: 140,
-          paddingTop: 20,
+          paddingTop: 0, // Handled by gridPaddingTop and header being outside
         }}
         onReorder={(from, to) => {
             if (searchText === "") {
@@ -207,17 +292,6 @@ export const TabsView: React.FC<TabsViewProps> = ({
                 setShowScrollTop(false);
             }
         }}
-        headerComponent={
-            <View style={{ width: '100%' }}>
-                <SearchHeader 
-                    theme={theme} 
-                    cornerRadius={cornerRadius} 
-                    searchText={searchText} 
-                    onFocusSearch={onFocusSearch} 
-                    setSearchText={setSearchText} 
-                />
-            </View>
-        }
         renderItem={({ item, isActive }) => 
           tabViewMode === "cards" ? (
             <TabCard

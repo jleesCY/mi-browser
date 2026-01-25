@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, Linking } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from "@expo/vector-icons";
+import { CustomAlert } from '../BrowserOverlay/CustomAlert';
 
 interface QRGeneratorViewProps {
   isVisible: boolean;
@@ -26,6 +27,27 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
   const qrRef = useRef<any>(null);
   const [permissionResponse, requestPermission] = MediaLibrary.usePermissions({ writeOnly: true });
 
+  // Alert State
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [] as any[],
+  });
+
+  const showAlert = (title: string, message: string, buttons: any[] = []) => {
+     setAlertConfig({ 
+         visible: true, 
+         title, 
+         message, 
+         buttons: buttons.length ? buttons : [{ text: 'OK', onPress: () => setAlertConfig(prev => ({...prev, visible: false})) }] 
+     });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  }
+
   const saveToGallery = async () => {
     try {
       let currentStatus = permissionResponse?.status;
@@ -36,7 +58,7 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
           
           if (currentStatus !== 'granted') {
               if (!canAskAgain) {
-                 Alert.alert(
+                 showAlert(
                      "Permission Required", 
                      "Photo access has been denied. Please enable it in your device settings to save QR codes.",
                      [
@@ -45,7 +67,7 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
                      ]
                  );
               } else {
-                 Alert.alert("Permission Required", "This app needs access to your Photos to save the QR code.");
+                 showAlert("Permission Required", "This app needs access to your Photos to save the QR code.");
               }
               return;
           }
@@ -67,16 +89,16 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
                });
 
                await MediaLibrary.saveToLibraryAsync(fileUri);
-               Alert.alert("Success", "QR Code saved to gallery!");
+               showAlert("Success", "QR Code saved to gallery!");
            } catch (e: any) {
                console.log("Inner save error:", e);
-               Alert.alert("Error", "Failed to save QR code: " + (e.message || "Unknown error"));
+               showAlert("Error", "Failed to save QR code: " + (e.message || "Unknown error"));
            }
         });
       }
     } catch (e: any) {
       console.log("Outer save error:", e);
-      Alert.alert("Error", "Something went wrong: " + (e.message || "Unknown error"));
+      showAlert("Error", "Something went wrong: " + (e.message || "Unknown error"));
     }
   };
 
@@ -96,14 +118,14 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
                });
 
                if (!(await Sharing.isAvailableAsync())) {
-                   Alert.alert("Error", "Sharing is not available on this device");
+                   showAlert("Error", "Sharing is not available on this device");
                    return;
                }
 
                await Sharing.shareAsync(fileUri);
            } catch (e) {
                console.log("Share Error", e);
-               Alert.alert("Error", "Failed to share QR code.");
+               showAlert("Error", "Failed to share QR code.");
            }
         });
       }
@@ -147,6 +169,15 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
             </TouchableOpacity>
           </View>
         </View>
+        <CustomAlert 
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          theme={theme}
+          fontScale={fontScale}
+          onDismiss={hideAlert}
+        />
       </View>
     </Modal>
   );

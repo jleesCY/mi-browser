@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicator, NativeModules } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, NativeModules } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import { detectQRPureJS } from '../../utils/qrPolyfill';
+import { CustomAlert } from '../BrowserOverlay/CustomAlert';
 
 interface QRScannerViewProps {
   isVisible: boolean;
@@ -11,6 +12,7 @@ interface QRScannerViewProps {
   onScan: (data: string) => void;
   theme: any;
   accentColor: string;
+  fontScale: number;
 }
 
 export const QRScannerView: React.FC<QRScannerViewProps> = ({
@@ -18,11 +20,33 @@ export const QRScannerView: React.FC<QRScannerViewProps> = ({
   onClose,
   onScan,
   theme,
-  accentColor
+  accentColor,
+  fontScale
 }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [processing, setProcessing] = useState(false);
+
+  // Alert State
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    buttons: [] as any[],
+  });
+
+  const showAlert = (title: string, message: string, buttons: any[] = []) => {
+     setAlertConfig({ 
+         visible: true, 
+         title, 
+         message, 
+         buttons: buttons.length ? buttons : [{ text: 'OK', onPress: () => setAlertConfig(prev => ({...prev, visible: false})) }] 
+     });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  }
 
   useEffect(() => {
     if (isVisible) {
@@ -84,7 +108,7 @@ export const QRScannerView: React.FC<QRScannerViewProps> = ({
             }
             
             setProcessing(false);
-            Alert.alert("No QR Code Found", "Could not detect a QR code in this image.");
+            showAlert("No QR Code Found", "Could not detect a QR code in this image.");
         }
     } catch (e) {
         setProcessing(false);
@@ -147,6 +171,16 @@ export const QRScannerView: React.FC<QRScannerViewProps> = ({
                 <Text style={styles.instructionText}>Align the QR code within the frame</Text>
             </View>
         </View>
+
+        <CustomAlert 
+          visible={alertConfig.visible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          theme={theme}
+          fontScale={fontScale}
+          onDismiss={hideAlert}
+        />
       </View>
     </Modal>
   );
