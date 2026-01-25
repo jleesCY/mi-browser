@@ -170,6 +170,32 @@ export const getFaviconUrl = (url: string | null) => {
   }
 };
 
+export const parseDeepLinkUrl = (url: string) => {
+  if (!url) return null;
+  try {
+    // Handle standard http/https
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Handle custom schemes: mi://open?url=... or mi://https://...
+    const parsed = new URL(url);
+    if (parsed.protocol === 'mi:' || parsed.protocol === 'my-browser:') {
+      // Case 1: mi://https://google.com
+      const rest = url.replace(/^(mi|my-browser):\/\//, '');
+      if (rest.startsWith('http://') || rest.startsWith('https://')) {
+          return rest;
+      }
+      
+      // Case 2: mi://open?url=https://google.com
+      const params = new URLSearchParams(parsed.search);
+      const target = params.get('url') || params.get('href');
+      if (target) return target;
+    }
+  } catch (e) {}
+  return null;
+};
+
 // --- Storage Helpers ---
 export const saveStorage = async (key: string, value: any) => {
   try {

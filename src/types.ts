@@ -24,3 +24,22 @@ export interface TabItem {
   currentIndex?: number;
   isCustomTitle?: boolean;
 }
+
+export interface BookmarkItem {
+  id: string;
+  type: "bookmark";
+  url: string;
+  title: string;
+  parentId: string | null;
+  order: number;
+}
+
+export interface BookmarkFolder {
+  id: string;
+  type: "folder";
+  title: string;
+  parentId: string | null;
+  order: number;
+}
+
+export type BookmarkNode = BookmarkItem | BookmarkFolder;

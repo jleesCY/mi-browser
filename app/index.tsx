@@ -58,11 +58,13 @@ import { getDisplayHost } from "../src/utils";
 import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
 import { useHistory } from "../src/hooks/useHistory";
 import { useTabs } from "../src/hooks/useTabs";
+import { useBookmarks } from "../src/hooks/useBookmarks";
 
 // Components
 import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
 import { BrowserWebView } from "../src/components/BrowserWebView";
 import { HistoryView } from "../src/components/History/HistoryView";
+import { BookmarksView } from "../src/components/Bookmarks/BookmarksView";
 import { QRGeneratorView } from "../src/components/QR/QRGeneratorView";
 import { QRScannerView } from "../src/components/QR/QRScannerView";
 import { SettingsView } from "../src/components/Settings/SettingsView";
@@ -107,6 +109,8 @@ export default function App() {
 
   const { history, addToHistory, deleteHistory, deleteHistoryItem } =
     useHistory(areSettingsLoaded);
+  
+  const { bookmarks, addBookmark, addFolder, deleteBookmark, updateBookmark, moveBookmark, reorderBookmarks } = useBookmarks(areSettingsLoaded);
 
   const {
     tabs,
@@ -291,7 +295,7 @@ export default function App() {
   } | null>(null);
 
   const [activeView, setActiveView] = useState<
-    "none" | "tabs" | "history" | "settings"
+    "none" | "tabs" | "history" | "settings" | "bookmarks"
   >("none");
   const [isSearchActive, setIsSearchActive] = useState(true);
   const isSearchActiveRef = useRef(true);
@@ -301,6 +305,8 @@ export default function App() {
   const [settingsSearch, setSettingsSearch] = useState("");
   const [tabsSearch, setTabsSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
+  const [bookmarksSearch, setBookmarksSearch] = useState("");
+  const [bookmarksAutoAdd, setBookmarksAutoAdd] = useState(false);
 
   // Rename Modal
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
@@ -1431,7 +1437,9 @@ export default function App() {
                     ? "History"
                     : activeView === "tabs"
                       ? "Tabs"
-                      : "Settings"
+                      : activeView === "bookmarks"
+                        ? "Bookmarks"
+                        : "Settings"
                 }
                 onClose={closeOverlay}
                 theme={effectiveTheme}
@@ -1440,6 +1448,37 @@ export default function App() {
                 accentColor={accentColor}
                 keyboardHeight={keyboardHeight}
               >
+                {activeView === "bookmarks" && (
+                  <BookmarksView
+                    bookmarks={bookmarks}
+                    activeUrl={activeUrl}
+                    activeTitle={currentTab?.title || null}
+                    theme={effectiveTheme}
+                    accentColor={accentColor}
+                    cornerRadius={cornerRadius}
+                    fontScale={fontScale}
+                    uiPadding={uiPadding}
+                    onPressItem={(item) => {
+                      setActiveUrl(item.url);
+                      updateTab(activeTabId, {
+                        url: item.url,
+                        requestedUrl: item.url,
+                        title: item.title,
+                      });
+                      closeOverlay();
+                    }}
+                    onAddBookmark={addBookmark}
+                    onAddFolder={addFolder}
+                    onDeleteBookmark={deleteBookmark}
+                    onUpdateBookmark={updateBookmark}
+                    onMoveBookmark={moveBookmark}
+                    onReorderBookmarks={reorderBookmarks}
+                    onFocusSearch={handleFocusSearch}
+                    autoAdd={bookmarksAutoAdd}
+                    onAutoAddHandled={() => setBookmarksAutoAdd(false)}
+                    overlayHeightAnim={overlayHeightAnim}
+                  />
+                )}
                 {activeView === "history" && (
                   <HistoryView
                     history={history}
@@ -1663,6 +1702,42 @@ export default function App() {
                           }}
                         >
                           Home
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          {
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 15,
+                            borderBottomWidth: 1,
+                            borderBottomColor: effectiveTheme.bg,
+                          },
+                          !activeUrl && { opacity: 0.5 },
+                        ]}
+                        onPress={() => {
+                          if (activeUrl) {
+                            setIsSubMenuVisible(false);
+                            setBookmarksAutoAdd(true);
+                            setActiveView("bookmarks");
+                          }
+                        }}
+                        disabled={!activeUrl}
+                      >
+                        <Ionicons
+                          name="bookmark-outline"
+                          size={20}
+                          color={effectiveTheme.text}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text
+                          style={{
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 14 * fontScale,
+                          }}
+                        >
+                          Bookmark
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -1953,6 +2028,28 @@ export default function App() {
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.menuItem}
+                          onPress={() => setActiveView("bookmarks")}
+                        >
+                          <Ionicons
+                            name="bookmarks-outline"
+                            size={24}
+                            color={effectiveTheme.text}
+                          />
+                          <Text
+                            style={[
+                              styles.menuLabel,
+                              {
+                                color: effectiveTheme.text,
+                                fontFamily: "Nunito_700Bold",
+                                fontSize: 10 * fontScale,
+                              },
+                            ]}
+                          >
+                            Bookmarks
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.menuItem}
                           onPress={() => setActiveView("history")}
                         >
                           <Ionicons
@@ -1993,28 +2090,6 @@ export default function App() {
                             ]}
                           >
                             Settings
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.menuItem}
-                          onPress={goHome}
-                        >
-                          <Ionicons
-                            name="home-outline"
-                            size={24}
-                            color={effectiveTheme.text}
-                          />
-                          <Text
-                            style={[
-                              styles.menuLabel,
-                              {
-                                color: effectiveTheme.text,
-                                fontFamily: "Nunito_700Bold",
-                                fontSize: 10 * fontScale,
-                              },
-                            ]}
-                          >
-                            Home
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
