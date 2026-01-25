@@ -204,11 +204,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 15,
     paddingVertical: 8,
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.1, 
-    shadowRadius: 6, 
-    elevation: 5
   },
   faviconContainer: { 
       width: 42, 

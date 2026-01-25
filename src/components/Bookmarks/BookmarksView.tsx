@@ -220,6 +220,12 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
   const rowTotalHeight = rowHeightItem + rowMargin;
   const slotWidth = SCREEN_WIDTH - 40;
 
+  const rowTheme = {
+    ...theme,
+    surface: theme.card,
+    bg: theme.card,
+  };
+
   return (
     <View style={{ flex: 1 }}>
       {/* HEADER */}
@@ -303,7 +309,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
         renderItem={({ item, isActive }) => (
             <BookmarkRow
                 item={item}
-                theme={theme}
+                theme={rowTheme}
                 accent={accentColor}
                 radius={cornerRadius}
                 height={rowHeightItem}

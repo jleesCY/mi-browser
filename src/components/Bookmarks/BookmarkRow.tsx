@@ -84,11 +84,6 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 15,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.1,
-          shadowRadius: 2,
-          elevation: 2,
         }}
       >
         <View style={{ 
@@ -96,7 +91,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
             height: 40, 
             justifyContent: 'center', 
             alignItems: 'center',
-            backgroundColor: isFolder ? theme.bg : 'transparent',
+            backgroundColor: isFolder ? (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent',
             borderRadius: 10,
             marginRight: 15
         }}>

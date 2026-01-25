@@ -296,7 +296,7 @@ export const TabsView: React.FC<TabsViewProps> = ({
           tabViewMode === "cards" ? (
             <TabCard
               item={item}
-              theme={theme}
+              theme={rowTheme}
               accent={accentColor}
               radius={cornerRadius}
               fontScale={fontScale}
