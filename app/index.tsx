@@ -45,6 +45,7 @@ import {
   HOME_LOGO_TEXT,
   INJECTED_CONTEXT_MENU_SCRIPT,
   SEARCH_ENGINES,
+  SCREEN_HEIGHT,
   SNAP_CLOSED,
   SNAP_DEFAULT,
   SNAP_FULL,
@@ -59,6 +60,7 @@ import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
 import { useHistory } from "../src/hooks/useHistory";
 import { useTabs } from "../src/hooks/useTabs";
 import { useBookmarks } from "../src/hooks/useBookmarks";
+import { useRecentSearches } from "../src/hooks/useRecentSearches";
 
 // Components
 import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
@@ -69,6 +71,7 @@ import { QRGeneratorView } from "../src/components/QR/QRGeneratorView";
 import { QRScannerView } from "../src/components/QR/QRScannerView";
 import { SettingsView } from "../src/components/Settings/SettingsView";
 import { TabsView } from "../src/components/Tabs/TabsView";
+import { RecentSearchesView } from "../src/components/BrowserSession/RecentSearchesView";
 
 export default function App() {
   const insets = useSafeAreaInsets();
@@ -111,6 +114,8 @@ export default function App() {
     useHistory(areSettingsLoaded);
   
   const { bookmarks, addBookmark, addFolder, deleteBookmark, updateBookmark, moveBookmark, reorderBookmarks } = useBookmarks(areSettingsLoaded);
+
+  const { recentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } = useRecentSearches();
 
   const {
     tabs,
@@ -300,6 +305,7 @@ export default function App() {
   const [isSearchActive, setIsSearchActive] = useState(true);
   const isSearchActiveRef = useRef(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const isInputFocusedRef = useRef(false);
 
   // Search States for Sub-views
   const [settingsSearch, setSettingsSearch] = useState("");
@@ -405,6 +411,78 @@ export default function App() {
   const logoScale = useRef(new Animated.Value(1)).current;
   const logoPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
+  // Recent Searches Drawer
+  const recentSearchesHeight = useRef(new Animated.Value(0)).current;
+  const currentRecentSearchesHeight = useRef(0);
+  const currentKeyboardHeightVal = useRef(0);
+
+  useEffect(() => {
+     const sub = keyboardHeight.addListener(({ value }) => {
+         currentKeyboardHeightVal.current = value;
+     });
+     return () => keyboardHeight.removeListener(sub);
+  }, []);
+
+  const recentSearchesPanResponder = useRef(
+      PanResponder.create({
+          onStartShouldSetPanResponder: () => true,
+          onMoveShouldSetPanResponder: () => true,
+          onPanResponderTerminationRequest: () => false,
+          onPanResponderGrant: () => {
+              recentSearchesHeight.stopAnimation((val) => {
+                  currentRecentSearchesHeight.current = val;
+              });
+          },
+          onPanResponderMove: (_, gestureState) => {
+              // We need to account for the extra pill height when focused
+              const extraPillHeight = 24; 
+              const maxHeight = SCREEN_HEIGHT - (pillHeight + extraPillHeight) - currentKeyboardHeightVal.current - insets.top;
+              const newHeight = Math.max(0, Math.min(currentRecentSearchesHeight.current - gestureState.dy, maxHeight));
+              recentSearchesHeight.setValue(newHeight);
+          },
+          onPanResponderRelease: (_, gestureState) => {
+             const extraPillHeight = 24;
+             const maxHeight = SCREEN_HEIGHT - (pillHeight + extraPillHeight) - currentKeyboardHeightVal.current - insets.top;
+             const { dy, vy } = gestureState;
+             
+             // Strict Snap Logic
+             let target = 0;
+             // If dragged up significantly or flicked up -> Max
+             if (dy < -60 || vy < -0.5) target = maxHeight;
+             // If dragged down significantly or flicked down -> 0
+             else if (dy > 60 || vy > 0.5) target = 0;
+             else {
+                 // If not a strong gesture, snap to nearest state
+                 const current = (recentSearchesHeight as any)._value;
+                 target = current > maxHeight / 2 ? maxHeight : 0;
+             }
+
+             Animated.spring(recentSearchesHeight, {
+                 toValue: target,
+                 useNativeDriver: false,
+                 tension: 50,
+                 friction: 12,
+                 overshootClamping: true
+             }).start(() => {
+                 currentRecentSearchesHeight.current = target;
+             });
+          }
+      })
+  ).current;
+
+  // Auto-collapse recent searches when focus is lost
+  useEffect(() => {
+      if (!isInputFocused) {
+          Animated.timing(recentSearchesHeight, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: false
+          }).start(() => {
+              currentRecentSearchesHeight.current = 0;
+          });
+      }
+  }, [isInputFocused]);
+
   // --- SYNC UI WHEN SWITCHING TABS ---
   useEffect(() => {
     if (currentTab) {
@@ -426,6 +504,7 @@ export default function App() {
       duration: 200,
       useNativeDriver: false,
     }).start();
+    isInputFocusedRef.current = isInputFocused;
   }, [isInputFocused, isPillFocusedAnim]);
 
   useEffect(() => {
@@ -695,6 +774,8 @@ export default function App() {
     const text = inputUrl.trim();
     if (!text) return;
 
+    addRecentSearch(text);
+
     let targetUrl = "";
 
     if (forceSearchMode) {
@@ -931,8 +1012,10 @@ export default function App() {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dy) > 10 || Math.abs(gestureState.dx) > 10,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (isInputFocusedRef.current) return false;
+        return Math.abs(gestureState.dy) > 10 || Math.abs(gestureState.dx) > 10;
+      },
       onPanResponderGrant: () => {
         animVal.stopAnimation();
         scrollTranslateY.stopAnimation();
@@ -1204,6 +1287,14 @@ export default function App() {
     outputRange: [10, 0],
     extrapolate: "clamp",
   });
+
+  const focusedPillHeightAdd = isPillFocusedAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 24],
+    extrapolate: 'clamp'
+  });
+
+  const totalPillHeight = Animated.add(pillHeight, focusedPillHeightAdd);
 
   if (!isAppReady) {
     return (
@@ -1972,8 +2063,8 @@ export default function App() {
                     </Animated.View>
                   )}
 
-                  <View
-                    style={[styles.gestureArea, { height: pillHeight }]}
+                  <Animated.View
+                    style={[styles.gestureArea, { height: totalPillHeight }]}
                     {...panResponder.panHandlers}
                   >
                     <Animated.View
@@ -2121,7 +2212,7 @@ export default function App() {
                       style={[
                         styles.pillBase,
                         {
-                          height: pillHeight,
+                          height: totalPillHeight,
                           backgroundColor: pillBackgroundAnim,
                           borderTopLeftRadius: effectivePillRadius,
                           borderTopRightRadius: effectivePillRadius,
@@ -2141,7 +2232,32 @@ export default function App() {
                       ]}
                       pointerEvents={isSearchActive ? "auto" : "none"}
                     >
-                      <View style={styles.barTabContent}>
+                      {/* Integrated Drag Handle for Search Pill */}
+                      {isInputFocused && (
+                        <View
+                            {...recentSearchesPanResponder.panHandlers}
+                            style={{
+                                width: "100%",
+                                height: 24,
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                zIndex: 10,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
+                        >
+                             <View style={{
+                                width: 40,
+                                height: 4,
+                                backgroundColor: effectiveTheme.textSec,
+                                borderRadius: 2,
+                                opacity: 0.5
+                            }} />
+                        </View>
+                      )}
+
+                      <Animated.View style={[styles.barTabContent, { paddingTop: focusedPillHeightAdd }]}>
                         <Animated.View
                           pointerEvents="none"
                           style={[
@@ -2290,9 +2406,35 @@ export default function App() {
                             )}
                           </View>
                         </Animated.View>
-                      </View>
+                      </Animated.View>
                     </Animated.View>
-                  </View>
+                  </Animated.View>
+
+                  {/* Recent Searches Drawer */}
+                  <Animated.View style={{ height: recentSearchesHeight, width: '100%', overflow: 'hidden', backgroundColor: effectiveTheme.surface }}>
+                      <RecentSearchesView
+                        searches={recentSearches}
+                        theme={effectiveTheme}
+                        fontScale={fontScale}
+                        onSelect={(text) => {
+                            setInputUrl(text);
+                            setIsInputFocused(true); // Keep focus or dismiss? User flow implies search.
+                            // Trigger search
+                            const targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
+                            setActiveUrl(targetUrl);
+                            updateTab(activeTabId, {
+                                url: targetUrl,
+                                requestedUrl: targetUrl,
+                                title: text,
+                            });
+                            snapToSearch();
+                            Keyboard.dismiss();
+                        }}
+                        onRemove={removeRecentSearch}
+                        onClear={clearRecentSearches}
+                      />
+                  </Animated.View>
+
                 </Animated.View>
               </Animated.View>
             </View>
