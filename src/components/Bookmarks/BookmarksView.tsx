@@ -79,9 +79,9 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
       }
   }, [autoAdd]);
 
-  const getParentTitle = () => {
-      if (folderStack.length === 0) return "Bookmarks";
-      return folderStack[folderStack.length - 1].title;
+  const getHierarchyPath = () => {
+      const path = ["Bookmarks", ...folderStack.map(f => f.title)];
+      return "/" + path.join("/");
   };
 
   // Helper to get folder name by ID
@@ -249,7 +249,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                fontFamily: "Nunito_700Bold", 
                fontSize: 20 * fontScale 
            }}>
-               {searchText ? "Search Results" : getParentTitle()}
+               {searchText ? "Search Results" : getHierarchyPath()}
            </Text>
         </View>
 
