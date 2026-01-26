@@ -1,6 +1,6 @@
 import { Dimensions, Platform, UIManager } from "react-native";
 
-export const APP_VERSION = "0.7.1";
+export const APP_VERSION = "0.8.0";
 
 if (
   Platform.OS === "android" &&
