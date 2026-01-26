@@ -60,7 +60,6 @@ import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
 import { useHistory } from "../src/hooks/useHistory";
 import { useTabs } from "../src/hooks/useTabs";
 import { useBookmarks } from "../src/hooks/useBookmarks";
-import { useRecentSearches } from "../src/hooks/useRecentSearches";
 
 // Components
 import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
@@ -114,8 +113,6 @@ export default function App() {
     useHistory(areSettingsLoaded);
   
   const { bookmarks, addBookmark, addFolder, deleteBookmark, updateBookmark, moveBookmark, reorderBookmarks } = useBookmarks(areSettingsLoaded);
-
-  const { recentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } = useRecentSearches();
 
   const {
     tabs,
@@ -773,8 +770,6 @@ export default function App() {
     Keyboard.dismiss();
     const text = inputUrl.trim();
     if (!text) return;
-
-    addRecentSearch(text);
 
     let targetUrl = "";
 
@@ -2413,25 +2408,33 @@ export default function App() {
                   {/* Recent Searches Drawer */}
                   <Animated.View style={{ height: recentSearchesHeight, width: '100%', overflow: 'hidden', backgroundColor: effectiveTheme.surface }}>
                       <RecentSearchesView
-                        searches={recentSearches}
+                        historyItems={history.slice(0, 20)}
                         theme={effectiveTheme}
                         fontScale={fontScale}
-                        onSelect={(text) => {
-                            setInputUrl(text);
-                            setIsInputFocused(true); // Keep focus or dismiss? User flow implies search.
-                            // Trigger search
-                            const targetUrl = `${SEARCH_ENGINES[searchEngineIndex].url}${encodeURIComponent(text)}`;
+                        onSelect={(item) => {
+                            const targetUrl = item.url;
+                            setInputUrl(getDisplayHost(targetUrl));
+                            setIsInputFocused(true); 
+                            
                             setActiveUrl(targetUrl);
                             updateTab(activeTabId, {
                                 url: targetUrl,
                                 requestedUrl: targetUrl,
-                                title: text,
+                                title: item.title,
                             });
                             snapToSearch();
                             Keyboard.dismiss();
                         }}
-                        onRemove={removeRecentSearch}
-                        onClear={clearRecentSearches}
+                        onRemove={deleteHistoryItem}
+                        onClear={() => {
+                             // Optional: Ask for confirmation or just clear recent?
+                             // User asked for "recent history", usually clear all clears everything.
+                             // We can reuse the confirmation modal logic if we want, or just call deleteHistory(-1).
+                             // Let's trigger the existing confirmation modal for consistency.
+                             setConfirmHistoryPayload({ ms: -1, label: "All History" });
+                             setConfirmActionType("history");
+                             setIsConfirmModalVisible(true);
+                        }}
                       />
                   </Animated.View>
 

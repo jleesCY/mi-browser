@@ -1,18 +1,19 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
+import { HistoryItem } from '../../types';
 
 interface RecentSearchesViewProps {
-  searches: string[];
-  onSelect: (text: string) => void;
-  onRemove: (text: string) => void;
+  historyItems: HistoryItem[];
+  onSelect: (item: HistoryItem) => void;
+  onRemove: (id: string) => void;
   onClear: () => void;
   theme: any;
   fontScale: number;
 }
 
 export const RecentSearchesView = ({
-  searches,
+  historyItems,
   onSelect,
   onRemove,
   onClear,
@@ -20,11 +21,11 @@ export const RecentSearchesView = ({
   fontScale
 }: RecentSearchesViewProps) => {
 
-  if (searches.length === 0) {
+  if (historyItems.length === 0) {
       return (
         <View style={{ flex: 1, backgroundColor: theme.surface, alignItems: 'center', paddingTop: 30 }}>
             <Text style={{ color: theme.textSec, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>
-                No recent searches
+                No recent history
             </Text>
         </View>
       );
@@ -45,7 +46,7 @@ export const RecentSearchesView = ({
           fontFamily: "Nunito_700Bold", 
           fontSize: 14 * fontScale 
         }}>
-          Recent Searches
+          Recent History
         </Text>
         <TouchableOpacity onPress={onClear}>
             <Text style={{ 
@@ -59,9 +60,9 @@ export const RecentSearchesView = ({
       </View>
       
       <ScrollView keyboardShouldPersistTaps="handled">
-        {searches.map((item, index) => (
+        {historyItems.map((item) => (
           <TouchableOpacity
-            key={index}
+            key={item.id}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -75,19 +76,29 @@ export const RecentSearchesView = ({
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
               <Ionicons name="time-outline" size={20} color={theme.textSec} style={{ marginRight: 15 }} />
-              <Text style={{ 
-                color: theme.text, 
-                fontFamily: "Nunito_600SemiBold", 
-                fontSize: 16 * fontScale 
-              }} numberOfLines={1}>
-                {item}
-              </Text>
+              <View style={{ flex: 1 }}>
+                  <Text style={{ 
+                    color: theme.text, 
+                    fontFamily: "Nunito_600SemiBold", 
+                    fontSize: 16 * fontScale 
+                  }} numberOfLines={1}>
+                    {item.title || item.url}
+                  </Text>
+                  <Text style={{ 
+                    color: theme.textSec, 
+                    fontFamily: "Nunito_600SemiBold", 
+                    fontSize: 12 * fontScale,
+                    marginTop: 2
+                  }} numberOfLines={1}>
+                    {item.url}
+                  </Text>
+              </View>
             </View>
             
             <TouchableOpacity 
               onPress={(e) => {
                   e.stopPropagation();
-                  onRemove(item);
+                  onRemove(item.id);
               }}
               style={{ padding: 5 }}
             >
