@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { Terminal, Cpu, Layout, FolderTree, Download, Rocket, Info } from "lucide-react";
+import { Terminal, Cpu, Layout, FolderTree, Info } from "lucide-react";
 import { useHighlight } from "@/hooks/useHighlight";
 
 const getAssetPath = (path: string) => {

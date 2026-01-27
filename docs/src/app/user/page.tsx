@@ -13,11 +13,9 @@ import {
   Bookmark, 
   History, 
   QrCode, 
-  Smartphone,
   Zap,
   ShieldCheck,
   Palette,
-  Type,
   Maximize,
   Lock,
   RefreshCw,
@@ -25,13 +23,11 @@ import {
   Monitor,
   BookOpen,
   Share2,
-  Printer,
   ChevronRight,
   FolderHeart,
   Clock,
   GripHorizontal,
   Pencil,
-  Image as ImageIcon,
   Home
 } from "lucide-react";
 import { useHighlight } from "@/hooks/useHighlight";
@@ -80,7 +76,7 @@ export default function UserDocs() {
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    mi. Browser is designed for one-handed use. Everything centers around "The Pill" at the bottom of your screen.
+                    mi. Browser is designed for one-handed use. Everything centers around &quot;The Pill&quot; at the bottom of your screen.
                   </p>
                   <div className="space-y-6 inline-block text-left w-full">
                     <div className="space-y-4">
@@ -130,7 +126,7 @@ export default function UserDocs() {
                     <GuideItem icon={<Settings2 size={18}/>} title="Settings" desc="Configure every detail of your browsing experience." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Secondary Menu:</strong> Tap the "Menu" button on the far right of the Dashboard to access Power Tools like Reader Mode, QR Tools, and Desktop Site toggles.</p>
+                    <p><strong>Secondary Menu:</strong> Tap the &quot;Menu&quot; button on the far right of the Dashboard to access Power Tools like Reader Mode, QR Tools, and Desktop Site toggles.</p>
                   </div>
                 </div>
               </div>
@@ -156,7 +152,7 @@ export default function UserDocs() {
                     <GuideItem icon={<MousePointer2 size={18}/>} title="Instant Navigate" desc="Tap any item in the list to immediately navigate to that page." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Auto-Expand:</strong> You can enable 'Show Recent History' in Settings to automatically open this drawer every time you focus the Pill.</p>
+                    <p><strong>Auto-Expand:</strong> You can enable &apos;Show Recent History&apos; in Settings to automatically open this drawer every time you focus the Pill.</p>
                   </div>
                 </div>
                 <DeviceMockup src="/images/recent_history.jpg" color="blue" />
@@ -232,7 +228,7 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Never lose a page you've visited. mi. keeps a local-only record of your browsing activity that stays entirely on your device.
+                    Never lose a page you&apos;ve visited. mi. keeps a local-only record of your browsing activity that stays entirely on your device.
                   </p>
                   <div className="space-y-4 inline-block text-left">
                     <GuideItem icon={<Search size={18}/>} title="Search History" desc="Filter through your past visits using the search bar within the History view." />
@@ -377,7 +373,7 @@ export default function UserDocs() {
                     </div>
                     <GuideItem icon={<BookOpen size={18}/>} title="Reader Mode" desc="Removes ads and clutter, leaving only the text and essential images for a clean reading experience." />
                     <GuideItem icon={<Monitor size={18}/>} title="Desktop Mode" desc="Requests the desktop version of the current site for full functionality." />
-                    <GuideItem icon={<Share2 size={18}/>} title="Share & Print" desc="Native integration with your device's share sheet and wireless printing capabilities." />
+                    <GuideItem icon={<Share2 size={18}/>} title="Share &amp; Print" desc="Native integration with your device&apos;s share sheet and wireless printing capabilities." />
                   </div>
                 </div>
               </div>

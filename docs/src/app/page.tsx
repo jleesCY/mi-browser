@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Download, ChevronRight, Zap, Palette, Shield, QrCode, Github, Sparkles } from "lucide-react";
+import { Download, ChevronRight, Zap, Palette, Shield, Sparkles } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
@@ -14,13 +14,6 @@ const getAssetPath = (path: string) => {
 };
 
 export default function Home() {
-  const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true },
-    transition: { duration: 0.6 }
-  };
-
   const GITHUB_URL = "https://github.com/jleescy/mi-browser";
 
   return (
