@@ -14,7 +14,6 @@ import * as QuickActions from "expo-quick-actions";
 import { useQuickAction } from "expo-quick-actions/hooks";
 import * as ScreenOrientation from "expo-screen-orientation";
 
-import { CustomAlert } from "../src/components/BrowserOverlay/CustomAlert";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -39,13 +38,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
 import { WebView } from "react-native-webview";
+import { CustomAlert } from "../src/components/BrowserOverlay/CustomAlert";
 
 import {
   HIDDEN_TRANSLATE_Y,
   HOME_LOGO_TEXT,
   INJECTED_CONTEXT_MENU_SCRIPT,
-  SEARCH_ENGINES,
   SCREEN_HEIGHT,
+  SEARCH_ENGINES,
   SNAP_CLOSED,
   SNAP_DEFAULT,
   SNAP_FULL,
@@ -56,21 +56,21 @@ import { TabItem } from "../src/types";
 import { getDisplayHost } from "../src/utils";
 
 // Custom Hooks
+import { useBookmarks } from "../src/hooks/useBookmarks";
 import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
 import { useHistory } from "../src/hooks/useHistory";
 import { useTabs } from "../src/hooks/useTabs";
-import { useBookmarks } from "../src/hooks/useBookmarks";
 
 // Components
+import { BookmarksView } from "../src/components/Bookmarks/BookmarksView";
 import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
+import { RecentSearchesView } from "../src/components/BrowserSession/RecentSearchesView";
 import { BrowserWebView } from "../src/components/BrowserWebView";
 import { HistoryView } from "../src/components/History/HistoryView";
-import { BookmarksView } from "../src/components/Bookmarks/BookmarksView";
 import { QRGeneratorView } from "../src/components/QR/QRGeneratorView";
 import { QRScannerView } from "../src/components/QR/QRScannerView";
 import { SettingsView } from "../src/components/Settings/SettingsView";
 import { TabsView } from "../src/components/Tabs/TabsView";
-import { RecentSearchesView } from "../src/components/BrowserSession/RecentSearchesView";
 
 export default function App() {
   const insets = useSafeAreaInsets();
@@ -111,8 +111,16 @@ export default function App() {
 
   const { history, addToHistory, deleteHistory, deleteHistoryItem } =
     useHistory(areSettingsLoaded);
-  
-  const { bookmarks, addBookmark, addFolder, deleteBookmark, updateBookmark, moveBookmark, reorderBookmarks } = useBookmarks(areSettingsLoaded);
+
+  const {
+    bookmarks,
+    addBookmark,
+    addFolder,
+    deleteBookmark,
+    updateBookmark,
+    moveBookmark,
+    reorderBookmarks,
+  } = useBookmarks(areSettingsLoaded);
 
   const {
     tabs,
@@ -152,7 +160,7 @@ export default function App() {
 
   useEffect(() => {
     if (quickAction?.id === "scan_qr") {
-        setIsQRScannerVisible(true);
+      setIsQRScannerVisible(true);
     }
   }, [quickAction]);
 
@@ -163,17 +171,28 @@ export default function App() {
     buttons: [] as any[],
   });
 
-  const showAlert = useCallback((title: string, message: string, buttons: any[] = []) => {
-     setAlertConfig({ 
-         visible: true, 
-         title, 
-         message, 
-         buttons: buttons.length ? buttons : [{ text: 'OK', onPress: () => setAlertConfig(prev => ({...prev, visible: false})) }] 
-     });
-  }, []);
+  const showAlert = useCallback(
+    (title: string, message: string, buttons: any[] = []) => {
+      setAlertConfig({
+        visible: true,
+        title,
+        message,
+        buttons: buttons.length
+          ? buttons
+          : [
+              {
+                text: "OK",
+                onPress: () =>
+                  setAlertConfig((prev) => ({ ...prev, visible: false })),
+              },
+            ],
+      });
+    },
+    [],
+  );
 
   const hideAlert = useCallback(() => {
-    setAlertConfig(prev => ({ ...prev, visible: false }));
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
   }, []);
 
   // Keep a ref to tabs for access inside PanResponder closure
@@ -303,6 +322,7 @@ export default function App() {
   const isSearchActiveRef = useRef(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const isInputFocusedRef = useRef(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   // Search States for Sub-views
   const [settingsSearch, setSettingsSearch] = useState("");
@@ -405,6 +425,7 @@ export default function App() {
   const currentOverlayHeight = useRef(SNAP_CLOSED);
   const keyboardHeight = useRef(new Animated.Value(0)).current;
   const isPillFocusedAnim = useRef(new Animated.Value(0)).current;
+  const handleVisibleAnim = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(1)).current;
   const logoPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
@@ -414,70 +435,84 @@ export default function App() {
   const currentKeyboardHeightVal = useRef(0);
 
   useEffect(() => {
-     const sub = keyboardHeight.addListener(({ value }) => {
-         currentKeyboardHeightVal.current = value;
-     });
-     return () => keyboardHeight.removeListener(sub);
+    const sub = keyboardHeight.addListener(({ value }) => {
+      currentKeyboardHeightVal.current = value;
+    });
+    return () => keyboardHeight.removeListener(sub);
   }, []);
 
   const recentSearchesPanResponder = useRef(
-      PanResponder.create({
-          onStartShouldSetPanResponder: () => true,
-          onMoveShouldSetPanResponder: () => true,
-          onPanResponderTerminationRequest: () => false,
-          onPanResponderGrant: () => {
-              recentSearchesHeight.stopAnimation((val) => {
-                  currentRecentSearchesHeight.current = val;
-              });
-          },
-          onPanResponderMove: (_, gestureState) => {
-              // We need to account for the extra pill height when focused
-              const extraPillHeight = 24; 
-              const maxHeight = SCREEN_HEIGHT - (pillHeight + extraPillHeight) - currentKeyboardHeightVal.current - insets.top;
-              const newHeight = Math.max(0, Math.min(currentRecentSearchesHeight.current - gestureState.dy, maxHeight));
-              recentSearchesHeight.setValue(newHeight);
-          },
-          onPanResponderRelease: (_, gestureState) => {
-             const extraPillHeight = 24;
-             const maxHeight = SCREEN_HEIGHT - (pillHeight + extraPillHeight) - currentKeyboardHeightVal.current - insets.top;
-             const { dy, vy } = gestureState;
-             
-             // Strict Snap Logic
-             let target = 0;
-             // If dragged up significantly or flicked up -> Max
-             if (dy < -60 || vy < -0.5) target = maxHeight;
-             // If dragged down significantly or flicked down -> 0
-             else if (dy > 60 || vy > 0.5) target = 0;
-             else {
-                 // If not a strong gesture, snap to nearest state
-                 const current = (recentSearchesHeight as any)._value;
-                 target = current > maxHeight / 2 ? maxHeight : 0;
-             }
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        recentSearchesHeight.stopAnimation((val) => {
+          currentRecentSearchesHeight.current = val;
+        });
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // We need to account for the extra pill height when focused
+        const extraPillHeight = 24;
+        const maxHeight =
+          SCREEN_HEIGHT -
+          (pillHeight + extraPillHeight) -
+          currentKeyboardHeightVal.current -
+          insets.top;
+        const newHeight = Math.max(
+          0,
+          Math.min(
+            currentRecentSearchesHeight.current - gestureState.dy,
+            maxHeight,
+          ),
+        );
+        recentSearchesHeight.setValue(newHeight);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const extraPillHeight = 24;
+        const maxHeight =
+          SCREEN_HEIGHT -
+          (pillHeight + extraPillHeight) -
+          currentKeyboardHeightVal.current -
+          insets.top;
+        const { dy, vy } = gestureState;
 
-             Animated.spring(recentSearchesHeight, {
-                 toValue: target,
-                 useNativeDriver: false,
-                 tension: 50,
-                 friction: 12,
-                 overshootClamping: true
-             }).start(() => {
-                 currentRecentSearchesHeight.current = target;
-             });
-          }
-      })
+        // Strict Snap Logic
+        let target = 0;
+        // If dragged up significantly or flicked up -> Max
+        if (dy < -60 || vy < -0.5) target = maxHeight;
+        // If dragged down significantly or flicked down -> 0
+        else if (dy > 60 || vy > 0.5) target = 0;
+        else {
+          // If not a strong gesture, snap to nearest state
+          const current = (recentSearchesHeight as any)._value;
+          target = current > maxHeight / 2 ? maxHeight : 0;
+        }
+
+        Animated.spring(recentSearchesHeight, {
+          toValue: target,
+          useNativeDriver: false,
+          tension: 50,
+          friction: 12,
+          overshootClamping: true,
+        }).start(() => {
+          currentRecentSearchesHeight.current = target;
+        });
+      },
+    }),
   ).current;
 
   // Auto-collapse recent searches when focus is lost
   useEffect(() => {
-      if (!isInputFocused) {
-          Animated.timing(recentSearchesHeight, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: false
-          }).start(() => {
-              currentRecentSearchesHeight.current = 0;
-          });
-      }
+    if (!isInputFocused) {
+      Animated.timing(recentSearchesHeight, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start(() => {
+        currentRecentSearchesHeight.current = 0;
+      });
+    }
   }, [isInputFocused]);
 
   // --- SYNC UI WHEN SWITCHING TABS ---
@@ -505,6 +540,14 @@ export default function App() {
   }, [isInputFocused, isPillFocusedAnim]);
 
   useEffect(() => {
+    Animated.timing(handleVisibleAnim, {
+      toValue: isInputFocused && isKeyboardVisible ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [isInputFocused, isKeyboardVisible, handleVisibleAnim]);
+
+  useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
     if (isSearchActive) setIsSubMenuVisible(false);
   }, [isSearchActive]);
@@ -526,20 +569,22 @@ export default function App() {
   }, [activeView]);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardDidShow", (e) =>
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+      setIsKeyboardVisible(true);
       Animated.timing(keyboardHeight, {
         toValue: e.endCoordinates.height,
         duration: 150,
         useNativeDriver: false,
-      }).start(),
-    );
-    const hideSub = Keyboard.addListener("keyboardDidHide", (e) =>
+      }).start();
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", (e) => {
+      setIsKeyboardVisible(false);
       Animated.timing(keyboardHeight, {
         toValue: 0,
         duration: 150,
         useNativeDriver: false,
-      }).start(),
-    );
+      }).start();
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -831,50 +876,46 @@ export default function App() {
   };
 
   const handleClearAllTabs = () => {
-    showAlert(
-      "Clear All Tabs",
-      "Are you sure you want to close all tabs?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Clear All",
-          style: "destructive",
-          onPress: async () => {
-            // Cleanup images
-            for (const t of tabs) {
-              if (t.previewImage) {
-                try {
-                  await FileSystem.deleteAsync(t.previewImage, {
-                    idempotent: true,
-                  });
-                } catch {}
-              }
+    showAlert("Clear All Tabs", "Are you sure you want to close all tabs?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Clear All",
+        style: "destructive",
+        onPress: async () => {
+          // Cleanup images
+          for (const t of tabs) {
+            if (t.previewImage) {
+              try {
+                await FileSystem.deleteAsync(t.previewImage, {
+                  idempotent: true,
+                });
+              } catch {}
             }
+          }
 
-            const newId = Date.now().toString();
-            const newTab: TabItem = {
-              id: newId,
-              url: null,
-              requestedUrl: null,
-              initialUrl: null,
-              title: "New Tab",
-              showLogo: true,
-              hasLoadedOnce: true,
-              historyStack: [],
-              currentIndex: -1,
-            };
+          const newId = Date.now().toString();
+          const newTab: TabItem = {
+            id: newId,
+            url: null,
+            requestedUrl: null,
+            initialUrl: null,
+            title: "New Tab",
+            showLogo: true,
+            hasLoadedOnce: true,
+            historyStack: [],
+            currentIndex: -1,
+          };
 
-            setTabs([newTab]);
-            setActiveTabId(newId);
-            setActiveUrl(null);
-            setInputUrl("");
-          },
+          setTabs([newTab]);
+          setActiveTabId(newId);
+          setActiveUrl(null);
+          setInputUrl("");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleCopyLink = async () => {
@@ -1283,10 +1324,10 @@ export default function App() {
     extrapolate: "clamp",
   });
 
-  const focusedPillHeightAdd = isPillFocusedAnim.interpolate({
+  const focusedPillHeightAdd = handleVisibleAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 24],
-    extrapolate: 'clamp'
+    extrapolate: "clamp",
   });
 
   const totalPillHeight = Animated.add(pillHeight, focusedPillHeightAdd);
@@ -1429,7 +1470,7 @@ export default function App() {
                   setTabs,
                   setActiveUrl,
                   setInputUrl,
-                  showAlert
+                  showAlert,
                 )
               }
               onNewWindow={(url) => addNewTab(url)}
@@ -2227,32 +2268,38 @@ export default function App() {
                       ]}
                       pointerEvents={isSearchActive ? "auto" : "none"}
                     >
-                      {/* Integrated Drag Handle for Search Pill */}
-                      {isInputFocused && (
-                        <View
-                            {...recentSearchesPanResponder.panHandlers}
-                            style={{
-                                width: "100%",
-                                height: 24,
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                zIndex: 10,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}
+                                            {/* Integrated Drag Handle for Search Pill */}
+                                            {isInputFocused && isKeyboardVisible && (
+                                              <View
+                                                  {...recentSearchesPanResponder.panHandlers}                          style={{
+                            width: "100%",
+                            height: 24,
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            zIndex: 10,
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
                         >
-                             <View style={{
-                                width: 40,
-                                height: 4,
-                                backgroundColor: effectiveTheme.textSec,
-                                borderRadius: 2,
-                                opacity: 0.5
-                            }} />
+                          <View
+                            style={{
+                              width: 40,
+                              height: 4,
+                              backgroundColor: effectiveTheme.textSec,
+                              borderRadius: 2,
+                              opacity: 0.5,
+                            }}
+                          />
                         </View>
                       )}
 
-                      <Animated.View style={[styles.barTabContent, { paddingTop: focusedPillHeightAdd }]}>
+                      <Animated.View
+                        style={[
+                          styles.barTabContent,
+                          { paddingTop: focusedPillHeightAdd },
+                        ]}
+                      >
                         <Animated.View
                           pointerEvents="none"
                           style={[
@@ -2406,38 +2453,60 @@ export default function App() {
                   </Animated.View>
 
                   {/* Recent Searches Drawer */}
-                  <Animated.View style={{ height: recentSearchesHeight, width: '100%', overflow: 'hidden', backgroundColor: effectiveTheme.surface }}>
-                      <RecentSearchesView
-                        historyItems={history.slice(0, 20)}
-                        theme={effectiveTheme}
-                        fontScale={fontScale}
-                        onSelect={(item) => {
-                            const targetUrl = item.url;
-                            setInputUrl(getDisplayHost(targetUrl));
-                            setIsInputFocused(true); 
-                            
-                            setActiveUrl(targetUrl);
-                            updateTab(activeTabId, {
-                                url: targetUrl,
-                                requestedUrl: targetUrl,
-                                title: item.title,
-                            });
-                            snapToSearch();
-                            Keyboard.dismiss();
-                        }}
-                        onRemove={deleteHistoryItem}
-                        onClear={() => {
-                             // Optional: Ask for confirmation or just clear recent?
-                             // User asked for "recent history", usually clear all clears everything.
-                             // We can reuse the confirmation modal logic if we want, or just call deleteHistory(-1).
-                             // Let's trigger the existing confirmation modal for consistency.
-                             setConfirmHistoryPayload({ ms: -1, label: "All History" });
-                             setConfirmActionType("history");
-                             setIsConfirmModalVisible(true);
-                        }}
-                      />
-                  </Animated.View>
+                  <Animated.View
+                    style={{
+                      height: recentSearchesHeight,
+                      width: "100%",
+                      overflow: "hidden",
+                      backgroundColor: effectiveTheme.surface,
+                      zIndex: 5,
+                      elevation: 5,
+                    }}
+                  >
+                    <RecentSearchesView
+                      historyItems={history.slice(0, 20)}
+                      theme={effectiveTheme}
+                      fontScale={fontScale}
+                      onSelect={(item) => {
+                        const targetUrl = item.url;
+                        setInputUrl(getDisplayHost(targetUrl));
+                        setIsInputFocused(true);
 
+                        setActiveUrl(targetUrl);
+                        updateTab(activeTabId, {
+                          url: targetUrl,
+                          requestedUrl: targetUrl,
+                          title: item.title,
+                        });
+                        snapToSearch();
+                        Keyboard.dismiss();
+                      }}
+                      onRemove={deleteHistoryItem}
+                      onClear={() => {
+                        // Optional: Ask for confirmation or just clear recent?
+                        // User asked for "recent history", usually clear all clears everything.
+                        // We can reuse the confirmation modal logic if we want, or just call deleteHistory(-1).
+                        // Let's trigger the existing confirmation modal for consistency.
+                        setConfirmHistoryPayload({
+                          ms: -1,
+                          label: "All History",
+                        });
+                        setConfirmActionType("history");
+                        setIsConfirmModalVisible(true);
+                      }}
+                      onClose={() => {
+                        Animated.spring(recentSearchesHeight, {
+                          toValue: 0,
+                          useNativeDriver: false,
+                          tension: 50,
+                          friction: 12,
+                          overshootClamping: true,
+                        }).start(() => {
+                          currentRecentSearchesHeight.current = 0;
+                        });
+                      }}
+                    />
+                  </Animated.View>
                 </Animated.View>
               </Animated.View>
             </View>
@@ -2871,7 +2940,7 @@ export default function App() {
         </View>
       )}
 
-      <CustomAlert 
+      <CustomAlert
         visible={alertConfig.visible}
         title={alertConfig.title}
         message={alertConfig.message}

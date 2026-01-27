@@ -1,13 +1,16 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
-import { HistoryItem } from '../../types';
+import { Image } from "expo-image";
+import React from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { HistoryItem } from "../../types";
+import { getFaviconUrl } from "../../utils";
 
 interface RecentSearchesViewProps {
   historyItems: HistoryItem[];
   onSelect: (item: HistoryItem) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
+  onClose: () => void;
   theme: any;
   fontScale: number;
 }
@@ -17,98 +20,110 @@ export const RecentSearchesView = ({
   onSelect,
   onRemove,
   onClear,
+  onClose,
   theme,
-  fontScale
+  fontScale,
 }: RecentSearchesViewProps) => {
-
-  if (historyItems.length === 0) {
+  const renderContent = () => {
+    if (historyItems.length === 0) {
       return (
-        <View style={{ flex: 1, backgroundColor: theme.surface, alignItems: 'center', paddingTop: 30 }}>
-            <Text style={{ color: theme.textSec, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>
-                No recent history
-            </Text>
+        <View style={{ flex: 1, alignItems: "center", paddingTop: 50 }}>
+          <Text
+            style={{
+              color: theme.textSec,
+              fontFamily: "Nunito_600SemiBold",
+              fontSize: 16 * fontScale,
+            }}
+          >
+            No recent history
+          </Text>
         </View>
       );
-  }
-
-  return (
-    <View style={{ flex: 1, backgroundColor: theme.surface }}>
-      <View style={{ 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.bg
-      }}>
-        <Text style={{ 
-          color: theme.textSec, 
-          fontFamily: "Nunito_700Bold", 
-          fontSize: 14 * fontScale 
-        }}>
-          Recent History
-        </Text>
-        <TouchableOpacity onPress={onClear}>
-            <Text style={{ 
-                color: theme.textSec, 
-                fontFamily: "Nunito_600SemiBold", 
-                fontSize: 12 * fontScale 
-            }}>
-                Clear All
-            </Text>
-        </TouchableOpacity>
-      </View>
-      
-      <ScrollView keyboardShouldPersistTaps="handled">
+    }
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingVertical: 10,
+          paddingBottom: 10,
+        }}
+      >
         {historyItems.map((item) => (
           <TouchableOpacity
             key={item.id}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              flexDirection: "row",
+              alignItems: "center",
               paddingVertical: 12,
-              paddingHorizontal: 15,
-              borderBottomWidth: 1,
-              borderBottomColor: theme.bg
+              paddingHorizontal: 20,
             }}
             onPress={() => onSelect(item)}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <Ionicons name="time-outline" size={20} color={theme.textSec} style={{ marginRight: 15 }} />
-              <View style={{ flex: 1 }}>
-                  <Text style={{ 
-                    color: theme.text, 
-                    fontFamily: "Nunito_600SemiBold", 
-                    fontSize: 16 * fontScale 
-                  }} numberOfLines={1}>
-                    {item.title || item.url}
-                  </Text>
-                  <Text style={{ 
-                    color: theme.textSec, 
-                    fontFamily: "Nunito_600SemiBold", 
-                    fontSize: 12 * fontScale,
-                    marginTop: 2
-                  }} numberOfLines={1}>
-                    {item.url}
-                  </Text>
-              </View>
-            </View>
-            
-            <TouchableOpacity 
-              onPress={(e) => {
-                  e.stopPropagation();
-                  onRemove(item.id);
+            <View
+              style={{
+                width: 24,
+                height: 24,
+                marginRight: 15,
+                justifyContent: "center",
+                alignItems: "center",
               }}
-              style={{ padding: 5 }}
             >
-              <Ionicons name="close" size={18} color={theme.textSec} />
-            </TouchableOpacity>
+              <Image
+                source={{ uri: getFaviconUrl(item.url) || "" }}
+                style={{ width: 24, height: 24, borderRadius: 4 }}
+                contentFit="contain"
+                transition={200}
+              />
+            </View>
+
+            <Text
+              style={{
+                flex: 1,
+                color: theme.text,
+                fontFamily: "Nunito_600SemiBold",
+                fontSize: 16 * fontScale,
+              }}
+              numberOfLines={1}
+            >
+              {item.title || "Untitled"}
+            </Text>
           </TouchableOpacity>
         ))}
-        {/* Spacer for bottom padding if needed */}
-        <View style={{ height: 20 }} />
       </ScrollView>
+    );
+  };
+
+  return (
+    <View
+      style={{ flex: 1, backgroundColor: theme.surface, position: "relative" }}
+    >
+      {renderContent()}
+
+      {/* Floating Close Button */}
+      <TouchableOpacity
+        onPress={onClose}
+        style={{
+          position: "absolute",
+          bottom: 20,
+          right: 20,
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: theme.card,
+          justifyContent: "center",
+          alignItems: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+          elevation: 5,
+          borderWidth: 1,
+          borderColor: theme.bg,
+        }}
+      >
+        <Ionicons name="chevron-down" size={24} color={theme.text} />
+      </TouchableOpacity>
     </View>
   );
 };
