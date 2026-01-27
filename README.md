@@ -1,59 +1,85 @@
-# mi. Browser 🌐
+# <img src="assets/images/icon.png" width="40" height="40" align="center" style="border-radius: 8px;" /> mi. Browser
 
-**mi.** (pronounced "my") is a hyper-lightweight, distraction-free mobile browser designed for the modern web. It strips away the clutter of traditional mobile browsers, replacing bulky toolbars with a single, floating "Pill" that responds to your gestures. It is fast, minimal, and customizable to fit your style.
+<img src="assets/images/docs/homepage.png" width="280" align="right" style="border-radius: 24px; margin-left: 20px; margin-bottom: 20px;" />
 
-## 📥 Download & Install (Android Only)
+**mi.** (pronounced "my") is a hyper-lightweight, distraction-free mobile browser designed for the modern web. It rethinks the mobile browsing experience by replacing the traditional toolbar with a single, intelligent "Pill" interface. 
 
-(iOS is in the works)
+Designed for simplicity and speed, **mi.** strips away the complexity of traditional mobile browsers to focus on what matters most: your content. It is fast, private, and deeply customizable to fit your specific browsing style.
 
-You can find the latest Android APKs directly in this repository.
+<br clear="right"/>
 
-1.  Find the latest release in the "Releases" section of this repository
-2.  Download the .apk to your device
-3.  Install and start browsing!
-
-## 🪶 Why mi.?
-
-### Minimal & Lightweight
-Most browsers are bloated with unnecessary features. **mi.** is built to be invisible. It gets out of your way so you can focus on what you need to do.
-
-### One-Handed Design
-Smartphones are getting bigger, but our hands aren't. **mi.** moves all navigation to the bottom of the screen within a thumb's reach. No more reaching for the top corner to reload or switch tabs.
+---
 
 ## 🔮 The "Pill" Interface
 
-The core of **mi.** is the floating Pill at the bottom of the screen. It is your address bar, your menu, and your navigation controller all in one.
+<img src="assets/images/docs/dashboard.png" width="280" align="left" style="border-radius: 24px; margin-right: 20px; margin-bottom: 20px;" />
 
-| Gesture on the Pill | Action |
-| :--- | :--- |
-| **Tap** | Search or type a URL |
-| **Swipe Up** | Open the Menu (Tabs, History, Settings) |
-| **Swipe Down** | Hide the interface completely (Immersive Mode) |
-| **Swipe Left/Right** | Go Back or Forward instantly |
+The core of **mi.** is the floating Pill at the bottom of the screen—a unified control center for your entire browsing experience.
 
-## ✨ Features
+*   **Tap** — Focus search or enter a URL.
+*   **Swipe Up** — Access your Dashboard (Tabs, History, Bookmarks, and Settings).
+*   **Swipe Down** — Hide the interface for a fully immersive, 100% content view.
+*   **Swipe Left/Right** — Quickly navigate backward or forward through your history.
 
-### 🎨 Make It Yours
-**mi.** offers several customization options.
-* **Themes:** Choose Light, Dark, or **Adaptive** (which tints the UI based on your accent color).
-* **Shape & Size:** Prefer square buttons? Round corners? You decide the radius.
-* **Density:** Switch between Compact, Normal, or Airy padding to suit your screen size.
-* **Transparency:** Make the navigation bar Opaque, Frosted, or completely Ghost-like.
+The interface is optimized for one-handed use, keeping all critical controls comfortably within your thumb's reach.
 
-### 🔒 Privacy First
-Your data belongs to you.
-* **Incognito Mode:** Browse without saving history or cookies.
-* **Security Controls:** One-tap toggles to block cookies, force HTTPS, or disable JavaScript for extra security.
-* **Data Wiping:** Clear your history or cache instantly with granular time ranges (e.g., "Last Hour" vs "All Time").
+<br clear="left"/>
 
-### ⚡ Power Tools
-* **Reader Mode:** Strip away website clutter for a clean reading experience.
-* **Desktop Mode:** View sites as if you were on a computer.
-* **Smart Search:** Built-in support for Google, DuckDuckGo, Bing, Ecosia, and Brave.
-* **Tab Management:** A visual, swipe-able list of your open tabs.
+---
+
+## 🚀 Smart Search & Navigation
+
+<img src="assets/images/docs/tabs.png" width="280" align="right" style="border-radius: 24px; margin-left: 20px; margin-bottom: 20px;" />
+
+*   **Unified Search Bar:** Search the web or enter URLs directly. Supports custom search engines (Google, DuckDuckGo, Bing, Brave, Startpage).
+*   **Quick Actions:** Long-press the app icon on your home screen to instantly launch into **QR Scan** mode.
+*   **Visual Tab Management:** Manage open tabs with a beautiful grid view, complete with visual snapshots of your browsing sessions.
+*   **Recent Searches:** A swipeable drawer in the search view gives you instant access to your recent queries.
+
+<br clear="right"/>
+
+---
+
+## 🎨 Deep Customization
+
+<img src="assets/images/docs/settings.png" width="280" align="left" style="border-radius: 24px; margin-right: 20px; margin-bottom: 20px;" />
+
+*   **Adaptive Theming:** The UI adapts to your preferences. Choose your **Accent Color** and watch the interface harmonize.
+*   **Shape Shifting:** Customize the UI geometry. Go from **Square** to **Round** (and everything in between) with the corner radius slider.
+*   **Density Control:** Adjust the **Pill Height** and **UI Padding** to fit your thumb's reach and your screen's size.
+*   **Reader Mode:** Strip away clutter from articles for a clean, focused reading experience.
+
+<br clear="left"/>
+
+---
+
+## 🛠️ Power Tools & Security
+
+<img src="assets/images/docs/context-menu.png" width="280" align="right" style="border-radius: 24px; margin-left: 20px; margin-bottom: 20px;" />
+
+*   **QR Toolbox:** Built-in **QR Scanner** to open links instantly and a **QR Generator** to share your current page.
+*   **Desktop Mode:** Request the desktop version of sites easily.
+*   **Privacy First:** Toggle cookie blocking and force **HTTPS Only** connections.
+*   **History Management:** Swipe to delete individual items or wipe data by time range (Last Hour, 24 Hours, All Time).
+
+<br clear="right"/>
+
+---
+
+## 📥 Download & Installation
+
+We provide a direct APK download for Android users.
+
+1.  Go to the **[Releases Page](https://github.com/yourusername/my-browser/releases)** on this repository.
+2.  Download the latest `.apk` file (e.g., `mi-browser-v1.0.0.apk`).
+3.  Open the file on your Android device and confirm installation.
+
+## 🧑‍💻 For Developers
+
+Interested in the code or want to contribute? Check out our **[Developer Guide](DEVELOPMENT.md)** for technical details, tech stack info, and instructions on how to run the project locally with Expo.
 
 ---
 
 <p align="center">
-  <em>A minimal masterpiece.</em>
+  <em>A minimal masterpiece for the modern web.</em>
 </p>
