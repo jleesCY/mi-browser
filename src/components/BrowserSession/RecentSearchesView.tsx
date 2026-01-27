@@ -46,10 +46,12 @@ export const RecentSearchesView = ({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingVertical: 10,
-          paddingBottom: 10,
+          paddingBottom: 100,
         }}
       >
-        {historyItems.map((item) => (
+        {historyItems.map((item) => {
+          const favicon = getFaviconUrl(item.url);
+          return (
           <TouchableOpacity
             key={item.id}
             style={{
@@ -69,12 +71,16 @@ export const RecentSearchesView = ({
                 alignItems: "center",
               }}
             >
-              <Image
-                source={{ uri: getFaviconUrl(item.url) || "" }}
-                style={{ width: 24, height: 24, borderRadius: 4 }}
-                contentFit="contain"
-                transition={200}
-              />
+              {favicon ? (
+                  <Image
+                    source={{ uri: favicon }}
+                    style={{ width: 24, height: 24, borderRadius: 4 }}
+                    contentFit="contain"
+                    transition={200}
+                  />
+              ) : (
+                  <Ionicons name="globe-outline" size={16} color={theme.textSec} />
+              )}
             </View>
 
             <Text
@@ -89,7 +95,7 @@ export const RecentSearchesView = ({
               {item.title || "Untitled"}
             </Text>
           </TouchableOpacity>
-        ))}
+        ); })}
       </ScrollView>
     );
   };

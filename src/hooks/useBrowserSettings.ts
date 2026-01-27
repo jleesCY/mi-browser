@@ -20,6 +20,7 @@ export interface BrowserSettings {
   desktopMode: boolean;
   forceSearchMode: boolean;
   readerModeEnabled: boolean;
+  recentSearchesExpanded: boolean;
   jsEnabled: boolean;
   httpsOnly: boolean;
   blockCookies: boolean;
@@ -48,6 +49,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   // Functional settings
   const [desktopMode, setDesktopMode] = useState(false);
   const [forceSearchMode, setForceSearchMode] = useState(false);
+  const [recentSearchesExpanded, setRecentSearchesExpanded] = useState(false);
   const [readerModeEnabled, setReaderModeEnabled] = useState(false);
   const [jsEnabled, setJsEnabled] = useState(true);
   const [httpsOnly, setHttpsOnly] = useState(false);
@@ -82,6 +84,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
 
         setDesktopMode(savedSettings.desktopMode ?? false);
         setForceSearchMode(savedSettings.forceSearchMode ?? false);
+        setRecentSearchesExpanded(savedSettings.recentSearchesExpanded ?? false);
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
@@ -121,6 +124,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         showTabPreview,
         desktopMode,
         forceSearchMode,
+        recentSearchesExpanded,
         readerModeEnabled,
         jsEnabled,
         httpsOnly,
@@ -181,6 +185,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setShowTabPreview(true);
     setDesktopMode(false);
     setForceSearchMode(false);
+    setRecentSearchesExpanded(false);
     setReaderModeEnabled(false);
     setJsEnabled(true);
     setHttpsOnly(false);
@@ -209,6 +214,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     showTabPreview, setShowTabPreview,
     desktopMode, setDesktopMode,
     forceSearchMode, setForceSearchMode,
+    recentSearchesExpanded, setRecentSearchesExpanded,
     readerModeEnabled, setReaderModeEnabled,
     jsEnabled, setJsEnabled,
     httpsOnly, setHttpsOnly,

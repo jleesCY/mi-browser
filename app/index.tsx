@@ -107,6 +107,7 @@ export default function App() {
     areSettingsLoaded,
     backgroundRefresh,
     readerModeEnabled,
+    recentSearchesExpanded,
   } = settings;
 
   const { history, addToHistory, deleteHistory, deleteHistoryItem } =
@@ -433,6 +434,7 @@ export default function App() {
   const recentSearchesHeight = useRef(new Animated.Value(0)).current;
   const currentRecentSearchesHeight = useRef(0);
   const currentKeyboardHeightVal = useRef(0);
+  const keyboardTargetHeight = useRef(0);
 
   useEffect(() => {
     const sub = keyboardHeight.addListener(({ value }) => {
@@ -548,6 +550,23 @@ export default function App() {
   }, [isInputFocused, isKeyboardVisible, handleVisibleAnim]);
 
   useEffect(() => {
+      if (isInputFocused && isKeyboardVisible && recentSearchesExpanded) {
+          const extraPillHeight = 24; 
+          const maxHeight = SCREEN_HEIGHT - (pillHeight + extraPillHeight) - keyboardTargetHeight.current - insets.top;
+          
+          Animated.spring(recentSearchesHeight, {
+              toValue: maxHeight,
+              useNativeDriver: false,
+              tension: 50,
+              friction: 12,
+              overshootClamping: true
+          }).start(() => {
+              currentRecentSearchesHeight.current = maxHeight;
+          });
+      }
+  }, [isInputFocused, isKeyboardVisible, recentSearchesExpanded]);
+
+  useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
     if (isSearchActive) setIsSubMenuVisible(false);
   }, [isSearchActive]);
@@ -571,6 +590,7 @@ export default function App() {
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
       setIsKeyboardVisible(true);
+      keyboardTargetHeight.current = e.endCoordinates.height;
       Animated.timing(keyboardHeight, {
         toValue: e.endCoordinates.height,
         duration: 150,
@@ -579,6 +599,7 @@ export default function App() {
     });
     const hideSub = Keyboard.addListener("keyboardDidHide", (e) => {
       setIsKeyboardVisible(false);
+      keyboardTargetHeight.current = 0;
       Animated.timing(keyboardHeight, {
         toValue: 0,
         duration: 150,
