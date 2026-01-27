@@ -68,7 +68,7 @@ fi
 # 4. Run Bundletool (Generate APKS)
 # ==========================================
 OUTPUT_APKS="./builds/${VERSION}.apks"
-BUNDLETOOL="./builds/bundletool-all-1.18.3.jar"
+BUNDLETOOL="./bundletool-all-1.18.3.jar"
 
 echo "Generating APKS..."
 java -jar "$BUNDLETOOL" build-apks \
