@@ -1,37 +1,42 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Download, ChevronRight, Zap, Palette, Shield, QrCode, Github } from "lucide-react";
+import { Download, ChevronRight, Zap, Palette, Shield, QrCode, Github, LayoutGrid, Sliders, Smartphone, Sparkles } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // Helper to handle basePath for GitHub Pages
 const getAssetPath = (path: string) => {
-  const basePath = "/my-browser";
+  const isProd = process.env.NODE_ENV === 'production';
+  const basePath = isProd ? "/my-browser" : "";
   return `${basePath}${path}`;
 };
 
 export default function Home() {
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true },
     transition: { duration: 0.6 }
   };
 
   const GITHUB_URL = "https://github.com/jleescy/my-browser";
 
   return (
-    <main className="min-h-screen bg-[#fafafa] dark:bg-[#050505] text-[#171717] dark:text-[#ededed] overflow-x-hidden">
+    <main className="min-h-screen bg-[#fafafa] dark:bg-[#050505] text-[#171717] dark:text-[#ededed] overflow-x-hidden transition-colors duration-300">
       {/* Header */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-black/5 dark:border-white/5">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={getAssetPath("/icon.png")} alt="mi. logo" className="w-8 h-8 rounded-lg" />
-            <span className="font-bold text-xl tracking-tight">mi.</span>
+            <img src={getAssetPath("/icon.png")} alt="mi. logo" className="w-8 h-8 rounded-lg shadow-lg shadow-blue-500/20" />
+            <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">mi.</span>
           </div>
-          <div className="flex items-center gap-6">
-            <a href={GITHUB_URL} className="hover:opacity-60 transition-opacity">
+          <div className="flex items-center gap-4">
+            <a href={GITHUB_URL} className="hover:opacity-60 transition-opacity text-black/50 dark:text-white/50 hidden sm:block">
               <Github size={20} />
             </a>
-            <a href="#download" className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:scale-105 transition-transform">
+            <div className="w-px h-6 bg-black/10 dark:bg-white/10 hidden sm:block" />
+            <ThemeToggle />
+            <a href="#download" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-blue-500/20 hover:scale-105 transition-all">
               Download
             </a>
           </div>
@@ -39,21 +44,27 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="pt-48 pb-20 px-6 relative">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-[120px] -z-10" />
+        
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-          <motion.div {...fadeInUp}>
-            <h1 className="text-6xl lg:text-7xl font-extrabold tracking-tighter mb-6 leading-tight">
-              A minimal masterpiece for the modern web.
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold tracking-widest uppercase mb-6 border border-blue-500/20">
+               <Sparkles size={14} />
+               Now in Beta
+            </div>
+            <h1 className="text-6xl lg:text-7xl font-extrabold tracking-tighter mb-6 leading-[1.1]">
+              A minimal <span className="text-blue-600 italic">masterpiece</span> for the modern web.
             </h1>
-            <p className="text-xl text-black/60 dark:text-white/60 mb-8 max-w-lg leading-relaxed">
+            <p className="text-xl text-black/60 dark:text-white/60 mb-8 max-w-lg leading-relaxed font-medium">
               mi. is a hyper-lightweight browser that replaces bulky toolbars with a single, intelligent Pill. Fast, private, and deeply customizable.
             </p>
             <div className="flex flex-wrap gap-4">
-              <a href="#download" className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition-all active:scale-95">
+              <a href="#download" className="flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all active:scale-95">
                 <Download size={20} />
                 Download APK
               </a>
-              <a href={GITHUB_URL} className="flex items-center gap-2 bg-black/5 dark:bg-white/5 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-black/10 dark:hover:bg-white/10 transition-all">
+              <a href={GITHUB_URL} className="flex items-center gap-2 bg-black/5 dark:bg-white/5 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-black/5 dark:border-white/5">
                 View on GitHub
                 <ChevronRight size={20} />
               </a>
@@ -61,156 +72,219 @@ export default function Home() {
           </motion.div>
 
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9, rotate: 2 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative flex justify-center lg:justify-end"
           >
-            <div className="relative w-[300px] aspect-[9/19.5] bg-black rounded-[3rem] p-3 shadow-2xl border-4 border-black/10 dark:border-white/10 overflow-hidden">
-              <img 
-                src={getAssetPath("/images/homepage.png")} 
-                alt="mi. Browser Homepage" 
-                className="w-full h-full object-cover rounded-[2.5rem]"
-              />
-            </div>
-            {/* Decorative elements */}
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl -z-10" />
-            <div className="absolute -top-6 -right-6 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl -z-10" />
+            <DeviceMockup src={getAssetPath("/images/homepage.png")} color="blue" />
           </motion.div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-20 bg-black/5 dark:bg-white/5">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold tracking-tight mb-4">Reimagined from the ground up</h2>
-            <p className="text-black/50 dark:text-white/50 text-lg">Every detail crafted for an effortless browsing experience.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={<Zap className="text-yellow-500" />}
-              title="The Pill"
-              description="A single gesture-driven control center at your thumb's reach. Tap, swipe, and browse with zero friction."
-            />
-            <FeatureCard 
-              icon={<Palette className="text-pink-500" />}
-              title="Fully Adaptive"
-              description="Customize every pixel. From accent colors to corner radius, mi. adapts to your unique aesthetic."
-            />
-            <FeatureCard 
-              icon={<Shield className="text-blue-500" />}
-              title="Privacy First"
-              description="HTTPS only, cookie blocking, and granular history control. Your data stays on your device."
-            />
-          </div>
+      {/* Quick Specs Section */}
+      <section className="py-24 border-y border-black/5 dark:border-white/5 bg-white dark:bg-black/20">
+        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-12">
+           <FeatureBrief icon={<Zap size={24} className="text-yellow-500"/>} title="Instant Interaction" desc="Zero lag, gesture-first navigation." />
+           <FeatureBrief icon={<Palette size={24} className="text-pink-500"/>} title="Adaptive UI" desc="Harmonizes with your chosen accent." />
+           <FeatureBrief icon={<Shield size={24} className="text-blue-500"/>} title="Privacy Native" desc="Your data never leaves your device." />
         </div>
       </section>
 
-      {/* Visual Showcase */}
-      <section className="py-20 overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col lg:flex-row items-center gap-16">
-            <div className="flex-1 space-y-12">
-              <div className="space-y-4">
-                <span className="text-blue-500 font-bold tracking-widest text-xs uppercase">Customization</span>
-                <h3 className="text-4xl font-bold tracking-tight">Make it yours.</h3>
-                <p className="text-black/60 dark:text-white/60 text-lg leading-relaxed">
-                  Adjust UI density, pill height, and visual shaping. mi. is the first browser that actually lets you design its interface.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <span className="text-purple-500 font-bold tracking-widest text-xs uppercase">Tab Management</span>
-                <h3 className="text-4xl font-bold tracking-tight">Visual focus.</h3>
-                <p className="text-black/60 dark:text-white/60 text-lg leading-relaxed">
-                  A beautiful grid view with live snapshots keeps your browsing organized and visually intuitive.
-                </p>
-              </div>
-            </div>
+      {/* Detailed Features: Alternating Sections */}
+      <div className="space-y-32 py-32">
+        
+        {/* The Pill / Dashboard */}
+        <FeatureDetail 
+          image={getAssetPath("/images/dashboard.png")}
+          tag="Interaction"
+          tagColor="text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20"
+          title="One Pill. Total Control."
+          description="The dashboard is the heart of mi. Browser. A single swipe up on the Pill reveals your entire digital world—History, Bookmarks, and Settings—all logically organized in an elegant, glass-morphism sheet."
+          bullets={[
+            "Swipe up to open, down to hide",
+            "One-handed optimization",
+            "Haptic-feedback gestures",
+            "Immersive full-screen mode"
+          ]}
+          imageSide="right"
+          glowColor="blue"
+        />
 
-            <div className="flex-1 flex gap-4 rotate-3 scale-110 origin-center">
-              <ShowcaseDevice src={getAssetPath("/images/settings.png")} delay={0} />
-              <ShowcaseDevice src={getAssetPath("/images/tabs.png")} delay={0.2} />
-              <ShowcaseDevice src={getAssetPath("/images/dashboard.png")} delay={0.4} />
-            </div>
-          </div>
-        </div>
-      </section>
+        {/* Tab Management */}
+        <FeatureDetail 
+          image={getAssetPath("/images/tabs.png")}
+          tag="Organization"
+          tagColor="text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20"
+          title="Visual Tab Management."
+          description="Stop guessing which tab is which. mi. provides a high-fidelity grid view with real-time snapshots of your open sessions, making it effortless to switch context or clean up your workspace."
+          bullets={[
+            "Visual snapshot previews",
+            "Seamless reordering",
+            "Clear-all tabs shortcut",
+            "Hyper-fast tab switching"
+          ]}
+          imageSide="left"
+          glowColor="purple"
+        />
 
-      {/* QR Toolbox Section */}
-      <section className="py-20 bg-black text-white rounded-[4rem] mx-4 mb-20 overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 opacity-50" />
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-          <div className="inline-block p-4 bg-white/10 rounded-3xl mb-8 backdrop-blur-xl border border-white/20">
-            <QrCode size={48} />
-          </div>
-          <h2 className="text-5xl font-extrabold tracking-tight mb-6">Tools at the speed of thought.</h2>
-          <p className="text-xl text-white/70 mb-10 max-w-2xl mx-auto">
-            Built-in QR scanner, generator, desktop mode toggles, and article reader. All one tap away in the context menu.
-          </p>
-          <div className="max-w-xl mx-auto rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-white/5 backdrop-blur-md">
-             <img src={getAssetPath("/images/context-menu.png")} alt="Context Menu" className="w-full h-auto" />
-          </div>
-        </div>
-      </section>
+        {/* Customization */}
+        <FeatureDetail 
+          image={getAssetPath("/images/settings.png")}
+          tag="Aesthetic"
+          tagColor="text-pink-600 dark:text-pink-400 bg-pink-500/10 border-pink-500/20"
+          title="Deeply, truly yours."
+          description="Browser settings shouldn't be boring. mi. offers a robust customization engine that lets you adjust UI density, pill height, and corner radius. Change your accent color and watch the entire app adapt instantly."
+          bullets={[
+            "Real-time theme engine",
+            "Adjustable corner geometry",
+            "Custom search engine support",
+            "UI density & font scaling"
+          ]}
+          imageSide="right"
+          glowColor="pink"
+        />
+
+        {/* Power Tools / Context Menu */}
+        <FeatureDetail 
+          image={getAssetPath("/images/context-menu.png")}
+          tag="Utility"
+          tagColor="text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20"
+          title="Power in your pocket."
+          description="The context menu provides instant access to the tools you use most. From built-in QR code generation and scanning to desktop mode toggles and a clean Reader View, everything is just a long-press away."
+          bullets={[
+            "Integrated QR Toolbox",
+            "One-tap Reader Mode",
+            "Desktop/Mobile toggling",
+            "Native Print & Share"
+          ]}
+          imageSide="left"
+          glowColor="cyan"
+        />
+
+      </div>
 
       {/* Download CTA */}
-      <section id="download" className="py-32 text-center">
-        <div className="max-w-2xl mx-auto px-6">
-          <h2 className="text-5xl font-bold mb-6 tracking-tight">Ready to switch?</h2>
-          <p className="text-xl text-black/60 dark:text-white/60 mb-10">
-            Download the latest APK for Android and experience the web without distraction.
+      <section id="download" className="py-40 bg-black dark:bg-white text-white dark:text-black rounded-[4rem] mx-4 mb-20 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full opacity-40 pointer-events-none">
+           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px]" />
+           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600 rounded-full blur-[120px]" />
+        </div>
+        <div className="max-w-3xl mx-auto px-6 text-center relative z-10">
+          <h2 className="text-6xl font-extrabold mb-8 tracking-tighter">Ready for the modern web?</h2>
+          <p className="text-xl opacity-70 mb-12 font-medium">
+            Download the latest APK for Android and experience a browser that stays out of your way.
           </p>
-          <div className="flex flex-col items-center gap-4">
-             <a href={`${GITHUB_URL}/releases`} className="inline-flex items-center gap-3 bg-black dark:bg-white text-white dark:text-black px-12 py-5 rounded-[2rem] font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-xl">
-               <Download size={24} />
+          <div className="flex flex-col items-center gap-6">
+             <a href={`${GITHUB_URL}/releases`} className="group flex items-center gap-4 bg-blue-600 text-white px-12 py-6 rounded-3xl font-black text-2xl hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-blue-500/40">
+               <Download size={28} />
                Install Latest APK
              </a>
-             <span className="text-sm text-black/40 dark:text-white/40">Requires Android 8.0 or later</span>
+             <span className="text-sm opacity-40 font-bold tracking-widest uppercase">Requires Android 8.0+</span>
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="py-20 border-t border-black/5 dark:border-white/5">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-2">
-            <img src={getAssetPath("/icon.png")} alt="mi. logo" className="w-6 h-6 rounded-lg opacity-50" />
-            <span className="font-bold opacity-50">mi. Browser</span>
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-12">
+          <div className="flex items-center gap-3">
+            <img src={getAssetPath("/icon.png")} alt="mi. logo" className="w-8 h-8 rounded-xl opacity-80" />
+            <span className="font-bold text-lg opacity-80 tracking-tight">mi. Browser</span>
           </div>
-          <div className="flex gap-8 text-sm font-medium text-black/40 dark:text-white/40">
-            <a href={GITHUB_URL} className="hover:text-black dark:hover:text-white transition-colors">GitHub</a>
-            <a href="https://github.com/jleescy/my-browser/blob/main/DEVELOPMENT.md" className="hover:text-black dark:hover:text-white transition-colors">Developers</a>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Privacy</a>
+          <div className="flex gap-10 text-sm font-bold text-black/40 dark:text-white/40 uppercase tracking-widest">
+            <a href={GITHUB_URL} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">GitHub</a>
+            <a href="https://github.com/jleescy/my-browser/blob/main/DEVELOPMENT.md" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Dev Guide</a>
+            <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy</a>
           </div>
-          <p className="text-sm text-black/30 dark:text-white/30">© 2026 mi. Open Source Project</p>
+          <p className="text-sm text-black/30 dark:text-white/30 font-medium">© 2026 mi. Open Source Project</p>
         </div>
       </footer>
     </main>
   );
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+function FeatureBrief({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
-    <div className="p-8 bg-white dark:bg-black/40 rounded-[2.5rem] border border-black/5 dark:border-white/5 shadow-sm hover:shadow-xl transition-shadow">
-      <div className="mb-6 scale-125 origin-left">{icon}</div>
-      <h3 className="text-2xl font-bold mb-3 tracking-tight">{title}</h3>
-      <p className="text-black/60 dark:text-white/60 leading-relaxed">{description}</p>
+    <div className="space-y-3">
+      <div className="text-black dark:text-white bg-black/5 dark:bg-white/5 w-12 h-12 flex items-center justify-center rounded-2xl mb-4 border border-black/5 dark:border-white/5 shadow-sm">
+        {icon}
+      </div>
+      <h4 className="font-bold text-lg tracking-tight">{title}</h4>
+      <p className="text-black/50 dark:text-white/50 leading-relaxed font-medium">{desc}</p>
     </div>
   );
 }
 
-function ShowcaseDevice({ src, delay }: { src: string, delay: number }) {
-  return (
+function FeatureDetail({ image, tag, tagColor, title, description, bullets, imageSide, glowColor }: any) {
+  const content = (
     <motion.div 
-      initial={{ opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay }}
+      initial={{ opacity: 0, x: imageSide === 'right' ? -30 : 30 }}
+      whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true }}
-      className="w-[220px] aspect-[9/19.5] bg-black rounded-[2.5rem] p-2 shadow-2xl border-4 border-black/10 dark:border-white/10 overflow-hidden shrink-0"
+      transition={{ duration: 0.8 }}
+      className="flex-1 space-y-8"
     >
-      <img src={src} alt="Showcase" className="w-full h-full object-cover rounded-[2rem]" />
+      <div className="space-y-4">
+        <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.2em] uppercase border ${tagColor}`}>
+          {tag}
+        </span>
+        <h3 className="text-5xl font-extrabold tracking-tighter leading-tight">{title}</h3>
+        <p className="text-xl text-black/60 dark:text-white/60 leading-relaxed font-medium">
+          {description}
+        </p>
+      </div>
+      <ul className="space-y-4">
+        {bullets.map((b: string) => (
+          <li key={b} className="flex items-center gap-3 font-bold text-black/80 dark:text-white/80">
+            <div className={`w-2 h-2 rounded-full ${
+              glowColor === 'blue' ? 'bg-blue-500' : 
+              glowColor === 'purple' ? 'bg-purple-500' : 
+              glowColor === 'pink' ? 'bg-pink-500' : 'bg-cyan-500'
+            }`} />
+            {b}
+          </li>
+        ))}
+      </ul>
     </motion.div>
+  );
+
+  const imgBlock = (
+    <div className="flex-1 flex justify-center">
+      <DeviceMockup src={image} color={glowColor} />
+    </div>
+  );
+
+  return (
+    <section className="max-w-6xl mx-auto px-6">
+      <div className={`flex flex-col ${imageSide === 'right' ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-20`}>
+        {content}
+        {imgBlock}
+      </div>
+    </section>
+  );
+}
+
+function DeviceMockup({ src, color }: { src: string, color?: string }) {
+  const glowStyles: any = {
+    blue: "bg-blue-500/20 shadow-blue-500/40",
+    purple: "bg-purple-500/20 shadow-purple-500/40",
+    pink: "bg-pink-500/20 shadow-pink-500/40",
+    cyan: "bg-cyan-500/20 shadow-cyan-500/40",
+  };
+
+  const glowClass = color ? glowStyles[color] : "bg-white/10 shadow-black/20";
+
+  return (
+    <div className="relative group">
+      <div className={`absolute -inset-10 ${color ? glowStyles[color].split(' ')[0] : 'bg-blue-500/10'} rounded-full blur-[80px] group-hover:opacity-100 transition-opacity opacity-50`} />
+      <div className={`relative w-[300px] aspect-[9/19.5] bg-[#0a0a0a] rounded-[3.5rem] p-3 shadow-2xl border-[6px] border-[#1a1a1a] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-1`}>
+        <img 
+          src={src} 
+          alt="mi. App Screenshot" 
+          className="w-full h-full object-cover rounded-[2.8rem]"
+        />
+      </div>
+    </div>
   );
 }

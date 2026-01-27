@@ -42,5 +42,10 @@ app-example
 /ios
 /android
 
+# Next.js
+.next/
+out/
+build/
+
 # misc.
 /builds

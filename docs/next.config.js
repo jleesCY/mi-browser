@@ -1,11 +1,13 @@
 /** @type {import('next').NextConfig} */
+const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
   output: 'export',
   images: {
     unoptimized: true,
   },
-  // Set the base path for GitHub Pages
-  basePath: '/my-browser', 
+  // Only use basePath in production (GitHub Pages)
+  basePath: isProd ? '/my-browser' : '', 
 };
 
 module.exports = nextConfig;
