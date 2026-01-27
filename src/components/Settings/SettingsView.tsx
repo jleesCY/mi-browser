@@ -3,6 +3,7 @@ import React, { ReactNode } from "react";
 import {
   Keyboard,
   LayoutAnimation,
+  Linking,
   ScrollView,
   Switch,
   Text,
@@ -1495,13 +1496,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </CustomSettingRow>
       </SettingsGroup>
 
+      <TouchableOpacity 
+        style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          gap: 6,
+          opacity: 0.8,
+          marginTop: 30,
+          marginBottom: 5
+        }}
+        onPress={() => Linking.openURL('https://jleescy.github.io/mi-browser/user')}
+      >
+        <Ionicons name="help-circle-outline" size={18} color={effectiveTheme.textSec} />
+        <Text style={{ 
+          color: effectiveTheme.textSec, 
+          fontFamily: 'Nunito_700Bold', 
+          fontSize: 14 * fontScale 
+        }}>Help</Text>
+      </TouchableOpacity>
+
       <Text
         style={{
           textAlign: "center",
           color: effectiveTheme.textSec,
           fontFamily: "Nunito_600SemiBold",
-          marginTop: 20,
-          marginBottom: 10,
+          marginTop: 10,
+          marginBottom: 40,
           fontSize: 12 * fontScale,
         }}
       >

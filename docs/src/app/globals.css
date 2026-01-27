@@ -2,12 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+html {
+  scroll-behavior: smooth;
 }
 
-.dark {
+:root {
   --background: #0a0a0a;
   --foreground: #ededed;
 }
@@ -16,4 +15,25 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Ensure sections don't hide under fixed header and center better */
+[id] {
+  scroll-margin-top: 80px;
+}
+
+@keyframes highlight-fade {
+  0% {
+    background-color: rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.2);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.highlight-section {
+  animation: highlight-fade 2s ease-out forwards;
+  border-radius: 1.5rem;
 }

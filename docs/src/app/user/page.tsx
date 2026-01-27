@@ -1,0 +1,482 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+import { 
+  Navigation, 
+  MousePointer2, 
+  Layers, 
+  Layout,
+  Settings2, 
+  Search, 
+  Bookmark, 
+  History, 
+  QrCode, 
+  Smartphone,
+  Zap,
+  ShieldCheck,
+  Palette,
+  Type,
+  Maximize,
+  Lock,
+  RefreshCw,
+  Trash2,
+  Monitor,
+  BookOpen,
+  Share2,
+  Printer,
+  ChevronRight,
+  FolderHeart,
+  Clock,
+  GripHorizontal,
+  Pencil,
+  Image as ImageIcon,
+  Home
+} from "lucide-react";
+import { useHighlight } from "@/hooks/useHighlight";
+
+const getAssetPath = (path: string) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const repoName = process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser";
+  const basePath = isProd ? `/${repoName}` : "";
+  return `${basePath}${path}`;
+};
+
+export default function UserDocs() {
+  useHighlight();
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true },
+    transition: { duration: 0.6 }
+  };
+
+  return (
+    <main className="min-h-screen bg-[#050505] text-[#ededed] transition-colors duration-300 overflow-x-hidden">
+      <Navbar />
+
+      <div className="pt-24 sm:pt-32 pb-20 px-6">
+        <div className="max-w-4xl mx-auto">
+          <motion.div {...fadeInUp} className="mb-16 text-center sm:text-left">
+            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter mb-6">
+              The Complete <span className="text-blue-600 italic">User Guide</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-white/60 leading-relaxed font-medium">
+              A comprehensive deep-dive into every feature, setting, and interaction within mi. Browser.
+            </p>
+          </motion.div>
+
+          <section className="space-y-24 sm:space-y-32">
+            
+            {/* 1. Pill Interactions - IMAGE RIGHT */}
+            <motion.div id="the-pill" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                  <Navigation size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Pill Interactions</h2>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
+                <div className="space-y-6">
+                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                    mi. Browser is designed for one-handed use. Everything centers around "The Pill" at the bottom of your screen.
+                  </p>
+                  <div className="space-y-6 inline-block text-left w-full">
+                    <div className="space-y-4">
+                      <GuideItem icon={<MousePointer2 size={18}/>} title="Tap the Pill" desc="Focuses the address bar. Type a URL or a search query to navigate instantly." />
+                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90"/>} title="Swipe Up" desc="Reveals the Dashboard. This is your hub for History, Bookmarks, and System Settings." />
+                      <GuideItem icon={<ChevronRight size={18} className="rotate-90"/>} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap the floating recall button to bring it back." />
+                      <div id="search-engine-only">
+                        <GuideItem icon={<Search size={18}/>} title="Search Engine Only" desc="Tap the search engine icon inside the address bar to force search mode. This bypasses URL parsing and sends your query directly to your search engine." />
+                      </div>
+                    </div>
+                    
+                    <div id="gestures" className="pt-4 space-y-4 border-t border-white/5">
+                      <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-blue-500 mb-4">Navigation Gestures</h4>
+                      <GuideItem icon={<ChevronRight size={18}/>} title="Swipe Right" desc="Go back to the previous page in your history." />
+                      <GuideItem icon={<ChevronRight size={18} className="rotate-180"/>} title="Swipe Left" desc="Go forward to the next page if you've navigated back." />
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                      <p><strong>Pro Tip:</strong> These gestures work directly on the Pill area, allowing for effortless one-handed browsing.</p>
+                    </div>
+                  </div>
+                </div>
+                <DeviceMockup src="/images/homepage.jpg" color="blue" />
+              </div>
+            </motion.div>
+
+            {/* 2. The Dashboard - IMAGE LEFT */}
+            <motion.div id="dashboard" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600">
+                  <Layout size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">The Dashboard</h2>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
+                <div className="order-2 lg:order-1">
+                   <DeviceMockup src="/images/dashboard.jpg" color="orange" />
+                </div>
+                <div className="space-y-6 order-1 lg:order-2">
+                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                    Swipe up on the Pill from any page to reveal your navigation hub. The Dashboard gives you instant access to your most important data.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                    <GuideItem icon={<Layers size={18}/>} title="Tabs" desc="Switch between your open browsing sessions." />
+                    <GuideItem icon={<Bookmark size={18}/>} title="Bookmarks" desc="Access your saved favorite sites and folders." />
+                    <GuideItem icon={<History size={18}/>} title="History" desc="View and search your recently visited pages." />
+                    <GuideItem icon={<Settings2 size={18}/>} title="Settings" desc="Configure every detail of your browsing experience." />
+                  </div>
+                  <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                    <p><strong>Secondary Menu:</strong> Tap the "Menu" button on the far right of the Dashboard to access Power Tools like Reader Mode, QR Tools, and Desktop Site toggles.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 3. Recent History Drawer - IMAGE RIGHT */}
+            <motion.div id="recent-history" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                  <Clock size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Recent History</h2>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
+                <div className="space-y-6">
+                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                    Access your recent visits without leaving the search experience. When the search pill is focused, a dedicated handle appears.
+                  </p>
+                  <div className="space-y-4 inline-block text-left w-full">
+                    <GuideItem icon={<GripHorizontal size={18}/>} title="The Handle" desc="When typing, look for the small handle directly above the Search Pill." />
+                    <GuideItem icon={<ChevronRight size={18} className="-rotate-90"/>} title="Drag Up" desc="Grab the handle and drag upwards to reveal a quick-access list of your most recent searches and visits." />
+                    <GuideItem icon={<RefreshCw size={18} className="rotate-90"/>} title="Close" desc="Drag the handle back down or tap the close button to return to the keyboard." />
+                    <GuideItem icon={<MousePointer2 size={18}/>} title="Instant Navigate" desc="Tap any item in the list to immediately navigate to that page." />
+                  </div>
+                  <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                    <p><strong>Auto-Expand:</strong> You can enable 'Show Recent History' in Settings to automatically open this drawer every time you focus the Pill.</p>
+                  </div>
+                </div>
+                <DeviceMockup src="/images/recent_history.jpg" color="blue" />
+              </div>
+            </motion.div>
+
+            {/* 4. Visual Tab Management - IMAGE LEFT */}
+            <motion.div id="tabs" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600">
+                  <Layers size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Tab Management</h2>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
+                <div className="order-2 lg:order-1">
+                   <DeviceMockup src="/images/tab_grid.jpg" color="purple" />
+                </div>
+                <div className="space-y-6 order-1 lg:order-2">
+                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                    Manage multiple sessions with ease. mi. uses high-fidelity snapshots so you never lose your place.
+                  </p>
+                  <div className="space-y-4 inline-block text-left">
+                    <GuideItem icon={<Layers size={18}/>} title="Grid/Card View" desc="Switch between dense rows or large visual cards in Settings." />
+                    <GuideItem icon={<MousePointer2 size={18}/>} title="Reordering" desc="In the tab view, long-press a tab and drag it to a new position to reorder your workspace." />
+                    <GuideItem icon={<Trash2 size={18}/>} title="Closing Tabs" desc="Swipe left on a tab row or tap the 'X' on a card to close it. Use 'Clear All' to reset completely." />
+                    <div id="tab-editing">
+                      <GuideItem icon={<Pencil size={18}/>} title="Tab Editing" desc="Tap the pencil icon on any tab to change its display name or toggle whether the website favicon is shown." />
+                    </div>
+                    <GuideItem icon={<Zap size={18}/>} title="Visual Snapshots" desc="Real-time previews of your pages help you identify the right tab in seconds." />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 5. Bookmark Management - IMAGE RIGHT */}
+            <motion.div id="bookmarks" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-pink-500/10 text-pink-600">
+                  <FolderHeart size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Bookmark Management</h2>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
+                <div className="space-y-6">
+                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                    Keep your favorite corners of the web organized. mi. Browser provides a flexible bookmarking system with folder support.
+                  </p>
+                  <div className="space-y-4 inline-block text-left w-full">
+                    <GuideItem icon={<MousePointer2 size={18}/>} title="Quick Save" desc="Open the Dashboard Menu and select 'Bookmark' to instantly save the current page to your library." />
+                    <div id="bookmark-swiping">
+                      <GuideItem icon={<RefreshCw size={18}/>} title="Swipe to Edit" desc="Swipe left on any bookmark or folder to reveal Edit and Delete actions. You can change names, URLs, or move items between folders." />
+                    </div>
+                    <GuideItem icon={<FolderHeart size={18}/>} title="Nested Folders" desc="Create and manage folders to group related bookmarks together for easier access." />
+                    <GuideItem icon={<Search size={18}/>} title="Instant Search" desc="Quickly find any saved bookmark by typing in the search bar at the top of the Bookmarks view." />
+                  </div>
+                </div>
+                <DeviceMockup src="/images/bookmarks.jpg" color="pink" />
+              </div>
+            </motion.div>
+
+            {/* 6. History Management - IMAGE LEFT */}
+            <motion.div id="history" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-green-500/10 text-green-600">
+                  <Clock size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">History Management</h2>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
+                <div className="order-2 lg:order-1">
+                   <DeviceMockup src="/images/history.jpg" color="green" />
+                </div>
+                <div className="space-y-6 order-1 lg:order-2">
+                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                    Never lose a page you've visited. mi. keeps a local-only record of your browsing activity that stays entirely on your device.
+                  </p>
+                  <div className="space-y-4 inline-block text-left">
+                    <GuideItem icon={<Search size={18}/>} title="Search History" desc="Filter through your past visits using the search bar within the History view." />
+                    <GuideItem icon={<Trash2 size={18}/>} title="Partial Deletion" desc="Swipe left on any history item to remove it individually without affecting the rest of your data." />
+                    <GuideItem icon={<RefreshCw size={18}/>} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, or all time via the trash icon in History." />
+                    <GuideItem icon={<ShieldCheck size={18}/>} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored securely on your local file system." />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 7. Detailed Settings Reference - IMAGE RIGHT */}
+            <motion.div id="customization" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600">
+                  <Settings2 size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h2>
+              </div>
+              
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
+                <div className="space-y-6">
+                  <p className="text-lg text-white/60 leading-relaxed font-medium">
+                    Every aspect of mi. Browser can be customized. Here is a breakdown of every available setting:
+                  </p>
+                  <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                    <p><strong>Pro Tip:</strong> Most settings apply in real-time. You can change your accent color or UI spacing and see the results instantly without restarting the app.</p>
+                  </div>
+                </div>
+                <DeviceMockup src="/images/settings.jpg" color="orange" />
+              </div>
+
+              <div className="grid gap-12">
+                {/* Look & Feel */}
+                <SettingsSection title="Look & Feel" icon={<Palette size={20} />}>
+                  <div id="setting-theme">
+                    <SettingItem title="Theme Mode" desc="Choose between Light, Dark, or Adaptive. Adaptive mode generates a custom theme based on your Accent Color." />
+                  </div>
+                  <div id="setting-accent">
+                    <SettingItem title="Accent Color" desc="Pick from over 30 hand-selected colors that define the app's UI elements, buttons, and highlights." />
+                  </div>
+                  <div id="setting-status-bar">
+                    <SettingItem title="Show Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
+                  </div>
+                </SettingsSection>
+
+                {/* Interface */}
+                <SettingsSection title="Interface Geometry" icon={<Maximize size={20} />}>
+                  <div id="setting-radius">
+                    <SettingItem title="Corner Radius" desc="Choose between Square (0px), Soft (10px), or Round (22px) for all UI components and cards." />
+                  </div>
+                  <div id="setting-font-size">
+                    <SettingItem title="Font Size Scaling" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
+                  </div>
+                  <SettingItem title="UI Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
+                  <div id="setting-pill-height">
+                    <SettingItem title="Pill Height" desc="Fine-tune the height of the interaction pill (60px to 80px) for optimal thumb reach." />
+                  </div>
+                  <div id="setting-loading-bar">
+                    <SettingItem title="Pill Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
+                  </div>
+                  <div id="setting-recent-history">
+                    <SettingItem title="Show Recent History" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
+                  </div>
+                </SettingsSection>
+
+                {/* Tab Customization */}
+                <SettingsSection title="Tab Preferences" icon={<Layers size={20} />}>
+                  <div id="setting-tab-view">
+                    <SettingItem title="Tab View Mode" desc="Toggle between Rows (dense list) or Cards (visual grid)." />
+                  </div>
+                  <div id="setting-tab-logo">
+                    <SettingItem title="Show Tab Logo" desc="Toggles the visibility of website icons (favicons) in the tab switcher." />
+                  </div>
+                  <div id="setting-tab-preview">
+                    <SettingItem title="Show Tab Preview" desc="Enables real-time snapshots of your pages when using Card view." />
+                  </div>
+                  <div id="setting-startup">
+                    <SettingItem title="Startup Behavior" desc="Choose to start with a New Tab or Continue Session (restore all previously open tabs)." />
+                  </div>
+                </SettingsSection>
+
+                {/* Browsing & Privacy */}
+                <SettingsSection title="Browsing & Privacy" icon={<Lock size={20} />}>
+                  <div id="setting-search-engine">
+                    <SettingItem title="Search Engine" desc="Support for Google, DuckDuckGo, Bing, Baidu, Yahoo, and Yandex." />
+                  </div>
+                  <div id="setting-bg-refresh">
+                    <SettingItem title="Background Refresh" desc="Keeps your open tabs 'alive' in the background for instant switching (uses more battery)." />
+                  </div>
+                  <div id="setting-https">
+                    <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections." />
+                  </div>
+                  <div id="setting-cookies">
+                    <SettingItem title="Block Cookies" desc="Prevents websites from storing tracking cookies on your device." />
+                  </div>
+                  <div id="setting-js">
+                    <SettingItem title="JavaScript Toggle" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
+                  </div>
+                </SettingsSection>
+
+                {/* Data Management */}
+                <SettingsSection title="Data & History" icon={<Trash2 size={20} />}>
+                  <div id="setting-history-count">
+                    <SettingItem title="History Load Count" desc="Limit how many history items are displayed at once (10, 25, 50, or 100)." />
+                  </div>
+                  <div id="setting-clear-history">
+                    <SettingItem title="Clear History" desc="Wipe your browsing data for the last hour, last 24 hours, last 7 days, or all time." />
+                  </div>
+                  <div id="setting-reset">
+                    <SettingItem title="Reset All Settings" desc="Reverts all customizations back to their factory defaults." />
+                  </div>
+                </SettingsSection>
+              </div>
+            </motion.div>
+
+            {/* 8. Power Tools - IMAGE LEFT */}
+            <motion.div id="power-tools" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600">
+                  <QrCode size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Power Tools</h2>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
+                <div className="order-2 lg:order-1">
+                   <DeviceMockup src="/images/power_tools.jpg" color="cyan" />
+                </div>
+                <div className="space-y-6 order-1 lg:order-2">
+                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                    Tap the Menu button on the Dashboard to access advanced utility tools for any page.
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 inline-block text-left w-full">
+                    <div id="home-button">
+                      <GuideItem icon={<Home size={18}/>} title="Home Button" desc="Instantly return to the minimalist home screen and reset your current session." />
+                    </div>
+                    <div id="quick-bookmark">
+                      <GuideItem icon={<Bookmark size={18}/>} title="Quick Bookmark" desc="Save the current page to your library with one tap from the Power Tools menu." />
+                    </div>
+                    <div id="qr-toolbox">
+                      <GuideItem icon={<QrCode size={18}/>} title="QR Toolbox" desc="Scan physical codes, upload images from your gallery to scan, or generate a code for the current URL." />
+                    </div>
+                    <GuideItem icon={<BookOpen size={18}/>} title="Reader Mode" desc="Removes ads and clutter, leaving only the text and essential images for a clean reading experience." />
+                    <GuideItem icon={<Monitor size={18}/>} title="Desktop Mode" desc="Requests the desktop version of the current site for full functionality." />
+                    <GuideItem icon={<Share2 size={18}/>} title="Share & Print" desc="Native integration with your device's share sheet and wireless printing capabilities." />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 9. Privacy Commitment - IMAGE RIGHT */}
+            <motion.div id="privacy" {...fadeInUp} className="bg-blue-600 rounded-[2rem] p-12 text-white relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-12 opacity-10">
+                 <ShieldCheck size={200} />
+               </div>
+               <div className="relative z-10 max-w-2xl">
+                 <h2 className="text-3xl font-extrabold mb-6 tracking-tight">Privacy by Design</h2>
+                 <p className="text-xl text-blue-50 font-medium leading-relaxed mb-8">
+                   mi. Browser is not just minimal in design, but minimal in data collection. Your browsing remains yours.
+                 </p>
+                 <div className="grid sm:grid-cols-2 gap-8">
+                   <div className="space-y-2">
+                     <div className="flex items-center gap-2 font-bold">
+                       <Lock size={18} /> No Tracking
+                     </div>
+                     <p className="text-sm text-blue-100/80">We do not track your history, cookies, or search patterns. No data is sent to our servers.</p>
+                   </div>
+                   <div className="space-y-2">
+                     <div className="flex items-center gap-2 font-bold">
+                       <RefreshCw size={18} /> Local Storage
+                     </div>
+                     <p className="text-sm text-blue-100/80">All bookmarks and history are stored locally on your device using industry-standard encryption.</p>
+                   </div>
+                 </div>
+               </div>
+            </motion.div>
+          </section>
+        </div>
+      </div>
+
+      <Footer />
+    </main>
+  );
+}
+
+function GuideItem({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
+  return (
+    <div className="flex gap-4">
+      <div className="shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40">
+        {icon}
+      </div>
+      <div>
+        <h4 className="font-bold text-lg leading-tight mb-1">{title}</h4>
+        <p className="text-white/50 font-medium leading-relaxed">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function SettingsSection({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+        <div className="text-blue-400">{icon}</div>
+        <h3 className="font-bold text-xl tracking-tight uppercase text-xs tracking-[0.2em] opacity-50">{title}</h3>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-6">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SettingItem({ title, desc }: { title: string, desc: string }) {
+  return (
+    <div className="p-6 rounded-2xl bg-white/5 border border-white/5 shadow-sm hover:border-blue-500/30 transition-colors">
+      <h4 className="font-bold text-sm mb-2">{title}</h4>
+      <p className="text-xs text-white/50 leading-relaxed font-medium">{desc}</p>
+    </div>
+  );
+}
+
+function DeviceMockup({ src, color }: { src: string, color?: string }) {
+  const glowStyles: any = {
+    blue: "bg-blue-500/20 shadow-blue-500/40",
+    purple: "bg-purple-500/20 shadow-purple-500/40",
+    pink: "bg-pink-500/20 shadow-pink-500/40",
+    orange: "bg-orange-500/20 shadow-orange-500/40",
+    cyan: "bg-cyan-500/20 shadow-cyan-500/40",
+    green: "bg-green-500/20 shadow-green-500/40",
+  };
+
+  const glowClass = (color && glowStyles[color]) ? glowStyles[color].split(' ')[0] : 'bg-blue-500/10';
+
+  return (
+    <div className="relative group flex justify-center">
+      <div className={`absolute -inset-10 ${glowClass} rounded-full blur-[80px] group-hover:opacity-100 transition-opacity opacity-50`} />
+      <div className={`relative w-[220px] sm:w-[280px] bg-black rounded-[2rem] p-2 shadow-2xl border-[4px] border-[#1a1a1a] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-1`}>
+        <img 
+          src={getAssetPath(src)} 
+          alt="mi. App Screenshot" 
+          className="w-full h-auto block rounded-[1.4rem]"
+        />
+      </div>
+    </div>
+  );
+}
