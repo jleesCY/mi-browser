@@ -180,9 +180,9 @@ export const parseDeepLinkUrl = (url: string) => {
     
     // Handle custom schemes: mi://open?url=... or mi://https://...
     const parsed = new URL(url);
-    if (parsed.protocol === 'mi:' || parsed.protocol === 'my-browser:') {
-      // Case 1: mi://https://google.com
-      const rest = url.replace(/^(mi|my-browser):\/\//, '');
+    if (parsed.protocol === 'mi:' || parsed.protocol === 'mi-browser:') {
+      // Handle mi:// or mi-browser:// links
+      const rest = url.replace(/^(mi|mi-browser):\/\//, '');
       if (rest.startsWith('http://') || rest.startsWith('https://')) {
           return rest;
       }

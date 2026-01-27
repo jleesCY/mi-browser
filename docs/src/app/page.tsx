@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Download, ChevronRight, Zap, Palette, Shield, QrCode, Github, LayoutGrid, Sliders, Smartphone, Sparkles } from "lucide-react";
+import { Download, ChevronRight, Zap, Palette, Shield, QrCode, Github, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 // Helper to handle basePath for GitHub Pages
 const getAssetPath = (path: string) => {
   const isProd = process.env.NODE_ENV === 'production';
-  const basePath = isProd ? "/my-browser" : "";
+  const repoName = process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser";
+  const basePath = isProd ? `/${repoName}` : "";
   return `${basePath}${path}`;
 };
 
@@ -19,7 +20,7 @@ export default function Home() {
     transition: { duration: 0.6 }
   };
 
-  const GITHUB_URL = "https://github.com/jleescy/my-browser";
+  const GITHUB_URL = "https://github.com/jleescy/mi-browser";
 
   return (
     <main className="min-h-screen bg-[#fafafa] dark:bg-[#050505] text-[#171717] dark:text-[#ededed] overflow-x-hidden transition-colors duration-300">
@@ -36,7 +37,7 @@ export default function Home() {
             </a>
             <div className="w-px h-6 bg-black/10 dark:bg-white/10 hidden sm:block" />
             <ThemeToggle />
-            <a href="#download" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-blue-500/20 hover:scale-105 transition-all">
+            <a href="#download" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-blue-500/20 hover:scale-105 transition-all hidden xs:block">
               Download
             </a>
           </div>
@@ -53,18 +54,18 @@ export default function Home() {
                <Sparkles size={14} />
                Now in Beta
             </div>
-            <h1 className="text-6xl lg:text-7xl font-extrabold tracking-tighter mb-6 leading-[1.1]">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter mb-6 leading-[1.1]">
               A minimal <span className="text-blue-600 italic">masterpiece</span> for the modern web.
             </h1>
-            <p className="text-xl text-black/60 dark:text-white/60 mb-8 max-w-lg leading-relaxed font-medium">
+            <p className="text-lg sm:text-xl text-black/60 dark:text-white/60 mb-8 max-w-lg leading-relaxed font-medium">
               mi. is a hyper-lightweight browser that replaces bulky toolbars with a single, intelligent Pill. Fast, private, and deeply customizable.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <a href="#download" className="flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all active:scale-95">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
+              <a href="#download" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all active:scale-95">
                 <Download size={20} />
                 Download APK
               </a>
-              <a href={GITHUB_URL} className="flex items-center gap-2 bg-black/5 dark:bg-white/5 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-black/5 dark:border-white/5">
+              <a href={GITHUB_URL} className="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-black/5 dark:border-white/5">
                 View on GitHub
                 <ChevronRight size={20} />
               </a>
@@ -165,18 +166,18 @@ export default function Home() {
       </div>
 
       {/* Download CTA */}
-      <section id="download" className="py-40 bg-black dark:bg-white text-white dark:text-black rounded-[4rem] mx-4 mb-20 relative overflow-hidden">
+      <section id="download" className="py-20 sm:py-40 bg-black dark:bg-white text-white dark:text-black rounded-[2rem] sm:rounded-[4rem] mx-4 mb-20 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-40 pointer-events-none">
            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px]" />
            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600 rounded-full blur-[120px]" />
         </div>
         <div className="max-w-3xl mx-auto px-6 text-center relative z-10">
-          <h2 className="text-6xl font-extrabold mb-8 tracking-tighter">Ready for the modern web?</h2>
-          <p className="text-xl opacity-70 mb-12 font-medium">
+          <h2 className="text-4xl sm:text-6xl font-extrabold mb-8 tracking-tighter">Ready for the modern web?</h2>
+          <p className="text-lg sm:text-xl opacity-70 mb-12 font-medium">
             Download the latest APK for Android and experience a browser that stays out of your way.
           </p>
           <div className="flex flex-col items-center gap-6">
-             <a href={`${GITHUB_URL}/releases`} className="group flex items-center gap-4 bg-blue-600 text-white px-12 py-6 rounded-3xl font-black text-2xl hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-blue-500/40">
+             <a href={`${GITHUB_URL}/releases`} className="group flex items-center gap-4 bg-blue-600 text-white px-8 py-4 sm:px-12 sm:py-6 rounded-2xl sm:rounded-3xl font-black text-xl sm:text-2xl hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-blue-500/40">
                <Download size={28} />
                Install Latest APK
              </a>
@@ -187,14 +188,14 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="py-20 border-t border-black/5 dark:border-white/5">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-12">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8 md:gap-12">
           <div className="flex items-center gap-3">
             <img src={getAssetPath("/icon.png")} alt="mi. logo" className="w-8 h-8 rounded-xl opacity-80" />
             <span className="font-bold text-lg opacity-80 tracking-tight">mi. Browser</span>
           </div>
-          <div className="flex gap-10 text-sm font-bold text-black/40 dark:text-white/40 uppercase tracking-widest">
+          <div className="flex flex-wrap justify-center gap-6 md:gap-10 text-xs sm:text-sm font-bold text-black/40 dark:text-white/40 uppercase tracking-widest">
             <a href={GITHUB_URL} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">GitHub</a>
-            <a href="https://github.com/jleescy/my-browser/blob/main/DEVELOPMENT.md" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Dev Guide</a>
+            <a href={`${GITHUB_URL}/blob/main/DEVELOPMENT.md`} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Dev Guide</a>
             <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy</a>
           </div>
           <p className="text-sm text-black/30 dark:text-white/30 font-medium">© 2026 mi. Open Source Project</p>
@@ -229,8 +230,8 @@ function FeatureDetail({ image, tag, tagColor, title, description, bullets, imag
         <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.2em] uppercase border ${tagColor}`}>
           {tag}
         </span>
-        <h3 className="text-5xl font-extrabold tracking-tighter leading-tight">{title}</h3>
-        <p className="text-xl text-black/60 dark:text-white/60 leading-relaxed font-medium">
+        <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tighter leading-tight">{title}</h3>
+        <p className="text-lg sm:text-xl text-black/60 dark:text-white/60 leading-relaxed font-medium">
           {description}
         </p>
       </div>
@@ -273,16 +274,14 @@ function DeviceMockup({ src, color }: { src: string, color?: string }) {
     cyan: "bg-cyan-500/20 shadow-cyan-500/40",
   };
 
-  const glowClass = color ? glowStyles[color] : "bg-white/10 shadow-black/20";
-
   return (
     <div className="relative group">
       <div className={`absolute -inset-10 ${color ? glowStyles[color].split(' ')[0] : 'bg-blue-500/10'} rounded-full blur-[80px] group-hover:opacity-100 transition-opacity opacity-50`} />
-      <div className={`relative w-[300px] aspect-[9/19.5] bg-[#0a0a0a] rounded-[3.5rem] p-3 shadow-2xl border-[6px] border-[#1a1a1a] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-1`}>
+      <div className={`relative w-[260px] sm:w-[300px] aspect-[9/19.5] bg-[#0a0a0a] rounded-[3rem] sm:rounded-[3.5rem] p-2 sm:p-3 shadow-2xl border-[4px] sm:border-[6px] border-[#1a1a1a] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-1`}>
         <img 
           src={src} 
           alt="mi. App Screenshot" 
-          className="w-full h-full object-cover rounded-[2.8rem]"
+          className="w-full h-full object-cover rounded-[2.4rem] sm:rounded-[2.8rem]"
         />
       </div>
     </div>

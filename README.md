@@ -4,7 +4,7 @@
 
 ## 🌐 Visit the Website
 For a full visual overview, features, and installation guide, visit our official site:
-**[jleescy.github.io/my-browser](https://jleescy.github.io/my-browser)**
+**[jleescy.github.io/mi-browser](https://jleescy.github.io/mi-browser)**
 
 ---
 
@@ -16,7 +16,7 @@ For a full visual overview, features, and installation guide, visit our official
 - **Privacy First:** HTTPS only, cookie blocking, and local history.
 
 ## 📥 Installation
-We provide a direct APK download for Android users on the [Releases Page](https://github.com/jleescy/my-browser/releases).
+We provide a direct APK download for Android users on the [Releases Page](https://github.com/jleescy/mi-browser/releases).
 
 ## 🧑‍💻 Development
 If you are looking to contribute or build the project from source, please refer to the **[Developer Guide](DEVELOPMENT.md)**.

@@ -50,15 +50,16 @@ To understand the component structure, refer to these current UI states:
 - **Node.js** (LTS version recommended)
 - **npm** or **yarn**
 - **Expo CLI**: Install globally via `npm install -g expo-cli` (optional, can use `npx`).
-- **Mobile Device** with **Expo Go** app installed, or an **Android Emulator / iOS Simulator**.
+- **Mobile Device** with **Expo Go** app installed, or an **Android Emulator**.
 
 ### Installation
 
 1.  **Clone the repository**
 
     ```bash
-    git clone https://github.com/yourusername/my-browser.git
-    cd my-browser
+    git clone https://github.com/yourusername/mi-browser.git
+    cd mi-browser
+    
     ```
 
 2.  **Install dependencies**
@@ -79,7 +80,6 @@ To understand the component structure, refer to these current UI states:
 2.  **Run on Device/Emulator**
     - **Physical Device:** Open the **Expo Go** app on your phone and scan the QR code displayed in the terminal.
     - **Android Emulator:** Press `a` in the terminal window.
-    - **iOS Simulator:** Press `i` in the terminal window (macOS only).
 
 ### Building
 
