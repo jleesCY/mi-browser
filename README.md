@@ -15,11 +15,12 @@ For a full visual overview, features, and installation guide, visit our official
 - **Deep Customization:** Adaptive theming and visual shaping.
 - **Privacy First:** HTTPS only, cookie blocking, and local history.
 
+## 📖 Documentation
+- **[User Guide](https://jleescy.github.io/mi-browser/user)**: Learn how to use mi. browser and its features.
+- **[Developer Guide](https://jleescy.github.io/mi-browser/developer)**: Technical details and contribution guidelines for developers.
+
 ## 📥 Installation
 We provide a direct APK download for Android users on the [Releases Page](https://github.com/jleescy/mi-browser/releases).
-
-## 🧑‍💻 Development
-If you are looking to contribute or build the project from source, please refer to the **[Developer Guide](DEVELOPMENT.md)**.
 
 ---
 <p align="center">
