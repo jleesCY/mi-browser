@@ -148,7 +148,7 @@ export default function UserDocs() {
                   <div className="space-y-4 inline-block text-left w-full">
                     <GuideItem icon={<GripHorizontal size={18}/>} title="The Handle" desc="When typing, look for the small handle directly above the Search Pill." />
                     <GuideItem icon={<ChevronRight size={18} className="-rotate-90"/>} title="Drag Up" desc="Grab the handle and drag upwards to reveal a quick-access list of your most recent searches and visits." />
-                    <GuideItem icon={<RefreshCw size={18} className="rotate-90"/>} title="Close" desc="Drag the handle back down or tap the close button to return to the keyboard." />
+                    <GuideItem icon={<RefreshCw size={18} className="rotate-90"/>} title="Close" desc="Drag the handle back down or tap the close button to dismiss. The search bar will return to its default position above the keyboard." />
                     <GuideItem icon={<MousePointer2 size={18}/>} title="Instant Navigate" desc="Tap any item in the list to immediately navigate to that page." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
@@ -180,7 +180,7 @@ export default function UserDocs() {
                     <GuideItem icon={<MousePointer2 size={18}/>} title="Reordering" desc="In the tab view, long-press a tab and drag it to a new position to reorder your workspace." />
                     <GuideItem icon={<Trash2 size={18}/>} title="Closing Tabs" desc="Swipe left on a tab row or tap the 'X' on a card to close it. Use 'Clear All' to reset completely." />
                     <div id="tab-editing">
-                      <GuideItem icon={<Pencil size={18}/>} title="Tab Editing" desc="Tap the pencil icon on any tab to change its display name or toggle whether the website favicon is shown." />
+                      <GuideItem icon={<Pencil size={18}/>} title="Tab Editing" desc="Tap the pencil icon on any tab to change its display name for better organization." />
                     </div>
                     <GuideItem icon={<Zap size={18}/>} title="Visual Snapshots" desc="Real-time previews of your pages help you identify the right tab in seconds." />
                   </div>
@@ -268,7 +268,7 @@ export default function UserDocs() {
                     <SettingItem title="Theme Mode" desc="Choose between Light, Dark, or Adaptive. Adaptive mode generates a custom theme based on your Accent Color." />
                   </div>
                   <div id="setting-accent">
-                    <SettingItem title="Accent Color" desc="Pick from over 30 hand-selected colors that define the app's UI elements, buttons, and highlights." />
+                    <SettingItem title="Accent Color" desc="Pick from 18 hand-selected colors that define the app's UI elements, buttons, and highlights." />
                   </div>
                   <div id="setting-status-bar">
                     <SettingItem title="Show Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
@@ -307,17 +307,17 @@ export default function UserDocs() {
                     <SettingItem title="Show Tab Preview" desc="Enables real-time snapshots of your pages when using Card view." />
                   </div>
                   <div id="setting-startup">
-                    <SettingItem title="Startup Behavior" desc="Choose to start with a New Tab or Continue Session (restore all previously open tabs)." />
+                    <SettingItem title="Startup Behavior" desc="Choose to start with a New Tab or Continue Session (starts from your last tab and restores all others). All tabs are saved regardless of this setting." />
                   </div>
                 </SettingsSection>
 
                 {/* Browsing & Privacy */}
                 <SettingsSection title="Browsing & Privacy" icon={<Lock size={20} />}>
                   <div id="setting-search-engine">
-                    <SettingItem title="Search Engine" desc="Support for Google, DuckDuckGo, Bing, Baidu, Yahoo, and Yandex." />
+                    <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
                   </div>
                   <div id="setting-bg-refresh">
-                    <SettingItem title="Background Refresh" desc="Keeps your open tabs 'alive' in the background for instant switching (uses more battery)." />
+                    <SettingItem title="Background Refresh" desc="When enabled, all tabs render on app startup instead of when opened. This allows for instant switching but uses more battery." />
                   </div>
                   <div id="setting-https">
                     <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections." />
@@ -333,10 +333,10 @@ export default function UserDocs() {
                 {/* Data Management */}
                 <SettingsSection title="Data & History" icon={<Trash2 size={20} />}>
                   <div id="setting-history-count">
-                    <SettingItem title="History Load Count" desc="Limit how many history items are displayed at once (10, 25, 50, or 100)." />
+                    <SettingItem title="History Load Count" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may cause the interface to become laggier." />
                   </div>
                   <div id="setting-clear-history">
-                    <SettingItem title="Clear History" desc="Wipe your browsing data for the last hour, last 24 hours, last 7 days, or all time." />
+                    <SettingItem title="Clear History" desc="Wipe your browsing data for the last 24 hours, 7 days, 4 weeks, or all time." />
                   </div>
                   <div id="setting-reset">
                     <SettingItem title="Reset All Settings" desc="Reverts all customizations back to their factory defaults." />
@@ -366,7 +366,7 @@ export default function UserDocs() {
                       <GuideItem icon={<Home size={18}/>} title="Home Button" desc="Instantly return to the minimalist home screen and reset your current session." />
                     </div>
                     <div id="quick-bookmark">
-                      <GuideItem icon={<Bookmark size={18}/>} title="Quick Bookmark" desc="Save the current page to your library with one tap from the Power Tools menu." />
+                      <GuideItem icon={<Bookmark size={18}/>} title="Quick Bookmark" desc="Save the current page to your bookmarks with one tap from the Power Tools menu." />
                     </div>
                     <div id="qr-toolbox">
                       <GuideItem icon={<QrCode size={18}/>} title="QR Toolbox" desc="Scan physical codes, upload images from your gallery to scan, or generate a code for the current URL." />
