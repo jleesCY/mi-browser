@@ -1724,6 +1724,10 @@ export default function App() {
                       setConfirmActionType("bgRefresh");
                       setIsConfirmModalVisible(true);
                     }}
+                    onOpenHelp={() => {
+                      addNewTab("https://jleescy.github.io/mi-browser/user");
+                      closeOverlay();
+                    }}
                   />
                 )}
               </OverlaySheet>

@@ -3,7 +3,6 @@ import React, { ReactNode } from "react";
 import {
   Keyboard,
   LayoutAnimation,
-  Linking,
   ScrollView,
   Switch,
   Text,
@@ -26,6 +25,7 @@ interface SettingsViewProps {
   onRequestReset: () => void;
   onRequestClearHistory: (ms: number, label: string) => void;
   onRequestBgRefreshConfirm: (value: boolean) => void;
+  onOpenHelp: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -36,6 +36,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRequestReset,
   onRequestClearHistory,
   onRequestBgRefreshConfirm,
+  onOpenHelp,
 }) => {
   const {
     themeMode,
@@ -1506,7 +1507,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           marginTop: 30,
           marginBottom: 5
         }}
-        onPress={() => Linking.openURL('https://jleescy.github.io/mi-browser/user')}
+        onPress={onOpenHelp}
       >
         <Ionicons name="help-circle-outline" size={18} color={effectiveTheme.textSec} />
         <Text style={{ 
