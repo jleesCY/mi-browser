@@ -61,12 +61,13 @@ export default function DeveloperDocs() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                           {[
                             { name: "Homepage", src: "/images/homepage.jpg" },
+                            { name: "Focused Pill", src: "/images/focused_pill.jpg" },
+                            { name: "Expanded Search", src: "/images/recent_history.jpg" },
                             { name: "Dashboard", src: "/images/dashboard.jpg" },
                             { name: "Tabs Grid", src: "/images/tab_grid.jpg" },
                             { name: "Tabs List", src: "/images/tab_rows.jpg" },
                             { name: "Bookmarks", src: "/images/bookmarks.jpg" },
                             { name: "History", src: "/images/history.jpg" },
-                            { name: "Recent History", src: "/images/recent_history.jpg" },
                             { name: "Power Tools", src: "/images/power_tools.jpg" },
                             { name: "Settings", src: "/images/settings.jpg" },
                           ].map((img) => (

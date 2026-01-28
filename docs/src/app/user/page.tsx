@@ -132,27 +132,27 @@ export default function UserDocs() {
               </div>
             </motion.div>
 
-            {/* 3. Recent History Drawer - IMAGE RIGHT */}
+            {/* 3. Expanded Search Drawer - IMAGE RIGHT */}
             <motion.div id="recent-history" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
-                  <Clock size={24} />
+                  <Maximize size={24} />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Recent History</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Expanded Search</h2>
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Access your recent visits without leaving the search experience. When the search pill is focused, a dedicated handle appears.
+                    Access your history and favorite sites without leaving the search experience. When the search pill is focused, an expanded interaction area appears.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
-                    <GuideItem icon={<GripHorizontal size={18}/>} title="The Handle" desc="When typing, look for the small handle directly above the Search Pill." />
-                    <GuideItem icon={<ChevronRight size={18} className="-rotate-90"/>} title="Drag Up" desc="Grab the handle and drag upwards to reveal a quick-access list of your most recent searches and visits." />
-                    <GuideItem icon={<RefreshCw size={18} className="rotate-90"/>} title="Close" desc="Drag the handle back down or tap the close button to dismiss. The search bar will return to its default position above the keyboard." />
-                    <GuideItem icon={<MousePointer2 size={18}/>} title="Instant Navigate" desc="Tap any item in the list to immediately navigate to that page." />
+                    <GuideItem icon={<Clock size={18}/>} title="Recent History" desc="Drag the handle above the Pill upwards to reveal a quick-access list of your most recent visits." />
+                    <GuideItem icon={<FolderHeart size={18}/>} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
+                    <GuideItem icon={<Maximize size={18}/>} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
+                    <GuideItem icon={<Trash2 size={18}/>} title="Managing Favorites" desc="Touch and hold any favorite icon to bring up a confirmation dialog to remove it from the bar." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Auto-Expand:</strong> You can enable &apos;Show Recent History&apos; in Settings to automatically open this drawer every time you focus the Pill.</p>
+                    <p><strong>Configurable:</strong> Use settings to automatically expand history or keep the Favorites Bar visible every time you focus the Pill.</p>
                   </div>
                 </div>
                 <DeviceMockup src="/images/recent_history.jpg" color="blue" />
@@ -292,6 +292,9 @@ export default function UserDocs() {
                   </div>
                   <div id="setting-recent-history">
                     <SettingItem title="Show Recent History" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
+                  </div>
+                  <div id="setting-always-show-favorites">
+                    <SettingItem title="Always Show Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
                   </div>
                 </SettingsSection>
 
