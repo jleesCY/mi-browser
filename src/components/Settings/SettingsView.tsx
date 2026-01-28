@@ -702,40 +702,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           />
         </SettingRow>
 
-        <SettingRow label="Auto-Expand Recent">
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="resize-outline"
-                size={22}
-                color={effectiveTheme.text}
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                Show Recent History
-              </Text>
-            </View>
-            <Switch
-              value={recentSearchesExpanded}
-              onValueChange={setRecentSearchesExpanded}
-              trackColor={{ false: "#767577", true: accentColor }}
-              thumbColor={"#f4f3f4"}
-            />
-          </View>
-        </SettingRow>
 
         {tabViewMode === "cards" && (
           <SettingRow label="Show Tab Preview">
@@ -1194,6 +1160,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+        </SettingRow>
+
+        <SettingRow label="Auto-Expand Recent">
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="resize-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 16 * fontScale,
+                }}
+              >
+                Show Recent History
+              </Text>
+            </View>
+            <Switch
+              value={recentSearchesExpanded}
+              onValueChange={setRecentSearchesExpanded}
+              trackColor={{ false: "#767577", true: accentColor }}
+              thumbColor={"#f4f3f4"}
+            />
           </View>
         </SettingRow>
 

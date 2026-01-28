@@ -1,5 +1,5 @@
 import React, { forwardRef, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from "@expo/vector-icons";
 import { TabItem } from '../types';
@@ -66,6 +66,16 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
 
   const isDesktop = tab.desktopMode ?? desktopMode;
   const isReader = tab.readerMode ?? readerModeEnabled;
+
+  // Calculate User Agent
+  let userAgent = "";
+  if (isDesktop) {
+     userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  } else if (Platform.OS === 'ios') {
+     userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
+  } else {
+     userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+  }
 
   // READER MODE SCRIPT
   const readerScript = isReader ? `
@@ -406,9 +416,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         scrollEventThrottle={16}
         startInLoadingState={false}
         javaScriptEnabled={jsEnabled}
-        userAgent={isDesktop
-            ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            : "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"}
+        userAgent={userAgent}
         sharedCookiesEnabled={!blockCookies}
         cacheEnabled={true}
         domStorageEnabled={true}
