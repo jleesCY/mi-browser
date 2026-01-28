@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { loadStorage, saveStorage } from '../utils';
+import { loadStorage, saveStorage, getFaviconUrl } from '../utils';
 import { BookmarkNode, BookmarkItem, BookmarkFolder } from '../types';
 
 export const useBookmarks = (isAppReady: boolean) => {
@@ -37,13 +37,16 @@ export const useBookmarks = (isAppReady: boolean) => {
       const siblings = prev.filter(b => b.parentId === parentId);
       const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(s => s.order)) : -1;
       
+      const icon = getFaviconUrl(url) || undefined;
+
       const newBookmark: BookmarkItem = {
         id: Date.now().toString(),
         type: "bookmark",
         title: title || url,
         url,
         parentId,
-        order: maxOrder + 1
+        order: maxOrder + 1,
+        icon
       };
       return [...prev, newBookmark];
     });
@@ -86,7 +89,17 @@ export const useBookmarks = (isAppReady: boolean) => {
   }, []);
 
   const updateBookmark = useCallback((id: string, updates: Partial<BookmarkNode>) => {
-    setBookmarks(prev => prev.map(b => b.id === id ? { ...b, ...updates } as BookmarkNode : b));
+    setBookmarks(prev => prev.map(b => {
+      if (b.id === id) {
+        const updated = { ...b, ...updates } as BookmarkNode;
+        // If it is a bookmark and URL changed, update icon
+        if (updated.type === 'bookmark' && 'url' in updates && updates.url && updates.url !== (b as BookmarkItem).url) {
+           (updated as BookmarkItem).icon = getFaviconUrl(updates.url) || undefined;
+        }
+        return updated;
+      }
+      return b;
+    }));
   }, []);
 
   const moveBookmark = useCallback((id: string, newParentId: string | null) => {

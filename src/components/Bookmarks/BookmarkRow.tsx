@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { BookmarkNode } from '../../types';
@@ -33,6 +33,11 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
   onMove
 }) => {
   const isFolder = item.type === 'folder';
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [isFolder ? null : (item as any).url]);
 
   const renderRightActions = () => {
     return (
@@ -87,26 +92,27 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
         }}
       >
         <View style={{ 
-            width: 40, 
-            height: 40, 
+            width: 44, 
+            height: 44, 
             justifyContent: 'center', 
             alignItems: 'center',
-            backgroundColor: isFolder ? (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent',
-            borderRadius: 10,
+            backgroundColor: (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+            borderRadius: 22,
             marginRight: 15
         }}>
           {isFolder ? (
-            <Ionicons name="folder" size={24} color={accent} />
+            <Ionicons name="folder" size={36} color={accent} />
           ) : (
             <>
-              {item.url ? (
+              {((item as any).icon || getFaviconUrl(item.url)) && !imageError ? (
                   <Image 
-                    source={{ uri: getFaviconUrl(item.url) || "" }}
-                    style={{ width: 24, height: 24, borderRadius: 4 }}
+                    source={{ uri: (item as any).icon || getFaviconUrl(item.url) }}
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
                     defaultSource={require('../../../assets/images/icon.png')} // Fallback? 
+                    onError={() => setImageError(true)}
                   />
               ) : (
-                  <Ionicons name="globe-outline" size={24} color={theme.text} />
+                  <Ionicons name="globe-outline" size={36} color={theme.text} />
               )}
             </>
           )}

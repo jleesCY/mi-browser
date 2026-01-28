@@ -1,16 +1,13 @@
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Animated,
   Image,
-  Keyboard,
-  PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SCREEN_WIDTH } from "../../constants";
+import { Ionicons } from "@expo/vector-icons";
+import { Swipeable } from "react-native-gesture-handler";
 import { getDisplayHost, getFaviconUrl } from "../../utils";
 
 const SwipeableTabRow = ({
@@ -27,208 +24,112 @@ const SwipeableTabRow = ({
   fontScale,
   showTabLogo
 }: any) => {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const itemHeight = useRef(new Animated.Value(height)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
-    Animated.timing(itemHeight, {
-      toValue: height,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [height, itemHeight]);
+    setImageError(false);
+  }, [item.url]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        if (isDeleting) return false;
-        return (
-          Math.abs(gestureState.dx) > 20 &&
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
-        );
-      },
-      onPanResponderGrant: () => {
-        // Dismiss keyboard when user starts interacting with the row
-        // This prevents accidental focus/keyboard persistence issues
-        Keyboard.dismiss();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dx < 0) {
-          translateX.setValue(gestureState.dx);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -SCREEN_WIDTH * 0.3) {
-          setIsDeleting(true);
-          Animated.parallel([
-            Animated.timing(translateX, {
-              toValue: -SCREEN_WIDTH,
-              duration: 200,
-              useNativeDriver: false,
-            }),
-            Animated.timing(itemHeight, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: false,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: false,
-            }),
-          ]).start(() => onDelete());
-        } else {
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: false,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  const iconScale = translateX.interpolate({
-    inputRange: [-100, -50, 0],
-    outputRange: [1.2, 0.5, 0],
-    extrapolate: "clamp",
-  });
+  const renderRightActions = () => {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: margin, height: height }}>
+        <TouchableOpacity
+          onPress={onRename}
+          style={{
+            backgroundColor: theme.textSec,
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: 70,
+            height: '100%',
+            marginRight: 2,
+            borderRadius: radius,
+          }}
+        >
+          <Ionicons name="pencil" size={24} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onDelete}
+          style={{
+            backgroundColor: '#FF3B30',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: 70,
+            height: '100%',
+            borderTopRightRadius: radius,
+            borderBottomRightRadius: radius,
+            borderTopLeftRadius: radius,
+            borderBottomLeftRadius: radius,
+          }}
+        >
+          <Ionicons name="trash" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
-    <Animated.View
-      style={[
-        styles.tabRowContainer,
-        { height: itemHeight, opacity, marginBottom: margin },
-      ]}
-    >
-      <View style={styles.deleteLayer}>
-        <Animated.View style={{ transform: [{ scale: iconScale }] }}>
-          <Ionicons name="trash" size={28} color="#ff3b30" />
-        </Animated.View>
-      </View>
-
-      <Animated.View
-        style={[styles.tabCardWrapper, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
+    <Swipeable renderRightActions={renderRightActions}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        style={{
+          height: height,
+          marginBottom: margin,
+          backgroundColor: isActive ? theme.card : theme.surface,
+          borderRadius: radius,
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 15,
+          borderWidth: 2,
+          borderColor: isActive ? accent : 'transparent'
+        }}
       >
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={onPress}
-          style={[
-            styles.tabCard,
-            {
-              backgroundColor: isActive ? theme.card : theme.surface,
-              borderRadius: radius,
-              height: "100%",
-              borderWidth: 2,
-              borderColor: isActive ? accent : 'transparent'
-            },
-          ]}
-        >
-          <View style={[styles.faviconContainer, { backgroundColor: isActive ? accent : '#555' }]}>
-            {showTabLogo && item.url ? (
-                <Image 
-                    source={{ uri: getFaviconUrl(item.url) || '' }} 
-                    style={{ width: 42, height: 42, borderRadius: 21, resizeMode: 'cover' }}
-                />
-            ) : (
-                <Text style={[styles.faviconText, { fontFamily: 'Nunito_800ExtraBold', fontSize: (item.url ? 22 : 18) * fontScale }]}>
-                   {item.url ? (item.title ? item.title.charAt(0).toUpperCase() : 'N') : 'mi.'}
-                </Text>
-            )}
-          </View>
+        <View style={{ 
+            width: 44, 
+            height: 44, 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            backgroundColor: isActive ? accent : (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+            borderRadius: 22,
+            marginRight: 15
+        }}>
+          {showTabLogo && item.url && !imageError ? (
+               <Image 
+                 source={{ uri: getFaviconUrl(item.url) || '' }} 
+                 style={{ width: 36, height: 36, borderRadius: 18, resizeMode: 'cover' }}
+                 onError={() => setImageError(true)}
+               />
+          ) : (
+               <Ionicons name="globe-outline" size={36} color={isActive ? "#fff" : theme.text} />
+          )}
+        </View>
 
-          <View style={styles.tabTextContainer}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text
-                style={[
-                  styles.tabTitleText,
-                  {
-                    color: theme.text,
-                    fontFamily: "Nunito_700Bold",
-                    fontSize: 16 * fontScale,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {item.title || "New Tab"}
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.tabUrlText,
-                {
-                  color: theme.textSec,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 12 * fontScale,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {getDisplayHost(item.url) || "Home"}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={onRename}
-            style={[styles.pencilBtn, { borderColor: theme.textSec }]}
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text
+            style={{
+              color: theme.text,
+              fontFamily: "Nunito_700Bold",
+              fontSize: 16 * fontScale,
+              marginBottom: 2
+            }}
+            numberOfLines={1}
           >
-            <Ionicons name="pencil" size={14} color={theme.text} />
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Animated.View>
-    </Animated.View>
+            {item.title || "New Tab"}
+          </Text>
+          <Text
+            style={{
+              color: theme.textSec,
+              fontFamily: "Nunito_600SemiBold",
+              fontSize: 12 * fontScale,
+            }}
+            numberOfLines={1}
+          >
+            {getDisplayHost(item.url) || "Home"}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
   );
 };
-
-const styles = StyleSheet.create({
-  tabRowContainer: { width: "100%", justifyContent: "center" },
-  deleteLayer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingRight: 20,
-    zIndex: 0,
-    flexDirection: "row",
-  },
-  tabCardWrapper: { backgroundColor: "transparent" },
-  // Update styles at the bottom
-  tabCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-  },
-  faviconContainer: { 
-      width: 42, 
-      height: 42, 
-      borderRadius: 21, 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      marginRight: 15,
-      overflow: 'hidden' 
-  },
-  faviconText: { color: "#fff", fontSize: 20 },
-  tabTextContainer: { flex: 1, justifyContent: "center" },
-  tabTitleText: { fontSize: 16, marginBottom: 4 },
-  tabUrlText: { fontSize: 12 },
-  pencilBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
 
 export default SwipeableTabRow;

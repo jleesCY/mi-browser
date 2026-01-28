@@ -163,7 +163,11 @@ export const getDisplayHost = (url: string | null) => {
 export const getFaviconUrl = (url: string | null) => {
   if (!url) return null;
   try {
-    const domain = new URL(url).hostname;
+    let targetUrl = url;
+    if (!url.startsWith("http") && !url.includes("://")) {
+        targetUrl = "https://" + url;
+    }
+    const domain = new URL(targetUrl).hostname;
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   } catch {
     return null;
@@ -273,4 +277,8 @@ export const groupHistoryByDate = (historyItems: any[]) => {
   if (groups["Older"].length > 0) sections.push({ title: "Older", data: groups["Older"] });
 
   return sections;
+};
+
+export const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 };

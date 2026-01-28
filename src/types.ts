@@ -32,6 +32,7 @@ export interface BookmarkItem {
   title: string;
   parentId: string | null;
   order: number;
+  icon?: string;
 }
 
 export interface BookmarkFolder {

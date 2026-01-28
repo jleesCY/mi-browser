@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LayoutAnimation } from 'react-native';
-import { loadStorage, saveStorage, getDisplayHost, getHistoryTitle } from '../utils';
+import { loadStorage, saveStorage, getDisplayHost, getHistoryTitle, generateId } from '../utils';
 import { HistoryItem } from '../types';
 
 export const useHistory = (isAppReady: boolean) => {
@@ -10,7 +10,22 @@ export const useHistory = (isAppReady: boolean) => {
     const loadHistory = async () => {
       const savedHistory = await loadStorage("history");
       if (Array.isArray(savedHistory)) {
-        const validHistory = savedHistory.filter((item: any) => item && typeof item === 'object' && item.url);
+        let validHistory = savedHistory.filter((item: any) => item && typeof item === 'object' && item.url);
+        
+        // Ensure unique IDs to fix any existing corruption
+        const seenIds = new Set();
+        validHistory = validHistory.map((item: any) => {
+          if (!item.id || seenIds.has(item.id)) {
+             const newId = generateId();
+             // If we generated a new ID, we don't add it to seenIds immediately 
+             // (unless we want to track the *new* ones, which are guaranteed unique by generateId logic hopefully)
+             // But simpler: just assign new ID.
+             return { ...item, id: newId };
+          }
+          seenIds.add(item.id);
+          return item;
+        });
+        
         setHistory(validHistory);
       }
     };
@@ -42,7 +57,7 @@ export const useHistory = (isAppReady: boolean) => {
       );
 
       const newItem = {
-        id: Date.now().toString(),
+        id: generateId(),
         url,
         title: finalTitle,
         timestamp: Date.now(),
