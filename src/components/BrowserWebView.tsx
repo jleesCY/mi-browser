@@ -100,7 +100,13 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     let iconName = "alert-circle-outline";
 
     // Detect common SSL/Security errors to offer specific actions
-    const isSslError = errorDesc.includes("ERR_CERT") || errorDesc.includes("ERR_SSL") || errorDesc.includes("ssl_error") || errorCode === -11 || errorCode === -1200 || errorCode === -1201 || errorCode === -1202;
+    const isSslError = 
+        errorDesc.includes("ERR_CERT") || 
+        errorDesc.includes("ERR_SSL") || 
+        errorDesc.includes("ssl_error") || 
+        errorCode === -11 || 
+        (errorCode <= -1200 && errorCode >= -1206); // Android SSL error range
+
     const isCleartextError = errorDesc.includes("ERR_CLEARTEXT_NOT_PERMITTED");
 
     if (errorDesc.includes("ERR_NAME_NOT_RESOLVED") || errorCode === -2 || errorCode === -1003) {
@@ -285,11 +291,17 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     }
 
     if (httpsOnly && url.startsWith("http://")) {
-      const secureUrl = url.replace(/^http:\/\//i, "https://");
-      // Redirect
-      onUpdateTab(tab.id, { url: secureUrl, requestedUrl: secureUrl, loading: true });
-      onActiveTabUpdate({ canGoBack: tab.canGoBack || false, canGoForward: tab.canGoForward || false, loading: true, url: secureUrl });
-      return false;
+      // Skip HTTPS upgrade for IPs and localhost
+      const host = getDisplayHost(url);
+      const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(host) || host === 'localhost';
+      
+      if (!isIp) {
+        const secureUrl = url.replace(/^http:\/\//i, "https://");
+        // Redirect
+        onUpdateTab(tab.id, { url: secureUrl, requestedUrl: secureUrl, loading: true });
+        onActiveTabUpdate({ canGoBack: tab.canGoBack || false, canGoForward: tab.canGoForward || false, loading: true, url: secureUrl });
+        return false;
+      }
     }
 
     if (url.startsWith("googleapp://")) return false;
