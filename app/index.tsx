@@ -58,6 +58,7 @@ import { getDisplayHost } from "../src/utils";
 // Custom Hooks
 import { useBookmarks } from "../src/hooks/useBookmarks";
 import { useBrowserSettings } from "../src/hooks/useBrowserSettings";
+import { useFavorites } from "../src/hooks/useFavorites";
 import { useHistory } from "../src/hooks/useHistory";
 import { useTabs } from "../src/hooks/useTabs";
 
@@ -108,6 +109,7 @@ export default function App() {
     backgroundRefresh,
     readerModeEnabled,
     recentSearchesExpanded,
+    showFavoritesDefault,
   } = settings;
 
   const { history, addToHistory, deleteHistory, deleteHistoryItem } =
@@ -122,6 +124,8 @@ export default function App() {
     moveBookmark,
     reorderBookmarks,
   } = useBookmarks(areSettingsLoaded);
+
+  const { favorites, addFavorite, removeFavorite, updateFavorite } = useFavorites(areSettingsLoaded);
 
   const {
     tabs,
@@ -302,8 +306,9 @@ export default function App() {
   // Modals & Overlays
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [confirmActionType, setConfirmActionType] = useState<
-    "history" | "resetSettings" | "bgRefresh" | null
+    "history" | "resetSettings" | "bgRefresh" | "deleteFavorite" | null
   >(null);
+  const [favoriteToDelete, setFavoriteToDelete] = useState<string | null>(null);
   const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{
     ms: number;
     label: string;
@@ -413,6 +418,7 @@ export default function App() {
   // Refs
   const webViewRefs = useRef<{ [key: string]: WebView | null }>({});
   const viewShotRefs = useRef<{ [key: string]: View | null }>({});
+  const urlInputRef = useRef<TextInput>(null);
   const ignoreNextScroll = useRef(false);
   const isBarHidden = useRef(false);
 
@@ -443,7 +449,7 @@ export default function App() {
     return () => keyboardHeight.removeListener(sub);
   }, []);
 
-  const recentSearchesPanResponder = useRef(
+  const recentSearchesPanResponder = React.useMemo(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
@@ -462,7 +468,7 @@ export default function App() {
           currentKeyboardHeightVal.current -
           insets.top;
         const newHeight = Math.max(
-          0,
+          showFavoritesDefault ? 65 : 0,
           Math.min(
             currentRecentSearchesHeight.current - gestureState.dy,
             maxHeight,
@@ -480,15 +486,15 @@ export default function App() {
         const { dy, vy } = gestureState;
 
         // Strict Snap Logic
-        let target = 0;
+        let target = showFavoritesDefault ? 65 : 0;
         // If dragged up significantly or flicked up -> Max
         if (dy < -60 || vy < -0.5) target = maxHeight;
         // If dragged down significantly or flicked down -> 0
-        else if (dy > 60 || vy > 0.5) target = 0;
+        else if (dy > 60 || vy > 0.5) target = showFavoritesDefault ? 65 : 0;
         else {
           // If not a strong gesture, snap to nearest state
           const current = (recentSearchesHeight as any)._value;
-          target = current > maxHeight / 2 ? maxHeight : 0;
+          target = current > maxHeight / 2 ? maxHeight : (showFavoritesDefault ? 65 : 0);
         }
 
         Animated.spring(recentSearchesHeight, {
@@ -502,11 +508,11 @@ export default function App() {
         });
       },
     }),
-  ).current;
+  [showFavoritesDefault, pillHeight, insets]);
 
-  // Auto-collapse recent searches when focus is lost
+  // Auto-collapse recent searches when focus is lost or keyboard is dismissed
   useEffect(() => {
-    if (!isInputFocused) {
+    if (!isInputFocused || !isKeyboardVisible) {
       Animated.timing(recentSearchesHeight, {
         toValue: 0,
         duration: 200,
@@ -515,7 +521,7 @@ export default function App() {
         currentRecentSearchesHeight.current = 0;
       });
     }
-  }, [isInputFocused]);
+  }, [isInputFocused, isKeyboardVisible]);
 
   // --- SYNC UI WHEN SWITCHING TABS ---
   useEffect(() => {
@@ -550,21 +556,27 @@ export default function App() {
   }, [isInputFocused, isKeyboardVisible, handleVisibleAnim]);
 
   useEffect(() => {
-      if (isInputFocused && isKeyboardVisible && recentSearchesExpanded) {
+      if (isInputFocused && isKeyboardVisible) {
           const extraPillHeight = 24; 
           const maxHeight = SCREEN_HEIGHT - (pillHeight + extraPillHeight) - keyboardTargetHeight.current - insets.top;
           
-          Animated.spring(recentSearchesHeight, {
-              toValue: maxHeight,
-              useNativeDriver: false,
-              tension: 50,
-              friction: 12,
-              overshootClamping: true
-          }).start(() => {
-              currentRecentSearchesHeight.current = maxHeight;
-          });
+          let target = 0;
+          if (recentSearchesExpanded) target = maxHeight;
+          else if (showFavoritesDefault) target = 65;
+
+          if (target > 0) {
+            Animated.spring(recentSearchesHeight, {
+                toValue: target,
+                useNativeDriver: false,
+                tension: 50,
+                friction: 12,
+                overshootClamping: true
+            }).start(() => {
+                currentRecentSearchesHeight.current = target;
+            });
+          }
       }
-  }, [isInputFocused, isKeyboardVisible, recentSearchesExpanded]);
+  }, [isInputFocused, isKeyboardVisible, recentSearchesExpanded, showFavoritesDefault]);
 
   useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
@@ -2397,6 +2409,7 @@ export default function App() {
                             />
                           )}
                           <TextInput
+                            ref={urlInputRef}
                             style={[
                               styles.urlInput,
                               {
@@ -2490,12 +2503,17 @@ export default function App() {
                   >
                     <RecentSearchesView
                       historyItems={history.slice(0, 20)}
+                      favorites={favorites}
+                      activeUrl={activeUrl}
+                      activeTitle={currentTab?.title || null}
                       theme={effectiveTheme}
+                      accentColor={accentColor}
                       fontScale={fontScale}
                       onSelect={(item) => {
                         const targetUrl = item.url;
                         setInputUrl(getDisplayHost(targetUrl));
-                        setIsInputFocused(true);
+                        setIsInputFocused(false);
+                        urlInputRef.current?.blur();
 
                         setActiveUrl(targetUrl);
                         updateTab(activeTabId, {
@@ -2507,6 +2525,13 @@ export default function App() {
                         Keyboard.dismiss();
                       }}
                       onRemove={deleteHistoryItem}
+                      onAddFavorite={addFavorite}
+                      onRemoveFavorite={removeFavorite}
+                      onRequestDeleteFavorite={(id) => {
+                        setFavoriteToDelete(id);
+                        setConfirmActionType("deleteFavorite");
+                        setIsConfirmModalVisible(true);
+                      }}
                       onClear={() => {
                         // Optional: Ask for confirmation or just clear recent?
                         // User asked for "recent history", usually clear all clears everything.
@@ -2520,14 +2545,15 @@ export default function App() {
                         setIsConfirmModalVisible(true);
                       }}
                       onClose={() => {
+                        const target = showFavoritesDefault ? 65 : 0;
                         Animated.spring(recentSearchesHeight, {
-                          toValue: 0,
+                          toValue: target,
                           useNativeDriver: false,
                           tension: 50,
                           friction: 12,
                           overshootClamping: true,
                         }).start(() => {
-                          currentRecentSearchesHeight.current = 0;
+                          currentRecentSearchesHeight.current = target;
                         });
                       }}
                     />
@@ -2594,7 +2620,9 @@ export default function App() {
                 ? `This will permanently delete history for: ${confirmHistoryPayload?.label}.`
                 : confirmActionType === "bgRefresh"
                   ? "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data."
-                  : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
+                  : confirmActionType === "deleteFavorite"
+                    ? "Are you sure you want to remove this favorite?"
+                    : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -2621,6 +2649,9 @@ export default function App() {
                     settings.resetSettings();
                   } else if (confirmActionType === "bgRefresh") {
                     settings.setBackgroundRefresh(true);
+                  } else if (confirmActionType === "deleteFavorite" && favoriteToDelete) {
+                    removeFavorite(favoriteToDelete);
+                    setFavoriteToDelete(null);
                   }
                   setIsConfirmModalVisible(false);
                 }}

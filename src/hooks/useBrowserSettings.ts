@@ -21,6 +21,7 @@ export interface BrowserSettings {
   forceSearchMode: boolean;
   readerModeEnabled: boolean;
   recentSearchesExpanded: boolean;
+  showFavoritesDefault: boolean;
   jsEnabled: boolean;
   httpsOnly: boolean;
   blockCookies: boolean;
@@ -50,6 +51,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [desktopMode, setDesktopMode] = useState(false);
   const [forceSearchMode, setForceSearchMode] = useState(false);
   const [recentSearchesExpanded, setRecentSearchesExpanded] = useState(false);
+  const [showFavoritesDefault, setShowFavoritesDefault] = useState(false);
   const [readerModeEnabled, setReaderModeEnabled] = useState(false);
   const [jsEnabled, setJsEnabled] = useState(true);
   const [httpsOnly, setHttpsOnly] = useState(false);
@@ -85,6 +87,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setDesktopMode(savedSettings.desktopMode ?? false);
         setForceSearchMode(savedSettings.forceSearchMode ?? false);
         setRecentSearchesExpanded(savedSettings.recentSearchesExpanded ?? false);
+        setShowFavoritesDefault(savedSettings.showFavoritesDefault ?? false);
         setJsEnabled(savedSettings.jsEnabled ?? true);
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
@@ -125,6 +128,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         desktopMode,
         forceSearchMode,
         recentSearchesExpanded,
+        showFavoritesDefault,
         readerModeEnabled,
         jsEnabled,
         httpsOnly,
@@ -151,6 +155,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     showTabPreview,
     desktopMode,
     forceSearchMode,
+    recentSearchesExpanded,
+    showFavoritesDefault,
     readerModeEnabled,
     jsEnabled,
     httpsOnly,
@@ -186,6 +192,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setDesktopMode(false);
     setForceSearchMode(false);
     setRecentSearchesExpanded(false);
+    setShowFavoritesDefault(false);
     setReaderModeEnabled(false);
     setJsEnabled(true);
     setHttpsOnly(false);
@@ -215,6 +222,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     desktopMode, setDesktopMode,
     forceSearchMode, setForceSearchMode,
     recentSearchesExpanded, setRecentSearchesExpanded,
+    showFavoritesDefault, setShowFavoritesDefault,
     readerModeEnabled, setReaderModeEnabled,
     jsEnabled, setJsEnabled,
     httpsOnly, setHttpsOnly,
