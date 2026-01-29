@@ -2,6 +2,7 @@ import React, { forwardRef, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from "@expo/vector-icons";
+import * as Device from 'expo-device';
 import { TabItem } from '../types';
 import { getDisplayHost } from '../utils';
 
@@ -70,11 +71,14 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   // Calculate User Agent
   let userAgent = "";
   if (isDesktop) {
-     userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+     userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
   } else if (Platform.OS === 'ios') {
-     userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
+     userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
   } else {
-     userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+     // Dynamic Android UA
+     const model = Device.modelName || "Pixel 7";
+     const osVer = Device.osVersion || "13";
+     userAgent = `Mozilla/5.0 (Linux; Android ${osVer}; ${model}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36`;
   }
 
   // READER MODE SCRIPT
