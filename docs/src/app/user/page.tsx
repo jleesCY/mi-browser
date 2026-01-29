@@ -149,7 +149,8 @@ export default function UserDocs() {
                     <GuideItem icon={<Clock size={18}/>} title="Recent History" desc="Drag the handle above the Pill upwards to reveal a quick-access list of your most recent visits." />
                     <GuideItem icon={<FolderHeart size={18}/>} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
                     <GuideItem icon={<Maximize size={18}/>} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
-                    <GuideItem icon={<Trash2 size={18}/>} title="Managing Favorites" desc="Touch and hold any favorite icon to bring up a confirmation dialog to remove it from the bar." />
+                    <GuideItem icon={<GripHorizontal size={18}/>} title="Rearrange Favorites" desc="Touch and drag any favorite icon to reorder them instantly." />
+                    <GuideItem icon={<Trash2 size={18}/>} title="Drag to Delete" desc="Drag a favorite icon upwards out of the bar area to remove it." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
                     <p><strong>Configurable:</strong> Use settings to automatically expand history or keep the Favorites Bar visible every time you focus the Pill.</p>
@@ -262,88 +263,56 @@ export default function UserDocs() {
               </div>
 
               <div className="grid gap-12">
-                {/* Look & Feel */}
-                <SettingsSection title="Look & Feel" icon={<Palette size={20} />}>
-                  <div id="setting-theme">
-                    <SettingItem title="Theme Mode" desc="Choose between Light, Dark, or Adaptive. Adaptive mode generates a custom theme based on your Accent Color." />
-                  </div>
-                  <div id="setting-accent">
-                    <SettingItem title="Accent Color" desc="Pick from 18 hand-selected colors that define the app's UI elements, buttons, and highlights." />
-                  </div>
-                  <div id="setting-status-bar">
-                    <SettingItem title="Show Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
-                  </div>
+                {/* Colors */}
+                <SettingsSection title="Colors" icon={<Palette size={20} />}>
+                  <SettingItem title="Theme" desc="Choose between Light, Dark, or Adaptive. Adaptive mode generates a custom theme based on your Accent Color." />
+                  <SettingItem title="Accent Color" desc="Pick from 18 hand-selected colors that define the app's UI elements, buttons, and highlights." />
                 </SettingsSection>
 
                 {/* Interface */}
-                <SettingsSection title="Interface Geometry" icon={<Maximize size={20} />}>
-                  <div id="setting-radius">
-                    <SettingItem title="Corner Radius" desc="Choose between Square (0px), Soft (10px), or Round (22px) for all UI components and cards." />
-                  </div>
-                  <div id="setting-font-size">
-                    <SettingItem title="Font Size Scaling" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
-                  </div>
-                  <SettingItem title="UI Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
-                  <div id="setting-pill-height">
-                    <SettingItem title="Pill Height" desc="Fine-tune the height of the interaction pill (60px to 80px) for optimal thumb reach." />
-                  </div>
-                  <div id="setting-loading-bar">
-                    <SettingItem title="Pill Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
-                  </div>
-                  <div id="setting-recent-history">
-                    <SettingItem title="Show Recent History" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
-                  </div>
-                  <div id="setting-always-show-favorites">
-                    <SettingItem title="Always Show Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
-                  </div>
+                <SettingsSection title="Interface" icon={<Maximize size={20} />}>
+                  <SettingItem title="Font Size" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
+                  <SettingItem title="Corners" desc="Choose between Square (0px), Semi-Round (10px), or Round (22px) for all UI components and cards." />
+                  <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
+                  <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
+                  <SettingItem title="Expand Menus" desc="When enabled, menus (History, Tabs, Settings) will open to full-screen height immediately." />
                 </SettingsSection>
 
-                {/* Tab Customization */}
-                <SettingsSection title="Tab Preferences" icon={<Layers size={20} />}>
-                  <div id="setting-tab-view">
-                    <SettingItem title="Tab View Mode" desc="Toggle between Rows (dense list) or Cards (visual grid)." />
-                  </div>
-                  <div id="setting-tab-logo">
-                    <SettingItem title="Show Tab Logo" desc="Toggles the visibility of website icons (favicons) in the tab switcher." />
-                  </div>
-                  <div id="setting-tab-preview">
-                    <SettingItem title="Show Tab Preview" desc="Enables real-time snapshots of your pages when using Card view." />
-                  </div>
-                  <div id="setting-startup">
-                    <SettingItem title="Startup Behavior" desc="Choose to start with a New Tab or Continue Session (starts from your last tab and restores all others). All tabs are saved regardless of this setting." />
-                  </div>
+                {/* Pill */}
+                <SettingsSection title="Pill" icon={<Navigation size={20} />}>
+                  <SettingItem title="Size" desc="Choose between Thin (60px), Normal (70px), or Tall (80px) for optimal thumb reach." />
+                  <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
+                  <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
+                  <SettingItem title="Expand Searches" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
                 </SettingsSection>
 
-                {/* Browsing & Privacy */}
-                <SettingsSection title="Browsing & Privacy" icon={<Lock size={20} />}>
-                  <div id="setting-search-engine">
-                    <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
-                  </div>
-                  <div id="setting-bg-refresh">
-                    <SettingItem title="Background Refresh" desc="When enabled, all tabs render on app startup instead of when opened. This allows for instant switching but uses more battery." />
-                  </div>
-                  <div id="setting-https">
-                    <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections." />
-                  </div>
-                  <div id="setting-cookies">
-                    <SettingItem title="Block Cookies" desc="Prevents websites from storing tracking cookies on your device." />
-                  </div>
-                  <div id="setting-js">
-                    <SettingItem title="JavaScript Toggle" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
-                  </div>
+                {/* Tabs */}
+                <SettingsSection title="Tabs" icon={<Layers size={20} />}>
+                  <SettingItem title="Style" desc="Toggle between Rows (dense list) or Cards (visual grid)." />
+                  <SettingItem title="Site Logo" desc="Toggles the visibility of website icons (favicons) in the tab switcher. When disabled, a letter avatar is shown." />
+                  <SettingItem title="Preview Content" desc="Enables real-time snapshots of your pages when using Card view." />
+                  <SettingItem title="Background Refresh" desc="When enabled, all tabs render on app startup instead of when opened. This allows for instant switching but uses more battery." />
                 </SettingsSection>
 
-                {/* Data Management */}
-                <SettingsSection title="Data & History" icon={<Trash2 size={20} />}>
-                  <div id="setting-history-count">
-                    <SettingItem title="History Load Count" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may cause the interface to become laggier." />
-                  </div>
-                  <div id="setting-clear-history">
-                    <SettingItem title="Clear History" desc="Wipe your browsing data for the last 24 hours, 7 days, 4 weeks, or all time." />
-                  </div>
-                  <div id="setting-reset">
-                    <SettingItem title="Reset All Settings" desc="Reverts all customizations back to their factory defaults." />
-                  </div>
+                {/* History */}
+                <SettingsSection title="History" icon={<History size={20} />}>
+                  <SettingItem title="Load Count" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
+                  <SettingItem title="Group By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
+                  <SettingItem title="Clear History" desc="Wipe your browsing data for the last 24 hours, 7 days, 4 weeks, or all time." />
+                </SettingsSection>
+
+                {/* Bookmarks */}
+                <SettingsSection title="Bookmarks" icon={<Bookmark size={20} />}>
+                  <SettingItem title="Site Logo" desc="Toggles the visibility of website icons (favicons) in the bookmarks list. When disabled, a letter avatar is shown." />
+                </SettingsSection>
+
+                {/* Browsing */}
+                <SettingsSection title="Browsing" icon={<Lock size={20} />}>
+                  <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
+                  <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (starts from your last tab)." />
+                  <SettingItem title="Enable JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
+                  <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
+                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections." />
                 </SettingsSection>
               </div>
             </motion.div>
