@@ -1704,6 +1704,7 @@ export default function App() {
                     fontScale={fontScale}
                     uiPadding={uiPadding}
                     historyLoadCount={settings.historyLoadCount}
+                    historyGrouping={settings.historyGrouping}
                     searchText={historySearch}
                     setSearchText={setHistorySearch}
                     onPressItem={(item) => {

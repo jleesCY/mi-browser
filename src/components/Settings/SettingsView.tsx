@@ -73,6 +73,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setHttpsOnly,
     blockCookies,
     setBlockCookies,
+    historyLoadCount,
+    setHistoryLoadCount,
+    historyGrouping,
+    setHistoryGrouping,
     recentSearchesExpanded,
     setRecentSearchesExpanded,
     showFavoritesDefault,
@@ -1131,6 +1135,80 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* --- HISTORY --- */}
       <SettingsGroup title="History">
+        <SettingRow label="Group By">
+          <View
+            style={{
+              flexDirection: "column",
+              width: "100%",
+              paddingVertical: 5,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Ionicons
+                name="layers-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 16 * fontScale,
+                }}
+              >
+                Group By
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                alignItems: "center",
+                width: "100%",
+                gap: 10,
+              }}
+            >
+              {["Time", "Site"].map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  onPress={() => setHistoryGrouping(mode as any)}
+                  style={[
+                    {
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: 20,
+                      paddingVertical: 8,
+                      borderRadius: cornerRadius,
+                    },
+                    historyGrouping === mode && { backgroundColor: accentColor },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      {
+                        fontSize: 12 * fontScale,
+                        fontFamily: "Nunito_700Bold",
+                      },
+                      historyGrouping === mode
+                        ? { color: "#fff" }
+                        : { color: effectiveTheme.text },
+                    ]}
+                  >
+                    {mode}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SettingRow>
+
         <SettingRow label="Load Count">
           <View
             style={{

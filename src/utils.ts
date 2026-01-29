@@ -292,6 +292,26 @@ export const groupHistoryByDate = (historyItems: any[]) => {
   return sections;
 };
 
+export const groupHistoryBySite = (historyItems: any[]) => {
+  const groups: { [key: string]: any[] } = {};
+
+  historyItems.forEach((item) => {
+    const host = getDisplayHost(item.url) || "Unknown";
+    if (!groups[host]) {
+      groups[host] = [];
+    }
+    groups[host].push(item);
+  });
+
+  // Sort sections alphabetically by hostname
+  const sortedKeys = Object.keys(groups).sort();
+
+  return sortedKeys.map(key => ({
+    title: key,
+    data: groups[key]
+  }));
+};
+
 export const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 };

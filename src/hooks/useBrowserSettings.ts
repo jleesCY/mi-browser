@@ -28,6 +28,7 @@ export interface BrowserSettings {
   httpsOnly: boolean;
   blockCookies: boolean;
   backgroundRefresh: boolean;
+  historyGrouping: "Time" | "Site";
 }
 
 export const useBrowserSettings = (isAppReady: boolean) => {
@@ -61,6 +62,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [httpsOnly, setHttpsOnly] = useState(false);
   const [blockCookies, setBlockCookies] = useState(false);
   const [historyLoadCount, setHistoryLoadCount] = useState(10);
+  const [historyGrouping, setHistoryGrouping] = useState<"Time" | "Site">("Time");
 
   // UI state for settings (not persisted per se, but part of the settings UI)
   const [isAccentExpanded, setIsAccentExpanded] = useState(false);
@@ -96,6 +98,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setHttpsOnly(savedSettings.httpsOnly ?? false);
         setBlockCookies(savedSettings.blockCookies ?? false);
         setHistoryLoadCount(savedSettings.historyLoadCount ?? 10);
+        setHistoryGrouping(savedSettings.historyGrouping ?? "Time");
         
         setBackgroundRefresh(savedSettings.backgroundRefresh ?? false);
 
@@ -143,6 +146,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         blockCookies,
         historyLoadCount,
         backgroundRefresh,
+        historyGrouping,
       };
       saveStorage("settings", settingsToSave);
     }
@@ -173,7 +177,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     blockCookies,
     historyLoadCount,
     isAppReady,
-    backgroundRefresh
+    backgroundRefresh,
+    historyGrouping
   ]);
 
   const effectiveTheme = useMemo(() => {
@@ -210,6 +215,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHttpsOnly(false);
     setBlockCookies(false);
     setHistoryLoadCount(10);
+    setHistoryGrouping("Time");
     setBackgroundRefresh(false);
 
     saveStorage("settings", null);
@@ -242,6 +248,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     httpsOnly, setHttpsOnly,
     blockCookies, setBlockCookies,
     historyLoadCount, setHistoryLoadCount,
+    historyGrouping, setHistoryGrouping,
     isAccentExpanded, setIsAccentExpanded,
     isSearchEngineOpen, setIsSearchEngineOpen,
     isClearHistoryOpen, setIsClearHistoryOpen,

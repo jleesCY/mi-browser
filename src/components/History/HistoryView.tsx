@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import React, { useRef, useState, useEffect } from 'react';
 import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text, Pressable } from 'react-native';
 import { HistoryItem } from '../../types';
 import SwipeableHistoryRow from "./SwipeableHistoryRow";
-import { groupHistoryByDate, getSmartDate } from "../../utils";
+import { groupHistoryByDate, groupHistoryBySite, getSmartDate, getFaviconUrl } from "../../utils";
 import { HISTORY_RANGES } from '../../constants';
 
 interface HistoryViewProps {
@@ -20,6 +21,7 @@ interface HistoryViewProps {
   onFocusSearch: () => void;
   historyLoadCount: number;
   onRequestClearHistory: (ms: number, label: string) => void;
+  historyGrouping?: "Time" | "Site";
 }
 
 const getHistoryHeight = (uiPadding: string, fontScale: number) => {
@@ -216,7 +218,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   onDeleteItem,
   onFocusSearch,
   historyLoadCount,
-  onRequestClearHistory
+  onRequestClearHistory,
+  historyGrouping = "Time"
 }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
@@ -254,7 +257,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   );
 
   const visibleHistory = filteredHistory.slice(0, visibleCount);
-  const historySections = groupHistoryByDate(visibleHistory);
+  
+  const historySections = React.useMemo(() => {
+      if (historyGrouping === "Site") {
+          return groupHistoryBySite(visibleHistory);
+      }
+      return groupHistoryByDate(visibleHistory);
+  }, [visibleHistory, historyGrouping]);
 
   // Auto-load more if nothing is visible due to collapses (ignore collapse if searching)
   useEffect(() => {
@@ -322,15 +331,24 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         scrollEventThrottle={16}
         renderSectionHeader={({ section: { title } }) => (
           <TouchableOpacity onPress={() => toggleSection(title)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 }}>
-            <Text
-                style={{
-                color: theme.textSec,
-                fontFamily: "Nunito_700Bold",
-                fontSize: 14 * fontScale
-                }}
-            >
-                {title}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {historyGrouping === "Site" && (
+                    <Image
+                        source={{ uri: getFaviconUrl(title) || "" }}
+                        style={{ width: 16, height: 16, borderRadius: 2, marginRight: 8 }}
+                        contentFit="contain"
+                    />
+                )}
+                <Text
+                    style={{
+                    color: theme.textSec,
+                    fontFamily: "Nunito_700Bold",
+                    fontSize: 14 * fontScale
+                    }}
+                >
+                    {title}
+                </Text>
+            </View>
             <Ionicons name={(collapsedSections.has(title) && !isSearching) ? "chevron-down" : "chevron-up"} size={16} color={theme.textSec} />
           </TouchableOpacity>
         )}
