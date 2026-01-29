@@ -73,7 +73,7 @@ const TabCard = ({
             <View
             style={[
                 styles.faviconContainer,
-                { backgroundColor: isActive ? accent : "#555" },
+                { backgroundColor: isActive ? accent : (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') },
             ]}
             >
             {showTabLogo && item.url ? (
@@ -86,8 +86,9 @@ const TabCard = ({
                 style={[
                     styles.faviconText,
                     {
+                    color: isActive ? "#fff" : theme.text,
                     fontFamily: "Nunito_800ExtraBold",
-                    fontSize: (item.url ? 18 : 16) * fontScale,
+                    fontSize: 18 * fontScale,
                     },
                 ]}
                 >

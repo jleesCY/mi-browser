@@ -17,6 +17,8 @@ export interface BrowserSettings {
   tabViewMode: "rows" | "cards";
   showTabLogo: boolean;
   showTabPreview: boolean;
+  expandMenus: boolean;
+  showBookmarkIcons: boolean;
   desktopMode: boolean;
   forceSearchMode: boolean;
   readerModeEnabled: boolean;
@@ -46,6 +48,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [tabViewMode, setTabViewMode] = useState<"rows" | "cards">("rows");
   const [showTabLogo, setShowTabLogo] = useState(true);
   const [showTabPreview, setShowTabPreview] = useState(true);
+  const [expandMenus, setExpandMenus] = useState(false);
+  const [showBookmarkIcons, setShowBookmarkIcons] = useState(true);
 
   // Functional settings
   const [desktopMode, setDesktopMode] = useState(false);
@@ -101,6 +105,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setTabViewMode(savedSettings.tabViewMode ?? "rows");
         setShowTabLogo(savedSettings.showTabLogo ?? true);
         setShowTabPreview(savedSettings.showTabPreview ?? true);
+        setExpandMenus(savedSettings.expandMenus ?? false);
+        setShowBookmarkIcons(savedSettings.showBookmarkIcons ?? true);
         setReaderModeEnabled(savedSettings.readerModeEnabled ?? false);
       }
       setAreSettingsLoaded(true);
@@ -125,6 +131,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         tabViewMode,
         showTabLogo,
         showTabPreview,
+        expandMenus,
+        showBookmarkIcons,
         desktopMode,
         forceSearchMode,
         recentSearchesExpanded,
@@ -153,6 +161,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     tabViewMode,
     showTabLogo,
     showTabPreview,
+    expandMenus,
+    showBookmarkIcons,
     desktopMode,
     forceSearchMode,
     recentSearchesExpanded,
@@ -189,6 +199,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setTabViewMode("rows");
     setShowTabLogo(true);
     setShowTabPreview(true);
+    setExpandMenus(false);
+    setShowBookmarkIcons(true);
     setDesktopMode(false);
     setForceSearchMode(false);
     setRecentSearchesExpanded(false);
@@ -219,6 +231,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     tabViewMode, setTabViewMode,
     showTabLogo, setShowTabLogo,
     showTabPreview, setShowTabPreview,
+    expandMenus, setExpandMenus,
+    showBookmarkIcons, setShowBookmarkIcons,
     desktopMode, setDesktopMode,
     forceSearchMode, setForceSearchMode,
     recentSearchesExpanded, setRecentSearchesExpanded,

@@ -100,7 +100,13 @@ const SwipeableTabRow = ({
                  onError={() => setImageError(true)}
                />
           ) : (
-               <Ionicons name="globe-outline" size={36} color={isActive ? "#fff" : theme.text} />
+               <Text style={{ 
+                 color: isActive ? "#fff" : theme.text, 
+                 fontFamily: 'Nunito_800ExtraBold', 
+                 fontSize: 20 * fontScale 
+               }}>
+                 {(item.title || "N").charAt(0).toUpperCase()}
+               </Text>
           )}
         </View>
 

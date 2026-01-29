@@ -612,15 +612,17 @@ export default function App() {
       settings.setIsSearchEngineOpen(false);
       settings.setIsClearHistoryOpen(false);
 
+      const targetHeight = settings.expandMenus ? SNAP_FULL : SNAP_DEFAULT;
+
       Animated.spring(overlayHeightAnim, {
-        toValue: SNAP_DEFAULT,
+        toValue: targetHeight,
         tension: 60,
         friction: 9,
         useNativeDriver: false,
       }).start();
-      currentOverlayHeight.current = SNAP_DEFAULT;
+      currentOverlayHeight.current = targetHeight;
     }
-  }, [activeView]);
+  }, [activeView, settings.expandMenus]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
@@ -1648,6 +1650,7 @@ export default function App() {
                     cornerRadius={cornerRadius}
                     fontScale={fontScale}
                     uiPadding={uiPadding}
+                    showIcons={settings.showBookmarkIcons}
                     onPressItem={(item) => {
                       setActiveUrl(item.url);
                       updateTab(activeTabId, {

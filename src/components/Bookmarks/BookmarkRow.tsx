@@ -13,6 +13,7 @@ interface BookmarkRowProps {
   height: number;
   margin: number;
   fontScale: number;
+  showIcon?: boolean;
   onPress: () => void;
   onDelete: () => void;
   onRename: () => void;
@@ -27,6 +28,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
   height,
   margin,
   fontScale,
+  showIcon = true,
   onPress,
   onDelete,
   onRename,
@@ -104,15 +106,26 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
             <Ionicons name="folder" size={36} color={accent} />
           ) : (
             <>
-              {((item as any).icon || getFaviconUrl(item.url)) && !imageError ? (
-                  <Image 
-                    source={{ uri: (item as any).icon || getFaviconUrl(item.url) }}
-                    style={{ width: 36, height: 36, borderRadius: 18 }}
-                    defaultSource={require('../../../assets/images/icon.png')} // Fallback? 
-                    onError={() => setImageError(true)}
-                  />
+              {showIcon ? (
+                <>
+                  {((item as any).icon || getFaviconUrl(item.url)) && !imageError ? (
+                      <Image 
+                        source={{ uri: (item as any).icon || getFaviconUrl(item.url) }}
+                        style={{ width: 36, height: 36, borderRadius: 18 }}
+                        onError={() => setImageError(true)}
+                      />
+                  ) : (
+                      <Ionicons name="globe-outline" size={36} color={theme.text} />
+                  )}
+                </>
               ) : (
-                  <Ionicons name="globe-outline" size={36} color={theme.text} />
+                <Text style={{ 
+                  color: theme.text, 
+                  fontFamily: 'Nunito_800ExtraBold', 
+                  fontSize: 20 * fontScale 
+                }}>
+                  {(item.title || "?").charAt(0).toUpperCase()}
+                </Text>
               )}
             </>
           )}

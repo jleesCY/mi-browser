@@ -26,6 +26,7 @@ interface BookmarksViewProps {
   autoAdd?: boolean;
   onAutoAddHandled?: () => void;
   overlayHeightAnim: Animated.Value;
+  showIcons?: boolean;
 }
 
 export const BookmarksView: React.FC<BookmarksViewProps> = ({
@@ -47,7 +48,8 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
   onFocusSearch,
   autoAdd,
   onAutoAddHandled,
-  overlayHeightAnim
+  overlayHeightAnim,
+  showIcons = true
 }) => {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<{id: string, title: string}[]>([]);
@@ -315,6 +317,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                 height={rowHeightItem}
                 margin={rowMargin}
                 fontScale={fontScale}
+                showIcon={showIcons}
                 onPress={() => {
                     if (item.type === 'folder') {
                         handleEnterFolder(item);

@@ -77,6 +77,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setRecentSearchesExpanded,
     showFavoritesDefault,
     setShowFavoritesDefault,
+    expandMenus,
+    setExpandMenus,
+    showBookmarkIcons,
+    setShowBookmarkIcons,
     isAccentExpanded,
     setIsAccentExpanded,
     isSearchEngineOpen,
@@ -97,13 +101,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     children,
     onPress,
     hasSeparator,
+    forceVisible = false,
   }: {
     label: string;
     children: ReactNode;
     onPress?: () => void;
     hasSeparator?: boolean;
+    forceVisible?: boolean;
   }) => {
-    if (!shouldShow(label)) return null;
+    if (!forceVisible && !shouldShow(label)) return null;
     const content = (
       <View
         style={[
@@ -129,19 +135,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     label,
     children,
     hasSeparator,
+    forceVisible = false,
   }: {
     label: string;
     children: ReactNode;
     hasSeparator?: boolean;
-  }) => (
-    <View
-      style={[
-        hasSeparator && { borderTopWidth: 1, borderColor: effectiveTheme.bg },
-      ]}
-    >
-      {children}
-    </View>
-  );
+    forceVisible?: boolean;
+  }) => {
+    if (!forceVisible && !shouldShow(label)) return null;
+    return (
+      <View
+        style={[
+          hasSeparator && { borderTopWidth: 1, borderColor: effectiveTheme.bg },
+        ]}
+      >
+        {children}
+      </View>
+    );
+  }
 
   const SettingsGroup = ({
     title,
@@ -150,10 +161,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     title: string;
     children: ReactNode;
   }) => {
+    const isGroupMatch = shouldShow(title) && searchText.trim() !== "";
     const childrenArray = React.Children.toArray(children);
-    const visibleChildren = childrenArray.filter(
-      (child: any) => child && child.props && shouldShow(child.props.label),
-    );
+    
+    // Determine which children to show. 
+    // If group matches, we show all (forceVisible=true).
+    // Otherwise, we rely on individual child matching.
+    
+    // We need to clone children to pass the props
+    const visibleChildren = childrenArray.map((child: any) => {
+       if (!child || !child.props) return null;
+       const childMatches = shouldShow(child.props.label);
+       if (isGroupMatch || childMatches) {
+           return React.cloneElement(child, { 
+               forceVisible: isGroupMatch // Pass forceVisible if group matched
+           });
+       }
+       return null;
+    }).filter(Boolean);
+
     if (visibleChildren.length === 0) return null;
     return (
       <>
@@ -240,7 +266,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </View>
 
-      <SettingsGroup title="Look & Feel">
+      {/* --- COLORS --- */}
+      <SettingsGroup title="Colors">
         <SettingRow label="Theme">
           <View
             style={{
@@ -317,7 +344,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </View>
         </SettingRow>
 
-        <CustomSettingRow label="Accent">
+        <CustomSettingRow label="Accent Color">
           <View
             style={{
               width: "100%",
@@ -341,7 +368,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   fontSize: 16 * fontScale,
                 }}
               >
-                Accent
+                Accent Color
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -403,34 +430,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </View>
           </View>
         </CustomSettingRow>
-
-        <SettingRow label="Show Status Bar">
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons
-              name="battery-charging-outline"
-              size={22}
-              color={effectiveTheme.text}
-              style={{ marginRight: 10 }}
-            />
-            <Text
-              style={{
-                color: effectiveTheme.text,
-                fontFamily: "Nunito_600SemiBold",
-                fontSize: 16 * fontScale,
-              }}
-            >
-              Show Status Bar
-            </Text>
-          </View>
-          <Switch
-            value={showStatusBar}
-            onValueChange={setShowStatusBar}
-            trackColor={{ false: "#767577", true: accentColor }}
-            thumbColor={"#f4f3f4"}
-          />
-        </SettingRow>
       </SettingsGroup>
 
+      {/* --- INTERFACE --- */}
       <SettingsGroup title="Interface">
         <SettingRow label="Font Size">
           <View
@@ -525,7 +527,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </View>
         </SettingRow>
 
-        <SettingRow label="Corner Radius">
+        <SettingRow label="Corners">
           <View
             style={{
               flexDirection: "column",
@@ -557,17 +559,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     fontSize: 16 * fontScale,
                   }}
                 >
-                  Corner Radius
+                  Corners
                 </Text>
               </View>
-              <Text
-                style={{
-                  color: effectiveTheme.textSec,
-                  fontFamily: "Nunito_700Bold",
-                }}
-              >
-                {Math.round(cornerRadius)}px
-              </Text>
             </View>
             <View
               style={{
@@ -576,87 +570,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 justifyContent: "space-around",
               }}
             >
-              {[0, 10, 22].map((rad, i) => (
+              {[
+                { label: "Square", val: 0 },
+                { label: "Semi", val: 10 },
+                { label: "Round", val: 22 },
+              ].map((opt, i) => (
                 <TouchableOpacity
                   key={i}
-                  onPress={() => setCornerRadius(rad)}
-                  style={{ alignItems: "center" }}
-                >
-                  <View
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderWidth: 2,
-                      borderColor: effectiveTheme.text,
-                      borderRadius: rad === 22 ? 15 : rad === 10 ? 6 : 0,
-                      marginBottom: 5,
-                    }}
-                  />
-                  <Text
-                    style={{
-                      color: effectiveTheme.textSec,
-                      fontSize: 10 * fontScale,
-                    }}
-                  >
-                    {rad === 0 ? "Square" : rad === 10 ? "Soft" : "Round"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </SettingRow>
-
-        <SettingRow label="Tab View">
-          <View
-            style={{
-              flexDirection: "column",
-              width: "100%",
-              justifyContent: "center",
-              paddingVertical: 5,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 15,
-              }}
-            >
-              <Ionicons
-                name="grid-outline"
-                size={22}
-                color={effectiveTheme.text}
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                Tab View
-              </Text>
-            </View>
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              {["rows", "cards"].map((mode) => (
-                <TouchableOpacity
-                  key={mode}
-                  onPress={() => setTabViewMode(mode as any)}
+                  onPress={() => setCornerRadius(opt.val)}
                   style={[
                     {
-                      paddingHorizontal: 20,
+                      paddingHorizontal: 15,
                       paddingVertical: 8,
                       borderRadius: cornerRadius,
                     },
-                    tabViewMode === mode && { backgroundColor: accentColor },
+                    cornerRadius === opt.val && { backgroundColor: accentColor },
                   ]}
                 >
                   <Text
@@ -665,12 +593,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         fontSize: 12 * fontScale,
                         fontFamily: "Nunito_700Bold",
                       },
-                      tabViewMode === mode
+                      cornerRadius === opt.val
                         ? { color: "#fff" }
                         : { color: effectiveTheme.text },
                     ]}
                   >
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    {opt.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -678,62 +606,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </View>
         </SettingRow>
 
-        <SettingRow label="Show Tab Logo">
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons
-              name="image-outline"
-              size={22}
-              color={effectiveTheme.text}
-              style={{ marginRight: 10 }}
-            />
-            <Text
-              style={{
-                color: effectiveTheme.text,
-                fontFamily: "Nunito_600SemiBold",
-                fontSize: 16 * fontScale,
-              }}
-            >
-              Show Tab Logo
-            </Text>
-          </View>
-          <Switch
-            value={showTabLogo}
-            onValueChange={setShowTabLogo}
-            trackColor={{ false: "#767577", true: accentColor }}
-            thumbColor={"#f4f3f4"}
-          />
-        </SettingRow>
-
-
-        {tabViewMode === "cards" && (
-          <SettingRow label="Show Tab Preview">
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="easel-outline"
-                size={22}
-                color={effectiveTheme.text}
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                Show Tab Preview
-              </Text>
-            </View>
-            <Switch
-              value={showTabPreview}
-              onValueChange={setShowTabPreview}
-              trackColor={{ false: "#767577", true: accentColor }}
-              thumbColor={"#f4f3f4"}
-            />
-          </SettingRow>
-        )}
-
-        <SettingRow label="UI Spacing">
+        <SettingRow label="Spacing">
           <View
             style={{
               flexDirection: "column",
@@ -762,7 +635,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   fontSize: 16 * fontScale,
                 }}
               >
-                UI Spacing
+                Spacing
               </Text>
             </View>
             <View
@@ -805,7 +678,62 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </View>
         </SettingRow>
 
-        <SettingRow label="Pill Height">
+        <SettingRow label="Status Bar">
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="battery-charging-outline"
+              size={22}
+              color={effectiveTheme.text}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={{
+                color: effectiveTheme.text,
+                fontFamily: "Nunito_600SemiBold",
+                fontSize: 16 * fontScale,
+              }}
+            >
+              Status Bar
+            </Text>
+          </View>
+          <Switch
+            value={showStatusBar}
+            onValueChange={setShowStatusBar}
+            trackColor={{ false: "#767577", true: accentColor }}
+            thumbColor={"#f4f3f4"}
+          />
+        </SettingRow>
+
+        <SettingRow label="Expand Menus">
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="expand-outline"
+              size={22}
+              color={effectiveTheme.text}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={{
+                color: effectiveTheme.text,
+                fontFamily: "Nunito_600SemiBold",
+                fontSize: 16 * fontScale,
+              }}
+            >
+              Expand Menus
+            </Text>
+          </View>
+          <Switch
+            value={expandMenus}
+            onValueChange={setExpandMenus}
+            trackColor={{ false: "#767577", true: accentColor }}
+            thumbColor={"#f4f3f4"}
+          />
+        </SettingRow>
+      </SettingsGroup>
+
+      {/* --- PILL --- */}
+      <SettingsGroup title="Pill">
+        <SettingRow label="Size">
           <View
             style={{
               flexDirection: "column",
@@ -837,68 +765,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     fontSize: 16 * fontScale,
                   }}
                 >
-                  Pill Height
+                  Size
                 </Text>
               </View>
-              <Text
-                style={{
-                  color: effectiveTheme.textSec,
-                  fontFamily: "Nunito_700Bold",
-                }}
-              >
-                {pillHeight}px
-              </Text>
             </View>
             <View
               style={{
                 flexDirection: "row",
                 width: "100%",
-                justifyContent: "space-between",
-                alignItems: "center",
-                paddingHorizontal: 10,
+                justifyContent: "space-around",
               }}
             >
-              <TouchableOpacity
-                onPress={() => setPillHeight(Math.max(60, pillHeight - 2))}
-              >
-                <Ionicons
-                  name="remove-circle-outline"
-                  size={28}
-                  color={effectiveTheme.textSec}
-                />
-              </TouchableOpacity>
-              <View
-                style={{
-                  height: 4,
-                  flex: 1,
-                  backgroundColor: effectiveTheme.bg,
-                  marginHorizontal: 15,
-                  borderRadius: 2,
-                }}
-              >
-                <View
-                  style={{
-                    height: "100%",
-                    width: `${((pillHeight - 60) / 20) * 100}%`,
-                    backgroundColor: accentColor,
-                    borderRadius: 2,
-                  }}
-                />
-              </View>
-              <TouchableOpacity
-                onPress={() => setPillHeight(Math.min(80, pillHeight + 2))}
-              >
-                <Ionicons
-                  name="add-circle-outline"
-                  size={28}
-                  color={effectiveTheme.textSec}
-                />
-              </TouchableOpacity>
+              {[
+                { label: "Thin", val: 60 },
+                { label: "Normal", val: 70 },
+                { label: "Tall", val: 80 },
+              ].map((opt, i) => (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => setPillHeight(opt.val)}
+                  style={[
+                    {
+                      paddingHorizontal: 15,
+                      paddingVertical: 8,
+                      borderRadius: cornerRadius,
+                    },
+                    pillHeight === opt.val && { backgroundColor: accentColor },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      {
+                        fontSize: 12 * fontScale,
+                        fontFamily: "Nunito_700Bold",
+                      },
+                      pillHeight === opt.val
+                        ? { color: "#fff" }
+                        : { color: effectiveTheme.text },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </SettingRow>
 
-        <SettingRow label="Pill Loading Bar">
+        <SettingRow label="Loading Bar">
           <View
             style={{
               flexDirection: "column",
@@ -927,7 +841,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   fontSize: 16 * fontScale,
                 }}
               >
-                Pill Loading Bar
+                Loading Bar
               </Text>
             </View>
             <View
@@ -975,8 +889,432 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </View>
           </View>
         </SettingRow>
+
+        <SettingRow label="Pin Favorites">
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="star-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 16 * fontScale,
+                }}
+              >
+                Pin Favorites
+              </Text>
+            </View>
+            <Switch
+              value={showFavoritesDefault}
+              onValueChange={setShowFavoritesDefault}
+              trackColor={{ false: "#767577", true: accentColor }}
+              thumbColor={"#f4f3f4"}
+            />
+          </View>
+        </SettingRow>
+
+        <SettingRow label="Expand Searches">
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="list-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 16 * fontScale,
+                }}
+              >
+                Expand Searches
+              </Text>
+            </View>
+            <Switch
+              value={recentSearchesExpanded}
+              onValueChange={setRecentSearchesExpanded}
+              trackColor={{ false: "#767577", true: accentColor }}
+              thumbColor={"#f4f3f4"}
+            />
+          </View>
+        </SettingRow>
       </SettingsGroup>
 
+      {/* --- TABS --- */}
+      <SettingsGroup title="Tabs">
+        <SettingRow label="Style">
+          <View
+            style={{
+              flexDirection: "column",
+              width: "100%",
+              justifyContent: "center",
+              paddingVertical: 5,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Ionicons
+                name="grid-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 16 * fontScale,
+                }}
+              >
+                Style
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              {["rows", "cards"].map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  onPress={() => setTabViewMode(mode as any)}
+                  style={[
+                    {
+                      paddingHorizontal: 20,
+                      paddingVertical: 8,
+                      borderRadius: cornerRadius,
+                    },
+                    tabViewMode === mode && { backgroundColor: accentColor },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      {
+                        fontSize: 12 * fontScale,
+                        fontFamily: "Nunito_700Bold",
+                      },
+                      tabViewMode === mode
+                        ? { color: "#fff" }
+                        : { color: effectiveTheme.text },
+                    ]}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SettingRow>
+
+        <SettingRow label="Site Logo">
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="image-outline"
+              size={22}
+              color={effectiveTheme.text}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={{
+                color: effectiveTheme.text,
+                fontFamily: "Nunito_600SemiBold",
+                fontSize: 16 * fontScale,
+              }}
+            >
+              Site Logo
+            </Text>
+          </View>
+          <Switch
+            value={showTabLogo}
+            onValueChange={setShowTabLogo}
+            trackColor={{ false: "#767577", true: accentColor }}
+            thumbColor={"#f4f3f4"}
+          />
+        </SettingRow>
+
+        {tabViewMode === "cards" && (
+          <SettingRow label="Preview Content">
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="easel-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 16 * fontScale,
+                }}
+              >
+                Preview Content
+              </Text>
+            </View>
+            <Switch
+              value={showTabPreview}
+              onValueChange={setShowTabPreview}
+              trackColor={{ false: "#767577", true: accentColor }}
+              thumbColor={"#f4f3f4"}
+            />
+          </SettingRow>
+        )}
+
+        <SettingRow label="Background Refresh">
+          <View style={{ flexDirection: "column", width: "100%" }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                  name="flash-outline"
+                  size={22}
+                  color={effectiveTheme.text}
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={{
+                    color: effectiveTheme.text,
+                    fontFamily: "Nunito_600SemiBold",
+                    fontSize: 16 * fontScale,
+                  }}
+                >
+                  Background Refresh
+                </Text>
+              </View>
+              <Switch
+                value={backgroundRefresh}
+                onValueChange={(val) => {
+                  if (val) onRequestBgRefreshConfirm(true);
+                  else setBackgroundRefresh(false);
+                }}
+                trackColor={{ false: "#767577", true: accentColor }}
+                thumbColor={"#f4f3f4"}
+              />
+            </View>
+          </View>
+        </SettingRow>
+      </SettingsGroup>
+
+      {/* --- HISTORY --- */}
+      <SettingsGroup title="History">
+        <SettingRow label="Load Count">
+          <View
+            style={{
+              flexDirection: "column",
+              width: "100%",
+              paddingVertical: 5,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Ionicons
+                name="list-outline"
+                size={22}
+                color={effectiveTheme.text}
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                style={{
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 16 * fontScale,
+                }}
+              >
+                Load Count
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                alignItems: "center",
+                width: "100%",
+                gap: 10,
+              }}
+            >
+              {[10, 25, 50, 100].map((count) => (
+                <TouchableOpacity
+                  key={count}
+                  onPress={() => settings.setHistoryLoadCount(count)}
+                  style={[
+                    {
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: 20,
+                      paddingVertical: 8,
+                      borderRadius: cornerRadius,
+                    },
+                    settings.historyLoadCount === count && {
+                      backgroundColor: accentColor,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      {
+                        fontSize: 12 * fontScale,
+                        fontFamily: "Nunito_700Bold",
+                      },
+                      settings.historyLoadCount === count
+                        ? { color: "#fff" }
+                        : { color: effectiveTheme.text },
+                    ]}
+                  >
+                    {count}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SettingRow>
+
+        <CustomSettingRow label="Clear History">
+          <TouchableOpacity
+            onPress={() => {
+              LayoutAnimation.configureNext(
+                LayoutAnimation.Presets.easeInEaseOut,
+              );
+              setIsClearHistoryOpen(!isClearHistoryOpen);
+            }}
+          >
+            <View
+              style={[
+                {
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 15,
+                },
+              ]}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                  name="trash-outline"
+                  size={22}
+                  color="#ff3b30"
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={{
+                    color: "#ff3b30",
+                    fontFamily: "Nunito_600SemiBold",
+                    fontSize: 16 * fontScale,
+                  }}
+                >
+                  Clear History
+                </Text>
+              </View>
+              <Ionicons
+                name={isClearHistoryOpen ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={effectiveTheme.textSec}
+              />
+            </View>
+          </TouchableOpacity>
+          {isClearHistoryOpen && (
+            <View
+              style={{
+                borderTopWidth: 1,
+                borderColor: effectiveTheme.bg,
+              }}
+            >
+              {HISTORY_RANGES.map((range, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 15,
+                    paddingLeft: 40,
+                    borderRadius: cornerRadius,
+                  }}
+                  onPress={() => onRequestClearHistory(range.ms, range.label)}
+                >
+                  <Text
+                    style={{
+                      color: effectiveTheme.text,
+                      fontFamily: "Nunito_600SemiBold",
+                      fontSize: 16 * fontScale,
+                    }}
+                  >
+                    {range.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </CustomSettingRow>
+      </SettingsGroup>
+
+      {/* --- BOOKMARKS --- */}
+      <SettingsGroup title="Bookmarks">
+        <SettingRow label="Site Logo">
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="image-outline"
+              size={22}
+              color={effectiveTheme.text}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={{
+                color: effectiveTheme.text,
+                fontFamily: "Nunito_600SemiBold",
+                fontSize: 16 * fontScale,
+              }}
+            >
+              Site Logo
+            </Text>
+          </View>
+          <Switch
+            value={showBookmarkIcons}
+            onValueChange={setShowBookmarkIcons}
+            trackColor={{ false: "#767577", true: accentColor }}
+            thumbColor={"#f4f3f4"}
+          />
+        </SettingRow>
+      </SettingsGroup>
+
+      {/* --- BROWSING --- */}
       <SettingsGroup title="Browsing">
         <CustomSettingRow label="Search Engine">
           <TouchableOpacity
@@ -1091,7 +1429,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </CustomSettingRow>
 
-        <SettingRow label="Startup Behavior">
+        <SettingRow label="On Startup">
           <View
             style={{
               flexDirection: "column",
@@ -1165,117 +1503,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </View>
         </SettingRow>
 
-        <SettingRow label="Auto-Expand Recent">
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="resize-outline"
-                size={22}
-                color={effectiveTheme.text}
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                Show Recent History
-              </Text>
-            </View>
-            <Switch
-              value={recentSearchesExpanded}
-              onValueChange={setRecentSearchesExpanded}
-              trackColor={{ false: "#767577", true: accentColor }}
-              thumbColor={"#f4f3f4"}
-            />
-          </View>
-        </SettingRow>
-
-        <SettingRow label="Show Favorites Default">
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="star-outline"
-                size={22}
-                color={effectiveTheme.text}
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                Always Show Favorites
-              </Text>
-            </View>
-            <Switch
-              value={showFavoritesDefault}
-              onValueChange={setShowFavoritesDefault}
-              trackColor={{ false: "#767577", true: accentColor }}
-              thumbColor={"#f4f3f4"}
-            />
-          </View>
-        </SettingRow>
-
-        <SettingRow label="Background Refresh">
-          <View style={{ flexDirection: "column", width: "100%" }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="flash-outline"
-                  size={22}
-                  color={effectiveTheme.text}
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  style={{
-                    color: effectiveTheme.text,
-                    fontFamily: "Nunito_600SemiBold",
-                    fontSize: 16 * fontScale,
-                  }}
-                >
-                  Background Refresh
-                </Text>
-              </View>
-              <Switch
-                value={backgroundRefresh}
-                onValueChange={(val) => {
-                  if (val) onRequestBgRefreshConfirm(true);
-                  else setBackgroundRefresh(false);
-                }}
-                trackColor={{ false: "#767577", true: accentColor }}
-                thumbColor={"#f4f3f4"}
-              />
-            </View>
-          </View>
-        </SettingRow>
-      </SettingsGroup>
-
-      <SettingsGroup title="Privacy">
         <SettingRow label="Enable JavaScript">
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Ionicons
@@ -1297,6 +1524,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <Switch
             value={jsEnabled}
             onValueChange={setJsEnabled}
+            trackColor={{ false: "#767577", true: accentColor }}
+            thumbColor={"#f4f3f4"}
+          />
+        </SettingRow>
+
+        <SettingRow label="Enable Cookies">
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="cafe-outline"
+              size={22}
+              color={effectiveTheme.text}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={{
+                color: effectiveTheme.text,
+                fontFamily: "Nunito_600SemiBold",
+                fontSize: 16 * fontScale,
+              }}
+            >
+              Enable Cookies
+            </Text>
+          </View>
+          <Switch
+            value={!blockCookies}
+            onValueChange={(val) => setBlockCookies(!val)}
             trackColor={{ false: "#767577", true: accentColor }}
             thumbColor={"#f4f3f4"}
           />
@@ -1327,213 +1580,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             thumbColor={"#f4f3f4"}
           />
         </SettingRow>
-
-        <SettingRow label="Block Cookies">
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons
-              name="eye-off-outline"
-              size={22}
-              color={effectiveTheme.text}
-              style={{ marginRight: 10 }}
-            />
-            <Text
-              style={{
-                color: effectiveTheme.text,
-                fontFamily: "Nunito_600SemiBold",
-                fontSize: 16 * fontScale,
-              }}
-            >
-              Block Cookies
-            </Text>
-          </View>
-          <Switch
-            value={blockCookies}
-            onValueChange={setBlockCookies}
-            trackColor={{ false: "#767577", true: accentColor }}
-            thumbColor={"#f4f3f4"}
-          />
-        </SettingRow>
       </SettingsGroup>
 
-      <SettingsGroup title="Data">
-        <SettingRow label="History Load Count">
-          <View
-            style={{
-              flexDirection: "column",
-              width: "100%",
-              paddingVertical: 5,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 15,
-              }}
-            >
-              <Ionicons
-                name="list-outline"
-                size={22}
-                color={effectiveTheme.text}
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                History Load Count
-              </Text>
-            </View>
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                alignItems: "center",
-                width: "100%",
-                gap: 10,
-              }}
-            >
-              {[10, 25, 50, 100].map((count) => (
-                <TouchableOpacity
-                  key={count}
-                  onPress={() => settings.setHistoryLoadCount(count)}
-                  style={[
-                    {
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingHorizontal: 20,
-                      paddingVertical: 8,
-                      borderRadius: cornerRadius,
-                    },
-                    settings.historyLoadCount === count && {
-                      backgroundColor: accentColor,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      {
-                        fontSize: 12 * fontScale,
-                        fontFamily: "Nunito_700Bold",
-                      },
-                      settings.historyLoadCount === count
-                        ? { color: "#fff" }
-                        : { color: effectiveTheme.text },
-                    ]}
-                  >
-                    {count}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </SettingRow>
-
-        <SettingRow label="Reset all settings" onPress={onRequestReset}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons
-              name="refresh-circle-outline"
-              size={22}
-              color="#ff3b30"
-              style={{ marginRight: 10 }}
-            />
-            <Text
-              style={{
-                color: "#ff3b30",
-                fontFamily: "Nunito_600SemiBold",
-                fontSize: 16 * fontScale,
-              }}
-            >
-              Reset all settings
-            </Text>
-          </View>
+      <SettingRow label="Reset all settings" onPress={onRequestReset}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={effectiveTheme.textSec}
+            name="refresh-circle-outline"
+            size={22}
+            color="#ff3b30"
+            style={{ marginRight: 10 }}
           />
-        </SettingRow>
-
-        <CustomSettingRow label="Clear History">
-          <TouchableOpacity
-            onPress={() => {
-              LayoutAnimation.configureNext(
-                LayoutAnimation.Presets.easeInEaseOut,
-              );
-              setIsClearHistoryOpen(!isClearHistoryOpen);
+          <Text
+            style={{
+              color: "#ff3b30",
+              fontFamily: "Nunito_600SemiBold",
+              fontSize: 16 * fontScale,
             }}
           >
-            <View
-              style={[
-                {
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingVertical: 12,
-                  paddingHorizontal: 15,
-                },
-              ]}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons
-                  name="trash-outline"
-                  size={22}
-                  color="#ff3b30"
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  style={{
-                    color: "#ff3b30",
-                    fontFamily: "Nunito_600SemiBold",
-                    fontSize: 16 * fontScale,
-                  }}
-                >
-                  Clear History
-                </Text>
-              </View>
-              <Ionicons
-                name={isClearHistoryOpen ? "chevron-up" : "chevron-down"}
-                size={16}
-                color={effectiveTheme.textSec}
-              />
-            </View>
-          </TouchableOpacity>
-          {isClearHistoryOpen && (
-            <View
-              style={{
-                borderTopWidth: 1,
-                borderColor: effectiveTheme.bg,
-              }}
-            >
-              {HISTORY_RANGES.map((range, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 15,
-                    paddingLeft: 40,
-                    borderRadius: cornerRadius,
-                  }}
-                  onPress={() => onRequestClearHistory(range.ms, range.label)}
-                >
-                  <Text
-                    style={{
-                      color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
-                      fontSize: 16 * fontScale,
-                    }}
-                  >
-                    {range.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </CustomSettingRow>
-      </SettingsGroup>
+            Reset all settings
+          </Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={16}
+          color={effectiveTheme.textSec}
+        />
+      </SettingRow>
 
       <TouchableOpacity 
         style={{ 
