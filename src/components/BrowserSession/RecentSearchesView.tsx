@@ -11,6 +11,7 @@ interface RecentSearchesViewProps {
   favorites: FavoriteItem[];
   activeUrl: string | null;
   activeTitle: string | null;
+  filterText?: string | null;
   onSelect: (item: HistoryItem | FavoriteItem) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
@@ -62,6 +63,7 @@ export const RecentSearchesView = ({
   favorites,
   activeUrl,
   activeTitle,
+  filterText,
   onSelect,
   onRemove,
   onClear,
@@ -81,77 +83,79 @@ export const RecentSearchesView = ({
   };
 
   const renderContent = () => {
-    if (historyItems.length === 0) {
-      return (
-        <View style={{ flex: 1, alignItems: "center", paddingTop: 50 }}>
-          <Text
-            style={{
-              color: theme.textSec,
-              fontFamily: "Nunito_600SemiBold",
-              fontSize: 16 * fontScale,
-            }}
-          >
-            No recent history
-          </Text>
-        </View>
-      );
-    }
+    // Filter items based on filterText
+    const filteredItems = historyItems.filter((item) => {
+      if (!filterText) return true;
+      // Don't filter if the text matches the current page URL (initial focus)
+      if (activeUrl && (filterText === activeUrl || filterText === getDisplayHost(activeUrl))) {
+        return true;
+      }
+      return item.title.toLowerCase().includes(filterText.toLowerCase());
+    });
+
     return (
       <ScrollView
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingVertical: 10,
+          paddingVertical: 4,
           paddingBottom: 100,
+          flexGrow: 1, // Ensure content fills height for centering empty message
         }}
       >
-        {historyItems.map((item) => {
-          const favicon = getFaviconUrl(item.url);
-          return (
-          <TouchableOpacity
-            key={item.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 12,
-              paddingHorizontal: 20,
-            }}
-            onPress={() => onSelect(item)}
-          >
-            <View
-              style={{
-                width: 24,
-                height: 24,
-                marginRight: 15,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              {favicon ? (
-                  <Image
-                    source={{ uri: favicon }}
-                    style={{ width: 24, height: 24, borderRadius: 4 }}
-                    contentFit="contain"
-                    transition={200}
-                  />
-              ) : (
-                  <Ionicons name="globe-outline" size={16} color={theme.textSec} />
-              )}
-            </View>
-
+        {filteredItems.length === 0 ? (
+          <View style={{ flex: 1, alignItems: "center", paddingTop: 50 }}>
             <Text
               style={{
-                flex: 1,
-                color: theme.text,
+                color: theme.textSec,
                 fontFamily: "Nunito_600SemiBold",
                 fontSize: 16 * fontScale,
               }}
-              numberOfLines={1}
             >
-              {item.title || "Untitled"}
+              {historyItems.length === 0 ? "No recent history" : "No matches found"}
             </Text>
-          </TouchableOpacity>
-        ); })}
+          </View>
+        ) : (
+          filteredItems.map((item) => {
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 7,
+                  paddingHorizontal: 18,
+                }}
+                onPress={() => onSelect(item)}
+              >
+                <Text
+                  style={{
+                    flex: 1,
+                    color: theme.text,
+                    fontFamily: "Nunito_600SemiBold",
+                    fontSize: 15 * fontScale,
+                  }}
+                  numberOfLines={1}
+                >
+                  {item.title || "Untitled"}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onRemove(item.id);
+                  }}
+                  style={{
+                    padding: 6,
+                    marginLeft: 8,
+                  }}
+                >
+                  <Ionicons name="close" size={16} color={theme.textSec} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
     );
   };

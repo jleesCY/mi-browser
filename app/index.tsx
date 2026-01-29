@@ -112,8 +112,14 @@ export default function App() {
     showFavoritesDefault,
   } = settings;
 
-  const { history, addToHistory, deleteHistory, deleteHistoryItem } =
-    useHistory(areSettingsLoaded);
+  const {
+    history,
+    recentSearches,
+    addToHistory,
+    deleteHistory,
+    deleteHistoryItem,
+    deleteRecentSearch,
+  } = useHistory(areSettingsLoaded);
 
   const {
     bookmarks,
@@ -125,7 +131,8 @@ export default function App() {
     reorderBookmarks,
   } = useBookmarks(areSettingsLoaded);
 
-  const { favorites, addFavorite, removeFavorite, updateFavorite } = useFavorites(areSettingsLoaded);
+  const { favorites, addFavorite, removeFavorite, updateFavorite } =
+    useFavorites(areSettingsLoaded);
 
   const {
     tabs,
@@ -449,66 +456,73 @@ export default function App() {
     return () => keyboardHeight.removeListener(sub);
   }, []);
 
-  const recentSearchesPanResponder = React.useMemo(() =>
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        recentSearchesHeight.stopAnimation((val) => {
-          currentRecentSearchesHeight.current = val;
-        });
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // We need to account for the extra pill height when focused
-        const extraPillHeight = 24;
-        const maxHeight =
-          SCREEN_HEIGHT -
-          (pillHeight + extraPillHeight) -
-          currentKeyboardHeightVal.current -
-          insets.top;
-        const newHeight = Math.max(
-          showFavoritesDefault ? 65 : 0,
-          Math.min(
-            currentRecentSearchesHeight.current - gestureState.dy,
-            maxHeight,
-          ),
-        );
-        recentSearchesHeight.setValue(newHeight);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const extraPillHeight = 24;
-        const maxHeight =
-          SCREEN_HEIGHT -
-          (pillHeight + extraPillHeight) -
-          currentKeyboardHeightVal.current -
-          insets.top;
-        const { dy, vy } = gestureState;
+  const recentSearchesPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          recentSearchesHeight.stopAnimation((val) => {
+            currentRecentSearchesHeight.current = val;
+          });
+        },
+        onPanResponderMove: (_, gestureState) => {
+          // We need to account for the extra pill height when focused
+          const extraPillHeight = 24;
+          const maxHeight =
+            SCREEN_HEIGHT -
+            (pillHeight + extraPillHeight) -
+            currentKeyboardHeightVal.current -
+            insets.top;
+          const newHeight = Math.max(
+            showFavoritesDefault ? 65 : 0,
+            Math.min(
+              currentRecentSearchesHeight.current - gestureState.dy,
+              maxHeight,
+            ),
+          );
+          recentSearchesHeight.setValue(newHeight);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const extraPillHeight = 24;
+          const maxHeight =
+            SCREEN_HEIGHT -
+            (pillHeight + extraPillHeight) -
+            currentKeyboardHeightVal.current -
+            insets.top;
+          const { dy, vy } = gestureState;
 
-        // Strict Snap Logic
-        let target = showFavoritesDefault ? 65 : 0;
-        // If dragged up significantly or flicked up -> Max
-        if (dy < -60 || vy < -0.5) target = maxHeight;
-        // If dragged down significantly or flicked down -> 0
-        else if (dy > 60 || vy > 0.5) target = showFavoritesDefault ? 65 : 0;
-        else {
-          // If not a strong gesture, snap to nearest state
-          const current = (recentSearchesHeight as any)._value;
-          target = current > maxHeight / 2 ? maxHeight : (showFavoritesDefault ? 65 : 0);
-        }
+          // Strict Snap Logic
+          let target = showFavoritesDefault ? 65 : 0;
+          // If dragged up significantly or flicked up -> Max
+          if (dy < -60 || vy < -0.5) target = maxHeight;
+          // If dragged down significantly or flicked down -> 0
+          else if (dy > 60 || vy > 0.5) target = showFavoritesDefault ? 65 : 0;
+          else {
+            // If not a strong gesture, snap to nearest state
+            const current = (recentSearchesHeight as any)._value;
+            target =
+              current > maxHeight / 2
+                ? maxHeight
+                : showFavoritesDefault
+                  ? 65
+                  : 0;
+          }
 
-        Animated.spring(recentSearchesHeight, {
-          toValue: target,
-          useNativeDriver: false,
-          tension: 50,
-          friction: 12,
-          overshootClamping: true,
-        }).start(() => {
-          currentRecentSearchesHeight.current = target;
-        });
-      },
-    }),
-  [showFavoritesDefault, pillHeight, insets]);
+          Animated.spring(recentSearchesHeight, {
+            toValue: target,
+            useNativeDriver: false,
+            tension: 50,
+            friction: 12,
+            overshootClamping: true,
+          }).start(() => {
+            currentRecentSearchesHeight.current = target;
+          });
+        },
+      }),
+    [showFavoritesDefault, pillHeight, insets],
+  );
 
   // Auto-collapse recent searches when focus is lost or keyboard is dismissed
   useEffect(() => {
@@ -556,27 +570,36 @@ export default function App() {
   }, [isInputFocused, isKeyboardVisible, handleVisibleAnim]);
 
   useEffect(() => {
-      if (isInputFocused && isKeyboardVisible) {
-          const extraPillHeight = 24; 
-          const maxHeight = SCREEN_HEIGHT - (pillHeight + extraPillHeight) - keyboardTargetHeight.current - insets.top;
-          
-          let target = 0;
-          if (recentSearchesExpanded) target = maxHeight;
-          else if (showFavoritesDefault) target = 65;
+    if (isInputFocused && isKeyboardVisible) {
+      const extraPillHeight = 24;
+      const maxHeight =
+        SCREEN_HEIGHT -
+        (pillHeight + extraPillHeight) -
+        keyboardTargetHeight.current -
+        insets.top;
 
-          if (target > 0) {
-            Animated.spring(recentSearchesHeight, {
-                toValue: target,
-                useNativeDriver: false,
-                tension: 50,
-                friction: 12,
-                overshootClamping: true
-            }).start(() => {
-                currentRecentSearchesHeight.current = target;
-            });
-          }
+      let target = 0;
+      if (recentSearchesExpanded) target = maxHeight;
+      else if (showFavoritesDefault) target = 65;
+
+      if (target > 0) {
+        Animated.spring(recentSearchesHeight, {
+          toValue: target,
+          useNativeDriver: false,
+          tension: 50,
+          friction: 12,
+          overshootClamping: true,
+        }).start(() => {
+          currentRecentSearchesHeight.current = target;
+        });
       }
-  }, [isInputFocused, isKeyboardVisible, recentSearchesExpanded, showFavoritesDefault]);
+    }
+  }, [
+    isInputFocused,
+    isKeyboardVisible,
+    recentSearchesExpanded,
+    showFavoritesDefault,
+  ]);
 
   useEffect(() => {
     isSearchActiveRef.current = isSearchActive;
@@ -1442,11 +1465,18 @@ export default function App() {
                 canGoBackRef.current = updates.canGoBack;
                 canGoForwardRef.current = updates.canGoForward;
                 setIsLoading(updates.loading);
+
+                if (
+                  updates.url &&
+                  !updates.loading &&
+                  updates.url !== "about:blank"
+                ) {
+                  addToHistory(updates.url, updates.title);
+                }
+
                 if (!isInputFocused && updates.url) {
                   setActiveUrl(updates.url);
                   setInputUrl(getDisplayHost(updates.url));
-                  if (!updates.loading && updates.url !== "about:blank")
-                    addToHistory(updates.url, updates.title);
                 }
               }}
               onLoadProgress={(p) =>
@@ -2305,10 +2335,11 @@ export default function App() {
                       ]}
                       pointerEvents={isSearchActive ? "auto" : "none"}
                     >
-                                            {/* Integrated Drag Handle for Search Pill */}
-                                            {isInputFocused && isKeyboardVisible && (
-                                              <View
-                                                  {...recentSearchesPanResponder.panHandlers}                          style={{
+                      {/* Integrated Drag Handle for Search Pill */}
+                      {isInputFocused && isKeyboardVisible && (
+                        <View
+                          {...recentSearchesPanResponder.panHandlers}
+                          style={{
                             width: "100%",
                             height: 24,
                             position: "absolute",
@@ -2502,29 +2533,41 @@ export default function App() {
                     }}
                   >
                     <RecentSearchesView
-                      historyItems={history.slice(0, 20)}
+                      historyItems={recentSearches}
                       favorites={favorites}
                       activeUrl={activeUrl}
                       activeTitle={currentTab?.title || null}
+                      filterText={inputUrl}
                       theme={effectiveTheme}
                       accentColor={accentColor}
                       fontScale={fontScale}
                       onSelect={(item) => {
-                        const targetUrl = item.url;
-                        setInputUrl(getDisplayHost(targetUrl));
-                        setIsInputFocused(false);
-                        urlInputRef.current?.blur();
+                        // Check if it's a favorite
+                        const isFavorite = favorites.some((f) => f.id === item.id);
 
-                        setActiveUrl(targetUrl);
-                        updateTab(activeTabId, {
-                          url: targetUrl,
-                          requestedUrl: targetUrl,
-                          title: item.title,
-                        });
-                        snapToSearch();
-                        Keyboard.dismiss();
+                        if (isFavorite) {
+                          const targetUrl = item.url;
+                          setInputUrl(getDisplayHost(targetUrl));
+                          setIsInputFocused(false);
+                          urlInputRef.current?.blur();
+
+                          setActiveUrl(targetUrl);
+                          updateTab(activeTabId, {
+                            url: targetUrl,
+                            requestedUrl: targetUrl,
+                            title: item.title,
+                          });
+                          snapToSearch();
+                          Keyboard.dismiss();
+                        } else {
+                          // For recent searches, just put the text in the bar
+                          // Since we store the query in 'title' for recent searches, use that
+                          setInputUrl(item.title);
+                          // Keep focus so they can edit or press "Go"
+                          urlInputRef.current?.focus();
+                        }
                       }}
-                      onRemove={deleteHistoryItem}
+                      onRemove={deleteRecentSearch}
                       onAddFavorite={addFavorite}
                       onRemoveFavorite={removeFavorite}
                       onRequestDeleteFavorite={(id) => {
@@ -2649,7 +2692,10 @@ export default function App() {
                     settings.resetSettings();
                   } else if (confirmActionType === "bgRefresh") {
                     settings.setBackgroundRefresh(true);
-                  } else if (confirmActionType === "deleteFavorite" && favoriteToDelete) {
+                  } else if (
+                    confirmActionType === "deleteFavorite" &&
+                    favoriteToDelete
+                  ) {
                     removeFavorite(favoriteToDelete);
                     setFavoriteToDelete(null);
                   }
