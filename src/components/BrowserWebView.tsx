@@ -371,7 +371,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         onNavigationStateChange={(navState) => {
             const { url, title, canGoBack, canGoForward, loading } = navState;
 
-            if (url && (url.startsWith("intent://") || url.startsWith("android-app://"))) {
+            if (url && (url.startsWith("intent://") || url.startsWith("android-app://") || url === "about:blank")) {
                 return;
             }
 
