@@ -60,10 +60,20 @@ export const useFavorites = (isAppReady: boolean) => {
     }));
   }, []);
 
+  const reorderFavorites = useCallback((fromIndex: number, toIndex: number) => {
+    setFavorites((prev) => {
+      const newList = [...prev];
+      const [movedItem] = newList.splice(fromIndex, 1);
+      newList.splice(toIndex, 0, movedItem);
+      return newList;
+    });
+  }, []);
+
   return {
     favorites,
     addFavorite,
     removeFavorite,
-    updateFavorite
+    updateFavorite,
+    reorderFavorites
   };
 };

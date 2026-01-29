@@ -5,6 +5,7 @@ import { ScrollView, Text, TouchableOpacity, View, Alert, Modal, TextInput, Keyb
 import { HistoryItem } from "../../types";
 import { FavoriteItem } from "../../hooks/useFavorites";
 import { getFaviconUrl, getDisplayHost } from "../../utils";
+import { HorizontalSortableList } from "./HorizontalSortableList";
 
 interface RecentSearchesViewProps {
   historyItems: HistoryItem[];
@@ -19,20 +20,23 @@ interface RecentSearchesViewProps {
   onAddFavorite: (title: string, url: string) => void;
   onRemoveFavorite: (id: string) => void;
   onRequestDeleteFavorite: (id: string) => void;
+  onReorderFavorites: (from: number, to: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: (id: string, absoluteX: number, absoluteY: number) => void;
   theme: any;
   accentColor: string;
   fontScale: number;
 }
 
-const FavoriteIcon = ({ item, theme, onPress, onLongPress }: any) => {
+const FavoriteIcon = ({ item, theme, onPress }: any) => {
   const [error, setError] = useState(false);
   const favicon = item.icon || getFaviconUrl(item.url);
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={300}
+      // Long press is handled by the SortableList parent now
+      activeOpacity={0.8}
       style={{
         width: 44,
         height: 44,
@@ -40,7 +44,6 @@ const FavoriteIcon = ({ item, theme, onPress, onLongPress }: any) => {
         backgroundColor: theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginHorizontal: 8
       }}
     >
       {favicon && !error ? (
@@ -71,6 +74,9 @@ export const RecentSearchesView = ({
   onAddFavorite,
   onRemoveFavorite,
   onRequestDeleteFavorite,
+  onReorderFavorites,
+  onDragStart,
+  onDragEnd,
   theme,
   accentColor,
   fontScale,
@@ -83,6 +89,7 @@ export const RecentSearchesView = ({
   };
 
   const renderContent = () => {
+    // ... (existing logic)
     // Filter items based on filterText
     const filteredItems = historyItems.filter((item) => {
       if (!filterText) return true;
@@ -176,15 +183,26 @@ export const RecentSearchesView = ({
         borderTopWidth: 1,
         borderTopColor: theme.bg
       }}>
-        {favorites.map(item => (
-          <FavoriteIcon 
-            key={item.id} 
-            item={item} 
-            theme={theme} 
-            onPress={() => onSelect(item)}
-            onLongPress={() => onRequestDeleteFavorite(item.id)}
-          />
-        ))}
+        <HorizontalSortableList
+          data={favorites}
+          keyExtractor={(item) => item.id}
+          itemWidth={60} 
+          itemHeight={44}
+          contentContainerStyle={{ justifyContent: 'center', alignItems: 'center' }}
+          onReorder={onReorderFavorites}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          renderItem={({ item }) => (
+            <View style={{ width: 60, alignItems: 'center' }}>
+              <FavoriteIcon 
+                item={item} 
+                theme={theme} 
+                onPress={() => onSelect(item)}
+              />
+            </View>
+          )}
+        />
+        
         {favorites.length < 5 && (
           <TouchableOpacity
             onPress={handleAddFavorite}
@@ -210,7 +228,7 @@ export const RecentSearchesView = ({
         onPress={onClose}
         style={{
           position: "absolute",
-          bottom: 80, // Moved up to clear favorites bar
+          bottom: 80, 
           right: 20,
           width: 40,
           height: 40,

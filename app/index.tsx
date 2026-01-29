@@ -131,8 +131,13 @@ export default function App() {
     reorderBookmarks,
   } = useBookmarks(areSettingsLoaded);
 
-  const { favorites, addFavorite, removeFavorite, updateFavorite } =
-    useFavorites(areSettingsLoaded);
+  const {
+    favorites,
+    addFavorite,
+    removeFavorite,
+    updateFavorite,
+    reorderFavorites,
+  } = useFavorites(areSettingsLoaded);
 
   const {
     tabs,
@@ -336,6 +341,7 @@ export default function App() {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const isInputFocusedRef = useRef(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isFavoriteDragging, setIsFavoriteDragging] = useState(false);
 
   // Search States for Sub-views
   const [settingsSearch, setSettingsSearch] = useState("");
@@ -1284,6 +1290,23 @@ export default function App() {
       },
     }),
   ).current;
+
+  // --- FAVORITE DRAG HANDLERS ---
+  const handleFavoriteDragStart = useCallback(() => {
+    setIsFavoriteDragging(true);
+  }, []);
+
+  const handleFavoriteDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      // If dragged significantly upwards (away from the bottom bar), delete it
+      // The bar is roughly at the bottom. Threshold: 150px from bottom.
+      if (y < SCREEN_HEIGHT - 150) {
+        removeFavorite(id);
+      }
+      setIsFavoriteDragging(false);
+    },
+    [removeFavorite],
+  );
 
   // --- STYLE INTERPOLATIONS ---
   const searchPillTranslateY = animVal;
@@ -2573,6 +2596,9 @@ export default function App() {
                       onRemove={deleteRecentSearch}
                       onAddFavorite={addFavorite}
                       onRemoveFavorite={removeFavorite}
+                      onReorderFavorites={reorderFavorites}
+                      onDragStart={handleFavoriteDragStart}
+                      onDragEnd={handleFavoriteDragEnd}
                       onRequestDeleteFavorite={(id) => {
                         setFavoriteToDelete(id);
                         setConfirmActionType("deleteFavorite");
