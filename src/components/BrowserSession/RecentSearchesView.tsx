@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ScrollView, Text, TouchableOpacity, View, Alert, Modal, TextInput, Keyboard } from "react-native";
 import { HistoryItem } from "../../types";
 import { FavoriteItem } from "../../hooks/useFavorites";
