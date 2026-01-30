@@ -1662,30 +1662,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </SettingRow>
       </SettingsGroup>
 
-      <SettingRow label="Reset all settings" onPress={onRequestReset}>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <View style={{ marginTop: 20 }}>
+        <TouchableOpacity
+          onPress={onRequestReset}
+          style={{
+            backgroundColor: "#ff3b30",
+            paddingVertical: 15,
+            paddingHorizontal: 20,
+            borderRadius: cornerRadius,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Ionicons
             name="refresh-circle-outline"
-            size={22}
-            color="#ff3b30"
+            size={24}
+            color="#fff"
             style={{ marginRight: 10 }}
           />
           <Text
             style={{
-              color: "#ff3b30",
-              fontFamily: "Nunito_600SemiBold",
+              color: "#fff",
+              fontFamily: "Nunito_700Bold",
               fontSize: 16 * fontScale,
             }}
           >
             Reset all settings
           </Text>
-        </View>
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={effectiveTheme.textSec}
-        />
-      </SettingRow>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity 
         style={{ 
