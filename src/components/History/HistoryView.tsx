@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React, { useRef, useState, useEffect } from 'react';
-import { Animated, FlatList, LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text, Pressable } from 'react-native';
+import { LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text, Pressable } from 'react-native';
 import { HistoryItem } from '../../types';
 import SwipeableHistoryRow from "./SwipeableHistoryRow";
 import { groupHistoryByDate, groupHistoryBySite, getSmartDate, getFaviconUrl } from "../../utils";
@@ -67,7 +67,6 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
         paddingHorizontal: 15,
         height: 50,
         zIndex: 1000,
-        elevation: 10,
       }}
     >
       <Ionicons

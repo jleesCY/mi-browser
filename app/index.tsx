@@ -6,7 +6,6 @@ import {
   useFonts,
 } from "@expo-google-fonts/nunito";
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system/legacy";
 import * as MediaLibrary from "expo-media-library";
 import * as Print from "expo-print";
@@ -135,7 +134,6 @@ export default function App() {
     favorites,
     addFavorite,
     removeFavorite,
-    updateFavorite,
     reorderFavorites,
   } = useFavorites(areSettingsLoaded);
 
@@ -224,7 +222,7 @@ export default function App() {
 
   const handleTabUpdate = useCallback(
     (id: string, updates: Partial<TabItem>) => {
-      setTabs((prevTabs) => {
+      setTabs((prevTabs: TabItem[]) => {
         return prevTabs.map((t) => {
           if (t.id !== id) return t;
 
@@ -341,13 +339,12 @@ export default function App() {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const isInputFocusedRef = useRef(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [isFavoriteDragging, setIsFavoriteDragging] = useState(false);
+  const [, setIsFavoriteDragging] = useState(false);
 
   // Search States for Sub-views
   const [settingsSearch, setSettingsSearch] = useState("");
   const [tabsSearch, setTabsSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
-  const [bookmarksSearch, setBookmarksSearch] = useState("");
   const [bookmarksAutoAdd, setBookmarksAutoAdd] = useState(false);
 
   // Rename Modal
@@ -760,7 +757,7 @@ export default function App() {
               FileSystem.deleteAsync(oldImage, { idempotent: true }).catch(
                 () => {},
               );
-            } catch (err) {}
+            } catch {}
           }
 
           // Log cache count
@@ -772,7 +769,7 @@ export default function App() {
             console.log(
               `Total preview images in cache: ${previewFiles.length}`,
             );
-          } catch (err) {}
+          } catch {}
         }
 
         // Sanitization: If no tabs have URLs, clear all previews
@@ -789,7 +786,7 @@ export default function App() {
             }
             if (previewFiles.length > 0)
               console.log("Sanitized all preview images.");
-          } catch (e) {}
+          } catch {}
         }
       } catch (e) {
         console.log("Failed to capture preview", e);
@@ -876,7 +873,7 @@ export default function App() {
       onBackPress,
     );
     return () => subscription.remove();
-  }, [activeView, isInputFocused, activeTabId, closeOverlay, showBar]);
+  }, [activeView, isInputFocused, activeTabId, closeOverlay, showBar, tabs, updateTab]);
 
   const handleGoPress = () => {
     Keyboard.dismiss();
@@ -983,13 +980,6 @@ export default function App() {
         },
       },
     ]);
-  };
-
-  const handleCopyLink = async () => {
-    if (!activeUrl) return;
-    setIsSubMenuVisible(false);
-    await Clipboard.setStringAsync(activeUrl);
-    showAlert("Copied", "Link copied to clipboard");
   };
 
   const handlePrint = async () => {

@@ -1,4 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform, UIManager } from 'react-native';
+import { SEARCH_ENGINES } from "./constants";
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export const hexToRgba = (hex: string, alphaStr?: string) => {
   let r = 0, g = 0, b = 0, a = 1;
@@ -117,12 +123,7 @@ export const generateAdaptiveTheme = (accentHex: string) => {
   }
 };
 
-import { LayoutAnimation, Platform, UIManager } from 'react-native';
-import { SEARCH_ENGINES } from "./constants";
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 export const getSearchQueryFromUrl = (url: string) => {
   try {
@@ -137,7 +138,7 @@ export const getSearchQueryFromUrl = (url: string) => {
         if (query) return query;
       }
     }
-  } catch (e) {}
+  } catch {}
   return null;
 };
 
@@ -154,7 +155,7 @@ export const getHistoryTitle = (url: string, pageTitle?: string | null) => {
       });
       return engine ? `${engine.name} Search: ${query}` : query;
     }
-  } catch (e) {}
+  } catch {}
 
   // Fallback to title or hostname
   if (pageTitle && pageTitle.length > 0 && !pageTitle.includes("://")) {
@@ -209,7 +210,7 @@ export const parseDeepLinkUrl = (url: string) => {
       const target = params.get('url') || params.get('href');
       if (target) return target;
     }
-  } catch (e) {}
+  } catch {}
   return null;
 };
 

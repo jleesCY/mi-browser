@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LayoutAnimation } from 'react-native';
-import { loadStorage, saveStorage, getDisplayHost, getHistoryTitle, generateId, getSearchQueryFromUrl } from '../utils';
+import { loadStorage, saveStorage, getHistoryTitle, generateId, getSearchQueryFromUrl } from '../utils';
 import { HistoryItem } from '../types';
 
 export const useHistory = (isAppReady: boolean) => {

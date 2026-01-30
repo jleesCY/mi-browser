@@ -72,8 +72,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setHttpsOnly,
     blockCookies,
     setBlockCookies,
-    historyLoadCount,
-    setHistoryLoadCount,
     historyGrouping,
     setHistoryGrouping,
     recentSearchesExpanded,

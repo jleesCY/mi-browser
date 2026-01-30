@@ -54,6 +54,8 @@ const getMargin = (uiPadding: string) => {
       return 15;
     case "airy":
       return 25;
+    default:
+      return 15;
   }
 };
 
@@ -255,7 +257,6 @@ export const TabsView: React.FC<TabsViewProps> = ({
           paddingHorizontal: 20, 
           paddingTop: 20, 
           zIndex: 1000, 
-          elevation: 10 
       }}>
         <SearchHeader 
             theme={theme} 

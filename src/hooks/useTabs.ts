@@ -158,7 +158,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
     };
 
     loadTabs();
-  }, [areSettingsLoaded, startupTabMode, backgroundRefresh]); 
+  }, [areSettingsLoaded, startupTabMode, backgroundRefresh, regular.resetTabs]); 
 
   // Save Tabs (Regular Only)
   useEffect(() => {

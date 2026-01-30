@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dimensions, ViewStyle, ScrollView } from 'react-native';
+import { ViewStyle, ScrollView } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -7,11 +7,8 @@ import Animated, {
   withSpring,
   useAnimatedReaction,
   runOnJS,
-  withTiming,
   SharedValue,
 } from 'react-native-reanimated';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 interface SortableGridProps<T> {
   data: T[];

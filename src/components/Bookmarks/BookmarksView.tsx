@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Keyboard, Modal, StyleSheet, BackHandler, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Keyboard, Modal, BackHandler, Animated } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { SortableGrid } from '../Tabs/SortableGrid';
 import { BookmarkNode, BookmarkItem, BookmarkFolder } from '../../types';

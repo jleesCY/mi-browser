@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { LayoutAnimation } from 'react-native';
 import { TabItem } from '../types';
 
@@ -11,12 +11,12 @@ export const useTabState = (
   const [activeTabId, setActiveTabId] = useState<string | null>(initialActiveId);
   
   // Helpers
-  const addTab = (newTab: TabItem) => {
+  const addTab = useCallback((newTab: TabItem) => {
     setTabs((prev) => [newTab, ...prev]);
     setActiveTabId(newTab.id);
-  };
+  }, []);
 
-  const deleteTab = (idToDelete: string) => {
+  const deleteTab = useCallback((idToDelete: string) => {
     setTabs((prevTabs) => {
       const newTabs = prevTabs.filter((t) => t.id !== idToDelete);
       
@@ -58,27 +58,27 @@ export const useTabState = (
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       return newTabs;
     });
-  };
+  }, [activeTabId, createFallbackTab]);
 
-  const updateTab = (id: string, updates: Partial<TabItem>) => {
+  const updateTab = useCallback((id: string, updates: Partial<TabItem>) => {
     setTabs(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-  };
+  }, []);
 
-  const reorderTabs = (fromIndex: number, toIndex: number) => {
+  const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
     setTabs((prevTabs) => {
       const newTabs = [...prevTabs];
       const [movedTab] = newTabs.splice(fromIndex, 1);
       newTabs.splice(toIndex, 0, movedTab);
       return newTabs;
     });
-  };
+  }, []);
 
-  const resetTabs = (newTabs: TabItem[], newActiveId: string | null) => {
+  const resetTabs = useCallback((newTabs: TabItem[], newActiveId: string | null) => {
       setTabs(newTabs);
       setActiveTabId(newActiveId);
-  };
+  }, []);
 
-  return {
+  return useMemo(() => ({
     tabs,
     activeTabId,
     setTabs,
@@ -88,5 +88,5 @@ export const useTabState = (
     updateTab,
     reorderTabs,
     resetTabs
-  };
+  }), [tabs, activeTabId, addTab, deleteTab, updateTab, reorderTabs, resetTabs]);
 };

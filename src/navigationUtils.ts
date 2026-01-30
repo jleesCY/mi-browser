@@ -1,4 +1,4 @@
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 import { getDisplayHost } from './utils';
 
 // --- ROBUST EXTERNAL LINK HANDLER ---
