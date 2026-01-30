@@ -175,6 +175,7 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
           message={alertConfig.message}
           buttons={alertConfig.buttons}
           theme={theme}
+          accentColor={accentColor}
           fontScale={fontScale}
           onDismiss={hideAlert}
         />

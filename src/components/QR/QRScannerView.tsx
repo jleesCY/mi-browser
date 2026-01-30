@@ -178,6 +178,7 @@ export const QRScannerView: React.FC<QRScannerViewProps> = ({
           message={alertConfig.message}
           buttons={alertConfig.buttons}
           theme={theme}
+          accentColor={accentColor}
           fontScale={fontScale}
           onDismiss={hideAlert}
         />

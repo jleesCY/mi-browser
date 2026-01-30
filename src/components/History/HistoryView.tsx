@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React, { useRef, useState, useEffect } from 'react';
-import { Animated, FlatList, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text, Pressable } from 'react-native';
+import { Animated, FlatList, LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text, Pressable } from 'react-native';
 import { HistoryItem } from '../../types';
 import SwipeableHistoryRow from "./SwipeableHistoryRow";
 import { groupHistoryByDate, groupHistoryBySite, getSmartDate, getFaviconUrl } from "../../utils";
@@ -54,6 +54,7 @@ const getMargin = (uiPadding: string) => {
 const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText, onRequestClearHistory, fontScale }: any) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [clearHistoryVisible, setClearHistoryVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   return (
     <View
@@ -76,6 +77,7 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
         style={{ marginRight: 10 }}
       />
       <TextInput
+        ref={inputRef}
         style={{
           flex: 1,
           color: theme.text,
@@ -95,7 +97,7 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
         <TouchableOpacity
           onPress={() => {
             setSearchText("");
-            Keyboard.dismiss();
+            inputRef.current?.focus();
           }}
         >
           <Ionicons

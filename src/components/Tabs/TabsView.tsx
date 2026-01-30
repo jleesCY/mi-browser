@@ -59,6 +59,7 @@ const getMargin = (uiPadding: string) => {
 
 const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText, onClearAllTabs }: any) => {
   const [menuVisible, setMenuVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   return (
     <View
@@ -80,6 +81,7 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
         style={{ marginRight: 10 }}
       />
       <TextInput
+        ref={inputRef}
         style={{
             flex: 1,
             color: theme.text,
@@ -99,7 +101,7 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
         <TouchableOpacity
           onPress={() => {
             setSearchText("");
-            Keyboard.dismiss();
+            inputRef.current?.focus();
           }}
         >
           <Ionicons

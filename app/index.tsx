@@ -2501,6 +2501,21 @@ export default function App() {
                               { zIndex: 1, flexDirection: "row" },
                             ]}
                           >
+                            {isInputFocused && inputUrl.length > 0 && (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setInputUrl("");
+                                  urlInputRef.current?.focus();
+                                }}
+                                style={{ marginRight: 8 }}
+                              >
+                                <Ionicons
+                                  name="close-circle"
+                                  size={18}
+                                  color={effectiveTheme.textSec}
+                                />
+                              </TouchableOpacity>
+                            )}
                             <TouchableOpacity
                               onPress={() =>
                                 setForceSearchMode(!forceSearchMode)
@@ -2785,20 +2800,44 @@ export default function App() {
               Edit Tab
             </Text>
 
-            <TextInput
-              ref={renameInputRef}
+            <View
               style={[
                 styles.modalInput,
                 {
                   backgroundColor: effectiveTheme.inputBg,
-                  color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
                   borderRadius: cornerRadius / 2,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 0,
+                  paddingHorizontal: 12,
                 },
               ]}
-              value={renameText}
-              onChangeText={setRenameText}
-            />
+            >
+              <TextInput
+                ref={renameInputRef}
+                style={{
+                  flex: 1,
+                  color: effectiveTheme.text,
+                  fontFamily: "Nunito_600SemiBold",
+                  height: 48,
+                  fontSize: 16,
+                }}
+                value={renameText}
+                onChangeText={setRenameText}
+              />
+              {renameText.length > 0 && (
+                <TouchableOpacity onPress={() => {
+                  setRenameText("");
+                  renameInputRef.current?.focus();
+                }}>
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={effectiveTheme.textSec}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -3078,6 +3117,7 @@ export default function App() {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         theme={effectiveTheme}
+        accentColor={accentColor}
         fontScale={fontScale}
         onDismiss={hideAlert}
       />

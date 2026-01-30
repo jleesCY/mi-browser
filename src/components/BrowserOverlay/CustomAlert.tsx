@@ -13,6 +13,7 @@ interface CustomAlertProps {
   message: string;
   buttons?: AlertButton[];
   theme: any;
+  accentColor: string;
   fontScale: number;
   onDismiss?: () => void;
 }
@@ -23,6 +24,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
   message,
   buttons = [{ text: 'OK', style: 'default', onPress: () => {} }],
   theme,
+  accentColor,
   fontScale,
   onDismiss
 }) => {
@@ -48,8 +50,8 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
                 key={index}
                 style={[
                   styles.button,
-                  btn.style === 'cancel' ? styles.cancelButton : 
-                  btn.style === 'destructive' ? styles.destructiveButton : styles.defaultButton,
+                  btn.style === 'cancel' ? [styles.cancelButton, { borderColor: theme.bg }] : 
+                  btn.style === 'destructive' ? styles.destructiveButton : [styles.defaultButton, { backgroundColor: accentColor }],
                   // If it's the only button, make it full width (optional, but good for "OK")
                   buttons.length === 1 && { flex: 1 }
                 ]}

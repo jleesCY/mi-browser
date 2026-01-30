@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image,
   StyleSheet,
@@ -41,6 +41,11 @@ const TabCard = ({
   showTabPreview,
 }: TabCardProps) => {
   const showPreview = showTabPreview && item.previewImage;
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [item.url]);
 
   return (
     <View style={styles.container}>
@@ -76,28 +81,18 @@ const TabCard = ({
                 { backgroundColor: isActive ? accent : (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') },
             ]}
             >
-            {showTabLogo && item.url ? (
+            {showTabLogo && item.url && !imageError ? (
                 <Image
                 source={{ uri: getFaviconUrl(item.url) || "" }}
                 style={styles.faviconImage}
+                onError={() => setImageError(true)}
                 />
             ) : (
-                <Text
-                style={[
-                    styles.faviconText,
-                    {
-                    color: isActive ? "#fff" : theme.text,
-                    fontFamily: "Nunito_800ExtraBold",
-                    fontSize: 18 * fontScale,
-                    },
-                ]}
-                >
-                {item.url
-                    ? item.title
-                    ? item.title.charAt(0).toUpperCase()
-                    : "N"
-                    : "mi."}
-                </Text>
+                <Ionicons
+                  name="globe-outline"
+                  size={36}
+                  color={isActive ? "#fff" : theme.text}
+                />
             )}
             </View>
             <TouchableOpacity
@@ -166,9 +161,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   faviconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",

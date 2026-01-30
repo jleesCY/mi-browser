@@ -298,6 +298,8 @@ export const SortableGrid = React.forwardRef<ScrollView, SortableGridProps<any>>
   );
 });
 
+SortableGrid.displayName = 'SortableGrid';
+
 // Wrapper to allow ViewStyle as a component for simplicity in the layout measurement
 const HeaderWrapper = ({ children, onLayout, style }: any) => (
     <Animated.View onLayout={onLayout} style={style}>{children}</Animated.View>

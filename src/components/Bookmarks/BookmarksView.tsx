@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Keyboard, Modal, StyleSheet, BackHandler, Animated } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { SortableGrid } from '../Tabs/SortableGrid';
@@ -55,6 +55,10 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
   const [folderStack, setFolderStack] = useState<{id: string, title: string}[]>([]);
   const [searchText, setSearchText] = useState("");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  
+  const searchInputRef = useRef<TextInput>(null);
+  const titleInputRef = useRef<TextInput>(null);
+  const urlInputRef = useRef<TextInput>(null);
   
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
@@ -273,6 +277,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                 style={{ marginRight: 10 }}
             />
             <TextInput
+                ref={searchInputRef}
                 style={{
                     flex: 1,
                     color: theme.text,
@@ -286,7 +291,10 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                 onChangeText={(text) => setSearchText(text)}
             />
              {searchText !== "" && (
-                <TouchableOpacity onPress={() => setSearchText("")}>
+                <TouchableOpacity onPress={() => {
+                    setSearchText("");
+                    searchInputRef.current?.focus();
+                }}>
                 <Ionicons name="close-circle" size={20} color={theme.textSec} />
                 </TouchableOpacity>
             )}
@@ -421,34 +429,66 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                   </Text>
 
                   <Text style={{color: theme.textSec, marginBottom: 5}}>Title</Text>
-                  <TextInput
-                      style={{
-                          backgroundColor: theme.inputBg,
-                          color: theme.text,
-                          padding: 10,
-                          borderRadius: 8,
-                          marginBottom: 15
-                      }}
-                      value={inputTitle}
-                      onChangeText={setInputTitle}
-                      autoFocus={!showFolderPicker}
-                  />
+                  <View style={{
+                      backgroundColor: theme.inputBg,
+                      borderRadius: 8,
+                      marginBottom: 15,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingRight: 10
+                  }}>
+                      <TextInput
+                          ref={titleInputRef}
+                          style={{
+                              flex: 1,
+                              color: theme.text,
+                              padding: 10,
+                          }}
+                          value={inputTitle}
+                          onChangeText={setInputTitle}
+                          autoFocus={!showFolderPicker}
+                      />
+                      {inputTitle.length > 0 && (
+                          <TouchableOpacity onPress={() => {
+                              setInputTitle("");
+                              titleInputRef.current?.focus();
+                          }}>
+                              <Ionicons name="close-circle" size={20} color={theme.textSec} />
+                          </TouchableOpacity>
+                      )}
+                  </View>
 
                   {(modalMode === 'add_bookmark' || (modalMode === 'edit' && editingItem?.type === 'bookmark')) && (
                       <>
                         <Text style={{color: theme.textSec, marginBottom: 5}}>URL</Text>
-                        <TextInput
-                            style={{
-                                backgroundColor: theme.inputBg,
-                                color: theme.text,
-                                padding: 10,
-                                borderRadius: 8,
-                                marginBottom: 15
-                            }}
-                            value={inputUrl}
-                            onChangeText={setInputUrl}
-                            autoCapitalize="none"
-                        />
+                        <View style={{
+                            backgroundColor: theme.inputBg,
+                            borderRadius: 8,
+                            marginBottom: 15,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingRight: 10
+                        }}>
+                            <TextInput
+                                ref={urlInputRef}
+                                style={{
+                                    flex: 1,
+                                    color: theme.text,
+                                    padding: 10,
+                                }}
+                                value={inputUrl}
+                                onChangeText={setInputUrl}
+                                autoCapitalize="none"
+                            />
+                            {inputUrl.length > 0 && (
+                                <TouchableOpacity onPress={() => {
+                                    setInputUrl("");
+                                    urlInputRef.current?.focus();
+                                }}>
+                                    <Ionicons name="close-circle" size={20} color={theme.textSec} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
                       </>
                   )}
                   

@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useRef } from "react";
 import {
-  Keyboard,
   LayoutAnimation,
   ScrollView,
   Switch,
@@ -93,6 +92,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsClearHistoryOpen,
     effectiveTheme,
   } = settings;
+
+  const searchInputRef = useRef<TextInput>(null);
 
   const shouldShow = (label?: string) => {
     if (!label) return false;
@@ -237,6 +238,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           style={{ marginRight: 10 }}
         />
         <TextInput
+          ref={searchInputRef}
           style={{
             flex: 1,
             color: effectiveTheme.text,
@@ -258,7 +260,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <TouchableOpacity
             onPress={() => {
               setSearchText("");
-              Keyboard.dismiss();
+              searchInputRef.current?.focus();
             }}
           >
             <Ionicons
