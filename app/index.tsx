@@ -480,7 +480,8 @@ export default function App() {
             SCREEN_HEIGHT -
             (pillHeight + extraPillHeight) -
             currentKeyboardHeightVal.current -
-            insets.top;
+            insets.top -
+            insets.bottom;
           const newHeight = Math.max(
             showFavoritesDefault ? 65 : 0,
             Math.min(
@@ -496,7 +497,8 @@ export default function App() {
             SCREEN_HEIGHT -
             (pillHeight + extraPillHeight) -
             currentKeyboardHeightVal.current -
-            insets.top;
+            insets.top -
+            insets.bottom;
           const { dy, vy } = gestureState;
 
           // Strict Snap Logic
@@ -582,7 +584,8 @@ export default function App() {
         SCREEN_HEIGHT -
         (pillHeight + extraPillHeight) -
         keyboardTargetHeight.current -
-        insets.top;
+        insets.top -
+        insets.bottom;
 
       let target = 0;
       if (recentSearchesExpanded) target = maxHeight;
@@ -1856,7 +1859,10 @@ export default function App() {
                 style={[
                   styles.bottomAreaContainer,
                   {
-                    paddingBottom: containerPaddingBAnim,
+                    paddingBottom: Animated.add(
+                      containerPaddingBAnim,
+                      effectiveKeyboardHeight,
+                    ),
                     paddingHorizontal: containerPaddingHAnim,
                     opacity: containerOpacity,
                   },
@@ -1869,10 +1875,7 @@ export default function App() {
                     alignItems: "center",
                     transform: [
                       {
-                        translateY: Animated.subtract(
-                          scrollTranslateY,
-                          effectiveKeyboardHeight,
-                        ),
+                        translateY: scrollTranslateY,
                       },
                       { scale: containerScale },
                     ],
