@@ -2198,7 +2198,7 @@ export default function App() {
 
                   <Animated.View
                     style={[styles.gestureArea, { height: totalPillHeight }]}
-                    {...panResponder.panHandlers}
+                    {...(!isInputFocused ? panResponder.panHandlers : {})}
                   >
                     <Animated.View
                       style={[
