@@ -234,6 +234,14 @@ export const loadStorage = async (key: string) => {
   }
 };
 
+export const clearStorage = async () => {
+  try {
+    await AsyncStorage.clear();
+  } catch (e) {
+    console.error("Failed to clear storage", e);
+  }
+};
+
 export const getSmartDate = (timestamp: number) => {
   const date = new Date(timestamp);
   const now = new Date();

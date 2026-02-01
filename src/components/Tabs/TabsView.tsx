@@ -1,11 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useRef, useState, useEffect } from 'react';
-import { Animated, Keyboard, LayoutAnimation, TextInput, TouchableOpacity, View, ScrollView, Text, Pressable } from 'react-native';
-import { TabItem } from '../../types';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Keyboard,
+  LayoutAnimation,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SCREEN_WIDTH, SNAP_DEFAULT } from "../../constants";
+import { TabItem } from "../../types";
+import { SortableGrid } from "./SortableGrid";
 import SwipeableTabRow from "./SwipeableTabRow";
 import TabCard from "./TabCard";
-import { SNAP_DEFAULT, SCREEN_WIDTH } from '../../constants';
-import { SortableGrid } from './SortableGrid';
 
 interface TabsViewProps {
   tabs: TabItem[];
@@ -34,7 +44,7 @@ const getTabHeight = (uiPadding: string, fontScale: number) => {
   let base = 70;
   switch (uiPadding) {
     case "compact":
-      base = 64; 
+      base = 64;
       break;
     case "normal":
       base = 74;
@@ -59,128 +69,147 @@ const getMargin = (uiPadding: string) => {
   }
 };
 
-const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText, onClearAllTabs }: any) => {
-  const [menuVisible, setMenuVisible] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+const SearchHeader = React.memo(
+  ({
+    theme,
+    cornerRadius,
+    searchText,
+    onFocusSearch,
+    setSearchText,
+    onClearAllTabs,
+  }: any) => {
+    const [menuVisible, setMenuVisible] = useState(false);
+    const inputRef = useRef<TextInput>(null);
 
-  return (
-    <View
-      style={{
-        marginBottom: 10,
-        backgroundColor: theme.card,
-        borderRadius: cornerRadius,
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 15,
-        height: 50,
-        width: '100%',
-      }}
-    >
-      <Ionicons
-        name="search"
-        size={20}
-        color={theme.textSec}
-        style={{ marginRight: 10 }}
-      />
-      <TextInput
-        ref={inputRef}
+    return (
+      <View
         style={{
+          marginBottom: 10,
+          backgroundColor: theme.card,
+          borderRadius: cornerRadius,
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 15,
+          height: 50,
+          width: "100%",
+        }}
+      >
+        <Ionicons
+          name="search"
+          size={20}
+          color={theme.textSec}
+          style={{ marginRight: 10 }}
+        />
+        <TextInput
+          ref={inputRef}
+          style={{
             flex: 1,
             color: theme.text,
             fontFamily: "Nunito_600SemiBold",
             fontSize: 16,
-        }}
-        placeholder="Search Tabs..."
-        placeholderTextColor={theme.textSec}
-        value={searchText}
-        onFocus={onFocusSearch}
-        onChangeText={(text) => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSearchText(text);
-        }}
-      />
-      {searchText !== "" ? (
-        <TouchableOpacity
-          onPress={() => {
-            setSearchText("");
-            inputRef.current?.focus();
           }}
-        >
-          <Ionicons
-            name="close-circle"
-            size={20}
-            color={theme.textSec}
-          />
-        </TouchableOpacity>
-      ) : (
-        <View style={{ position: 'relative' }}>
+          placeholder="Search Tabs..."
+          placeholderTextColor={theme.textSec}
+          value={searchText}
+          onFocus={onFocusSearch}
+          onChangeText={(text) => {
+            LayoutAnimation.configureNext(
+              LayoutAnimation.Presets.easeInEaseOut,
+            );
+            setSearchText(text);
+          }}
+        />
+        {searchText !== "" ? (
           <TouchableOpacity
-            onPress={() => setMenuVisible(!menuVisible)}
-            style={{ padding: 5 }}
+            onPress={() => {
+              setSearchText("");
+              inputRef.current?.focus();
+            }}
           >
-            <Ionicons
-              name="ellipsis-vertical"
-              size={20}
-              color={theme.textSec}
-            />
+            <Ionicons name="close-circle" size={20} color={theme.textSec} />
           </TouchableOpacity>
-          {menuVisible && (
-            <>
-              <Pressable 
-                style={{
-                  position: 'absolute',
-                  top: -1000,
-                  left: -1000,
-                  right: -1000,
-                  bottom: -1000,
-                  backgroundColor: 'transparent',
-                  zIndex: 1
-                }}
-                onPress={() => setMenuVisible(false)}
+        ) : (
+          <View style={{ position: "relative" }}>
+            <TouchableOpacity
+              onPress={() => setMenuVisible(!menuVisible)}
+              style={{ padding: 5 }}
+            >
+              <Ionicons
+                name="ellipsis-vertical"
+                size={20}
+                color={theme.textSec}
               />
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 30,
-                  right: 0,
-                  backgroundColor: theme.surface,
-                  borderRadius: 10,
-                  padding: 5,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 3.84,
-                  elevation: 5,
-                  zIndex: 2,
-                  minWidth: 150,
-                  borderWidth: 1,
-                  borderColor: theme.bg
-                }}
-              >
-                <TouchableOpacity
+            </TouchableOpacity>
+            {menuVisible && (
+              <>
+                <Pressable
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    padding: 10,
+                    position: "absolute",
+                    top: -1000,
+                    left: -1000,
+                    right: -1000,
+                    bottom: -1000,
+                    backgroundColor: "transparent",
+                    zIndex: 1,
                   }}
-                  onPress={() => {
-                    setMenuVisible(false);
-                    onClearAllTabs();
+                  onPress={() => setMenuVisible(false)}
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 30,
+                    right: 0,
+                    backgroundColor: theme.surface,
+                    borderRadius: 10,
+                    padding: 5,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 3.84,
+                    elevation: 5,
+                    zIndex: 2,
+                    minWidth: 150,
+                    borderWidth: 1,
+                    borderColor: theme.bg,
                   }}
                 >
-                  <Ionicons name="trash-outline" size={18} color={theme.text} style={{ marginRight: 10 }} />
-                  <Text style={{ color: theme.text, fontFamily: 'Nunito_600SemiBold' }}>Clear all tabs</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </View>
-      )}
-    </View>
-  );
-});
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: 10,
+                    }}
+                    onPress={() => {
+                      setMenuVisible(false);
+                      onClearAllTabs();
+                    }}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={18}
+                      color={theme.text}
+                      style={{ marginRight: 10 }}
+                    />
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontFamily: "Nunito_600SemiBold",
+                      }}
+                    >
+                      Clear all tabs
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  },
+);
 
-SearchHeader.displayName = 'SearchHeader';
+SearchHeader.displayName = "SearchHeader";
 
 export const TabsView: React.FC<TabsViewProps> = ({
   tabs,
@@ -202,30 +231,48 @@ export const TabsView: React.FC<TabsViewProps> = ({
   onNewTab,
   onClearAllTabs,
   onFocusSearch,
-  overlayHeightAnim
+  overlayHeightAnim,
 }) => {
+  useEffect(() => {
+    console.log("=== TABS VIEW OPENED ===");
+    console.log(`Total Tabs: ${tabs.length}`);
+    console.log(
+      "Tabs Data:",
+      JSON.stringify(
+        tabs.map((t) => ({
+          id: t.id,
+          url: t.url,
+          historyStack: t.historyStack,
+          currentIndex: t.currentIndex,
+        })),
+        null,
+        2,
+      ),
+    );
+  }, []);
+
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => {
-        setIsKeyboardVisible(true);
+      setIsKeyboardVisible(true);
     });
     const hideSub = Keyboard.addListener("keyboardDidHide", () => {
-        setIsKeyboardVisible(false);
+      setIsKeyboardVisible(false);
     });
 
     return () => {
-        if (showSub) showSub.remove();
-        if (hideSub) hideSub.remove();
+      if (showSub) showSub.remove();
+      if (hideSub) hideSub.remove();
     };
   }, []);
 
   const filteredTabs = tabs.filter(
     (item) =>
       (item.title || "").toLowerCase().includes(searchText.toLowerCase()) ||
-      (item.url || "").toLowerCase().includes(searchText.toLowerCase())
+      (item.url || "").toLowerCase().includes(searchText.toLowerCase()),
   );
 
   const rowTheme = {
@@ -237,10 +284,10 @@ export const TabsView: React.FC<TabsViewProps> = ({
   // Dimensions
   const isCards = tabViewMode === "cards";
   const numColumns = isCards ? 2 : 1;
-  
+
   // Card dims
   const cardWidth = (SCREEN_WIDTH - 60) / 2;
-  const cardHeight = (cardWidth / 0.85) + 16; // 16 is vertical margin total
+  const cardHeight = cardWidth / 0.85 + 16; // 16 is vertical margin total
 
   // Row dims
   const rowHeightItem = getTabHeight(uiPadding, fontScale);
@@ -252,19 +299,21 @@ export const TabsView: React.FC<TabsViewProps> = ({
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ 
-          width: '100%', 
-          paddingHorizontal: 20, 
-          paddingTop: 20, 
-          zIndex: 1000, 
-      }}>
-        <SearchHeader 
-            theme={theme} 
-            cornerRadius={cornerRadius} 
-            searchText={searchText} 
-            onFocusSearch={onFocusSearch} 
-            setSearchText={setSearchText}
-            onClearAllTabs={onClearAllTabs}
+      <View
+        style={{
+          width: "100%",
+          paddingHorizontal: 20,
+          paddingTop: 20,
+          zIndex: 1000,
+        }}
+      >
+        <SearchHeader
+          theme={theme}
+          cornerRadius={cornerRadius}
+          searchText={searchText}
+          onFocusSearch={onFocusSearch}
+          setSearchText={setSearchText}
+          onClearAllTabs={onClearAllTabs}
         />
       </View>
       <SortableGrid
@@ -278,24 +327,24 @@ export const TabsView: React.FC<TabsViewProps> = ({
         gridPaddingTop={10} // Reduced padding since header is outside
         gridPaddingSide={20}
         contentContainerStyle={{
-          paddingHorizontal: 20, 
+          paddingHorizontal: 20,
           paddingBottom: 140,
           paddingTop: 0, // Handled by gridPaddingTop and header being outside
         }}
         onReorder={(from, to) => {
-            if (searchText === "") {
-                onReorderTabs(from, to);
-            }
+          if (searchText === "") {
+            onReorderTabs(from, to);
+          }
         }}
         onScroll={(e) => {
-            const offsetY = e.nativeEvent.contentOffset.y;
-            if (offsetY > 100 && !showScrollTop) {
-                setShowScrollTop(true);
-            } else if (offsetY <= 100 && showScrollTop) {
-                setShowScrollTop(false);
-            }
+          const offsetY = e.nativeEvent.contentOffset.y;
+          if (offsetY > 100 && !showScrollTop) {
+            setShowScrollTop(true);
+          } else if (offsetY <= 100 && showScrollTop) {
+            setShowScrollTop(false);
+          }
         }}
-        renderItem={({ item, isActive }) => 
+        renderItem={({ item, isActive }) =>
           tabViewMode === "cards" ? (
             <TabCard
               item={item}
@@ -328,42 +377,44 @@ export const TabsView: React.FC<TabsViewProps> = ({
           )
         }
       />
-      <Animated.View 
+      <Animated.View
         pointerEvents={isKeyboardVisible ? "none" : "auto"}
         style={{
-            position: 'absolute',
-            bottom: overlayHeightAnim.interpolate({
-                inputRange: [0, SNAP_DEFAULT],
-                outputRange: [-100, 20],
-                extrapolate: 'clamp'
-            }),
-            right: 20,
-            alignItems: 'center',
-            opacity: isKeyboardVisible ? 0 : 1 // Hide when keyboard is active
+          position: "absolute",
+          bottom: overlayHeightAnim.interpolate({
+            inputRange: [0, SNAP_DEFAULT],
+            outputRange: [-100, 20],
+            extrapolate: "clamp",
+          }),
+          right: 20,
+          alignItems: "center",
+          opacity: isKeyboardVisible ? 0 : 1, // Hide when keyboard is active
         }}
       >
         {showScrollTop && (
-             <TouchableOpacity
-             style={{
-               width: 40,
-               height: 40,
-               borderRadius: 20,
-               backgroundColor: theme.card,
-               justifyContent: 'center',
-               alignItems: 'center',
-               shadowColor: "#000",
-               shadowOffset: { width: 0, height: 2 },
-               shadowOpacity: 0.25,
-               shadowRadius: 3.84,
-               elevation: 5,
-               marginBottom: 15,
-               borderWidth: 1,
-               borderColor: theme.bg
-             }}
-             onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
-           >
-             <Ionicons name="arrow-up" size={24} color={theme.text} />
-           </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: theme.card,
+              justifyContent: "center",
+              alignItems: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              elevation: 5,
+              marginBottom: 15,
+              borderWidth: 1,
+              borderColor: theme.bg,
+            }}
+            onPress={() =>
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true })
+            }
+          >
+            <Ionicons name="arrow-up" size={24} color={theme.text} />
+          </TouchableOpacity>
         )}
         <TouchableOpacity
           style={{
@@ -371,8 +422,8 @@ export const TabsView: React.FC<TabsViewProps> = ({
             height: 56,
             borderRadius: 28,
             backgroundColor: accentColor,
-            justifyContent: 'center',
-            alignItems: 'center',
+            justifyContent: "center",
+            alignItems: "center",
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.3,

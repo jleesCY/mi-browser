@@ -24,7 +24,13 @@ export const useFavorites = (isAppReady: boolean) => {
   useEffect(() => {
     if (!isAppReady) return;
     const saveTimeout = setTimeout(() => {
-      saveStorage("favorites", favorites);
+      const cleanFavorites = favorites.map(f => ({
+          id: f.id,
+          url: f.url,
+          title: f.title,
+          icon: f.icon
+      }));
+      saveStorage("favorites", cleanFavorites);
     }, 500);
     return () => clearTimeout(saveTimeout);
   }, [favorites, isAppReady]);
@@ -69,11 +75,16 @@ export const useFavorites = (isAppReady: boolean) => {
     });
   }, []);
 
+  const clearFavorites = useCallback(() => {
+    setFavorites([]);
+  }, []);
+
   return {
     favorites,
     addFavorite,
     removeFavorite,
     updateFavorite,
-    reorderFavorites
+    reorderFavorites,
+    clearFavorites
   };
 };

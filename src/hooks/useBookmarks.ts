@@ -26,7 +26,27 @@ export const useBookmarks = (isAppReady: boolean) => {
     if (!isAppReady || !hasLoaded) return;
 
     const saveTimeout = setTimeout(() => {
-      saveStorage("bookmarks", bookmarks);
+      const cleanBookmarks = bookmarks.map(b => {
+          if (b.type === 'folder') {
+              return {
+                  id: b.id,
+                  type: 'folder',
+                  title: b.title,
+                  parentId: b.parentId,
+                  order: b.order
+              };
+          }
+          return {
+              id: b.id,
+              type: 'bookmark',
+              title: b.title,
+              url: (b as any).url,
+              parentId: b.parentId,
+              order: b.order,
+              icon: (b as any).icon
+          };
+      });
+      saveStorage("bookmarks", cleanBookmarks);
     }, 500);
 
     return () => clearTimeout(saveTimeout);
@@ -136,6 +156,10 @@ export const useBookmarks = (isAppReady: boolean) => {
       });
   }, []);
 
+  const clearBookmarks = useCallback(() => {
+    setBookmarks([]);
+  }, []);
+
   return {
     bookmarks,
     addBookmark,
@@ -143,6 +167,7 @@ export const useBookmarks = (isAppReady: boolean) => {
     deleteBookmark,
     updateBookmark,
     moveBookmark,
-    reorderBookmarks
+    reorderBookmarks,
+    clearBookmarks
   };
 };

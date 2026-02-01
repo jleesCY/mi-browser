@@ -51,6 +51,18 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
   overlayHeightAnim,
   showIcons = true
 }) => {
+  useEffect(() => {
+    console.log("=== BOOKMARKS VIEW OPENED ===");
+    console.log(`Total Bookmarks: ${bookmarks.length}`);
+    console.log("Bookmarks Data:", JSON.stringify(bookmarks.map(b => ({
+        id: b.id,
+        title: b.title,
+        type: b.type,
+        url: b.type === 'bookmark' ? (b as any).url : undefined,
+        parentId: b.parentId
+    })), null, 2));
+  }, []);
+
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<{id: string, title: string}[]>([]);
   const [searchText, setSearchText] = useState("");

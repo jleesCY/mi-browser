@@ -52,7 +52,7 @@ import {
 } from "../src/constants";
 import { handleExternalLink } from "../src/navigationUtils";
 import { TabItem } from "../src/types";
-import { getDisplayHost } from "../src/utils";
+import { clearStorage, getDisplayHost } from "../src/utils";
 
 // Custom Hooks
 import { useBookmarks } from "../src/hooks/useBookmarks";
@@ -128,6 +128,7 @@ export default function App() {
     updateBookmark,
     moveBookmark,
     reorderBookmarks,
+    clearBookmarks,
   } = useBookmarks(areSettingsLoaded);
 
   const {
@@ -135,6 +136,7 @@ export default function App() {
     addFavorite,
     removeFavorite,
     reorderFavorites,
+    clearFavorites,
   } = useFavorites(areSettingsLoaded);
 
   const {
@@ -316,7 +318,7 @@ export default function App() {
   // Modals & Overlays
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [confirmActionType, setConfirmActionType] = useState<
-    "history" | "resetSettings" | "bgRefresh" | "deleteFavorite" | null
+    "history" | "resetSettings" | "bgRefresh" | "deleteFavorite" | "wipeData" | null
   >(null);
   const [favoriteToDelete, setFavoriteToDelete] = useState<string | null>(null);
   const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{
@@ -843,7 +845,7 @@ export default function App() {
 
       const activeTab = tabs.find((t) => t.id === activeTabId);
 
-      // Strict Check: Only native back if we are logically deeper than index 0
+      // 1. Try Native Back: If WebView says it can go back, do it.
       if (
         canGoBackRef.current &&
         webViewRefs.current[activeTabId] &&
@@ -854,6 +856,8 @@ export default function App() {
         return true;
       }
 
+      // 2. Fallback Manual Back: If native back fails (e.g. restored session),
+      // but we logically have history, load the previous URL manually.
       if (
         activeTab &&
         activeTab.currentIndex !== undefined &&
@@ -1140,6 +1144,7 @@ export default function App() {
             );
 
             if (dx > 0) {
+              // BACK SWIPE
               if (
                 currentTab?.canGoBack &&
                 (currentTab?.currentIndex ?? 0) > 0
@@ -1152,6 +1157,7 @@ export default function App() {
                   updateTab(currentTabId, { requestedUrl: prev, url: prev });
               }
             } else if (dx < 0) {
+              // FORWARD SWIPE
               if (
                 currentTab?.canGoForward &&
                 (currentTab?.currentIndex ?? 0) <
@@ -1775,6 +1781,10 @@ export default function App() {
                     onFocusSearch={handleFocusSearch}
                     onRequestReset={() => {
                       setConfirmActionType("resetSettings");
+                      setIsConfirmModalVisible(true);
+                    }}
+                    onRequestWipeData={() => {
+                      setConfirmActionType("wipeData");
                       setIsConfirmModalVisible(true);
                     }}
                     onRequestClearHistory={(ms, label) => {
@@ -2703,7 +2713,9 @@ export default function App() {
                   ? "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data."
                   : confirmActionType === "deleteFavorite"
                     ? "Are you sure you want to remove this favorite?"
-                    : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
+                    : confirmActionType === "wipeData"
+                      ? "This will delete ALL data including history, bookmarks, tabs, and settings. The app will be reset to a fresh state."
+                      : "This will restore all app settings to their default values. Your history and tabs will be preserved."}
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -2728,6 +2740,46 @@ export default function App() {
                     deleteHistory(confirmHistoryPayload.ms);
                   } else if (confirmActionType === "resetSettings") {
                     settings.resetSettings();
+                  } else if (confirmActionType === "wipeData") {
+                    // 1. Clear Hooks State
+                    settings.resetSettings();
+                    deleteHistory(-1); // Clears history & recent searches
+                    clearBookmarks();
+                    clearFavorites();
+                    
+                    // 2. Clear Tabs
+                    const newId = Date.now().toString();
+                    setTabs([{
+                        id: newId,
+                        url: null,
+                        requestedUrl: null,
+                        initialUrl: null,
+                        title: "New Tab",
+                        showLogo: true,
+                        hasLoadedOnce: true,
+                        historyStack: [],
+                        currentIndex: -1
+                    }]);
+                    setActiveTabId(newId);
+                    setActiveUrl(null);
+                    setInputUrl("");
+
+                    // 3. Clear Storage & Cache
+                    clearStorage();
+                    try {
+                        const cacheDir = FileSystem.cacheDirectory;
+                        if (cacheDir) {
+                            FileSystem.readDirectoryAsync(cacheDir).then(files => {
+                                for (const file of files) {
+                                    FileSystem.deleteAsync(cacheDir + file, { idempotent: true });
+                                }
+                            });
+                        }
+                    } catch {}
+                    
+                    // 4. Close Overlay
+                    closeOverlay();
+
                   } else if (confirmActionType === "bgRefresh") {
                     settings.setBackgroundRefresh(true);
                   } else if (
@@ -2758,7 +2810,9 @@ export default function App() {
                     ? "Reset"
                     : confirmActionType === "bgRefresh"
                       ? "Enable"
-                      : "Delete"}
+                      : confirmActionType === "wipeData"
+                        ? "Wipe App"
+                        : "Delete"}
                 </Text>
               </TouchableOpacity>
             </View>

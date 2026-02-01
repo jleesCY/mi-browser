@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Linking } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { loadStorage, saveStorage, getDisplayHost, parseDeepLinkUrl } from '../utils';
 import { TabItem } from '../types';
 import { useTabState } from './useTabState';
@@ -72,16 +73,28 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
 
       const existingTabs = savedTabs
         .filter((t: any) => t && typeof t === 'object')
-        .map((t: any) => ({
-          ...t,
-          initialUrl: t.initialUrl || t.url,
-          requestedUrl: t.url, // Reset requestedUrl to last known url on startup
-          hasLoadedOnce: backgroundRefresh,
-          historyStack: t.historyStack || (t.url ? [t.url] : []),
-          currentIndex: t.currentIndex !== undefined ? t.currentIndex : (t.url ? 0 : -1)
-        }));
+        .map((t: any) => {
+          const stack = t.historyStack || (t.url ? [t.url] : []);
+          const index = t.currentIndex !== undefined ? t.currentIndex : (stack.length > 0 ? stack.length - 1 : -1);
+          const currentUrl = (index >= 0 && index < stack.length) ? stack[index] : null;
+
+          return {
+            ...t,
+            id: t.id,
+            url: currentUrl,
+            requestedUrl: currentUrl, 
+            initialUrl: null,
+            title: t.title || "New Tab",
+            hasLoadedOnce: backgroundRefresh,
+            historyStack: stack,
+            currentIndex: index,
+          };
+        });
 
       const initialUrl = await Linking.getInitialURL();
+      
+      let tabsToSet: any[] = [];
+      let activeIdToSet: string = "";
 
       if (initialUrl) {
         const targetUrl = parseDeepLinkUrl(initialUrl);
@@ -92,7 +105,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
               id: newId,
               url: targetUrl,
               requestedUrl: targetUrl,
-              initialUrl: targetUrl,
+              initialUrl: null,
               title: "External Link",
               showLogo: false,
               hasLoadedOnce: true,
@@ -100,61 +113,87 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
               currentIndex: 0
           };
 
-          regular.resetTabs([startupTab, ...existingTabs], newId);
+          tabsToSet = [startupTab, ...existingTabs];
+          activeIdToSet = newId;
         } else {
            if (startupTabMode === "last" && existingTabs.length > 0) {
              let targetTab = existingTabs.find((t: any) => t.id === savedActiveTabId);
              if (!targetTab) targetTab = existingTabs[0];
 
-             const finalTabs = existingTabs.map((t: any) => 
+             tabsToSet = existingTabs.map((t: any) => 
                t.id === targetTab.id ? { ...t, hasLoadedOnce: true } : t
              );
-             
-             regular.resetTabs(finalTabs, targetTab.id);
+             activeIdToSet = targetTab.id;
            }
         }
-      } else if (startupTabMode === "last" && existingTabs.length > 0) {
-        let targetTab = existingTabs.find(
-          (t: any) => t.id === savedActiveTabId
-        );
-        if (!targetTab) {
-          targetTab = existingTabs.find((t: any) => t.url) || existingTabs[0];
-        }
+      } 
+      
+      if (tabsToSet.length === 0) {
+        if (startupTabMode === "last" && existingTabs.length > 0) {
+            let targetTab = existingTabs.find(
+            (t: any) => t.id === savedActiveTabId
+            );
+            if (!targetTab) {
+            targetTab = existingTabs.find((t: any) => t.url) || existingTabs[0];
+            }
 
-        const finalTabs = existingTabs.map((t: any) => 
-            t.id === targetTab.id ? { ...t, hasLoadedOnce: true } : t
-        );
+            tabsToSet = existingTabs.map((t: any) => 
+                t.id === targetTab.id ? { ...t, hasLoadedOnce: true } : t
+            );
+            activeIdToSet = targetTab.id;
 
-        regular.resetTabs(finalTabs, targetTab.id);
-
-      } else {
-        // CASE: New
-        // Check if we already have a blank tab in the saved list to reuse
-        const existingBlankTab = existingTabs.find((t: any) => !t.url);
-
-        if (existingBlankTab) {
-          const finalTabs = existingTabs.map((t: any) => 
-             t.id === existingBlankTab.id ? { ...t, hasLoadedOnce: true } : t
-          );
-
-          regular.resetTabs(finalTabs, existingBlankTab.id);
         } else {
-          const newTabId = Date.now().toString();
-          const newTab = {
-            id: newTabId,
-            url: null,
-            initialUrl: null,
-            title: "New Tab",
-            showLogo: true,
-            hasLoadedOnce: true,
-            historyStack: [],
-            currentIndex: -1
-          };
+            // CASE: New
+            // Check if we already have a blank tab in the saved list to reuse
+            const existingBlankTab = existingTabs.find((t: any) => !t.url);
 
-          regular.resetTabs([newTab, ...existingTabs], newTabId);
+            if (existingBlankTab) {
+                tabsToSet = existingTabs.map((t: any) => 
+                    t.id === existingBlankTab.id ? { ...t, hasLoadedOnce: true } : t
+                );
+                activeIdToSet = existingBlankTab.id;
+            } else {
+                const newTabId = Date.now().toString();
+                const newTab = {
+                    id: newTabId,
+                    url: null,
+                    initialUrl: null,
+                    title: "New Tab",
+                    showLogo: true,
+                    hasLoadedOnce: true,
+                    historyStack: [],
+                    currentIndex: -1
+                };
+
+                tabsToSet = [newTab, ...existingTabs];
+                activeIdToSet = newTabId;
+            }
         }
       }
+      
+      regular.resetTabs(tabsToSet, activeIdToSet);
       setAreTabsLoaded(true);
+
+      // --- Cleanup Orphaned Preview Images ---
+      try {
+        const validPreviewPaths = new Set(
+           tabsToSet
+            .filter((t: any) => t && t.previewImage)
+            .map((t: any) => t.previewImage)
+        );
+
+        const files = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory || "");
+        const previewFiles = files.filter(f => f.startsWith("preview_") && f.endsWith(".png"));
+
+        for (const file of previewFiles) {
+            const fullPath = `${FileSystem.cacheDirectory}${file}`;
+            if (!validPreviewPaths.has(fullPath)) {
+                await FileSystem.deleteAsync(fullPath, { idempotent: true }).catch(() => {});
+            }
+        }
+      } catch (e) {
+         console.log("Failed to clean up orphaned images", e);
+      }
     };
 
     loadTabs();
@@ -166,7 +205,17 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
 
     const saveTimeout = setTimeout(() => {
       const cleanTabs = regular.tabs.map(
-        ({ loading, canGoBack, canGoForward, hasLoadedOnce, ...rest }) => rest
+        (tab) => ({
+            id: tab.id,
+            title: tab.title,
+            historyStack: tab.historyStack,
+            currentIndex: tab.currentIndex,
+            desktopMode: tab.desktopMode,
+            readerMode: tab.readerMode,
+            previewImage: tab.previewImage,
+            isCustomTitle: tab.isCustomTitle,
+            // We explicitly DO NOT save: url, requestedUrl, initialUrl, loading, canGoBack, etc.
+        })
       );
       saveStorage("tabs", cleanTabs);
       saveStorage("activeTabId", regular.activeTabId);
@@ -195,7 +244,7 @@ export const useTabs = ({ areSettingsLoaded, startupTabMode, backgroundRefresh }
       id: newId,
       url: overrideUrl || null,
       requestedUrl: overrideUrl || null,
-      initialUrl: overrideUrl || null,
+      initialUrl: null,
       title: "New Tab",
       showLogo: true,
       hasLoadedOnce: true,

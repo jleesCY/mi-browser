@@ -22,6 +22,7 @@ interface SettingsViewProps {
   setSearchText: (text: string) => void;
   onFocusSearch: () => void;
   onRequestReset: () => void;
+  onRequestWipeData: () => void;
   onRequestClearHistory: (ms: number, label: string) => void;
   onRequestBgRefreshConfirm: (value: boolean) => void;
   onOpenHelp: () => void;
@@ -33,6 +34,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   setSearchText,
   onFocusSearch,
   onRequestReset,
+  onRequestWipeData,
   onRequestClearHistory,
   onRequestBgRefreshConfirm,
   onOpenHelp,
@@ -1687,6 +1689,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             }}
           >
             Reset all settings
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onRequestWipeData}
+          style={{
+            marginTop: 15,
+            backgroundColor: "#ff3b30",
+            paddingVertical: 15,
+            paddingHorizontal: 20,
+            borderRadius: cornerRadius,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons
+            name="trash-bin-outline"
+            size={24}
+            color="#fff"
+            style={{ marginRight: 10 }}
+          />
+          <Text
+            style={{
+              color: "#fff",
+              fontFamily: "Nunito_700Bold",
+              fontSize: 16 * fontScale,
+            }}
+          >
+            Wipe All Data
           </Text>
         </TouchableOpacity>
       </View>

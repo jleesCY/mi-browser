@@ -29,7 +29,16 @@ export const useHistory = (isAppReady: boolean) => {
 
       const savedRecent = await loadStorage("recent_searches");
       if (Array.isArray(savedRecent)) {
-         setRecentSearches(savedRecent);
+         // Fix potential ID corruption in recent searches
+         const seenRecentIds = new Set();
+         const validRecent = savedRecent.map((item: any) => {
+            if (!item.id || seenRecentIds.has(item.id)) {
+                return { ...item, id: generateId() };
+            }
+            seenRecentIds.add(item.id);
+            return item;
+         });
+         setRecentSearches(validRecent);
       }
     };
     loadHistory();
@@ -39,7 +48,13 @@ export const useHistory = (isAppReady: boolean) => {
     if (!isAppReady) return;
 
     const saveTimeout = setTimeout(() => {
-      saveStorage("history", history);
+      const cleanHistory = history.map(item => ({
+        url: item.url,
+        title: item.title,
+        timestamp: item.timestamp
+        // id is transient, generated on load
+      }));
+      saveStorage("history", cleanHistory);
     }, 1000);
 
     return () => clearTimeout(saveTimeout);
@@ -47,7 +62,12 @@ export const useHistory = (isAppReady: boolean) => {
 
   useEffect(() => {
     if (!isAppReady) return;
-    saveStorage("recent_searches", recentSearches);
+    const cleanRecent = recentSearches.map(item => ({
+        url: item.url,
+        title: item.title,
+        timestamp: item.timestamp
+    }));
+    saveStorage("recent_searches", cleanRecent);
   }, [recentSearches, isAppReady]);
 
   const addToHistory = (url: string, title?: string | null) => {

@@ -222,6 +222,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   onRequestClearHistory,
   historyGrouping = "Time"
 }) => {
+  useEffect(() => {
+    console.log("=== HISTORY VIEW OPENED ===");
+    console.log(`Total History Items: ${history.length}`);
+    console.log("Latest History Data:", JSON.stringify(history.slice(0, 5).map(h => ({
+        url: h.url,
+        title: h.title,
+        timestamp: h.timestamp
+    })), null, 2));
+  }, []);
+
   const [showScrollTop, setShowScrollTop] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
