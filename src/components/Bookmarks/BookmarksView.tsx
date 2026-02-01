@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Keyboard, Modal, BackHandler, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Keyboard, Modal, BackHandler, Animated, ScrollView } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { SortableGrid } from '../Tabs/SortableGrid';
 import { BookmarkNode, BookmarkItem, BookmarkFolder } from '../../types';
@@ -67,10 +67,12 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
   const [folderStack, setFolderStack] = useState<{id: string, title: string}[]>([]);
   const [searchText, setSearchText] = useState("");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   
   const searchInputRef = useRef<TextInput>(null);
   const titleInputRef = useRef<TextInput>(null);
   const urlInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
@@ -315,6 +317,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
 
       {/* LIST */}
       <SortableGrid
+        ref={scrollViewRef}
         data={visibleBookmarks}
         keyExtractor={(item) => item.id}
         numColumns={1}
@@ -323,6 +326,14 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
         gridPaddingTop={10}
         gridPaddingSide={20}
         contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }}
+        onScroll={(e) => {
+            const offsetY = e.nativeEvent.contentOffset.y;
+            if (offsetY > 100 && !showScrollTop) {
+                setShowScrollTop(true);
+            } else if (offsetY <= 100 && showScrollTop) {
+                setShowScrollTop(false);
+            }
+        }}
         onReorder={(from, to) => {
             if (searchText === "") {
                 onReorderBookmarks(currentFolderId, from, to);
@@ -363,49 +374,75 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                     extrapolate: 'clamp'
                 }),
                 right: 20,
-                flexDirection: 'row',
-                alignItems: 'center',
+                alignItems: 'flex-end', // Stack vertically, align to right
                 opacity: isKeyboardVisible ? 0 : 1
             }}
           >
-             <TouchableOpacity
-                style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 28,
+             {showScrollTop && (
+                <TouchableOpacity
+                    style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
                     backgroundColor: theme.card,
                     justifyContent: 'center',
                     alignItems: 'center',
-                    marginRight: 15,
+                    marginBottom: 15,
+                    marginRight: 8, // Center over rightmost FAB
                     shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4.65,
-                    elevation: 8,
-                }}
-                onPress={openAddFolderModal}
-             >
-                <Ionicons name="folder-outline" size={28} color={theme.text} />
-             </TouchableOpacity>
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 3.84,
+                    elevation: 5,
+                    borderWidth: 1,
+                    borderColor: theme.bg
+                    }}
+                    onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
+                >
+                    <Ionicons name="arrow-up" size={24} color={theme.text} />
+                </TouchableOpacity>
+             )}
 
-             <TouchableOpacity
-                style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 28,
-                    backgroundColor: accentColor,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4.65,
-                    elevation: 8,
-                }}
-                onPress={openAddBookmarkModal}
-             >
-                <Ionicons name="add" size={32} color="#fff" />
-             </TouchableOpacity>
+             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity
+                    style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor: theme.card,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginRight: 15,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4.65,
+                        elevation: 8,
+                    }}
+                    onPress={openAddFolderModal}
+                >
+                    <Ionicons name="folder-outline" size={28} color={theme.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor: accentColor,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4.65,
+                        elevation: 8,
+                    }}
+                    onPress={openAddBookmarkModal}
+                >
+                    <Ionicons name="add" size={32} color="#fff" />
+                </TouchableOpacity>
+             </View>
           </Animated.View>
       )}
 
