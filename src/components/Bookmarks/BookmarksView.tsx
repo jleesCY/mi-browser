@@ -214,12 +214,36 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
       setModalVisible(false);
   };
 
-  // Get available folders for picker (prevent cycles)
-  const availableFolders = useMemo(() => {
+  // Helper to build full path for a folder
+  const buildFolderPath = (folderId: string | null, allBookmarks: BookmarkNode[]): string => {
+      if (!folderId) return "Bookmarks (Root)";
+      
+      const path: string[] = [];
+      let currentId = folderId;
+      
+      // Safety break counter
+      let depth = 0;
+      while (currentId && depth < 10) {
+          const folder = allBookmarks.find(b => b.id === currentId);
+          if (folder) {
+              path.unshift(folder.title);
+              currentId = folder.parentId;
+          } else {
+              break;
+          }
+          depth++;
+      }
+      
+      return path.join(" / ");
+  };
+
+  // Get available folders for picker (prevent cycles) with hierarchy
+  const availableFolderOptions = useMemo(() => {
       const allFolders = bookmarks.filter(b => b.type === 'folder');
+      let candidates = allFolders;
       
       if (modalMode === 'edit' && editingItem?.type === 'folder') {
-          // Exclude self and children
+          // Exclude self and children to prevent cycles
           const excludeIds = new Set<string>();
           const findChildren = (targetId: string) => {
             excludeIds.add(targetId);
@@ -228,10 +252,16 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
           };
           findChildren(editingItem.id);
           
-          return allFolders.filter(f => !excludeIds.has(f.id));
+          candidates = allFolders.filter(f => !excludeIds.has(f.id));
       }
       
-      return allFolders;
+      // Map to include full hierarchy path
+      // We also include the Root option manually in the final list, so just process candidates here
+      return candidates.map(f => ({
+          ...f,
+          hierarchyTitle: buildFolderPath(f.id, bookmarks)
+      })).sort((a, b) => a.hierarchyTitle.localeCompare(b.hierarchyTitle));
+      
   }, [bookmarks, modalMode, editingItem]);
 
   // Dimensions
@@ -579,10 +609,13 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                </Text>
                            </View>
                            <SortableGrid
-                               data={[{ id: "", title: "Bookmarks (Root)", type: 'folder' }, ...availableFolders]}
+                               data={[
+                                   { id: "", title: "Bookmarks (Root)", hierarchyTitle: "Bookmarks (Root)", type: 'folder' }, 
+                                   ...availableFolderOptions
+                               ]}
                                keyExtractor={(item: any) => item.id || "root"}
                                numColumns={1}
-                               itemHeight={50}
+                               itemHeight={70} // Increased height for multiline
                                itemWidth={SCREEN_WIDTH - 80} // Approx modal width
                                gridPaddingTop={0}
                                gridPaddingSide={0}
@@ -594,11 +627,12 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                          setShowFolderPicker(false);
                                      }}
                                      style={{
-                                         height: 50,
+                                         height: 70, // Match itemHeight
                                          flexDirection: 'row',
                                          alignItems: 'center',
                                          borderBottomWidth: 1,
-                                         borderBottomColor: theme.bg
+                                         borderBottomColor: theme.bg,
+                                         paddingVertical: 5
                                      }}
                                    >
                                        <Ionicons 
@@ -608,10 +642,13 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                             style={{ marginRight: 10 }}
                                        />
                                        <Text style={{ 
+                                           flex: 1, // Allow wrapping
                                            color: modalFolderId === (item.id === "" ? null : item.id) ? accentColor : theme.text,
-                                           fontFamily: "Nunito_600SemiBold"
-                                       }}>
-                                           {item.title}
+                                           fontFamily: "Nunito_600SemiBold",
+                                           fontSize: 14,
+                                           paddingRight: 10
+                                       }} numberOfLines={3} ellipsizeMode="tail">
+                                           {item.hierarchyTitle || item.title}
                                        </Text>
                                        {modalFolderId === (item.id === "" ? null : item.id) && (
                                            <Ionicons name="checkmark" size={20} color={accentColor} style={{ marginLeft: 'auto' }} />

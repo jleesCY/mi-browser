@@ -318,7 +318,12 @@ export default function App() {
   // Modals & Overlays
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [confirmActionType, setConfirmActionType] = useState<
-    "history" | "resetSettings" | "bgRefresh" | "deleteFavorite" | "wipeData" | null
+    | "history"
+    | "resetSettings"
+    | "bgRefresh"
+    | "deleteFavorite"
+    | "wipeData"
+    | null
   >(null);
   const [favoriteToDelete, setFavoriteToDelete] = useState<string | null>(null);
   const [confirmHistoryPayload, setConfirmHistoryPayload] = useState<{
@@ -336,6 +341,11 @@ export default function App() {
   const [activeView, setActiveView] = useState<
     "none" | "tabs" | "history" | "settings" | "bookmarks"
   >("none");
+  const activeViewRef = useRef(activeView);
+  useEffect(() => {
+    activeViewRef.current = activeView;
+  }, [activeView]);
+
   const [isSearchActive, setIsSearchActive] = useState(true);
   const isSearchActiveRef = useRef(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -833,25 +843,27 @@ export default function App() {
   // Back Button Handler
   useEffect(() => {
     const onBackPress = () => {
-      if (activeView !== "none") {
+      if (activeViewRef.current !== "none") {
         closeOverlay();
         return true;
       }
-      if (isInputFocused) {
+      if (isInputFocusedRef.current) {
         Keyboard.dismiss();
         setIsInputFocused(false);
         return true;
       }
 
-      const activeTab = tabs.find((t) => t.id === activeTabId);
+      const currentTabs = tabsRef.current;
+      const currentId = activeTabIdRef.current;
+      const activeTab = currentTabs.find((t) => t.id === currentId);
 
       // 1. Try Native Back: If WebView says it can go back, do it.
       if (
         canGoBackRef.current &&
-        webViewRefs.current[activeTabId] &&
+        webViewRefs.current[currentId] &&
         (activeTab?.currentIndex ?? 0) > 0
       ) {
-        webViewRefs.current[activeTabId]?.goBack();
+        webViewRefs.current[currentId]?.goBack();
         showBar();
         return true;
       }
@@ -866,7 +878,7 @@ export default function App() {
       ) {
         const prevUrl = activeTab.historyStack[activeTab.currentIndex - 1];
         // Trigger load via useTab's updateTab (to force prop update)
-        updateTab(activeTabId, { url: prevUrl, requestedUrl: prevUrl });
+        updateTab(currentId, { url: prevUrl, requestedUrl: prevUrl });
         return true;
       }
 
@@ -877,7 +889,7 @@ export default function App() {
       onBackPress,
     );
     return () => subscription.remove();
-  }, [activeView, isInputFocused, activeTabId, closeOverlay, showBar, tabs, updateTab]);
+  }, [closeOverlay, showBar, updateTab]);
 
   const handleGoPress = () => {
     Keyboard.dismiss();
@@ -2588,7 +2600,9 @@ export default function App() {
                       fontScale={fontScale}
                       onSelect={(item) => {
                         // Check if it's a favorite
-                        const isFavorite = favorites.some((f) => f.id === item.id);
+                        const isFavorite = favorites.some(
+                          (f) => f.id === item.id,
+                        );
 
                         if (isFavorite) {
                           const targetUrl = item.url;
@@ -2746,10 +2760,11 @@ export default function App() {
                     deleteHistory(-1); // Clears history & recent searches
                     clearBookmarks();
                     clearFavorites();
-                    
+
                     // 2. Clear Tabs
                     const newId = Date.now().toString();
-                    setTabs([{
+                    setTabs([
+                      {
                         id: newId,
                         url: null,
                         requestedUrl: null,
@@ -2758,8 +2773,9 @@ export default function App() {
                         showLogo: true,
                         hasLoadedOnce: true,
                         historyStack: [],
-                        currentIndex: -1
-                    }]);
+                        currentIndex: -1,
+                      },
+                    ]);
                     setActiveTabId(newId);
                     setActiveUrl(null);
                     setInputUrl("");
@@ -2767,19 +2783,22 @@ export default function App() {
                     // 3. Clear Storage & Cache
                     clearStorage();
                     try {
-                        const cacheDir = FileSystem.cacheDirectory;
-                        if (cacheDir) {
-                            FileSystem.readDirectoryAsync(cacheDir).then(files => {
-                                for (const file of files) {
-                                    FileSystem.deleteAsync(cacheDir + file, { idempotent: true });
-                                }
-                            });
-                        }
+                      const cacheDir = FileSystem.cacheDirectory;
+                      if (cacheDir) {
+                        FileSystem.readDirectoryAsync(cacheDir).then(
+                          (files) => {
+                            for (const file of files) {
+                              FileSystem.deleteAsync(cacheDir + file, {
+                                idempotent: true,
+                              });
+                            }
+                          },
+                        );
+                      }
                     } catch {}
-                    
+
                     // 4. Close Overlay
                     closeOverlay();
-
                   } else if (confirmActionType === "bgRefresh") {
                     settings.setBackgroundRefresh(true);
                   } else if (
@@ -2873,10 +2892,12 @@ export default function App() {
                 onChangeText={setRenameText}
               />
               {renameText.length > 0 && (
-                <TouchableOpacity onPress={() => {
-                  setRenameText("");
-                  renameInputRef.current?.focus();
-                }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setRenameText("");
+                    renameInputRef.current?.focus();
+                  }}
+                >
                   <Ionicons
                     name="close-circle"
                     size={20}
