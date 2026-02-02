@@ -28,6 +28,7 @@ interface BrowserWebViewProps {
   injectedJavaScript: string;
   blockGestures?: boolean;
   containerRef?: React.Ref<View>;
+  findInPageConfig?: { query: string; forward: boolean; timestamp: number } | null;
 }
 
 export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
@@ -52,9 +53,38 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   injectedJavaScript,
   blockGestures = false,
   containerRef,
+  findInPageConfig
 }, ref) => {
   const localRef = useRef<WebView>(null);
   const [ignoredHosts, setIgnoredHosts] = useState<Set<string>>(new Set());
+  
+  // Handle Find In Page
+  React.useEffect(() => {
+      if (isActive && findInPageConfig && localRef.current) {
+          const { query, forward } = findInPageConfig;
+          if (!query) {
+             // Clear selection logic if needed, usually window.getSelection().removeAllRanges()
+             localRef.current.injectJavaScript(`
+                (function(){
+                    window.getSelection().removeAllRanges();
+                })();
+             `);
+          } else {
+             // window.find(aString, aCaseSensitive, aBackwards, aWrapAround, aWholeWord, aSearchInFrames, aShowDialog);
+             // Android WebView supports: window.find(string) mostly.
+             // Standard: window.find(str, caseSensitive, backwards, wrapAround)
+             const js = `
+                (function(){
+                    if (window.find) {
+                        window.find("${query}", false, ${!forward}, true);
+                    }
+                })();
+             `;
+             localRef.current.injectJavaScript(js);
+          }
+      }
+  }, [findInPageConfig]);
+
   const {
     jsEnabled,
     desktopMode,

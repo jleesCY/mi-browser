@@ -64,6 +64,7 @@ import { useTabs } from "../src/hooks/useTabs";
 // Components
 import { BookmarksView } from "../src/components/Bookmarks/BookmarksView";
 import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
+import { FindOnPageBar } from "../src/components/BrowserOverlay/FindOnPageBar";
 import { RecentSearchesView } from "../src/components/BrowserSession/RecentSearchesView";
 import { BrowserWebView } from "../src/components/BrowserWebView";
 import { HistoryView } from "../src/components/History/HistoryView";
@@ -155,6 +156,10 @@ export default function App() {
     reorderTabs,
     activeTabIdRef,
   } = useTabs({ areSettingsLoaded, startupTabMode, backgroundRefresh });
+
+  const [findInPageVisible, setFindInPageVisible] = useState(false);
+  const [findConfig, setFindConfig] = useState<{ query: string; forward: boolean; timestamp: number } | null>(null);
+  const [findText, setFindText] = useState("");
 
   const currentTab = tabs.find((t) => t.id === activeTabId);
 
@@ -435,6 +440,27 @@ export default function App() {
     },
     [updateTab, setActiveUrl],
   );
+
+  const handleFindChange = (text: string) => {
+      setFindText(text);
+      if (text.length > 0) {
+          setFindConfig({ query: text, forward: true, timestamp: Date.now() });
+      } else {
+          setFindConfig({ query: "", forward: true, timestamp: Date.now() });
+      }
+  };
+
+  const handleFindNext = () => {
+      if (findText.length > 0) {
+          setFindConfig({ query: findText, forward: true, timestamp: Date.now() });
+      }
+  };
+
+  const handleFindPrev = () => {
+      if (findText.length > 0) {
+          setFindConfig({ query: findText, forward: false, timestamp: Date.now() });
+      }
+  };
 
   const handleScanResult = (data: string) => {
     setIsQRScannerVisible(false);
@@ -1498,6 +1524,24 @@ export default function App() {
         />
       )}
 
+      <FindOnPageBar
+        visible={findInPageVisible}
+        onClose={() => {
+            Keyboard.dismiss();
+            setFindInPageVisible(false);
+            setFindConfig({ query: "", forward: true, timestamp: Date.now() });
+            setFindText("");
+        }}
+        onNext={handleFindNext}
+        onPrev={handleFindPrev}
+        onChangeText={handleFindChange}
+        theme={effectiveTheme}
+        accentColor={accentColor}
+        fontScale={fontScale}
+        cornerRadius={cornerRadius}
+        keyboardHeight={keyboardHeight}
+      />
+
       <Animated.View
         style={[
           styles.webViewContainer,
@@ -1612,6 +1656,7 @@ export default function App() {
                 )
               }
               onNewWindow={(url) => addNewTab(url)}
+              findInPageConfig={isActive ? findConfig : null}
               onMessage={(event) => {
                 const nativeEvent = event.nativeEvent;
                 if (nativeEvent.data) {
@@ -2038,6 +2083,41 @@ export default function App() {
                           }}
                         >
                           Share
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          {
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 15,
+                            borderBottomWidth: 1,
+                            borderBottomColor: effectiveTheme.bg,
+                          },
+                          !activeUrl && { opacity: 0.5 },
+                        ]}
+                        onPress={() => {
+                          if (activeUrl) {
+                            setIsSubMenuVisible(false);
+                            setFindInPageVisible(true);
+                          }
+                        }}
+                        disabled={!activeUrl}
+                      >
+                        <Ionicons
+                          name="search-outline"
+                          size={20}
+                          color={effectiveTheme.text}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text
+                          style={{
+                            color: effectiveTheme.text,
+                            fontFamily: "Nunito_700Bold",
+                            fontSize: 14 * fontScale,
+                          }}
+                        >
+                          Find in Page
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
