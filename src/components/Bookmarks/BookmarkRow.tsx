@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Image, Animated } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { BookmarkNode } from '../../types';
 import { getFaviconUrl } from '../../utils';
@@ -36,10 +36,21 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
 }) => {
   const isFolder = item.type === 'folder';
   const [imageError, setImageError] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     setImageError(false);
   }, [isFolder ? null : (item as any).url]);
+
+  const handleDelete = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      onDelete();
+    });
+  };
 
   const renderRightActions = () => {
     return (
@@ -59,7 +70,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
           <Ionicons name="pencil" size={24} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={onDelete}
+          onPress={handleDelete}
           style={{
             backgroundColor: '#FF3B30',
             justifyContent: 'center',
@@ -79,88 +90,98 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
   };
 
   return (
-    <Swipeable renderRightActions={renderRightActions}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onPress}
-        style={{
-          height: height,
-          marginBottom: margin,
-          backgroundColor: theme.surface,
-          borderRadius: radius,
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 15,
-        }}
-      >
-        <View style={{ 
-            width: 44, 
-            height: 44, 
-            justifyContent: 'center', 
+    <Animated.View 
+      style={{ 
+        opacity: fadeAnim.interpolate({
+          inputRange: [0, 0.3, 1],
+          outputRange: [0, 1, 1]
+        }), 
+        transform: [{ scale: fadeAnim }] 
+      }}
+    >
+      <Swipeable renderRightActions={renderRightActions}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={onPress}
+          style={{
+            height: height,
+            marginBottom: margin,
+            backgroundColor: theme.surface,
+            borderRadius: radius,
+            flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
-            borderRadius: 22,
-            marginRight: 15
-        }}>
-          {isFolder ? (
-            <Ionicons name="folder" size={36} color={accent} />
-          ) : (
-            <>
-              {showIcon ? (
-                <>
-                  {((item as any).icon || getFaviconUrl(item.url)) && !imageError ? (
-                      <Image 
-                        source={{ uri: (item as any).icon || getFaviconUrl(item.url) }}
-                        style={{ width: 36, height: 36, borderRadius: 18 }}
-                        onError={() => setImageError(true)}
-                      />
-                  ) : (
-                      <Ionicons name="globe-outline" size={36} color={theme.text} />
-                  )}
-                </>
-              ) : (
-                <Text style={{ 
-                  color: theme.text, 
-                  fontFamily: 'Nunito_800ExtraBold', 
-                  fontSize: 20 * fontScale 
-                }}>
-                  {(item.title || "?").charAt(0).toUpperCase()}
-                </Text>
-              )}
-            </>
-          )}
-        </View>
+            paddingHorizontal: 15,
+          }}
+        >
+          <View style={{ 
+              width: 44, 
+              height: 44, 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              backgroundColor: (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+              borderRadius: 22,
+              marginRight: 15
+          }}>
+            {isFolder ? (
+              <Ionicons name="folder" size={36} color={accent} />
+            ) : (
+              <>
+                {showIcon ? (
+                  <>
+                    {((item as any).icon || getFaviconUrl(item.url)) && !imageError ? (
+                        <Image 
+                          source={{ uri: (item as any).icon || getFaviconUrl(item.url) }}
+                          style={{ width: 36, height: 36, borderRadius: 18 }}
+                          onError={() => setImageError(true)}
+                        />
+                    ) : (
+                        <Ionicons name="globe-outline" size={36} color={theme.text} />
+                    )}
+                  </>
+                ) : (
+                  <Text style={{ 
+                    color: theme.text, 
+                    fontFamily: 'Nunito_800ExtraBold', 
+                    fontSize: 20 * fontScale 
+                  }}>
+                    {(item.title || "?").charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
 
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <Text
-            numberOfLines={1}
-            style={{
-              color: theme.text,
-              fontFamily: "Nunito_700Bold",
-              fontSize: 16 * fontScale,
-              marginBottom: 2
-            }}
-          >
-            {item.title}
-          </Text>
-          {!isFolder && (
-             <Text
-               numberOfLines={1}
-               style={{
-                 color: theme.textSec,
-                 fontFamily: "Nunito_400Regular",
-                 fontSize: 12 * fontScale,
-               }}
-             >
-               {item.url}
-             </Text>
-          )}
-        </View>
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <Text
+              numberOfLines={1}
+              style={{
+                color: theme.text,
+                fontFamily: "Nunito_700Bold",
+                fontSize: 16 * fontScale,
+                marginBottom: 2
+              }}
+            >
+              {item.title}
+            </Text>
+            {!isFolder && (
+               <Text
+                 numberOfLines={1}
+                 style={{
+                   color: theme.textSec,
+                   fontFamily: "Nunito_400Regular",
+                   fontSize: 12 * fontScale,
+                 }}
+               >
+                 {item.url}
+               </Text>
+            )}
+          </View>
 
-        {isFolder && (
-             <Ionicons name="chevron-forward" size={20} color={theme.textSec} />
-        )}
-      </TouchableOpacity>
-    </Swipeable>
+          {isFolder && (
+               <Ionicons name="chevron-forward" size={20} color={theme.textSec} />
+          )}
+        </TouchableOpacity>
+      </Swipeable>
+    </Animated.View>
   );
 };

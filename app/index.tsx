@@ -379,6 +379,63 @@ export default function App() {
   const [isQRScannerVisible, setIsQRScannerVisible] = useState(false);
   const [isQRGeneratorVisible, setIsQRGeneratorVisible] = useState(false);
 
+  const navigateTab = useCallback(
+    (url: string, title?: string) => {
+      const normalize = (u: string) =>
+        u
+          .replace(/^https?:\/\//, "")
+          .replace(/^www\./, "")
+          .replace(/\/$/, "")
+          .replace(/\/index\.html$/, "")
+          .toLowerCase();
+
+      const currentId = activeTabIdRef.current;
+      const currentTab = tabsRef.current.find((t) => t.id === currentId);
+
+      if (!currentTab) return;
+
+      let newHistoryStack = [...(currentTab.historyStack || [])];
+      let newCurrentIndex = currentTab.currentIndex ?? -1;
+
+      // 1. Initialize stack if empty but URL exists
+      if (newHistoryStack.length === 0 && currentTab.url) {
+        newHistoryStack.push(currentTab.url);
+        newCurrentIndex = 0;
+      }
+
+      // 2. Truncate forward history
+      if (newCurrentIndex < newHistoryStack.length - 1) {
+        newHistoryStack = newHistoryStack.slice(0, newCurrentIndex + 1);
+      }
+
+      // 3. Add new URL if different from current tip
+      if (
+        newHistoryStack.length === 0 ||
+        normalize(newHistoryStack[newHistoryStack.length - 1]) !==
+          normalize(url)
+      ) {
+        newHistoryStack.push(url);
+        newCurrentIndex = newHistoryStack.length - 1;
+      } else {
+        newHistoryStack[newCurrentIndex] = url;
+      }
+
+      setActiveUrl(url);
+      updateTab(currentId, {
+        url: url,
+        requestedUrl: url,
+        title: title || currentTab.title,
+        historyStack: newHistoryStack,
+        currentIndex: newCurrentIndex,
+      });
+
+      if (currentTab.url === url && webViewRefs.current[currentId]) {
+        webViewRefs.current[currentId]?.reload();
+      }
+    },
+    [updateTab, setActiveUrl],
+  );
+
   const handleScanResult = (data: string) => {
     setIsQRScannerVisible(false);
     setInputUrl(data);
@@ -421,16 +478,7 @@ export default function App() {
       }
     }
 
-    setActiveUrl(targetUrl);
-    updateTab(activeTabId, {
-      url: targetUrl,
-      requestedUrl: targetUrl,
-      title: text,
-    });
-
-    if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
-      webViewRefs.current[activeTabId]?.reload();
-    }
+    navigateTab(targetUrl, text);
     snapToSearch();
   };
 
@@ -931,16 +979,7 @@ export default function App() {
       }
     }
 
-    setActiveUrl(targetUrl);
-    updateTab(activeTabId, {
-      url: targetUrl,
-      requestedUrl: targetUrl,
-      title: text,
-    });
-
-    if (activeUrl === targetUrl && webViewRefs.current[activeTabId]) {
-      webViewRefs.current[activeTabId]?.reload();
-    }
+    navigateTab(targetUrl, text);
     snapToSearch();
   };
 
@@ -1686,12 +1725,7 @@ export default function App() {
                     uiPadding={uiPadding}
                     showIcons={settings.showBookmarkIcons}
                     onPressItem={(item) => {
-                      setActiveUrl(item.url);
-                      updateTab(activeTabId, {
-                        url: item.url,
-                        requestedUrl: item.url,
-                        title: item.title,
-                      });
+                      navigateTab(item.url, item.title);
                       closeOverlay();
                     }}
                     onAddBookmark={addBookmark}
@@ -1719,12 +1753,7 @@ export default function App() {
                     searchText={historySearch}
                     setSearchText={setHistorySearch}
                     onPressItem={(item) => {
-                      setActiveUrl(item.url);
-                      updateTab(activeTabId, {
-                        url: item.url,
-                        requestedUrl: item.url,
-                        title: item.title || getDisplayHost(item.url),
-                      });
+                      navigateTab(item.url, item.title || getDisplayHost(item.url));
                       closeOverlay();
                     }}
                     onDeleteItem={deleteHistoryItem}
@@ -2610,12 +2639,7 @@ export default function App() {
                           setIsInputFocused(false);
                           urlInputRef.current?.blur();
 
-                          setActiveUrl(targetUrl);
-                          updateTab(activeTabId, {
-                            url: targetUrl,
-                            requestedUrl: targetUrl,
-                            title: item.title,
-                          });
+                          navigateTab(targetUrl, item.title);
                           snapToSearch();
                           Keyboard.dismiss();
                         } else {

@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Animated,
 } from "react-native";
 import { getDisplayHost, getFaviconUrl } from "../../utils";
 import { TabItem } from "../../types";
@@ -42,104 +43,126 @@ const TabCard = ({
 }: TabCardProps) => {
   const showPreview = showTabPreview && item.previewImage;
   const [imageError, setImageError] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     setImageError(false);
   }, [item.url]);
 
+  const handleDelete = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      onDelete();
+    });
+  };
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onPress}
-        style={[
-          styles.card,
-          {
-            backgroundColor: isActive ? theme.card : theme.surface,
-            borderRadius: radius,
-            borderColor: isActive ? accent : "transparent",
-            borderWidth: 2,
-            overflow: 'hidden'
-          },
-        ]}
+      <Animated.View 
+        style={{ 
+          flex: 1, 
+          opacity: fadeAnim.interpolate({
+            inputRange: [0, 0.3, 1],
+            outputRange: [0, 1, 1]
+          }), 
+          transform: [{ scale: fadeAnim }] 
+        }}
       >
-        {showPreview && (
-            <View style={StyleSheet.absoluteFill}>
-                <Image 
-                    key={item.previewImage} // Force re-render on URI change
-                    source={{ uri: item.previewImage }} 
-                    style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.6 }} 
-                />
-                <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: theme.isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)' }} />
-            </View>
-        )}
-
-        <View style={styles.header}>
-            <View
-            style={[
-                styles.faviconContainer,
-                { backgroundColor: isActive ? accent : (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') },
-            ]}
-            >
-            {showTabLogo && item.url && !imageError ? (
-                <Image
-                source={{ uri: getFaviconUrl(item.url) || "" }}
-                style={styles.faviconImage}
-                onError={() => setImageError(true)}
-                />
-            ) : (
-                <Ionicons
-                  name="globe-outline"
-                  size={36}
-                  color={isActive ? "#fff" : theme.text}
-                />
-            )}
-            </View>
-            <TouchableOpacity
-                onPress={onDelete}
-                style={[styles.closeBtn, { backgroundColor: theme.bg }]}
-            >
-                <Ionicons name="close" size={16} color={theme.text} />
-            </TouchableOpacity>
-        </View>
-
-        <View style={styles.content}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: theme.text,
-                fontFamily: "Nunito_700Bold",
-                fontSize: 14 * fontScale,
-              },
-            ]}
-            numberOfLines={2}
-          >
-            {item.title || "New Tab"}
-          </Text>
-          <Text
-            style={[
-              styles.url,
-              {
-                color: theme.textSec,
-                fontFamily: "Nunito_600SemiBold",
-                fontSize: 10 * fontScale,
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {getDisplayHost(item.url) || "Home"}
-          </Text>
-        </View>
-        
         <TouchableOpacity
-            onPress={onRename}
-            style={[styles.editBtn, { borderColor: theme.textSec }]}
+          activeOpacity={0.9}
+          onPress={onPress}
+          style={[
+            styles.card,
+            {
+              backgroundColor: isActive ? theme.card : theme.surface,
+              borderRadius: radius,
+              borderColor: isActive ? accent : "transparent",
+              borderWidth: 2,
+              overflow: 'hidden'
+            },
+          ]}
         >
-            <Ionicons name="pencil" size={12} color={theme.textSec} />
-        </TouchableOpacity>
+          {showPreview && (
+              <View style={StyleSheet.absoluteFill}>
+                  <Image 
+                      key={item.previewImage} // Force re-render on URI change
+                      source={{ uri: item.previewImage }} 
+                      style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.6 }} 
+                  />
+                  <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: theme.isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)' }} />
+              </View>
+          )}
 
-      </TouchableOpacity>
+          <View style={styles.header}>
+              <View
+              style={[
+                  styles.faviconContainer,
+                  { backgroundColor: isActive ? accent : (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') },
+              ]}
+              >
+              {showTabLogo && item.url && !imageError ? (
+                  <Image
+                  source={{ uri: getFaviconUrl(item.url) || "" }}
+                  style={styles.faviconImage}
+                  onError={() => setImageError(true)}
+                  />
+              ) : (
+                  <Ionicons
+                    name="globe-outline"
+                    size={36}
+                    color={isActive ? "#fff" : theme.text}
+                  />
+              )}
+              </View>
+              <TouchableOpacity
+                  onPress={handleDelete}
+                  style={[styles.closeBtn, { backgroundColor: theme.bg }]}
+              >
+                  <Ionicons name="close" size={16} color={theme.text} />
+              </TouchableOpacity>
+          </View>
+
+          <View style={styles.content}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: theme.text,
+                  fontFamily: "Nunito_700Bold",
+                  fontSize: 14 * fontScale,
+                },
+              ]}
+              numberOfLines={2}
+            >
+              {item.title || "New Tab"}
+            </Text>
+            <Text
+              style={[
+                styles.url,
+                {
+                  color: theme.textSec,
+                  fontFamily: "Nunito_600SemiBold",
+                  fontSize: 10 * fontScale,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {getDisplayHost(item.url) || "Home"}
+            </Text>
+          </View>
+          
+          <TouchableOpacity
+              onPress={onRename}
+              style={[styles.editBtn, { borderColor: theme.textSec }]}
+          >
+              <Ionicons name="pencil" size={12} color={theme.textSec} />
+          </TouchableOpacity>
+
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 };
