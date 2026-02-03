@@ -284,6 +284,7 @@ export default function UserDocs() {
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
                   <SettingItem title="Expand Searches" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
+                  <SettingItem title="Reorder Icons" desc="Customise the Dashboard menu bar by dragging icons into your preferred order for quicker access to Tabs, Bookmarks, History, or Settings." />
                 </SettingsSection>
 
                 {/* Tabs */}
@@ -339,6 +340,9 @@ export default function UserDocs() {
                     </div>
                     <div id="quick-bookmark">
                       <GuideItem icon={<Bookmark size={18}/>} title="Quick Bookmark" desc="Save the current page to your bookmarks with one tap from the Power Tools menu." />
+                    </div>
+                    <div id="find-in-page">
+                      <GuideItem icon={<Search size={18}/>} title="Find in Page" desc="Search for specific text within the current webpage. Highlighting and navigation between matches included." />
                     </div>
                     <div id="qr-toolbox">
                       <GuideItem icon={<QrCode size={18}/>} title="QR Toolbox" desc="Scan physical codes, upload images from your gallery to scan, or generate a code for the current URL." />
