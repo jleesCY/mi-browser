@@ -70,143 +70,147 @@ const getMargin = (uiPadding: string) => {
 };
 
 const SearchHeader = React.memo(
-  ({
-    theme,
-    cornerRadius,
-    searchText,
-    onFocusSearch,
-    setSearchText,
-    onClearAllTabs,
-  }: any) => {
-    const [menuVisible, setMenuVisible] = useState(false);
-    const inputRef = useRef<TextInput>(null);
+  React.forwardRef(
+    (
+      {
+        theme,
+        cornerRadius,
+        searchText,
+        onFocusSearch,
+        setSearchText,
+        onClearAllTabs,
+      }: any,
+      ref: any,
+    ) => {
+      const [menuVisible, setMenuVisible] = useState(false);
 
-    return (
-      <View
-        style={{
-          marginBottom: 10,
-          backgroundColor: theme.card,
-          borderRadius: cornerRadius,
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 15,
-          height: 50,
-          width: "100%",
-        }}
-      >
-        <Ionicons
-          name="search"
-          size={20}
-          color={theme.textSec}
-          style={{ marginRight: 10 }}
-        />
-        <TextInput
-          ref={inputRef}
+      return (
+        <View
           style={{
-            flex: 1,
-            color: theme.text,
-            fontFamily: "Nunito_600SemiBold",
-            fontSize: 16,
+            marginBottom: 10,
+            backgroundColor: theme.card,
+            borderRadius: cornerRadius,
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 15,
+            height: 50,
+            width: "100%",
           }}
-          placeholder="Search Tabs..."
-          placeholderTextColor={theme.textSec}
-          value={searchText}
-          onFocus={onFocusSearch}
-          onChangeText={(text) => {
-            LayoutAnimation.configureNext(
-              LayoutAnimation.Presets.easeInEaseOut,
-            );
-            setSearchText(text);
-          }}
-        />
-        {searchText !== "" ? (
-          <TouchableOpacity
-            onPress={() => {
-              setSearchText("");
-              inputRef.current?.focus();
+        >
+          <Ionicons
+            name="search"
+            size={20}
+            color={theme.textSec}
+            style={{ marginRight: 10 }}
+          />
+          <TextInput
+            ref={ref}
+            style={{
+              flex: 1,
+              color: theme.text,
+              fontFamily: "Nunito_600SemiBold",
+              fontSize: 16,
             }}
-          >
-            <Ionicons name="close-circle" size={20} color={theme.textSec} />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ position: "relative" }}>
+            placeholder="Search Tabs..."
+            placeholderTextColor={theme.textSec}
+            value={searchText}
+            onFocus={onFocusSearch}
+            onChangeText={(text) => {
+              LayoutAnimation.configureNext(
+                LayoutAnimation.Presets.easeInEaseOut,
+              );
+              setSearchText(text);
+            }}
+          />
+          {searchText !== "" ? (
             <TouchableOpacity
-              onPress={() => setMenuVisible(!menuVisible)}
-              style={{ padding: 5 }}
+              onPress={() => {
+                setSearchText("");
+                ref.current?.focus();
+              }}
             >
-              <Ionicons
-                name="ellipsis-vertical"
-                size={20}
-                color={theme.textSec}
-              />
+              <Ionicons name="close-circle" size={20} color={theme.textSec} />
             </TouchableOpacity>
-            {menuVisible && (
-              <>
-                <Pressable
-                  style={{
-                    position: "absolute",
-                    top: -1000,
-                    left: -1000,
-                    right: -1000,
-                    bottom: -1000,
-                    backgroundColor: "transparent",
-                    zIndex: 1,
-                  }}
-                  onPress={() => setMenuVisible(false)}
+          ) : (
+            <View style={{ position: "relative" }}>
+              <TouchableOpacity
+                onPress={() => setMenuVisible(!menuVisible)}
+                style={{ padding: 5 }}
+              >
+                <Ionicons
+                  name="ellipsis-vertical"
+                  size={20}
+                  color={theme.textSec}
                 />
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 30,
-                    right: 0,
-                    backgroundColor: theme.surface,
-                    borderRadius: 10,
-                    padding: 5,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3.84,
-                    elevation: 5,
-                    zIndex: 2,
-                    minWidth: 150,
-                    borderWidth: 1,
-                    borderColor: theme.bg,
-                  }}
-                >
-                  <TouchableOpacity
+              </TouchableOpacity>
+              {menuVisible && (
+                <>
+                  <Pressable
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      padding: 10,
+                      position: "absolute",
+                      top: -1000,
+                      left: -1000,
+                      right: -1000,
+                      bottom: -1000,
+                      backgroundColor: "transparent",
+                      zIndex: 1,
                     }}
-                    onPress={() => {
-                      setMenuVisible(false);
-                      onClearAllTabs();
+                    onPress={() => setMenuVisible(false)}
+                  />
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 30,
+                      right: 0,
+                      backgroundColor: theme.surface,
+                      borderRadius: 10,
+                      padding: 5,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3.84,
+                      elevation: 5,
+                      zIndex: 2,
+                      minWidth: 150,
+                      borderWidth: 1,
+                      borderColor: theme.bg,
                     }}
                   >
-                    <Ionicons
-                      name="trash-outline"
-                      size={18}
-                      color={theme.text}
-                      style={{ marginRight: 10 }}
-                    />
-                    <Text
+                    <TouchableOpacity
                       style={{
-                        color: theme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        padding: 10,
+                      }}
+                      onPress={() => {
+                        setMenuVisible(false);
+                        onClearAllTabs();
                       }}
                     >
-                      Clear all tabs
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  },
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={theme.text}
+                        style={{ marginRight: 10 }}
+                      />
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontFamily: "Nunito_600SemiBold",
+                        }}
+                      >
+                        Clear all tabs
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          )}
+        </View>
+      );
+    },
+  ),
 );
 
 SearchHeader.displayName = "SearchHeader";
@@ -254,6 +258,14 @@ export const TabsView: React.FC<TabsViewProps> = ({
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const searchInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    // Force blur when tabs are deleted/added to prevent unwanted focus
+    if (searchInputRef.current?.isFocused()) {
+      searchInputRef.current.blur();
+    }
+  }, [tabs.length]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => {
@@ -308,6 +320,7 @@ export const TabsView: React.FC<TabsViewProps> = ({
         }}
       >
         <SearchHeader
+          ref={searchInputRef}
           theme={theme}
           cornerRadius={cornerRadius}
           searchText={searchText}

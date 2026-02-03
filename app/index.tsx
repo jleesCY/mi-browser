@@ -63,8 +63,8 @@ import { useTabs } from "../src/hooks/useTabs";
 
 // Components
 import { BookmarksView } from "../src/components/Bookmarks/BookmarksView";
-import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
 import { FindOnPageBar } from "../src/components/BrowserOverlay/FindOnPageBar";
+import { OverlaySheet } from "../src/components/BrowserOverlay/OverlaySheet";
 import { RecentSearchesView } from "../src/components/BrowserSession/RecentSearchesView";
 import { BrowserWebView } from "../src/components/BrowserWebView";
 import { HistoryView } from "../src/components/History/HistoryView";
@@ -158,7 +158,11 @@ export default function App() {
   } = useTabs({ areSettingsLoaded, startupTabMode, backgroundRefresh });
 
   const [findInPageVisible, setFindInPageVisible] = useState(false);
-  const [findConfig, setFindConfig] = useState<{ query: string; forward: boolean; timestamp: number } | null>(null);
+  const [findConfig, setFindConfig] = useState<{
+    query: string;
+    forward: boolean;
+    timestamp: number;
+  } | null>(null);
   const [findText, setFindText] = useState("");
 
   const currentTab = tabs.find((t) => t.id === activeTabId);
@@ -442,24 +446,24 @@ export default function App() {
   );
 
   const handleFindChange = (text: string) => {
-      setFindText(text);
-      if (text.length > 0) {
-          setFindConfig({ query: text, forward: true, timestamp: Date.now() });
-      } else {
-          setFindConfig({ query: "", forward: true, timestamp: Date.now() });
-      }
+    setFindText(text);
+    if (text.length > 0) {
+      setFindConfig({ query: text, forward: true, timestamp: Date.now() });
+    } else {
+      setFindConfig({ query: "", forward: true, timestamp: Date.now() });
+    }
   };
 
   const handleFindNext = () => {
-      if (findText.length > 0) {
-          setFindConfig({ query: findText, forward: true, timestamp: Date.now() });
-      }
+    if (findText.length > 0) {
+      setFindConfig({ query: findText, forward: true, timestamp: Date.now() });
+    }
   };
 
   const handleFindPrev = () => {
-      if (findText.length > 0) {
-          setFindConfig({ query: findText, forward: false, timestamp: Date.now() });
-      }
+    if (findText.length > 0) {
+      setFindConfig({ query: findText, forward: false, timestamp: Date.now() });
+    }
   };
 
   const handleScanResult = (data: string) => {
@@ -1527,10 +1531,10 @@ export default function App() {
       <FindOnPageBar
         visible={findInPageVisible}
         onClose={() => {
-            Keyboard.dismiss();
-            setFindInPageVisible(false);
-            setFindConfig({ query: "", forward: true, timestamp: Date.now() });
-            setFindText("");
+          Keyboard.dismiss();
+          setFindInPageVisible(false);
+          setFindConfig({ query: "", forward: true, timestamp: Date.now() });
+          setFindText("");
         }}
         onNext={handleFindNext}
         onPrev={handleFindPrev}
@@ -1798,7 +1802,10 @@ export default function App() {
                     searchText={historySearch}
                     setSearchText={setHistorySearch}
                     onPressItem={(item) => {
-                      navigateTab(item.url, item.title || getDisplayHost(item.url));
+                      navigateTab(
+                        item.url,
+                        item.title || getDisplayHost(item.url),
+                      );
                       closeOverlay();
                     }}
                     onDeleteItem={deleteHistoryItem}
@@ -1973,7 +1980,7 @@ export default function App() {
                         position: "absolute",
                         bottom: pillHeight + 4,
                         right: 0,
-                        width: 220,
+                        width: 240,
                         backgroundColor: pillBackgroundAnim,
                         borderRadius: cornerRadius,
                         overflow: "hidden",

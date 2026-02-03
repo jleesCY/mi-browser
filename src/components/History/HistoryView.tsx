@@ -51,10 +51,9 @@ const getMargin = (uiPadding: string) => {
   }
 };
 
-const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText, onRequestClearHistory, fontScale }: any) => {
+const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchText, onFocusSearch, setSearchText, onRequestClearHistory, fontScale }: any, ref: any) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [clearHistoryVisible, setClearHistoryVisible] = useState(false);
-  const inputRef = useRef<TextInput>(null);
 
   return (
     <View
@@ -76,7 +75,7 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
         style={{ marginRight: 10 }}
       />
       <TextInput
-        ref={inputRef}
+        ref={ref}
         style={{
           flex: 1,
           color: theme.text,
@@ -96,7 +95,7 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
         <TouchableOpacity
           onPress={() => {
             setSearchText("");
-            inputRef.current?.focus();
+            ref.current?.focus();
           }}
         >
           <Ionicons
@@ -202,7 +201,7 @@ const SearchHeader = React.memo(({ theme, cornerRadius, searchText, onFocusSearc
       )}
     </View>
   );
-});
+}));
 
 SearchHeader.displayName = 'SearchHeader';
 
@@ -238,6 +237,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   const CHUNK_SIZE = historyLoadCount || 25;
   const [visibleCount, setVisibleCount] = useState(CHUNK_SIZE);
+  const searchInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    // Force blur when history items change (e.g. deletion)
+    if (searchInputRef.current?.isFocused()) {
+      searchInputRef.current.blur();
+    }
+  }, [history.length]);
 
   // Reset visible count when search changes or load count changes
   useEffect(() => {
@@ -309,6 +316,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           elevation: 10 
       }}>
         <SearchHeader 
+            ref={searchInputRef}
             theme={theme} 
             cornerRadius={cornerRadius} 
             searchText={searchText} 

@@ -63,6 +63,13 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
     })), null, 2));
   }, []);
 
+  useEffect(() => {
+    // Force blur when bookmarks change (e.g. deletion)
+    if (searchInputRef.current?.isFocused()) {
+        searchInputRef.current.blur();
+    }
+  }, [bookmarks.length]);
+
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<{id: string, title: string}[]>([]);
   const [searchText, setSearchText] = useState("");
@@ -219,7 +226,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
       if (!folderId) return "Bookmarks (Root)";
       
       const path: string[] = [];
-      let currentId = folderId;
+      let currentId: string | null = folderId;
       
       // Safety break counter
       let depth = 0;
