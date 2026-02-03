@@ -15,6 +15,8 @@ import {
   HISTORY_RANGES,
   SEARCH_ENGINES,
 } from "../../constants";
+import { flexRow } from "../../design-system/styles";
+import { borderWidths, iconSizes, spacing, typography } from "../../design-system/tokens";
 
 interface SettingsViewProps {
   settings: any;
@@ -119,13 +121,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <View
         style={[
           {
-            flexDirection: "row",
+            ...flexRow,
             justifyContent: "space-between",
-            alignItems: "center",
-            paddingVertical: 12,
-            paddingHorizontal: 15,
+            paddingVertical: spacing.xs + 4,
+            paddingHorizontal: spacing.md - 1,
           },
-          hasSeparator && { borderTopWidth: 1, borderColor: effectiveTheme.bg },
+          hasSeparator && { borderTopWidth: borderWidths.thin, borderColor: effectiveTheme.bg },
         ]}
       >
         {children}
@@ -151,7 +152,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return (
       <View
         style={[
-          hasSeparator && { borderTopWidth: 1, borderColor: effectiveTheme.bg },
+          hasSeparator && { borderTopWidth: borderWidths.thin, borderColor: effectiveTheme.bg },
         ]}
       >
         {children}
@@ -168,21 +169,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   }) => {
     const isGroupMatch = shouldShow(title) && searchText.trim() !== "";
     const childrenArray = React.Children.toArray(children);
-    
+
     // Determine which children to show. 
     // If group matches, we show all (forceVisible=true).
     // Otherwise, we rely on individual child matching.
-    
+
     // We need to clone children to pass the props
     const visibleChildren = childrenArray.map((child: any) => {
-       if (!child || !child.props) return null;
-       const childMatches = shouldShow(child.props.label);
-       if (isGroupMatch || childMatches) {
-           return React.cloneElement(child, { 
-               forceVisible: isGroupMatch // Pass forceVisible if group matched
-           });
-       }
-       return null;
+      if (!child || !child.props) return null;
+      const childMatches = shouldShow(child.props.label);
+      if (isGroupMatch || childMatches) {
+        return React.cloneElement(child, {
+          forceVisible: isGroupMatch // Pass forceVisible if group matched
+        });
+      }
+      return null;
     }).filter(Boolean);
 
     if (visibleChildren.length === 0) return null;
@@ -191,10 +192,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <Text
           style={{
             color: effectiveTheme.textSec,
-            fontFamily: "Nunito_700Bold",
-            marginTop: 20,
-            marginBottom: 10,
-            fontSize: 14 * fontScale,
+            fontFamily: typography.families.bold,
+            marginTop: spacing.lg,
+            marginBottom: spacing.sm - 2,
+            fontSize: typography.sizes.sm * fontScale,
           }}
         >
           {title}
@@ -222,28 +223,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     >
       <View
         style={{
-          marginBottom: 20,
+          marginBottom: spacing.lg,
           backgroundColor: effectiveTheme.card,
           borderRadius: cornerRadius,
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 15,
+          ...flexRow,
+          paddingHorizontal: spacing.md - 1,
           height: 50,
         }}
       >
         <Ionicons
           name="search"
-          size={20}
+          size={iconSizes.sm}
           color={effectiveTheme.textSec}
-          style={{ marginRight: 10 }}
+          style={{ marginRight: spacing.sm - 2 }}
         />
         <TextInput
           ref={searchInputRef}
           style={{
             flex: 1,
             color: effectiveTheme.text,
-            fontFamily: "Nunito_600SemiBold",
-            fontSize: 16,
+            fontFamily: typography.families.semibold,
+            fontSize: typography.sizes.base,
           }}
           placeholder="Search Settings..."
           placeholderTextColor={effectiveTheme.textSec}
@@ -265,7 +265,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           >
             <Ionicons
               name="close-circle"
-              size={20}
+              size={iconSizes.sm}
               color={effectiveTheme.textSec}
             />
           </TouchableOpacity>
@@ -292,15 +292,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             >
               <Ionicons
                 name="color-palette-outline"
-                size={22}
+                size={iconSizes.md - 2}
                 color={effectiveTheme.text}
-                style={{ marginRight: 10 }}
+                style={{ marginRight: spacing.sm - 2 }}
               />
               <Text
                 style={{
                   color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 16 * fontScale,
+                  fontFamily: typography.families.semibold,
+                  fontSize: typography.sizes.base * fontScale,
                 }}
               >
                 Theme
@@ -1723,10 +1723,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity 
-        style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
+      <TouchableOpacity
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
           justifyContent: 'center',
           gap: 6,
           opacity: 0.8,
@@ -1736,10 +1736,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         onPress={onOpenHelp}
       >
         <Ionicons name="help-circle-outline" size={18} color={effectiveTheme.textSec} />
-        <Text style={{ 
-          color: effectiveTheme.textSec, 
-          fontFamily: 'Nunito_700Bold', 
-          fontSize: 14 * fontScale 
+        <Text style={{
+          color: effectiveTheme.textSec,
+          fontFamily: 'Nunito_700Bold',
+          fontSize: 14 * fontScale
         }}>Help</Text>
       </TouchableOpacity>
 

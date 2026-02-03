@@ -1,6 +1,8 @@
-import React, { useRef, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { flexRow } from '../../design-system/styles';
+import { animations, iconSizes, shadows, spacing, typography, zIndex } from '../../design-system/tokens';
 
 interface FindOnPageBarProps {
   visible: boolean;
@@ -34,29 +36,27 @@ export const FindOnPageBar = ({
     if (visible) {
       Animated.spring(slideAnim, {
         toValue: 0,
-        useNativeDriver: false, // height/bottom animations usually don't support native driver with layout props perfectly, but transform does. 
-        // We are using 'bottom' with Animated.Value (keyboardHeight), which works better with useNativeDriver: false on some versions, 
-        // but let's try false to be safe with mixing style props.
+        useNativeDriver: false,
         friction: 8
       }).start(() => {
-          inputRef.current?.focus();
+        inputRef.current?.focus();
       });
     } else {
       Animated.timing(slideAnim, {
         toValue: 100,
-        duration: 200,
+        duration: animations.normal,
         useNativeDriver: false
       }).start();
       inputRef.current?.blur();
     }
   }, [visible]);
 
-  if (!visible) return null; 
-  
+  if (!visible) return null;
+
   return (
     <Animated.View style={[
-      styles.container, 
-      { 
+      styles.container,
+      {
         backgroundColor: theme.surface,
         borderTopLeftRadius: cornerRadius,
         borderTopRightRadius: cornerRadius,
@@ -64,31 +64,49 @@ export const FindOnPageBar = ({
         transform: [{ translateY: slideAnim }]
       }
     ]}>
-      <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderRadius: cornerRadius - 4 }]}>
-        <Ionicons name="search" size={20} color={theme.textSec} style={{ marginLeft: 8 }} />
+      <View style={[
+        styles.inputContainer,
+        {
+          backgroundColor: theme.inputBg,
+          borderRadius: cornerRadius - spacing.xxs
+        }
+      ]}>
+        <Ionicons
+          name="search"
+          size={iconSizes.sm}
+          color={theme.textSec}
+          style={{ marginLeft: spacing.xs }}
+        />
         <TextInput
-            ref={inputRef}
-            style={[styles.input, { color: theme.text, fontSize: 16 * fontScale }]}
-            placeholder="Find in page..."
-            placeholderTextColor={theme.textSec}
-            onChangeText={onChangeText}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            onSubmitEditing={onNext}
+          ref={inputRef}
+          style={[
+            styles.input,
+            {
+              color: theme.text,
+              fontSize: typography.sizes.base * fontScale,
+              fontFamily: typography.families.semibold,
+            }
+          ]}
+          placeholder="Find in page..."
+          placeholderTextColor={theme.textSec}
+          onChangeText={onChangeText}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          onSubmitEditing={onNext}
         />
       </View>
 
       <View style={styles.controls}>
-          <TouchableOpacity onPress={onPrev} style={styles.btn}>
-            <Ionicons name="chevron-up" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onNext} style={styles.btn}>
-            <Ionicons name="chevron-down" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={[styles.btn, { marginLeft: 8 }]}>
-            <Ionicons name="close" size={24} color={theme.textSec} />
-          </TouchableOpacity>
+        <TouchableOpacity onPress={onPrev} style={styles.btn}>
+          <Ionicons name="chevron-up" size={iconSizes.md} color={theme.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onNext} style={styles.btn}>
+          <Ionicons name="chevron-down" size={iconSizes.md} color={theme.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onClose} style={[styles.btn, { marginLeft: spacing.xs }]}>
+          <Ionicons name="close" size={iconSizes.md} color={theme.textSec} />
+        </TouchableOpacity>
       </View>
     </Animated.View>
   );
@@ -100,36 +118,27 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    zIndex: 100,
-    elevation: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...flexRow,
+    paddingHorizontal: spacing.sm - 2,
+    zIndex: zIndex.modal,
+    ...shadows.md,
   },
   inputContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...flexRow,
     height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    marginRight: spacing.sm - 2,
   },
   input: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: 8,
-    fontFamily: "Nunito_600SemiBold",
+    paddingHorizontal: spacing.xs,
   },
   controls: {
-      flexDirection: 'row',
-      alignItems: 'center'
+    ...flexRow,
   },
   btn: {
-      padding: 4,
-      marginHorizontal: 2
+    padding: spacing.xxs,
+    marginHorizontal: spacing.xxs / 2,
   }
 });

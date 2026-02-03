@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React, { useRef, useState, useEffect } from 'react';
-import { LayoutAnimation, TextInput, TouchableOpacity, View, SectionList, Text, Pressable } from 'react-native';
-import { HistoryItem } from '../../types';
-import SwipeableHistoryRow from "./SwipeableHistoryRow";
-import { groupHistoryByDate, groupHistoryBySite, getSmartDate, getFaviconUrl } from "../../utils";
+import React, { useEffect, useRef, useState } from 'react';
+import { LayoutAnimation, Pressable, SectionList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { HISTORY_RANGES } from '../../constants';
+import { flexCenter, flexRow } from '../../design-system/styles';
+import { borderWidths, iconSizes, shadows, spacing, touchTargets, typography } from '../../design-system/tokens';
+import { HistoryItem } from '../../types';
+import { getFaviconUrl, getSmartDate, groupHistoryByDate, groupHistoryBySite } from "../../utils";
+import SwipeableHistoryRow from "./SwipeableHistoryRow";
 
 interface HistoryViewProps {
   history: HistoryItem[];
@@ -43,11 +45,11 @@ const getHistoryHeight = (uiPadding: string, fontScale: number) => {
 const getMargin = (uiPadding: string) => {
   switch (uiPadding) {
     case "compact":
-      return 8;
+      return spacing.xs;
     case "normal":
-      return 15;
+      return spacing.md - 1;
     case "airy":
-      return 25;
+      return spacing.xl + 1;
   }
 };
 
@@ -58,29 +60,28 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
   return (
     <View
       style={{
-        marginBottom: 10,
+        marginBottom: spacing.sm - 2,
         backgroundColor: theme.card,
         borderRadius: cornerRadius,
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 15,
+        ...flexRow,
+        paddingHorizontal: spacing.md - 1,
         height: 50,
         zIndex: 1000,
       }}
     >
       <Ionicons
         name="search"
-        size={20}
+        size={iconSizes.sm}
         color={theme.textSec}
-        style={{ marginRight: 10 }}
+        style={{ marginRight: spacing.sm - 2 }}
       />
       <TextInput
         ref={ref}
         style={{
           flex: 1,
           color: theme.text,
-          fontFamily: "Nunito_600SemiBold",
-          fontSize: 16,
+          fontFamily: typography.families.semibold,
+          fontSize: typography.sizes.base,
         }}
         placeholder="Search History..."
         placeholderTextColor={theme.textSec}
@@ -100,7 +101,7 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
         >
           <Ionicons
             name="close-circle"
-            size={20}
+            size={iconSizes.sm}
             color={theme.textSec}
           />
         </TouchableOpacity>
@@ -108,11 +109,11 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
         <View style={{ position: 'relative' }}>
           <TouchableOpacity
             onPress={() => setMenuVisible(!menuVisible)}
-            style={{ padding: 5 }}
+            style={{ padding: spacing.xxs + 1 }}
           >
             <Ionicons
               name="ellipsis-vertical"
-              size={20}
+              size={iconSizes.sm}
               color={theme.textSec}
             />
           </TouchableOpacity>
@@ -129,8 +130,8 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
                   zIndex: 1
                 }}
                 onPress={() => {
-                    setMenuVisible(false);
-                    setClearHistoryVisible(false);
+                  setMenuVisible(false);
+                  setClearHistoryVisible(false);
                 }}
               />
               <View
@@ -139,60 +140,55 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
                   top: 30,
                   right: 0,
                   backgroundColor: theme.surface,
-                  borderRadius: 10,
-                  padding: 5,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 3.84,
-                  elevation: 5,
+                  borderRadius: spacing.sm - 2,
+                  padding: spacing.xxs + 1,
+                  ...shadows.md,
                   zIndex: 2,
                   minWidth: 180,
-                  borderWidth: 1,
+                  borderWidth: borderWidths.thin,
                   borderColor: theme.bg
                 }}
               >
                 <TouchableOpacity
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                    ...flexRow,
                     justifyContent: 'space-between',
-                    padding: 10,
+                    padding: spacing.sm - 2,
                   }}
                   onPress={() => {
                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                     setClearHistoryVisible(!clearHistoryVisible);
                   }}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="trash-outline" size={18} color={theme.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: theme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 14 * fontScale }}>Clear History</Text>
+                  <View style={{ ...flexRow }}>
+                    <Ionicons name="trash-outline" size={iconSizes.sm - 2} color={theme.text} style={{ marginRight: spacing.sm - 2 }} />
+                    <Text style={{ color: theme.text, fontFamily: typography.families.semibold, fontSize: typography.sizes.sm * fontScale }}>Clear History</Text>
                   </View>
-                  <Ionicons name={clearHistoryVisible ? "chevron-up" : "chevron-down"} size={16} color={theme.text} />
+                  <Ionicons name={clearHistoryVisible ? "chevron-up" : "chevron-down"} size={iconSizes.xs} color={theme.text} />
                 </TouchableOpacity>
-                
+
                 {clearHistoryVisible && (
-                    <View style={{ borderTopWidth: 1, borderTopColor: theme.bg, marginTop: 5, paddingTop: 5 }}>
-                        {HISTORY_RANGES.map((range: any, index: number) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={{
-                                    paddingVertical: 10,
-                                    paddingHorizontal: 15,
-                                    paddingLeft: 38, // Indent to align with text above
-                                }}
-                                onPress={() => {
-                                    setMenuVisible(false);
-                                    setClearHistoryVisible(false);
-                                    onRequestClearHistory(range.ms, range.label);
-                                }}
-                            >
-                                <Text style={{ color: theme.text, fontFamily: 'Nunito_600SemiBold', fontSize: 13 * fontScale }}>
-                                    {range.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                  <View style={{ borderTopWidth: 1, borderTopColor: theme.bg, marginTop: 5, paddingTop: 5 }}>
+                    {HISTORY_RANGES.map((range: any, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={{
+                          paddingVertical: 10,
+                          paddingHorizontal: 15,
+                          paddingLeft: 38, // Indent to align with text above
+                        }}
+                        onPress={() => {
+                          setMenuVisible(false);
+                          setClearHistoryVisible(false);
+                          onRequestClearHistory(range.ms, range.label);
+                        }}
+                      >
+                        <Text style={{ color: theme.text, fontFamily: typography.families.semibold, fontSize: typography.sizes.xs * fontScale * 1.08 }}>
+                          {range.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 )}
               </View>
             </>
@@ -225,9 +221,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     console.log("=== HISTORY VIEW OPENED ===");
     console.log(`Total History Items: ${history.length}`);
     console.log("Latest History Data:", JSON.stringify(history.slice(0, 5).map(h => ({
-        url: h.url,
-        title: h.title,
-        timestamp: h.timestamp
+      url: h.url,
+      title: h.title,
+      timestamp: h.timestamp
     })), null, 2));
   }, []);
 
@@ -253,14 +249,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   const toggleSection = (title: string) => {
     setCollapsedSections(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(title)) {
-            newSet.delete(title);
-        } else {
-            newSet.add(title);
-        }
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        return newSet;
+      const newSet = new Set(prev);
+      if (newSet.has(title)) {
+        newSet.delete(title);
+      } else {
+        newSet.add(title);
+      }
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      return newSet;
     });
   };
 
@@ -275,12 +271,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   );
 
   const visibleHistory = filteredHistory.slice(0, visibleCount);
-  
+
   const historySections = React.useMemo(() => {
-      if (historyGrouping === "Site") {
-          return groupHistoryBySite(visibleHistory);
-      }
-      return groupHistoryByDate(visibleHistory);
+    if (historyGrouping === "Site") {
+      return groupHistoryBySite(visibleHistory);
+    }
+    return groupHistoryByDate(visibleHistory);
   }, [visibleHistory, historyGrouping]);
 
   // Auto-load more if nothing is visible due to collapses (ignore collapse if searching)
@@ -295,7 +291,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   const loadMore = () => {
     if (visibleCount < filteredHistory.length) {
-        setVisibleCount((prev) => prev + CHUNK_SIZE);
+      setVisibleCount((prev) => prev + CHUNK_SIZE);
     }
   };
 
@@ -308,22 +304,22 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ 
-          width: '100%', 
-          paddingHorizontal: 20, 
-          paddingTop: 20, 
-          zIndex: 1000, 
-          elevation: 10 
+      <View style={{
+        width: '100%',
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.lg,
+        zIndex: 1000,
+        elevation: 10
       }}>
-        <SearchHeader 
-            ref={searchInputRef}
-            theme={theme} 
-            cornerRadius={cornerRadius} 
-            searchText={searchText} 
-            onFocusSearch={onFocusSearch} 
-            setSearchText={setSearchText}
-            onRequestClearHistory={onRequestClearHistory}
-            fontScale={fontScale}
+        <SearchHeader
+          ref={searchInputRef}
+          theme={theme}
+          cornerRadius={cornerRadius}
+          searchText={searchText}
+          onFocusSearch={onFocusSearch}
+          setSearchText={setSearchText}
+          onRequestClearHistory={onRequestClearHistory}
+          fontScale={fontScale}
         />
       </View>
       <SectionList
@@ -340,33 +336,33 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         onScroll={(e) => {
-            const offsetY = e.nativeEvent.contentOffset.y;
-            if (offsetY > 100 && !showScrollTop) {
-                setShowScrollTop(true);
-            } else if (offsetY <= 100 && showScrollTop) {
-                setShowScrollTop(false);
-            }
+          const offsetY = e.nativeEvent.contentOffset.y;
+          if (offsetY > 100 && !showScrollTop) {
+            setShowScrollTop(true);
+          } else if (offsetY <= 100 && showScrollTop) {
+            setShowScrollTop(false);
+          }
         }}
         scrollEventThrottle={16}
         renderSectionHeader={({ section: { title } }) => (
           <TouchableOpacity onPress={() => toggleSection(title)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {historyGrouping === "Site" && (
-                    <Image
-                        source={{ uri: getFaviconUrl(title) || "" }}
-                        style={{ width: 16, height: 16, borderRadius: 2, marginRight: 8 }}
-                        contentFit="contain"
-                    />
-                )}
-                <Text
-                    style={{
-                    color: theme.textSec,
-                    fontFamily: "Nunito_700Bold",
-                    fontSize: 14 * fontScale
-                    }}
-                >
-                    {title}
-                </Text>
+              {historyGrouping === "Site" && (
+                <Image
+                  source={{ uri: getFaviconUrl(title) || "" }}
+                  style={{ width: 16, height: 16, borderRadius: 2, marginRight: 8 }}
+                  contentFit="contain"
+                />
+              )}
+              <Text
+                style={{
+                  color: theme.textSec,
+                  fontFamily: typography.families.bold,
+                  fontSize: typography.sizes.sm * fontScale
+                }}
+              >
+                {title}
+              </Text>
             </View>
             <Ionicons name={(collapsedSections.has(title) && !isSearching) ? "chevron-down" : "chevron-up"} size={16} color={theme.textSec} />
           </TouchableOpacity>
@@ -375,17 +371,17 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           if (collapsedSections.has(section.title) && !isSearching) return null;
           return (
             <SwipeableHistoryRow
-            item={item}
-            theme={rowTheme}
-            accent={accentColor}
-            radius={cornerRadius}
-            height={getHistoryHeight(uiPadding, fontScale)}
-            margin={getMargin(uiPadding)}
-            fontScale={fontScale}
-            timeString={getSmartDate(item.timestamp)}
-            onPress={onPressItem}
-            onDelete={onDeleteItem}
-          />
+              item={item}
+              theme={rowTheme}
+              accent={accentColor}
+              radius={cornerRadius}
+              height={getHistoryHeight(uiPadding, fontScale)}
+              margin={getMargin(uiPadding)}
+              fontScale={fontScale}
+              timeString={getSmartDate(item.timestamp)}
+              onPress={onPressItem}
+              onDelete={onDeleteItem}
+            />
           );
         }}
         ListEmptyComponent={
@@ -407,29 +403,24 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           </View>
         }
       />
-       {showScrollTop && (
+      {showScrollTop && (
         <TouchableOpacity
           style={{
             position: 'absolute',
-            bottom: 20,
-            right: 20,
-            width: 44,
-            height: 44,
-            borderRadius: 22,
+            bottom: spacing.lg,
+            right: spacing.lg,
+            width: touchTargets.minimum,
+            height: touchTargets.minimum,
+            borderRadius: touchTargets.minimum / 2,
             backgroundColor: theme.card,
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-            elevation: 5,
-            borderWidth: 1,
+            ...flexCenter,
+            ...shadows.md,
+            borderWidth: borderWidths.thin,
             borderColor: theme.bg
           }}
           onPress={() => sectionListRef.current?.scrollToLocation({ sectionIndex: 0, itemIndex: 0, animated: true })}
         >
-          <Ionicons name="arrow-up" size={24} color={theme.text} />
+          <Ionicons name="arrow-up" size={iconSizes.md} color={theme.text} />
         </TouchableOpacity>
       )}
     </View>

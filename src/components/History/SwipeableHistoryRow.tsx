@@ -9,6 +9,8 @@ import {
   View,
 } from "react-native";
 import { SCREEN_WIDTH } from "../../constants";
+import { flexCenter, flexRow } from "../../design-system/styles";
+import { animations, iconSizes, spacing, typography, withOpacity } from "../../design-system/tokens";
 import { getDisplayHost } from "../../utils";
 
 const SwipeableHistoryRow = ({
@@ -31,7 +33,7 @@ const SwipeableHistoryRow = ({
   useEffect(() => {
     Animated.timing(itemHeight, {
       toValue: height,
-      duration: 200,
+      duration: animations.normal,
       useNativeDriver: false,
     }).start();
   }, [height, itemHeight]);
@@ -54,17 +56,17 @@ const SwipeableHistoryRow = ({
           Animated.parallel([
             Animated.timing(translateX, {
               toValue: -SCREEN_WIDTH,
-              duration: 200,
+              duration: animations.normal,
               useNativeDriver: false,
             }),
             Animated.timing(itemHeight, {
               toValue: 0,
-              duration: 200,
+              duration: animations.normal,
               useNativeDriver: false,
             }),
             Animated.timing(opacity, {
               toValue: 0,
-              duration: 200,
+              duration: animations.normal,
               useNativeDriver: false,
             }),
           ]).start(() => onDelete(item.id));
@@ -96,14 +98,14 @@ const SwipeableHistoryRow = ({
       <View
         style={{
           position: "absolute",
-          right: 20,
+          right: spacing.lg,
           top: 0,
           bottom: 0,
           justifyContent: "center",
         }}
       >
         <Animated.View style={{ transform: [{ scale: iconScale }] }}>
-          <Ionicons name="trash" size={20} color="#ff3b30" />
+          <Ionicons name="trash" size={iconSizes.sm} color="#ff3b30" />
         </Animated.View>
       </View>
 
@@ -128,8 +130,17 @@ const SwipeableHistoryRow = ({
           ]}
           onPress={() => onPress(item)}
         >
-          <View style={[styles.historyIconBox, { width: 28, height: 28 }]}>
-            <Ionicons name="time-outline" size={16} color="#555" />
+          <View style={[
+            styles.historyIconBox,
+            {
+              width: spacing.lg + 4,
+              height: spacing.lg + 4,
+              borderRadius: radius / 2.5,
+              backgroundColor: withOpacity(theme.text, 0.2),
+              marginRight: spacing.md - 1,
+            }
+          ]}>
+            <Ionicons name="time-outline" size={iconSizes.xs} color={theme.textSec} />
           </View>
           <View style={{ flex: 1 }}>
             <Text
@@ -137,24 +148,23 @@ const SwipeableHistoryRow = ({
                 styles.historyTitle,
                 {
                   color: theme.text,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 14 * fontScale,
+                  fontFamily: typography.families.semibold,
+                  fontSize: typography.sizes.sm * fontScale,
                 },
               ]}
               numberOfLines={1}
             >
               {item.title || "Untitled"}
             </Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ ...flexRow }}>
               <Text
                 style={{
                   color: accent,
-                  fontSize: 10 * fontScale,
-                  marginRight: 6,
-                  fontFamily: "Nunito_700Bold",
+                  fontSize: typography.sizes.xs * fontScale,
+                  marginRight: spacing.xs - 2,
+                  fontFamily: typography.families.bold,
                 }}
               >
-                {/* USE PROP HERE */}
                 {timeString}
               </Text>
               <Text
@@ -162,8 +172,8 @@ const SwipeableHistoryRow = ({
                   styles.historyUrl,
                   {
                     color: theme.textSec,
-                    fontFamily: "Nunito_400Regular",
-                    fontSize: 10 * fontScale,
+                    fontFamily: typography.families.regular,
+                    fontSize: typography.sizes.xs * fontScale,
                   },
                 ]}
                 numberOfLines={1}
@@ -172,7 +182,7 @@ const SwipeableHistoryRow = ({
               </Text>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={14} color={theme.textSec} />
+          <Ionicons name="chevron-forward" size={iconSizes.sm} color={theme.textSec} />
         </TouchableOpacity>
       </Animated.View>
     </Animated.View>
@@ -183,20 +193,16 @@ const styles = StyleSheet.create({
   historyItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 15,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md - 1,
   },
   historyIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(120,120,120,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 15,
+    ...flexCenter,
   },
-  historyTitle: { fontSize: 16, marginBottom: 2 },
-  historyUrl: { fontSize: 12 },
+  historyTitle: {
+    marginBottom: spacing.xxs / 2
+  },
+  historyUrl: {},
 });
 
 export default React.memo(SwipeableHistoryRow);

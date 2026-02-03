@@ -72,6 +72,8 @@ import { QRGeneratorView } from "../src/components/QR/QRGeneratorView";
 import { QRScannerView } from "../src/components/QR/QRScannerView";
 import { SettingsView } from "../src/components/Settings/SettingsView";
 import { TabsView } from "../src/components/Tabs/TabsView";
+import { iconSizes, spacing, typography } from "../src/design-system/tokens";
+
 
 export default function App() {
   const insets = useSafeAreaInsets();
@@ -206,12 +208,12 @@ export default function App() {
         buttons: buttons.length
           ? buttons
           : [
-              {
-                text: "OK",
-                onPress: () =>
-                  setAlertConfig((prev) => ({ ...prev, visible: false })),
-              },
-            ],
+            {
+              text: "OK",
+              onPress: () =>
+                setAlertConfig((prev) => ({ ...prev, visible: false })),
+            },
+          ],
       });
     },
     [],
@@ -258,7 +260,7 @@ export default function App() {
               newCurrentIndex >= 0 &&
               newHistoryStack[newCurrentIndex] &&
               normalize(newHistoryStack[newCurrentIndex]) ===
-                normalize(targetUrl)
+              normalize(targetUrl)
             ) {
               // Update the stack entry to the exact new URL (e.g. capturing canonical form)
               newHistoryStack[newCurrentIndex] = targetUrl;
@@ -268,7 +270,7 @@ export default function App() {
               newCurrentIndex > 0 &&
               newHistoryStack[newCurrentIndex - 1] &&
               normalize(newHistoryStack[newCurrentIndex - 1]) ===
-                normalize(targetUrl)
+              normalize(targetUrl)
             ) {
               newCurrentIndex--;
             }
@@ -277,7 +279,7 @@ export default function App() {
               newCurrentIndex < newHistoryStack.length - 1 &&
               newHistoryStack[newCurrentIndex + 1] &&
               normalize(newHistoryStack[newCurrentIndex + 1]) ===
-                normalize(targetUrl)
+              normalize(targetUrl)
             ) {
               newCurrentIndex++;
             }
@@ -299,7 +301,7 @@ export default function App() {
                 if (
                   newHistoryStack.length === 0 ||
                   normalize(newHistoryStack[newHistoryStack.length - 1]) !==
-                    normalize(targetUrl)
+                  normalize(targetUrl)
                 ) {
                   newHistoryStack.push(targetUrl);
                   newCurrentIndex = newHistoryStack.length - 1;
@@ -421,7 +423,7 @@ export default function App() {
       if (
         newHistoryStack.length === 0 ||
         normalize(newHistoryStack[newHistoryStack.length - 1]) !==
-          normalize(url)
+        normalize(url)
       ) {
         newHistoryStack.push(url);
         newCurrentIndex = newHistoryStack.length - 1;
@@ -845,9 +847,9 @@ export default function App() {
             try {
               // Fire and forget deletion of old file
               FileSystem.deleteAsync(oldImage, { idempotent: true }).catch(
-                () => {},
+                () => { },
               );
-            } catch {}
+            } catch { }
           }
 
           // Log cache count
@@ -859,7 +861,7 @@ export default function App() {
             console.log(
               `Total preview images in cache: ${previewFiles.length}`,
             );
-          } catch {}
+          } catch { }
         }
 
         // Sanitization: If no tabs have URLs, clear all previews
@@ -876,7 +878,7 @@ export default function App() {
             }
             if (previewFiles.length > 0)
               console.log("Sanitized all preview images.");
-          } catch {}
+          } catch { }
         }
       } catch (e) {
         console.log("Failed to capture preview", e);
@@ -1021,7 +1023,7 @@ export default function App() {
         url: activeUrl,
         title: "Share Link",
       });
-    } catch {}
+    } catch { }
   };
 
   const handleClearAllTabs = () => {
@@ -1041,7 +1043,7 @@ export default function App() {
                 await FileSystem.deleteAsync(t.previewImage, {
                   idempotent: true,
                 });
-              } catch {}
+              } catch { }
             }
           }
 
@@ -1242,13 +1244,13 @@ export default function App() {
               if (
                 currentTab?.canGoForward &&
                 (currentTab?.currentIndex ?? 0) <
-                  (currentTab.historyStack?.length ?? 0) - 1
+                (currentTab.historyStack?.length ?? 0) - 1
               ) {
                 currentWebView?.goForward();
               } else if (
                 currentTab &&
                 (currentTab.currentIndex ?? 0) <
-                  (currentTab.historyStack?.length ?? 0) - 1
+                (currentTab.historyStack?.length ?? 0) - 1
               ) {
                 const next =
                   currentTab.historyStack?.[(currentTab.currentIndex ?? 0) + 1];
@@ -1686,7 +1688,7 @@ export default function App() {
                         }, 0);
                       }
                     }
-                  } catch {}
+                  } catch { }
                 }
               }}
               injectedJavaScript={INJECTED_CONTEXT_MENU_SCRIPT}
@@ -2535,12 +2537,12 @@ export default function App() {
                         >
                           {(currentTab?.canGoBack ||
                             (currentTab?.currentIndex ?? 0) > 0) && (
-                            <Ionicons
-                              name="arrow-back"
-                              size={28}
-                              color={effectiveTheme.text}
-                            />
-                          )}
+                              <Ionicons
+                                name="arrow-back"
+                                size={28}
+                                color={effectiveTheme.text}
+                              />
+                            )}
                         </Animated.View>
                         <Animated.View
                           pointerEvents="none"
@@ -2551,13 +2553,13 @@ export default function App() {
                         >
                           {(currentTab?.canGoForward ||
                             (currentTab?.currentIndex ?? 0) <
-                              (currentTab?.historyStack?.length ?? 0) - 1) && (
-                            <Ionicons
-                              name="arrow-forward"
-                              size={28}
-                              color={effectiveTheme.text}
-                            />
-                          )}
+                            (currentTab?.historyStack?.length ?? 0) - 1) && (
+                              <Ionicons
+                                name="arrow-forward"
+                                size={iconSizes.lg}
+                                color={effectiveTheme.text}
+                              />
+                            )}
                         </Animated.View>
 
                         <Animated.View
@@ -2583,17 +2585,17 @@ export default function App() {
                                 zIndex: 0,
                                 ...(progressBarMode === "center"
                                   ? {
-                                      left: 0,
-                                      right: 0,
-                                      transform: [{ scaleX: progressAnim }],
-                                    }
+                                    left: 0,
+                                    right: 0,
+                                    transform: [{ scaleX: progressAnim }],
+                                  }
                                   : {
-                                      left: 0,
-                                      width: progressAnim.interpolate({
-                                        inputRange: [0, 1],
-                                        outputRange: ["0%", "100%"],
-                                      }),
+                                    left: 0,
+                                    width: progressAnim.interpolate({
+                                      inputRange: [0, 1],
+                                      outputRange: ["0%", "100%"],
                                     }),
+                                  }),
                               }}
                             />
                           )}
@@ -2603,9 +2605,9 @@ export default function App() {
                               styles.urlInput,
                               {
                                 color: effectiveTheme.text,
-                                fontFamily: "Nunito_600SemiBold",
+                                fontFamily: typography.families.semibold,
                                 zIndex: 1,
-                                fontSize: 16 * fontScale,
+                                fontSize: typography.sizes.base * fontScale,
                               },
                             ]}
                             value={inputUrl}
@@ -2638,11 +2640,11 @@ export default function App() {
                                   setInputUrl("");
                                   urlInputRef.current?.focus();
                                 }}
-                                style={{ marginRight: 8 }}
+                                style={{ marginRight: spacing.xs }}
                               >
                                 <Ionicons
                                   name="close-circle"
-                                  size={18}
+                                  size={iconSizes.sm - 2}
                                   color={effectiveTheme.textSec}
                                 />
                               </TouchableOpacity>
@@ -2651,13 +2653,13 @@ export default function App() {
                               onPress={() =>
                                 setForceSearchMode(!forceSearchMode)
                               }
-                              style={{ marginRight: 8 }}
+                              style={{ marginRight: spacing.xs }}
                             >
                               <Ionicons
                                 name={
                                   SEARCH_ENGINES[searchEngineIndex].icon as any
                                 }
-                                size={22}
+                                size={iconSizes.md - 2}
                                 color={
                                   forceSearchMode
                                     ? accentColor
@@ -2669,7 +2671,7 @@ export default function App() {
                               <TouchableOpacity onPress={handleGoPress}>
                                 <Ionicons
                                   name="search"
-                                  size={22}
+                                  size={iconSizes.md - 2}
                                   color={accentColor}
                                 />
                               </TouchableOpacity>
@@ -2827,9 +2829,9 @@ export default function App() {
             <Text
               style={{
                 color: effectiveTheme.textSec,
-                fontFamily: "Nunito_600SemiBold",
-                marginBottom: 20,
-                fontSize: 16,
+                fontFamily: typography.families.semibold,
+                marginBottom: spacing.lg,
+                fontSize: typography.sizes.base,
               }}
             >
               {confirmActionType === "history"
@@ -2906,7 +2908,7 @@ export default function App() {
                           },
                         );
                       }
-                    } catch {}
+                    } catch { }
 
                     // 4. Close Overlay
                     closeOverlay();
@@ -2995,9 +2997,9 @@ export default function App() {
                 style={{
                   flex: 1,
                   color: effectiveTheme.text,
-                  fontFamily: "Nunito_600SemiBold",
+                  fontFamily: typography.families.semibold,
                   height: 48,
-                  fontSize: 16,
+                  fontSize: typography.sizes.base,
                 }}
                 value={renameText}
                 onChangeText={setRenameText}
@@ -3011,7 +3013,7 @@ export default function App() {
                 >
                   <Ionicons
                     name="close-circle"
-                    size={20}
+                    size={iconSizes.sm}
                     color={effectiveTheme.textSec}
                   />
                 </TouchableOpacity>

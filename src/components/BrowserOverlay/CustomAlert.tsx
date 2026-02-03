@@ -1,5 +1,7 @@
 import React from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { flexCenter } from "../../design-system/styles";
+import { shadows, spacing, typography, withOpacity } from "../../design-system/tokens";
 
 interface AlertButton {
   text: string;
@@ -22,7 +24,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
   visible,
   title,
   message,
-  buttons = [{ text: 'OK', style: 'default', onPress: () => {} }],
+  buttons = [{ text: 'OK', style: 'default', onPress: () => { } }],
   theme,
   accentColor,
   fontScale,
@@ -35,12 +37,32 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
       visible={visible}
       onRequestClose={onDismiss}
     >
-      <View style={styles.centeredView}>
-        <View style={[styles.modalView, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.modalTitle, { color: theme.text, fontSize: 18 * fontScale }]}>
+      <View style={[styles.centeredView, { backgroundColor: withOpacity('#000000', 0.5) }]}>
+        <View style={[
+          styles.modalView,
+          {
+            backgroundColor: theme.surface,
+            borderRadius: spacing.lg,
+          }
+        ]}>
+          <Text style={[
+            styles.modalTitle,
+            {
+              color: theme.text,
+              fontSize: typography.sizes.lg * fontScale,
+              fontFamily: typography.families.bold,
+            }
+          ]}>
             {title}
           </Text>
-          <Text style={[styles.modalMessage, { color: theme.textSec, fontSize: 14 * fontScale }]}>
+          <Text style={[
+            styles.modalMessage,
+            {
+              color: theme.textSec,
+              fontSize: typography.sizes.sm * fontScale,
+              fontFamily: typography.families.regular,
+            }
+          ]}>
             {message}
           </Text>
 
@@ -50,9 +72,8 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
                 key={index}
                 style={[
                   styles.button,
-                  btn.style === 'cancel' ? [styles.cancelButton, { borderColor: theme.bg }] : 
-                  btn.style === 'destructive' ? styles.destructiveButton : [styles.defaultButton, { backgroundColor: accentColor }],
-                  // If it's the only button, make it full width (optional, but good for "OK")
+                  btn.style === 'cancel' ? [styles.cancelButton, { borderColor: theme.textSec }] :
+                    btn.style === 'destructive' ? styles.destructiveButton : [styles.defaultButton, { backgroundColor: accentColor }],
                   buttons.length === 1 && { flex: 1 }
                 ]}
                 onPress={() => {
@@ -63,10 +84,13 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
                 <Text
                   style={[
                     styles.textStyle,
-                    { fontSize: 16 * fontScale },
-                    btn.style === 'cancel' ? { color: theme.text } : 
-                    btn.style === 'destructive' ? { color: 'white' } : 
-                    { color: 'white' } // default
+                    {
+                      fontSize: typography.sizes.base * fontScale,
+                      fontFamily: typography.families.bold,
+                    },
+                    btn.style === 'cancel' ? { color: theme.text } :
+                      btn.style === 'destructive' ? { color: 'white' } :
+                        { color: 'white' }
                   ]}
                 >
                   {btn.text}
@@ -83,50 +107,38 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
 const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 20
+    ...flexCenter,
+    padding: spacing.lg,
   },
   modalView: {
     width: '100%',
     maxWidth: 320,
-    borderRadius: 20,
-    padding: 24,
+    padding: spacing.xl,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
+    ...shadows.lg,
   },
   modalTitle: {
-    fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 10
+    marginBottom: spacing.sm - 2,
   },
   modalMessage: {
     textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 22
+    marginBottom: spacing.xl,
+    lineHeight: 22,
   },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "flex-end",
     width: "100%",
-    gap: 10
+    gap: spacing.sm - 2,
   },
   button: {
-    borderRadius: 10,
-    padding: 10,
-    paddingHorizontal: 20,
+    borderRadius: spacing.sm - 2,
+    padding: spacing.sm - 2,
+    paddingHorizontal: spacing.lg,
     minWidth: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1
+    ...flexCenter,
+    flex: 1,
   },
   defaultButton: {
     backgroundColor: "#2196F3",
@@ -137,10 +149,8 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: '#ccc' // Will be overridden if needed or we can pass theme border color
   },
   textStyle: {
-    fontWeight: "bold",
-    textAlign: "center"
+    textAlign: "center",
   },
 });

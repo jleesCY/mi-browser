@@ -1,16 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Animated,
 } from "react-native";
-import { getDisplayHost, getFaviconUrl } from "../../utils";
-import { TabItem } from "../../types";
 import { SCREEN_WIDTH } from "../../constants";
+import { flexCenter } from "../../design-system/styles";
+import { animations, borderWidths, iconSizes, shadows, spacing, touchTargets, typography, withOpacity } from "../../design-system/tokens";
+import { TabItem } from "../../types";
+import { getDisplayHost, getFaviconUrl } from "../../utils";
 
 interface TabCardProps {
   item: TabItem;
@@ -52,7 +54,7 @@ const TabCard = ({
   const handleDelete = () => {
     Animated.timing(fadeAnim, {
       toValue: 0,
-      duration: 150,
+      duration: animations.fast,
       useNativeDriver: true,
     }).start(() => {
       onDelete();
@@ -61,14 +63,14 @@ const TabCard = ({
 
   return (
     <View style={styles.container}>
-      <Animated.View 
-        style={{ 
-          flex: 1, 
+      <Animated.View
+        style={{
+          flex: 1,
           opacity: fadeAnim.interpolate({
             inputRange: [0, 0.3, 1],
             outputRange: [0, 1, 1]
-          }), 
-          transform: [{ scale: fadeAnim }] 
+          }),
+          transform: [{ scale: fadeAnim }]
         }}
       >
         <TouchableOpacity
@@ -80,49 +82,64 @@ const TabCard = ({
               backgroundColor: isActive ? theme.card : theme.surface,
               borderRadius: radius,
               borderColor: isActive ? accent : "transparent",
-              borderWidth: 2,
+              borderWidth: borderWidths.regular,
               overflow: 'hidden'
             },
+            shadows.sm,
           ]}
         >
           {showPreview && (
-              <View style={StyleSheet.absoluteFill}>
-                  <Image 
-                      key={item.previewImage} // Force re-render on URI change
-                      source={{ uri: item.previewImage }} 
-                      style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.6 }} 
-                  />
-                  <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: theme.isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)' }} />
-              </View>
+            <View style={StyleSheet.absoluteFill}>
+              <Image
+                key={item.previewImage}
+                source={{ uri: item.previewImage }}
+                style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.6 }}
+              />
+              <View style={{
+                ...StyleSheet.absoluteFillObject,
+                backgroundColor: theme.isDark ? withOpacity('#000000', 0.5) : withOpacity('#FFFFFF', 0.7)
+              }} />
+            </View>
           )}
 
           <View style={styles.header}>
-              <View
+            <View
               style={[
-                  styles.faviconContainer,
-                  { backgroundColor: isActive ? accent : (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') },
+                styles.faviconContainer,
+                {
+                  backgroundColor: isActive
+                    ? accent
+                    : withOpacity(theme.text, theme.isDark ? 0.1 : 0.05),
+                  borderRadius: radius === 22 ? touchTargets.minimum / 2 : radius / 2,
+                },
               ]}
-              >
+            >
               {showTabLogo && item.url && !imageError ? (
-                  <Image
+                <Image
                   source={{ uri: getFaviconUrl(item.url) || "" }}
-                  style={styles.faviconImage}
+                  style={[styles.faviconImage, { borderRadius: radius === 22 ? touchTargets.minimum / 2 : radius / 2.5 }]}
                   onError={() => setImageError(true)}
-                  />
+                />
               ) : (
-                  <Ionicons
-                    name="globe-outline"
-                    size={36}
-                    color={isActive ? "#fff" : theme.text}
-                  />
+                <Ionicons
+                  name="globe-outline"
+                  size={iconSizes.xl}
+                  color={isActive ? "#fff" : theme.text}
+                />
               )}
-              </View>
-              <TouchableOpacity
-                  onPress={handleDelete}
-                  style={[styles.closeBtn, { backgroundColor: theme.bg }]}
-              >
-                  <Ionicons name="close" size={16} color={theme.text} />
-              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={[
+                styles.closeBtn,
+                {
+                  backgroundColor: theme.bg,
+                  borderRadius: radius / 2,
+                }
+              ]}
+            >
+              <Ionicons name="close" size={iconSizes.xs} color={theme.text} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.content}>
@@ -131,8 +148,8 @@ const TabCard = ({
                 styles.title,
                 {
                   color: theme.text,
-                  fontFamily: "Nunito_700Bold",
-                  fontSize: 14 * fontScale,
+                  fontFamily: typography.families.bold,
+                  fontSize: typography.sizes.sm * fontScale,
                 },
               ]}
               numberOfLines={2}
@@ -144,8 +161,8 @@ const TabCard = ({
                 styles.url,
                 {
                   color: theme.textSec,
-                  fontFamily: "Nunito_600SemiBold",
-                  fontSize: 10 * fontScale,
+                  fontFamily: typography.families.semibold,
+                  fontSize: typography.sizes.xs * fontScale,
                 },
               ]}
               numberOfLines={1}
@@ -153,12 +170,18 @@ const TabCard = ({
               {getDisplayHost(item.url) || "Home"}
             </Text>
           </View>
-          
+
           <TouchableOpacity
-              onPress={onRename}
-              style={[styles.editBtn, { borderColor: theme.textSec }]}
+            onPress={onRename}
+            style={[
+              styles.editBtn,
+              {
+                borderColor: theme.textSec,
+                borderRadius: radius / 2,
+              }
+            ]}
           >
-              <Ionicons name="pencil" size={12} color={theme.textSec} />
+            <Ionicons name="pencil" size={iconSizes.xs - 4} color={theme.textSec} />
           </TouchableOpacity>
 
         </TouchableOpacity>
@@ -170,12 +193,12 @@ const TabCard = ({
 const styles = StyleSheet.create({
   container: {
     width: CARD_WIDTH,
-    marginVertical: 8,
+    marginVertical: spacing.xs,
     aspectRatio: 0.85,
   },
   card: {
     flex: 1,
-    padding: 12,
+    padding: spacing.sm,
     justifyContent: "space-between",
   },
   header: {
@@ -184,52 +207,45 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   faviconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
+    width: touchTargets.minimum,
+    height: touchTargets.minimum,
+    ...flexCenter,
     overflow: "hidden",
   },
   faviconImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: iconSizes.xl + 4,
+    height: iconSizes.xl + 4,
     resizeMode: "cover",
   },
   faviconText: {
     color: "#fff",
   },
   closeBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    width: spacing.xl,
+    height: spacing.xl,
+    ...flexCenter,
   },
   content: {
     flex: 1,
     justifyContent: "center",
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
   title: {
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
   },
   url: {
     opacity: 0.7,
   },
   editBtn: {
-      position: 'absolute',
-      bottom: 10,
-      right: 10,
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      borderWidth: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      opacity: 0.6
+    position: 'absolute',
+    bottom: spacing.sm - 2,
+    right: spacing.sm - 2,
+    width: spacing.xl,
+    height: spacing.xl,
+    borderWidth: borderWidths.thin,
+    ...flexCenter,
+    opacity: 0.6
   }
 });
 

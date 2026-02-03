@@ -1,10 +1,12 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Linking } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
-import { Ionicons } from "@expo/vector-icons";
+import React, { useRef, useState } from 'react';
+import { Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { flexRow } from '../../design-system/styles';
+import { borderWidths, iconSizes, opacity, shadows, spacing, typography } from '../../design-system/tokens';
 import { CustomAlert } from '../BrowserOverlay/CustomAlert';
 
 interface QRGeneratorViewProps {
@@ -36,12 +38,12 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
   });
 
   const showAlert = (title: string, message: string, buttons: any[] = []) => {
-     setAlertConfig({ 
-         visible: true, 
-         title, 
-         message, 
-         buttons: buttons.length ? buttons : [{ text: 'OK', onPress: () => setAlertConfig(prev => ({...prev, visible: false})) }] 
-     });
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      buttons: buttons.length ? buttons : [{ text: 'OK', onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })) }]
+    });
   };
 
   const hideAlert = () => {
@@ -53,47 +55,47 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
       let currentStatus = permissionResponse?.status;
 
       if (currentStatus !== 'granted') {
-          const { status, canAskAgain } = await requestPermission();
-          currentStatus = status;
-          
-          if (currentStatus !== 'granted') {
-              if (!canAskAgain) {
-                 showAlert(
-                     "Permission Required", 
-                     "Photo access has been denied. Please enable it in your device settings to save QR codes.",
-                     [
-                         { text: "Cancel", style: "cancel" },
-                         { text: "Open Settings", onPress: () => Linking.openSettings() }
-                     ]
-                 );
-              } else {
-                 showAlert("Permission Required", "This app needs access to your Photos to save the QR code.");
-              }
-              return;
+        const { status, canAskAgain } = await requestPermission();
+        currentStatus = status;
+
+        if (currentStatus !== 'granted') {
+          if (!canAskAgain) {
+            showAlert(
+              "Permission Required",
+              "Photo access has been denied. Please enable it in your device settings to save QR codes.",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Open Settings", onPress: () => Linking.openSettings() }
+              ]
+            );
+          } else {
+            showAlert("Permission Required", "This app needs access to your Photos to save the QR code.");
           }
+          return;
+        }
       }
 
       if (qrRef.current) {
         qrRef.current.toDataURL(async (data: string) => {
-           try {
-               const fileName = `qrcode_${Date.now()}.png`;
-               const fileUri = FileSystem.cacheDirectory + fileName;
-               
-               // Handle potential data URI prefix
-               const base64Data = data.startsWith('data:image') 
-                 ? data.split('base64,')[1] 
-                 : data;
+          try {
+            const fileName = `qrcode_${Date.now()}.png`;
+            const fileUri = FileSystem.cacheDirectory + fileName;
 
-               await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-                   encoding: 'base64'
-               });
+            // Handle potential data URI prefix
+            const base64Data = data.startsWith('data:image')
+              ? data.split('base64,')[1]
+              : data;
 
-               await MediaLibrary.saveToLibraryAsync(fileUri);
-               showAlert("Success", "QR Code saved to gallery!");
-           } catch (e: any) {
-               console.log("Inner save error:", e);
-               showAlert("Error", "Failed to save QR code: " + (e.message || "Unknown error"));
-           }
+            await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+              encoding: 'base64'
+            });
+
+            await MediaLibrary.saveToLibraryAsync(fileUri);
+            showAlert("Success", "QR Code saved to gallery!");
+          } catch (e: any) {
+            console.log("Inner save error:", e);
+            showAlert("Error", "Failed to save QR code: " + (e.message || "Unknown error"));
+          }
         });
       }
     } catch (e: any) {
@@ -103,32 +105,32 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
   };
 
   const shareQR = () => {
-      if (qrRef.current) {
-        qrRef.current.toDataURL(async (data: string) => {
-           try {
-               const fileName = `qrcode_share_${Date.now()}.png`;
-               const fileUri = FileSystem.cacheDirectory + fileName;
-               
-               const base64Data = data.startsWith('data:image') 
-                 ? data.split('base64,')[1] 
-                 : data;
-                 
-               await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-                   encoding: 'base64'
-               });
+    if (qrRef.current) {
+      qrRef.current.toDataURL(async (data: string) => {
+        try {
+          const fileName = `qrcode_share_${Date.now()}.png`;
+          const fileUri = FileSystem.cacheDirectory + fileName;
 
-               if (!(await Sharing.isAvailableAsync())) {
-                   showAlert("Error", "Sharing is not available on this device");
-                   return;
-               }
+          const base64Data = data.startsWith('data:image')
+            ? data.split('base64,')[1]
+            : data;
 
-               await Sharing.shareAsync(fileUri);
-           } catch (e) {
-               console.log("Share Error", e);
-               showAlert("Error", "Failed to share QR code.");
-           }
-        });
-      }
+          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+            encoding: 'base64'
+          });
+
+          if (!(await Sharing.isAvailableAsync())) {
+            showAlert("Error", "Sharing is not available on this device");
+            return;
+          }
+
+          await Sharing.shareAsync(fileUri);
+        } catch (e) {
+          console.log("Share Error", e);
+          showAlert("Error", "Failed to share QR code.");
+        }
+      });
+    }
   }
 
   return (
@@ -136,9 +138,9 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
       <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: theme.surface }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.text, fontSize: 18 * fontScale }]}>QR Code</Text>
+            <Text style={[styles.title, { color: theme.text, fontSize: typography.sizes.lg * fontScale }]}>QR Code</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={theme.text} />
+              <Ionicons name="close" size={iconSizes.md} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -153,23 +155,23 @@ export const QRGeneratorView: React.FC<QRGeneratorViewProps> = ({
             />
           </View>
 
-          <Text style={[styles.urlText, { color: theme.textSec, fontSize: 12 * fontScale }]} numberOfLines={2}>
+          <Text style={[styles.urlText, { color: theme.textSec, fontSize: typography.sizes.xs * fontScale }]} numberOfLines={2}>
             {url}
           </Text>
 
           <View style={styles.actions}>
             <TouchableOpacity onPress={saveToGallery} style={[styles.actionBtn, { backgroundColor: accentColor }]}>
-                <Ionicons name="download-outline" size={20} color="white" style={{ marginRight: 8 }} />
-                <Text style={{ color: "white", fontWeight: "bold" }}>Save</Text>
+              <Ionicons name="download-outline" size={iconSizes.sm} color="white" style={{ marginRight: spacing.xs }} />
+              <Text style={{ color: "white", fontWeight: "bold" }}>Save</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity onPress={shareQR} style={[styles.actionBtn, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.bg }]}>
-                <Ionicons name="share-social-outline" size={20} color={theme.text} style={{ marginRight: 8 }} />
-                <Text style={{ color: theme.text, fontWeight: "bold" }}>Share</Text>
+
+            <TouchableOpacity onPress={shareQR} style={[styles.actionBtn, { backgroundColor: theme.card, borderWidth: borderWidths.thin, borderColor: theme.bg }]}>
+              <Ionicons name="share-social-outline" size={iconSizes.sm} color={theme.text} style={{ marginRight: spacing.xs }} />
+              <Text style={{ color: theme.text, fontWeight: "bold" }}>Share</Text>
             </TouchableOpacity>
           </View>
         </View>
-        <CustomAlert 
+        <CustomAlert
           visible={alertConfig.visible}
           title={alertConfig.title}
           message={alertConfig.message}
@@ -195,35 +197,30 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 320,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: spacing.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
+    ...shadows.lg,
   },
   header: {
-    flexDirection: 'row',
+    ...flexRow,
     width: '100%',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   title: {
     fontWeight: 'bold',
   },
   qrContainer: {
-    padding: 10,
+    padding: spacing.sm - 2,
     backgroundColor: 'white',
-    borderRadius: 10,
-    marginBottom: 15,
+    borderRadius: spacing.sm - 2,
+    marginBottom: spacing.md - 1,
   },
   urlText: {
     textAlign: 'center',
-    marginBottom: 20,
-    opacity: 0.8,
+    marginBottom: spacing.lg,
+    opacity: opacity.medium,
   },
   actions: {
     flexDirection: 'row',
@@ -233,10 +230,9 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...flexRow,
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: spacing.xs + 4,
+    borderRadius: spacing.sm - 2,
   }
 });

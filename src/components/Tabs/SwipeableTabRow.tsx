@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Image,
   Text,
   TouchableOpacity,
   View,
-  Animated,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Swipeable } from "react-native-gesture-handler";
+import { flexCenter } from "../../design-system/styles";
+import { animations, borderWidths, iconSizes, spacing, touchTargets, typography, withOpacity } from "../../design-system/tokens";
 import { getDisplayHost, getFaviconUrl } from "../../utils";
 
 const SwipeableTabRow = ({
@@ -34,7 +36,7 @@ const SwipeableTabRow = ({
   const handleDelete = () => {
     Animated.timing(fadeAnim, {
       toValue: 0,
-      duration: 150,
+      duration: animations.fast,
       useNativeDriver: true,
     }).start(() => {
       onDelete();
@@ -52,11 +54,11 @@ const SwipeableTabRow = ({
             alignItems: 'center',
             width: 70,
             height: '100%',
-            marginRight: 2,
+            marginRight: spacing.xxs / 2,
             borderRadius: radius,
           }}
         >
-          <Ionicons name="pencil" size={24} color="#fff" />
+          <Ionicons name="pencil" size={iconSizes.md} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleDelete}
@@ -66,26 +68,23 @@ const SwipeableTabRow = ({
             alignItems: 'center',
             width: 70,
             height: '100%',
-            borderTopRightRadius: radius,
-            borderBottomRightRadius: radius,
-            borderTopLeftRadius: radius,
-            borderBottomLeftRadius: radius,
+            borderRadius: radius,
           }}
         >
-          <Ionicons name="trash" size={24} color="#fff" />
+          <Ionicons name="trash" size={iconSizes.md} color="#fff" />
         </TouchableOpacity>
       </View>
     );
   };
 
   return (
-    <Animated.View 
-      style={{ 
+    <Animated.View
+      style={{
         opacity: fadeAnim.interpolate({
           inputRange: [0, 0.3, 1],
           outputRange: [0, 1, 1]
-        }), 
-        transform: [{ scale: fadeAnim }] 
+        }),
+        transform: [{ scale: fadeAnim }]
       }}
     >
       <Swipeable renderRightActions={renderRightActions}>
@@ -99,32 +98,36 @@ const SwipeableTabRow = ({
             borderRadius: radius,
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 15,
-            borderWidth: 2,
+            paddingHorizontal: spacing.md - 1,
+            borderWidth: borderWidths.regular,
             borderColor: isActive ? accent : 'transparent'
           }}
         >
-          <View style={{ 
-              width: 44, 
-              height: 44, 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              backgroundColor: isActive ? accent : (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
-              borderRadius: 22,
-              marginRight: 15
+          <View style={{
+            width: touchTargets.minimum,
+            height: touchTargets.minimum,
+            ...flexCenter,
+            backgroundColor: isActive ? accent : withOpacity(theme.text, theme.isDark ? 0.1 : 0.05),
+            borderRadius: radius === 22 ? touchTargets.minimum / 2 : radius / 2,
+            marginRight: spacing.md - 1
           }}>
             {showTabLogo && item.url && !imageError ? (
-                <Image 
-                  source={{ uri: getFaviconUrl(item.url) || '' }} 
-                  style={{ width: 36, height: 36, borderRadius: 18, resizeMode: 'cover' }}
-                  onError={() => setImageError(true)}
-                />
+              <Image
+                source={{ uri: getFaviconUrl(item.url) || '' }}
+                style={{
+                  width: iconSizes.xl + 4,
+                  height: iconSizes.xl + 4,
+                  borderRadius: radius === 22 ? (iconSizes.xl + 4) / 2 : radius / 2.5,
+                  resizeMode: 'cover'
+                }}
+                onError={() => setImageError(true)}
+              />
             ) : (
-                <Ionicons 
-                  name="globe-outline" 
-                  size={36} 
-                  color={isActive ? "#fff" : theme.text} 
-                />
+              <Ionicons
+                name="globe-outline"
+                size={iconSizes.xl}
+                color={isActive ? "#fff" : theme.text}
+              />
             )}
           </View>
 
@@ -132,9 +135,9 @@ const SwipeableTabRow = ({
             <Text
               style={{
                 color: theme.text,
-                fontFamily: "Nunito_700Bold",
-                fontSize: 16 * fontScale,
-                marginBottom: 2
+                fontFamily: typography.families.bold,
+                fontSize: typography.sizes.base * fontScale,
+                marginBottom: spacing.xxs / 2
               }}
               numberOfLines={1}
             >
@@ -143,8 +146,8 @@ const SwipeableTabRow = ({
             <Text
               style={{
                 color: theme.textSec,
-                fontFamily: "Nunito_600SemiBold",
-                fontSize: 12 * fontScale,
+                fontFamily: typography.families.semibold,
+                fontSize: typography.sizes.xs * fontScale,
               }}
               numberOfLines={1}
             >

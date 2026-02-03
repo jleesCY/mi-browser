@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, Animated } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Image, Text, TouchableOpacity, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { flexCenter } from '../../design-system/styles';
+import { animations, iconSizes, spacing, touchTargets, typography, withOpacity } from '../../design-system/tokens';
 import { BookmarkNode } from '../../types';
 import { getFaviconUrl } from '../../utils';
-import { Swipeable } from 'react-native-gesture-handler';
 
 interface BookmarkRowProps {
   item: BookmarkNode;
@@ -17,7 +19,7 @@ interface BookmarkRowProps {
   onPress: () => void;
   onDelete: () => void;
   onRename: () => void;
-  onMove?: () => void; // Future: Move to folder
+  onMove?: () => void;
 }
 
 export const BookmarkRow: React.FC<BookmarkRowProps> = ({
@@ -45,7 +47,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
   const handleDelete = () => {
     Animated.timing(fadeAnim, {
       toValue: 0,
-      duration: 150,
+      duration: animations.fast,
       useNativeDriver: true,
     }).start(() => {
       onDelete();
@@ -63,11 +65,11 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
             alignItems: 'center',
             width: 70,
             height: '100%',
-            marginRight: 2,
+            marginRight: spacing.xxs / 2,
             borderRadius: radius,
           }}
         >
-          <Ionicons name="pencil" size={24} color="#fff" />
+          <Ionicons name="pencil" size={iconSizes.md} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleDelete}
@@ -77,26 +79,23 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
             alignItems: 'center',
             width: 70,
             height: '100%',
-            borderTopRightRadius: radius,
-            borderBottomRightRadius: radius,
-            borderTopLeftRadius: radius,
-            borderBottomLeftRadius: radius,
+            borderRadius: radius,
           }}
         >
-          <Ionicons name="trash" size={24} color="#fff" />
+          <Ionicons name="trash" size={iconSizes.md} color="#fff" />
         </TouchableOpacity>
       </View>
     );
   };
 
   return (
-    <Animated.View 
-      style={{ 
+    <Animated.View
+      style={{
         opacity: fadeAnim.interpolate({
           inputRange: [0, 0.3, 1],
           outputRange: [0, 1, 1]
-        }), 
-        transform: [{ scale: fadeAnim }] 
+        }),
+        transform: [{ scale: fadeAnim }]
       }}
     >
       <Swipeable renderRightActions={renderRightActions}>
@@ -110,39 +109,42 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
             borderRadius: radius,
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 15,
+            paddingHorizontal: spacing.md - 1,
           }}
         >
-          <View style={{ 
-              width: 44, 
-              height: 44, 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              backgroundColor: (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
-              borderRadius: 22,
-              marginRight: 15
+          <View style={{
+            width: touchTargets.minimum,
+            height: touchTargets.minimum,
+            ...flexCenter,
+            backgroundColor: withOpacity(theme.text, theme.isDark ? 0.1 : 0.05),
+            borderRadius: radius === 22 ? touchTargets.minimum / 2 : radius / 2,
+            marginRight: spacing.md - 1
           }}>
             {isFolder ? (
-              <Ionicons name="folder" size={36} color={accent} />
+              <Ionicons name="folder" size={iconSizes.xl} color={accent} />
             ) : (
               <>
                 {showIcon ? (
                   <>
                     {((item as any).icon || getFaviconUrl(item.url)) && !imageError ? (
-                        <Image 
-                          source={{ uri: (item as any).icon || getFaviconUrl(item.url) }}
-                          style={{ width: 36, height: 36, borderRadius: 18 }}
-                          onError={() => setImageError(true)}
-                        />
+                      <Image
+                        source={{ uri: (item as any).icon || getFaviconUrl(item.url) }}
+                        style={{
+                          width: iconSizes.xl + 4,
+                          height: iconSizes.xl + 4,
+                          borderRadius: radius === 22 ? (iconSizes.xl + 4) / 2 : radius / 2.5
+                        }}
+                        onError={() => setImageError(true)}
+                      />
                     ) : (
-                        <Ionicons name="globe-outline" size={36} color={theme.text} />
+                      <Ionicons name="globe-outline" size={iconSizes.xl} color={theme.text} />
                     )}
                   </>
                 ) : (
-                  <Text style={{ 
-                    color: theme.text, 
-                    fontFamily: 'Nunito_800ExtraBold', 
-                    fontSize: 20 * fontScale 
+                  <Text style={{
+                    color: theme.text,
+                    fontFamily: typography.families.extrabold,
+                    fontSize: typography.sizes.lg * fontScale
                   }}>
                     {(item.title || "?").charAt(0).toUpperCase()}
                   </Text>
@@ -156,29 +158,29 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
               numberOfLines={1}
               style={{
                 color: theme.text,
-                fontFamily: "Nunito_700Bold",
-                fontSize: 16 * fontScale,
-                marginBottom: 2
+                fontFamily: typography.families.bold,
+                fontSize: typography.sizes.base * fontScale,
+                marginBottom: spacing.xxs / 2
               }}
             >
               {item.title}
             </Text>
             {!isFolder && (
-               <Text
-                 numberOfLines={1}
-                 style={{
-                   color: theme.textSec,
-                   fontFamily: "Nunito_400Regular",
-                   fontSize: 12 * fontScale,
-                 }}
-               >
-                 {item.url}
-               </Text>
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: theme.textSec,
+                  fontFamily: typography.families.regular,
+                  fontSize: typography.sizes.xs * fontScale,
+                }}
+              >
+                {item.url}
+              </Text>
             )}
           </View>
 
           {isFolder && (
-               <Ionicons name="chevron-forward" size={20} color={theme.textSec} />
+            <Ionicons name="chevron-forward" size={iconSizes.sm} color={theme.textSec} />
           )}
         </TouchableOpacity>
       </Swipeable>

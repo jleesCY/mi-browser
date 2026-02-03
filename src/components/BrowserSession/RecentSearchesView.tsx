@@ -2,9 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { HistoryItem } from "../../types";
+import { flexCenter } from "../../design-system/styles";
+import { borderWidths, iconSizes, shadows, spacing, touchTargets, typography, withOpacity } from "../../design-system/tokens";
 import { FavoriteItem } from "../../hooks/useFavorites";
-import { getFaviconUrl, getDisplayHost } from "../../utils";
+import { HistoryItem } from "../../types";
+import { getDisplayHost, getFaviconUrl } from "../../utils";
 import { HorizontalSortableList } from "./HorizontalSortableList";
 
 interface RecentSearchesViewProps {
@@ -38,12 +40,11 @@ const FavoriteIcon = ({ item, theme, onPress }: any) => {
       // Long press is handled by the SortableList parent now
       activeOpacity={0.8}
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        width: touchTargets.minimum,
+        height: touchTargets.minimum,
+        borderRadius: touchTargets.minimum / 2,
+        backgroundColor: withOpacity(theme.text, theme.isDark ? 0.1 : 0.05),
+        ...flexCenter,
       }}
     >
       {favicon && !error ? (
@@ -55,7 +56,7 @@ const FavoriteIcon = ({ item, theme, onPress }: any) => {
           onError={() => setError(true)}
         />
       ) : (
-        <Ionicons name="globe-outline" size={36} color={theme.text} />
+        <Ionicons name="globe-outline" size={iconSizes.lg + 4} color={theme.text} />
       )}
     </TouchableOpacity>
   );
@@ -81,7 +82,7 @@ export const RecentSearchesView = ({
   accentColor,
   fontScale,
 }: RecentSearchesViewProps) => {
-  
+
   const handleAddFavorite = () => {
     if (activeUrl && activeUrl !== "about:blank") {
       onAddFavorite(activeTitle || getDisplayHost(activeUrl), activeUrl);
@@ -115,8 +116,8 @@ export const RecentSearchesView = ({
             <Text
               style={{
                 color: theme.textSec,
-                fontFamily: "Nunito_600SemiBold",
-                fontSize: 16 * fontScale,
+                fontFamily: typography.families.semibold,
+                fontSize: typography.sizes.base * fontScale,
               }}
             >
               {historyItems.length === 0 ? "No recent history" : "No matches found"}
@@ -130,8 +131,8 @@ export const RecentSearchesView = ({
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  paddingVertical: 7,
-                  paddingHorizontal: 18,
+                  paddingVertical: spacing.xs - 1,
+                  paddingHorizontal: spacing.lg - 2,
                 }}
                 onPress={() => onSelect(item)}
               >
@@ -139,8 +140,8 @@ export const RecentSearchesView = ({
                   style={{
                     flex: 1,
                     color: theme.text,
-                    fontFamily: "Nunito_600SemiBold",
-                    fontSize: 15 * fontScale,
+                    fontFamily: typography.families.semibold,
+                    fontSize: (typography.sizes.base - 1) * fontScale,
                   }}
                   numberOfLines={1}
                 >
@@ -153,11 +154,11 @@ export const RecentSearchesView = ({
                     onRemove(item.id);
                   }}
                   style={{
-                    padding: 6,
-                    marginLeft: 8,
+                    padding: spacing.xs - 2,
+                    marginLeft: spacing.xs,
                   }}
                 >
-                  <Ionicons name="close" size={16} color={theme.textSec} />
+                  <Ionicons name="close" size={iconSizes.xs} color={theme.textSec} />
                 </TouchableOpacity>
               </TouchableOpacity>
             );
@@ -172,53 +173,52 @@ export const RecentSearchesView = ({
       style={{ flex: 1, backgroundColor: theme.surface, position: "relative" }}
     >
       {renderContent()}
-      
+
       {/* Favorites Bar at Bottom */}
       <View style={{
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 10,
+        paddingVertical: spacing.sm - 2,
         backgroundColor: theme.glass,
-        borderTopWidth: 1,
+        borderTopWidth: borderWidths.thin,
         borderTopColor: theme.bg
       }}>
         <HorizontalSortableList
           data={favorites}
           keyExtractor={(item) => item.id}
-          itemWidth={60} 
-          itemHeight={44}
+          itemWidth={60}
+          itemHeight={touchTargets.minimum}
           contentContainerStyle={{ justifyContent: 'center', alignItems: 'center' }}
           onReorder={onReorderFavorites}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
           renderItem={({ item }) => (
             <View style={{ width: 60, alignItems: 'center' }}>
-              <FavoriteIcon 
-                item={item} 
-                theme={theme} 
+              <FavoriteIcon
+                item={item}
+                theme={theme}
                 onPress={() => onSelect(item)}
               />
             </View>
           )}
         />
-        
+
         {favorites.length < 5 && (
           <TouchableOpacity
             onPress={handleAddFavorite}
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
+              width: touchTargets.minimum,
+              height: touchTargets.minimum,
+              borderRadius: touchTargets.minimum / 2,
               backgroundColor: theme.card,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginHorizontal: 8,
-              borderWidth: 1,
+              ...flexCenter,
+              marginHorizontal: spacing.xs,
+              borderWidth: borderWidths.thin,
               borderColor: theme.bg
             }}
           >
-            <Ionicons name="add" size={28} color={theme.text} />
+            <Ionicons name="add" size={iconSizes.lg} color={theme.text} />
           </TouchableOpacity>
         )}
       </View>
@@ -228,24 +228,19 @@ export const RecentSearchesView = ({
         onPress={onClose}
         style={{
           position: "absolute",
-          bottom: 80, 
-          right: 20,
+          bottom: 80,
+          right: spacing.lg,
           width: 40,
           height: 40,
           borderRadius: 20,
           backgroundColor: theme.card,
-          justifyContent: "center",
-          alignItems: "center",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
-          elevation: 5,
-          borderWidth: 1,
+          ...flexCenter,
+          ...shadows.md,
+          borderWidth: borderWidths.thin,
           borderColor: theme.bg,
         }}
       >
-        <Ionicons name="chevron-down" size={24} color={theme.text} />
+        <Ionicons name="chevron-down" size={iconSizes.md} color={theme.text} />
       </TouchableOpacity>
     </View>
   );

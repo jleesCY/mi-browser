@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 import { SCREEN_WIDTH, SNAP_DEFAULT } from "../../constants";
+import { flexCenter, flexRow } from "../../design-system/styles";
+import { borderWidths, iconSizes, shadows, spacing, touchTargets, typography } from "../../design-system/tokens";
 import { TabItem } from "../../types";
 import { SortableGrid } from "./SortableGrid";
 import SwipeableTabRow from "./SwipeableTabRow";
@@ -59,13 +61,13 @@ const getTabHeight = (uiPadding: string, fontScale: number) => {
 const getMargin = (uiPadding: string) => {
   switch (uiPadding) {
     case "compact":
-      return 8;
+      return spacing.xs;
     case "normal":
-      return 15;
+      return spacing.md - 1;
     case "airy":
-      return 25;
+      return spacing.xl + 1;
     default:
-      return 15;
+      return spacing.md - 1;
   }
 };
 
@@ -87,29 +89,28 @@ const SearchHeader = React.memo(
       return (
         <View
           style={{
-            marginBottom: 10,
+            marginBottom: spacing.sm - 2,
             backgroundColor: theme.card,
             borderRadius: cornerRadius,
-            flexDirection: "row",
-            alignItems: "center",
-            paddingHorizontal: 15,
+            ...flexRow,
+            paddingHorizontal: spacing.md - 1,
             height: 50,
             width: "100%",
           }}
         >
           <Ionicons
             name="search"
-            size={20}
+            size={iconSizes.sm}
             color={theme.textSec}
-            style={{ marginRight: 10 }}
+            style={{ marginRight: spacing.sm - 2 }}
           />
           <TextInput
             ref={ref}
             style={{
               flex: 1,
               color: theme.text,
-              fontFamily: "Nunito_600SemiBold",
-              fontSize: 16,
+              fontFamily: typography.families.semibold,
+              fontSize: typography.sizes.base,
             }}
             placeholder="Search Tabs..."
             placeholderTextColor={theme.textSec}
@@ -129,17 +130,17 @@ const SearchHeader = React.memo(
                 ref.current?.focus();
               }}
             >
-              <Ionicons name="close-circle" size={20} color={theme.textSec} />
+              <Ionicons name="close-circle" size={iconSizes.sm} color={theme.textSec} />
             </TouchableOpacity>
           ) : (
             <View style={{ position: "relative" }}>
               <TouchableOpacity
                 onPress={() => setMenuVisible(!menuVisible)}
-                style={{ padding: 5 }}
+                style={{ padding: spacing.xxs + 1 }}
               >
                 <Ionicons
                   name="ellipsis-vertical"
-                  size={20}
+                  size={iconSizes.sm}
                   color={theme.textSec}
                 />
               </TouchableOpacity>
@@ -163,24 +164,19 @@ const SearchHeader = React.memo(
                       top: 30,
                       right: 0,
                       backgroundColor: theme.surface,
-                      borderRadius: 10,
-                      padding: 5,
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 3.84,
-                      elevation: 5,
+                      borderRadius: spacing.sm - 2,
+                      padding: spacing.xxs + 1,
+                      ...shadows.md,
                       zIndex: 2,
                       minWidth: 150,
-                      borderWidth: 1,
+                      borderWidth: borderWidths.thin,
                       borderColor: theme.bg,
                     }}
                   >
                     <TouchableOpacity
                       style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        padding: 10,
+                        ...flexRow,
+                        padding: spacing.sm - 2,
                       }}
                       onPress={() => {
                         setMenuVisible(false);
@@ -189,14 +185,14 @@ const SearchHeader = React.memo(
                     >
                       <Ionicons
                         name="trash-outline"
-                        size={18}
+                        size={iconSizes.sm - 2}
                         color={theme.text}
-                        style={{ marginRight: 10 }}
+                        style={{ marginRight: spacing.sm - 2 }}
                       />
                       <Text
                         style={{
                           color: theme.text,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: typography.families.semibold,
                         }}
                       >
                         Clear all tabs
@@ -314,8 +310,8 @@ export const TabsView: React.FC<TabsViewProps> = ({
       <View
         style={{
           width: "100%",
-          paddingHorizontal: 20,
-          paddingTop: 20,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           zIndex: 1000,
         }}
       >
@@ -411,41 +407,31 @@ export const TabsView: React.FC<TabsViewProps> = ({
               height: 40,
               borderRadius: 20,
               backgroundColor: theme.card,
-              justifyContent: "center",
-              alignItems: "center",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
-              elevation: 5,
-              marginBottom: 15,
-              borderWidth: 1,
+              ...flexCenter,
+              ...shadows.md,
+              marginBottom: spacing.md - 1,
+              borderWidth: borderWidths.thin,
               borderColor: theme.bg,
             }}
             onPress={() =>
               scrollViewRef.current?.scrollTo({ y: 0, animated: true })
             }
           >
-            <Ionicons name="arrow-up" size={24} color={theme.text} />
+            <Ionicons name="arrow-up" size={iconSizes.md} color={theme.text} />
           </TouchableOpacity>
         )}
         <TouchableOpacity
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 28,
+            width: touchTargets.large,
+            height: touchTargets.large,
+            borderRadius: touchTargets.large / 2,
             backgroundColor: accentColor,
-            justifyContent: "center",
-            alignItems: "center",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 4.65,
-            elevation: 8,
+            ...flexCenter,
+            ...shadows.lg,
           }}
           onPress={onNewTab}
         >
-          <Ionicons name="add" size={32} color="#fff" />
+          <Ionicons name="add" size={iconSizes.xl} color="#fff" />
         </TouchableOpacity>
       </Animated.View>
     </View>
