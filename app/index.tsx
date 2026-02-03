@@ -2355,119 +2355,23 @@ export default function App() {
                       pointerEvents={!isSearchActive ? "auto" : "none"}
                     >
                       <View style={styles.barTabContent}>
-                        <TouchableOpacity
-                          style={styles.menuItem}
-                          onPress={() => {
-                            captureTabPreview(activeTabId);
-                            setActiveView("tabs");
-                          }}
-                        >
-                          <Ionicons
-                            name="copy-outline"
-                            size={24}
-                            color={effectiveTheme.text}
-                          />
-                          <Text
-                            style={[
-                              styles.menuLabel,
-                              {
-                                color: effectiveTheme.text,
-                                fontFamily: "Nunito_700Bold",
-                                fontSize: 10 * fontScale,
-                              },
-                            ]}
-                          >
-                            Tabs
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.menuItem}
-                          onPress={() => setActiveView("bookmarks")}
-                        >
-                          <Ionicons
-                            name="bookmarks-outline"
-                            size={24}
-                            color={effectiveTheme.text}
-                          />
-                          <Text
-                            style={[
-                              styles.menuLabel,
-                              {
-                                color: effectiveTheme.text,
-                                fontFamily: "Nunito_700Bold",
-                                fontSize: 10 * fontScale,
-                              },
-                            ]}
-                          >
-                            Bookmarks
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.menuItem}
-                          onPress={() => setActiveView("history")}
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={24}
-                            color={effectiveTheme.text}
-                          />
-                          <Text
-                            style={[
-                              styles.menuLabel,
-                              {
-                                color: effectiveTheme.text,
-                                fontFamily: "Nunito_700Bold",
-                                fontSize: 10 * fontScale,
-                              },
-                            ]}
-                          >
-                            History
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.menuItem}
-                          onPress={() => setActiveView("settings")}
-                        >
-                          <Ionicons
-                            name="settings-outline"
-                            size={24}
-                            color={effectiveTheme.text}
-                          />
-                          <Text
-                            style={[
-                              styles.menuLabel,
-                              {
-                                color: effectiveTheme.text,
-                                fontFamily: "Nunito_700Bold",
-                                fontSize: 10 * fontScale,
-                              },
-                            ]}
-                          >
-                            Settings
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.menuItem}
-                          onPress={() => setIsSubMenuVisible(!isSubMenuVisible)}
-                        >
-                          <Ionicons
-                            name="menu-outline"
-                            size={24}
-                            color={effectiveTheme.text}
-                          />
-                          <Text
-                            style={[
-                              styles.menuLabel,
-                              {
-                                color: effectiveTheme.text,
-                                fontFamily: "Nunito_700Bold",
-                                fontSize: 10 * fontScale,
-                              },
-                            ]}
-                          >
-                            Menu
-                          </Text>
-                        </TouchableOpacity>
+                        {settings.menuBarOrder.map((itemId: string) => {
+                          const menuConfig: Record<string, { icon: string; label: string; onPress: () => void }> = {
+                            tabs: { icon: "copy-outline", label: "Tabs", onPress: () => { captureTabPreview(activeTabId); setActiveView("tabs"); } },
+                            bookmarks: { icon: "bookmarks-outline", label: "Bookmarks", onPress: () => setActiveView("bookmarks") },
+                            history: { icon: "time-outline", label: "History", onPress: () => setActiveView("history") },
+                            settings: { icon: "settings-outline", label: "Settings", onPress: () => setActiveView("settings") },
+                            menu: { icon: "menu-outline", label: "Menu", onPress: () => setIsSubMenuVisible(!isSubMenuVisible) }
+                          };
+                          const config = menuConfig[itemId];
+                          if (!config) return null;
+                          return (
+                            <TouchableOpacity key={itemId} style={styles.menuItem} onPress={config.onPress}>
+                              <Ionicons name={config.icon as any} size={24} color={effectiveTheme.text} />
+                              <Text style={[styles.menuLabel, { color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale }]}>{config.label}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </View>
                     </Animated.View>
 

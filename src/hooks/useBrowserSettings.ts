@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { loadStorage, saveStorage, generateAdaptiveTheme } from '../utils';
-import { COLORS, SEARCH_ENGINES } from '../constants';
+import { useEffect, useMemo, useState } from 'react';
+import { COLORS, DEFAULT_MENU_BAR_ORDER, MenuItemId, SEARCH_ENGINES } from '../constants';
+import { generateAdaptiveTheme, loadStorage, saveStorage } from '../utils';
 
 export interface BrowserSettings {
   themeMode: "light" | "dark" | "adaptive";
@@ -29,6 +29,7 @@ export interface BrowserSettings {
   blockCookies: boolean;
   backgroundRefresh: boolean;
   historyGrouping: "Time" | "Site";
+  menuBarOrder: readonly MenuItemId[];
 }
 
 export const useBrowserSettings = (isAppReady: boolean) => {
@@ -63,12 +64,13 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [blockCookies, setBlockCookies] = useState(false);
   const [historyLoadCount, setHistoryLoadCount] = useState(10);
   const [historyGrouping, setHistoryGrouping] = useState<"Time" | "Site">("Time");
+  const [menuBarOrder, setMenuBarOrder] = useState<readonly MenuItemId[]>(DEFAULT_MENU_BAR_ORDER);
 
   // UI state for settings (not persisted per se, but part of the settings UI)
   const [isAccentExpanded, setIsAccentExpanded] = useState(false);
   const [isSearchEngineOpen, setIsSearchEngineOpen] = useState(false);
   const [isClearHistoryOpen, setIsClearHistoryOpen] = useState(false);
-  
+
   const [areSettingsLoaded, setAreSettingsLoaded] = useState(false);
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setBlockCookies(savedSettings.blockCookies ?? false);
         setHistoryLoadCount(savedSettings.historyLoadCount ?? 10);
         setHistoryGrouping(savedSettings.historyGrouping ?? "Time");
-        
+
         setBackgroundRefresh(savedSettings.backgroundRefresh ?? false);
 
         if (savedSettings.startupTabMode) {
@@ -110,7 +112,24 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setShowTabPreview(savedSettings.showTabPreview ?? true);
         setExpandMenus(savedSettings.expandMenus ?? false);
         setShowBookmarkIcons(savedSettings.showBookmarkIcons ?? true);
-        setReaderModeEnabled(savedSettings.readerModeEnabled ?? false);
+
+        // Load menu bar order with migration for missing items
+        if (savedSettings.menuBarOrder && Array.isArray(savedSettings.menuBarOrder)) {
+          const loadedOrder = savedSettings.menuBarOrder as string[];
+          // Find missing items
+          const missingItems = DEFAULT_MENU_BAR_ORDER.filter(item => !loadedOrder.includes(item));
+
+          if (missingItems.length > 0) {
+            // Add missing items to the end
+            const migratedOrder = [...loadedOrder.filter(item => DEFAULT_MENU_BAR_ORDER.includes(item as MenuItemId)), ...missingItems] as readonly MenuItemId[];
+            setMenuBarOrder(migratedOrder);
+          } else if (loadedOrder.length === DEFAULT_MENU_BAR_ORDER.length) {
+            setMenuBarOrder(loadedOrder as readonly MenuItemId[]);
+          } else {
+            // Reset to default if corrupted
+            setMenuBarOrder(DEFAULT_MENU_BAR_ORDER);
+          }
+        }
       }
       setAreSettingsLoaded(true);
     };
@@ -147,6 +166,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         historyLoadCount,
         backgroundRefresh,
         historyGrouping,
+        menuBarOrder,
       };
       saveStorage("settings", settingsToSave);
     }
@@ -249,6 +269,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     blockCookies, setBlockCookies,
     historyLoadCount, setHistoryLoadCount,
     historyGrouping, setHistoryGrouping,
+    menuBarOrder, setMenuBarOrder,
     isAccentExpanded, setIsAccentExpanded,
     isSearchEngineOpen, setIsSearchEngineOpen,
     isClearHistoryOpen, setIsClearHistoryOpen,

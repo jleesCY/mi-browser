@@ -12,11 +12,14 @@ import {
 import {
   ACCENTS,
   APP_VERSION,
+  DEFAULT_MENU_BAR_ORDER,
   HISTORY_RANGES,
-  SEARCH_ENGINES,
+  MenuItemId,
+  SEARCH_ENGINES
 } from "../../constants";
 import { flexRow } from "../../design-system/styles";
 import { borderWidths, iconSizes, spacing, typography } from "../../design-system/tokens";
+import { HorizontalSortableList } from "../BrowserSession/HorizontalSortableList";
 
 interface SettingsViewProps {
   settings: any;
@@ -92,6 +95,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsSearchEngineOpen,
     isClearHistoryOpen,
     setIsClearHistoryOpen,
+    menuBarOrder,
+    setMenuBarOrder,
     effectiveTheme,
   } = settings;
 
@@ -814,6 +819,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+        </SettingRow>
+
+        <SettingRow label="Menu Bar Order">
+          <View style={{ flexDirection: "column", width: "100%", justifyContent: "center", paddingVertical: 5 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+              <Ionicons name="reorder-four-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+              <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Menu Bar Order</Text>
+            </View>
+            <View style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
+              <HorizontalSortableList
+                data={menuBarOrder.length === 5 ? [...menuBarOrder] : [...DEFAULT_MENU_BAR_ORDER]}
+                keyExtractor={(item) => item}
+                renderItem={({ item }: { item: MenuItemId }) => {
+                  const menuIcons: Record<MenuItemId, string> = { tabs: "copy-outline", bookmarks: "bookmarks-outline", history: "time-outline", settings: "settings-outline", menu: "menu-outline" };
+                  const menuLabels: Record<MenuItemId, string> = { tabs: "Tabs", bookmarks: "Bookmarks", history: "History", settings: "Settings", menu: "Menu" };
+                  return (
+                    <View style={{ width: 48, height: 60, backgroundColor: "transparent", justifyContent: "center", alignItems: "center", marginRight: 2 }}>
+                      <Ionicons name={menuIcons[item] as any} size={24} color={"#fff"} />
+                      <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale, marginTop: 4 }}>{menuLabels[item]}</Text>
+                    </View>
+                  );
+                }}
+                itemWidth={48 + 2}
+                itemHeight={60}
+                onReorder={(fromIndex, toIndex) => { const newOrder = [...menuBarOrder]; const [moved] = newOrder.splice(fromIndex, 1); newOrder.splice(toIndex, 0, moved); setMenuBarOrder(newOrder as readonly MenuItemId[]); }}
+              />
             </View>
           </View>
         </SettingRow>
