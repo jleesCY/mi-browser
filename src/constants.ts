@@ -1,6 +1,6 @@
 import { Dimensions, Platform, UIManager } from "react-native";
 
-export const APP_VERSION = "0.9.5";
+export const APP_VERSION = "0.9.6";
 
 if (
   Platform.OS === "android" &&
@@ -108,8 +108,14 @@ export const HISTORY_RANGES = [
   { label: "All Time", ms: -1 },
 ];
 
-export const DEFAULT_MENU_BAR_ORDER = ['tabs', 'bookmarks', 'history', 'settings', 'menu'] as const;
-export type MenuItemId = typeof DEFAULT_MENU_BAR_ORDER[number];
+export const DEFAULT_MENU_BAR_ORDER = [
+  "tabs",
+  "bookmarks",
+  "history",
+  "settings",
+  "menu",
+] as const;
+export type MenuItemId = (typeof DEFAULT_MENU_BAR_ORDER)[number];
 
 export const INJECTED_CONTEXT_MENU_SCRIPT = `
       (function() {
