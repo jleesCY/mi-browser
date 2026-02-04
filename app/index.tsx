@@ -38,10 +38,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
 import { WebView } from "react-native-webview";
 import { CustomAlert } from "../src/components/BrowserOverlay/CustomAlert";
+import { HomePage } from "../src/components/HomePage/HomePage";
 
 import {
   HIDDEN_TRANSLATE_Y,
-  HOME_LOGO_TEXT,
   INJECTED_CONTEXT_MENU_SCRIPT,
   SCREEN_HEIGHT,
   SEARCH_ENGINES,
@@ -535,8 +535,6 @@ export default function App() {
   const keyboardHeight = useRef(new Animated.Value(0)).current;
   const isPillFocusedAnim = useRef(new Animated.Value(0)).current;
   const handleVisibleAnim = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(1)).current;
-  const logoPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   // Recent Searches Drawer
   const recentSearchesHeight = useRef(new Animated.Value(0)).current;
@@ -1152,43 +1150,6 @@ export default function App() {
   };
 
   // --- PAN RESPONDERS (Gestures) ---
-  const logoResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        Animated.spring(logoScale, {
-          toValue: 1.2,
-          useNativeDriver: false,
-        }).start();
-        logoPan.setOffset({
-          x: (logoPan.x as any)._value,
-          y: (logoPan.y as any)._value,
-        });
-        logoPan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: logoPan.x, dy: logoPan.y }],
-        { useNativeDriver: false },
-      ),
-      onPanResponderRelease: () => {
-        logoPan.flattenOffset();
-        Animated.spring(logoPan, {
-          toValue: { x: 0, y: 0 },
-          friction: 6,
-          tension: 80,
-          useNativeDriver: false,
-        }).start();
-        Animated.spring(logoScale, {
-          toValue: 1,
-          friction: 6,
-          tension: 80,
-          useNativeDriver: false,
-        }).start();
-      },
-    }),
-  ).current;
-
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -1561,8 +1522,27 @@ export default function App() {
       >
         {/* --- REGULAR TABS RENDER LOOP --- */}
         {tabs.map((tab) => {
-          if (!tab.url) return null;
           const isActive = tab.id === activeTabId;
+          const isHome = !tab.url || tab.url === "about:blank";
+
+          if (isHome) {
+            return (
+              <HomePage
+                key={tab.id}
+                settings={settings}
+                theme={effectiveTheme}
+                isActive={isActive}
+                onAction={(action) => {
+                  if (action === "newTab") addNewTab();
+                  else if (action === "qr") setIsQRScannerVisible(true);
+                  else if (action === "bookmarks") setActiveView("bookmarks");
+                  else if (action === "history") setActiveView("history");
+                }}
+              />
+            );
+          }
+          
+          if (!tab.url) return null;
           if (!tab.hasLoadedOnce) return null;
 
           return (
@@ -1695,46 +1675,6 @@ export default function App() {
             />
           );
         })}
-
-        {!activeUrl && (
-          <View
-            style={[
-              styles.homeContainer,
-              { backgroundColor: effectiveTheme.bg },
-            ]}
-            onTouchStart={() => {
-              if (isInputFocused) Keyboard.dismiss();
-            }}
-          >
-            <Animated.View
-              style={{
-                transform: [
-                  { scale: logoScale },
-                  { translateX: logoPan.x },
-                  { translateY: logoPan.y },
-                ],
-                zIndex: 10,
-                padding: 20,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              {...logoResponder.panHandlers}
-            >
-              <Text
-                style={[
-                  styles.homeText,
-                  {
-                    color: effectiveTheme.text,
-                    fontFamily: "Nunito_800ExtraBold",
-                    fontSize: 60 * fontScale,
-                  },
-                ]}
-              >
-                {HOME_LOGO_TEXT}
-              </Text>
-            </Animated.View>
-          </View>
-        )}
       </Animated.View>
 
       {!isFullscreen && (

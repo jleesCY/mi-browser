@@ -30,6 +30,11 @@ export interface BrowserSettings {
   backgroundRefresh: boolean;
   historyGrouping: "Time" | "Site";
   menuBarOrder: readonly MenuItemId[];
+  homeClockType: "None" | "12h" | "24h";
+  homeDateType: "None" | "Above" | "Below";
+  homeWeatherType: "None" | "Simple" | "Detailed" | "Hourly";
+  showHomeShortcuts: boolean;
+  homeShortcutAction: "newTab" | "qr" | "bookmarks" | "history";
 }
 
 export const useBrowserSettings = (isAppReady: boolean) => {
@@ -37,6 +42,13 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [accentColor, setAccentColor] = useState("#007AFF");
   const [searchEngineIndex, setSearchEngineIndex] = useState(0);
   const [backgroundRefresh, setBackgroundRefresh] = useState(false);
+
+  // Home Page Settings
+  const [homeClockType, setHomeClockType] = useState<"None" | "12h" | "24h">("12h");
+  const [homeDateType, setHomeDateType] = useState<"None" | "Above" | "Below">("Below");
+  const [homeWeatherType, setHomeWeatherType] = useState<"None" | "Simple" | "Detailed" | "Hourly">("None");
+  const [showHomeShortcuts, setShowHomeShortcuts] = useState(true);
+  const [homeShortcutAction, setHomeShortcutAction] = useState<"newTab" | "qr" | "bookmarks" | "history">("qr");
 
   // Cosmetic settings
   const [cornerRadius, setCornerRadius] = useState(22);
@@ -69,6 +81,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   // UI state for settings (not persisted per se, but part of the settings UI)
   const [isAccentExpanded, setIsAccentExpanded] = useState(false);
   const [isSearchEngineOpen, setIsSearchEngineOpen] = useState(false);
+  const [isShortcutMenuOpen, setIsShortcutMenuOpen] = useState(false);
   const [isClearHistoryOpen, setIsClearHistoryOpen] = useState(false);
 
   const [areSettingsLoaded, setAreSettingsLoaded] = useState(false);
@@ -103,6 +116,12 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setHistoryGrouping(savedSettings.historyGrouping ?? "Time");
 
         setBackgroundRefresh(savedSettings.backgroundRefresh ?? false);
+
+        setHomeClockType(savedSettings.homeClockType ?? "12h");
+        setHomeDateType(savedSettings.homeDateType ?? "Below");
+        setHomeWeatherType(savedSettings.homeWeatherType ?? "None");
+        setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? true);
+        setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
 
         if (savedSettings.startupTabMode) {
           setStartupTabMode(savedSettings.startupTabMode);
@@ -167,6 +186,11 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         backgroundRefresh,
         historyGrouping,
         menuBarOrder,
+        homeClockType,
+        homeDateType,
+        homeWeatherType,
+        showHomeShortcuts,
+        homeShortcutAction,
       };
       saveStorage("settings", settingsToSave);
     }
@@ -198,7 +222,13 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     historyLoadCount,
     isAppReady,
     backgroundRefresh,
-    historyGrouping
+    historyGrouping,
+    menuBarOrder,
+    homeClockType,
+    homeDateType,
+    homeWeatherType,
+    showHomeShortcuts,
+    homeShortcutAction
   ]);
 
   const effectiveTheme = useMemo(() => {
@@ -237,6 +267,11 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHistoryLoadCount(10);
     setHistoryGrouping("Time");
     setBackgroundRefresh(false);
+    setHomeClockType("12h");
+    setHomeDateType("Below");
+    setHomeWeatherType("None");
+    setShowHomeShortcuts(true);
+    setHomeShortcutAction("qr");
 
     saveStorage("settings", null);
   };
@@ -270,8 +305,14 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     historyLoadCount, setHistoryLoadCount,
     historyGrouping, setHistoryGrouping,
     menuBarOrder, setMenuBarOrder,
+    homeClockType, setHomeClockType,
+    homeDateType, setHomeDateType,
+    homeWeatherType, setHomeWeatherType,
+    showHomeShortcuts, setShowHomeShortcuts,
+    homeShortcutAction, setHomeShortcutAction,
     isAccentExpanded, setIsAccentExpanded,
     isSearchEngineOpen, setIsSearchEngineOpen,
+    isShortcutMenuOpen, setIsShortcutMenuOpen,
     isClearHistoryOpen, setIsClearHistoryOpen,
     effectiveTheme,
     resetSettings,

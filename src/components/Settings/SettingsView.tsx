@@ -98,6 +98,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     menuBarOrder,
     setMenuBarOrder,
     effectiveTheme,
+    homeClockType,
+    setHomeClockType,
+    homeDateType,
+    setHomeDateType,
+    homeWeatherType,
+    setHomeWeatherType,
+    showHomeShortcuts,
+    setShowHomeShortcuts,
+    homeShortcutAction,
+    setHomeShortcutAction,
+    isShortcutMenuOpen,
+    setIsShortcutMenuOpen,
   } = settings;
 
   const searchInputRef = useRef<TextInput>(null);
@@ -998,6 +1010,166 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onReorder={(fromIndex, toIndex) => { const newOrder = [...menuBarOrder]; const [moved] = newOrder.splice(fromIndex, 1); newOrder.splice(toIndex, 0, moved); setMenuBarOrder(newOrder as readonly MenuItemId[]); }}
               />
             </View>
+          </View>
+        </SettingRow>
+      </SettingsGroup>
+
+      {/* --- HOME PAGE --- */}
+      <SettingsGroup title="Home Page">
+        <SettingRow label="Clock">
+          <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+              <Ionicons name="time-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+              <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Clock</Text>
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+              {["None", "12h", "24h"].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setHomeClockType(type as any)}
+                  style={[
+                    { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
+                    homeClockType === type && { backgroundColor: accentColor }
+                  ]}
+                >
+                  <Text style={[
+                    { fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" },
+                    homeClockType === type ? { color: "#fff" } : { color: effectiveTheme.text }
+                  ]}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SettingRow>
+
+        <SettingRow label="Date">
+          <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+              <Ionicons name="calendar-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+              <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Date</Text>
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+              {["None", "Above", "Below"].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setHomeDateType(type as any)}
+                  style={[
+                    { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
+                    homeDateType === type && { backgroundColor: accentColor }
+                  ]}
+                >
+                  <Text style={[
+                    { fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" },
+                    homeDateType === type ? { color: "#fff" } : { color: effectiveTheme.text }
+                  ]}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SettingRow>
+
+        <SettingRow label="Weather">
+          <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+              <Ionicons name="cloud-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+              <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Weather</Text>
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+              {["None", "Simple", "Detailed", "Hourly"].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setHomeWeatherType(type as any)}
+                  style={[
+                    { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
+                    homeWeatherType === type && { backgroundColor: accentColor }
+                  ]}
+                >
+                  <Text style={[
+                    { fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" },
+                    homeWeatherType === type ? { color: "#fff" } : { color: effectiveTheme.text }
+                  ]}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SettingRow>
+
+        <SettingRow label="Shortcut">
+          <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: 'space-between', marginBottom: showHomeShortcuts ? 15 : 0 }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                  name="apps-outline"
+                  size={22}
+                  color={effectiveTheme.text}
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={{
+                    color: effectiveTheme.text,
+                    fontFamily: "Nunito_600SemiBold",
+                    fontSize: 16 * fontScale,
+                  }}
+                >
+                  Shortcut
+                </Text>
+              </View>
+              <Switch
+                value={showHomeShortcuts}
+                onValueChange={setShowHomeShortcuts}
+                trackColor={{ false: "#767577", true: accentColor }}
+                thumbColor={"#f4f3f4"}
+              />
+            </View>
+            
+            {showHomeShortcuts && (
+              <CustomSettingRow label="Action">
+                <TouchableOpacity
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setIsShortcutMenuOpen(!isShortcutMenuOpen);
+                  }}
+                >
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, paddingHorizontal: 15 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text style={{ color: effectiveTheme.textSec, marginRight: 10, fontFamily: "Nunito_600SemiBold", fontSize: 14 * fontScale }}>Action</Text>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text style={{ color: effectiveTheme.text, marginRight: 5, fontFamily: "Nunito_600SemiBold", fontSize: 14 * fontScale }}>
+                        {homeShortcutAction === "newTab" ? "New Tab" : homeShortcutAction === "qr" ? "Scan" : homeShortcutAction === "bookmarks" ? "Saved" : "Recent"}
+                      </Text>
+                      <Ionicons name={isShortcutMenuOpen ? "chevron-up" : "chevron-down"} size={16} color={effectiveTheme.textSec} />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+                {isShortcutMenuOpen && (
+                  <View style={{ borderTopWidth: 1, borderColor: effectiveTheme.bg }}>
+                    {([
+                      { label: "New Tab", val: "newTab", icon: "add" },
+                      { label: "Scan", val: "qr", icon: "qr-code-outline" },
+                      { label: "Saved", val: "bookmarks", icon: "bookmarks-outline" },
+                      { label: "Recent", val: "history", icon: "time-outline" }
+                    ]).map((opt) => (
+                      <TouchableOpacity
+                        key={opt.val}
+                        style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, paddingHorizontal: 15, paddingLeft: 20 }}
+                        onPress={() => {
+                          setHomeShortcutAction(opt.val as any);
+                          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                          setIsShortcutMenuOpen(false);
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Ionicons name={opt.icon as any} size={20} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                          <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>{opt.label}</Text>
+                        </View>
+                        {homeShortcutAction === opt.val && <Ionicons name="checkmark" size={18} color={accentColor} />}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </CustomSettingRow>
+            )}
           </View>
         </SettingRow>
       </SettingsGroup>
