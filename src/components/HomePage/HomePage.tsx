@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, ActivityIndicator, Animated, PanResponder, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Animated, Image, Keyboard, PanResponder, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { HOME_LOGO_TEXT } from "../../constants";
+import { typography } from "../../design-system/tokens";
 import { BrowserSettings } from "../../hooks/useBrowserSettings";
 import { useWeather } from "../../hooks/useWeather";
-import { typography } from "../../design-system/tokens";
-import { HOME_LOGO_TEXT } from "../../constants";
 
 interface HomePageProps {
   settings: BrowserSettings;
@@ -15,15 +15,17 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, onAction }) => {
   const [time, setTime] = useState(new Date());
-  
-  const { 
-    homeClockType, 
-    homeDateType, 
-    homeWeatherType, 
-    showHomeShortcuts, 
+
+  const {
+    homeClockType,
+    homeDateType,
+    homeWeatherType,
+    homeLogoType,
+    homeBackgroundImage,
+    showHomeShortcuts,
     homeShortcutAction,
-    fontScale, 
-    accentColor 
+    fontScale,
+    accentColor
   } = settings;
   const { weather, loading: weatherLoading, error: weatherError } = useWeather(homeWeatherType !== "None" && isActive);
 
@@ -114,165 +116,197 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      
-      {/* Top Widgets Container */}
-      <View style={styles.topWidgets}>
-        {homeClockType !== "None" && (
-          <View style={styles.clockContainer}>
-            {homeDateType === "Above" && renderDate()}
-            <Text style={[styles.timeText, { color: theme.text, fontSize: 72 * fontScale }]}>
-              {time.toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit', 
-                hour12: homeClockType === "12h" 
-              })}
-            </Text>
-            {homeDateType === "Below" && renderDate()}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
+        {homeBackgroundImage && (
+          <Image
+            source={{ uri: homeBackgroundImage }}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
+        )}
+
+        {/* Top Widgets Container */}
+        <View style={styles.topWidgets}>
+          {homeClockType !== "None" && (
+            <View style={styles.clockContainer}>
+              {homeDateType === "Above" && renderDate()}
+              <Text style={[styles.timeText, { color: theme.text, fontSize: 72 * fontScale }]}>
+                {time.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: homeClockType === "12h"
+                })}
+              </Text>
+              {homeDateType === "Below" && renderDate()}
+            </View>
+          )}
+
+          {/* If clock is hidden but date is shown, just show date */}
+          {homeClockType === "None" && homeDateType !== "None" && (
+            <View style={styles.clockContainer}>
+              {renderDate()}
+            </View>
+          )}
+
+          {homeWeatherType !== "None" && (
+            <View style={styles.weatherContainer}>
+              {weatherLoading && !weather ? (
+                <ActivityIndicator size="small" color={theme.textSec} />
+              ) : weatherError ? (
+                <Text style={[styles.weatherText, { color: theme.textSec, fontSize: 14 * fontScale }]}>{weatherError}</Text>
+              ) : weather ? (
+                <View style={{ alignItems: 'center', width: '100%' }}>
+
+                  {/* Main Weather Display */}
+                  <View style={styles.weatherMainRow}>
+                    {/* Left: High/Low */}
+                    {(homeWeatherType === "Detailed" || homeWeatherType === "Hourly") && (
+                      <View style={{ alignItems: 'flex-end', marginRight: 15 }}>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>H: {weather.daily.tempMax}°</Text>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>L: {weather.daily.tempMin}°</Text>
+                      </View>
+                    )}
+
+                    {/* Center: Icon + Temp + City */}
+                    <View style={{ alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name={getWeatherIcon(weather.current.code)} size={32 * fontScale} color={theme.text} />
+                        <Text style={[styles.tempText, { color: theme.text, fontSize: 24 * fontScale, marginLeft: 8 }]}>
+                          {weather.current.temp}°F
+                        </Text>
+                      </View>
+                      <Text style={[styles.cityText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
+                        {weather.city}
+                      </Text>
+                    </View>
+
+                    {/* Right: Wind/Precip */}
+                    {(homeWeatherType === "Detailed" || homeWeatherType === "Hourly") && (
+                      <View style={{ alignItems: 'flex-start', marginLeft: 15 }}>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
+                          <Ionicons name="filter" size={10} /> {weather.current.windSpeed} mph
+                        </Text>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
+                          <Ionicons name="water" size={10} /> {weather.daily.precipProb}%
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Hourly Forecast (Only for Hourly) */}
+                  {homeWeatherType === "Hourly" && (
+                    <View style={{ marginTop: 20, width: '100%', alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 25 }}>
+                        {/* Limit to 5 items (Current + 4 future) to fit horizontally without scrolling */}
+                        {weather.hourly.times.filter((_: any, i: number) => i % 3 === 0).slice(0, 5).map((t: string, i: number) => {
+                          const date = new Date(t);
+                          const hour = date.getHours();
+                          const displayHour = hour === 0 ? "12am" : hour > 12 ? `${hour - 12}pm` : `${hour}am`;
+
+                          // Since we slice data to start from current hour, the first item (i=0) is "Now"
+                          const isCurrent = i === 0;
+
+                          return (
+                            <View key={i} style={{ alignItems: 'center', gap: 4, opacity: isCurrent ? 1 : 0.6 }}>
+                              <Text style={{
+                                color: isCurrent ? theme.text : theme.textSec,
+                                fontSize: 10 * fontScale,
+                                fontFamily: isCurrent ? "Nunito_800ExtraBold" : "Nunito_600SemiBold"
+                              }}>
+                                {isCurrent ? "Now" : displayHour}
+                              </Text>
+                              <Ionicons name={getWeatherIcon(weather.hourly.codes[i * 3])} size={18 * fontScale} color={theme.text} />
+                              <Text style={{ color: theme.text, fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" }}>
+                                {Math.round(weather.hourly.temps[i * 3])}°
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ) : null}
+            </View>
+          )}
+        </View>
+
+        {/* Center Logo - Render if explicitly enabled */}
+        {homeLogoType !== "None" && (
+          <View style={styles.centerLogoContainer}>
+            {homeLogoType === "Fidget" ? (
+              <Animated.View
+                style={{
+                  transform: [
+                    { scale: logoScale },
+                    { translateX: logoPan.x },
+                    { translateY: logoPan.y },
+                  ],
+                  zIndex: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                {...logoResponder.panHandlers}
+              >
+                <Text
+                  style={[
+                    styles.homeText,
+                    {
+                      color: theme.text,
+                      fontFamily: "Nunito_800ExtraBold",
+                      fontSize: 60 * fontScale,
+                    },
+                  ]}
+                >
+                  {HOME_LOGO_TEXT}
+                </Text>
+              </Animated.View>
+            ) : (
+              <View
+                style={{
+                  zIndex: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text
+                  style={[
+                    styles.homeText,
+                    {
+                      color: theme.text,
+                      fontFamily: "Nunito_800ExtraBold",
+                      fontSize: 60 * fontScale,
+                    },
+                  ]}
+                >
+                  {HOME_LOGO_TEXT}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
-        {/* If clock is hidden but date is shown, just show date */}
-        {homeClockType === "None" && homeDateType !== "None" && (
-           <View style={styles.clockContainer}>
-             {renderDate()}
-           </View>
-        )}
-
-        {homeWeatherType !== "None" && (
-          <View style={styles.weatherContainer}>
-             {weatherLoading && !weather ? (
-               <ActivityIndicator size="small" color={theme.textSec} />
-             ) : weatherError ? (
-               <Text style={[styles.weatherText, { color: theme.textSec, fontSize: 14 * fontScale }]}>{weatherError}</Text>
-             ) : weather ? (
-                <View style={{ alignItems: 'center', width: '100%' }}>
-                   
-                   {/* Main Weather Display */}
-                   <View style={styles.weatherMainRow}>
-                      {/* Left: High/Low */}
-                      {(homeWeatherType === "Detailed" || homeWeatherType === "Hourly") && (
-                        <View style={{ alignItems: 'flex-end', marginRight: 15 }}>
-                           <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>H: {weather.daily.tempMax}°</Text>
-                           <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>L: {weather.daily.tempMin}°</Text>
-                        </View>
-                      )}
-
-                      {/* Center: Icon + Temp + City */}
-                      <View style={{ alignItems: 'center' }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                             <Ionicons name={getWeatherIcon(weather.current.code)} size={32 * fontScale} color={theme.text} />
-                             <Text style={[styles.tempText, { color: theme.text, fontSize: 24 * fontScale, marginLeft: 8 }]}>
-                                {weather.current.temp}°F
-                             </Text>
-                          </View>
-                          <Text style={[styles.cityText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
-                            {weather.city}
-                          </Text>
-                      </View>
-
-                      {/* Right: Wind/Precip */}
-                      {(homeWeatherType === "Detailed" || homeWeatherType === "Hourly") && (
-                        <View style={{ alignItems: 'flex-start', marginLeft: 15 }}>
-                           <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
-                             <Ionicons name="filter" size={10} /> {weather.current.windSpeed} mph
-                           </Text>
-                           <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
-                             <Ionicons name="water" size={10} /> {weather.daily.precipProb}%
-                           </Text>
-                        </View>
-                      )}
-                   </View>
-                   
-                   {/* Hourly Forecast (Only for Hourly) */}
-                   {homeWeatherType === "Hourly" && (
-                     <View style={{ marginTop: 20, width: '100%', alignItems: 'center' }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 25 }}>
-                          {/* Limit to 5 items (Current + 4 future) to fit horizontally without scrolling */}
-                          {weather.hourly.times.filter((_: any, i: number) => i % 3 === 0).slice(0, 5).map((t: string, i: number) => {
-                             const date = new Date(t);
-                             const hour = date.getHours();
-                             const displayHour = hour === 0 ? "12am" : hour > 12 ? `${hour - 12}pm` : `${hour}am`;
-                             
-                             // Since we slice data to start from current hour, the first item (i=0) is "Now"
-                             const isCurrent = i === 0;
-
-                             return (
-                               <View key={i} style={{ alignItems: 'center', gap: 4, opacity: isCurrent ? 1 : 0.6 }}>
-                                 <Text style={{ 
-                                   color: isCurrent ? theme.text : theme.textSec, 
-                                   fontSize: 10 * fontScale,
-                                   fontFamily: isCurrent ? "Nunito_800ExtraBold" : "Nunito_600SemiBold"
-                                 }}>
-                                   {isCurrent ? "Now" : displayHour}
-                                 </Text>
-                                 <Ionicons name={getWeatherIcon(weather.hourly.codes[i*3])} size={18 * fontScale} color={theme.text} />
-                                 <Text style={{ color: theme.text, fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" }}>
-                                   {Math.round(weather.hourly.temps[i*3])}°
-                                 </Text>
-                               </View>
-                             );
-                          })}
-                        </View>
-                     </View>
-                   )}
-                </View>
-             ) : null}
+        {/* Single Configurable Shortcut - Bottom of screen */}
+        {showHomeShortcuts && (
+          <View style={styles.shortcutsContainer}>
+            <TouchableOpacity onPress={() => onAction(homeShortcutAction)} style={styles.shortcutBtn}>
+              <View style={[styles.shortcutIcon, { backgroundColor: theme.card }]}>
+                <Ionicons name={shortcutConfig.icon as any} size={24} color={theme.text} />
+              </View>
+              <Text style={[styles.shortcutLabel, { color: theme.text }]}>{shortcutConfig.label}</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
-
-      {/* Center Logo - Render only if one of the main widgets is hidden */}
-      {(homeClockType === "None" || homeWeatherType === "None") && (
-        <View style={styles.centerLogoContainer}>
-          <Animated.View
-              style={{
-                transform: [
-                  { scale: logoScale },
-                  { translateX: logoPan.x },
-                  { translateY: logoPan.y },
-                ],
-                zIndex: 10,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              {...logoResponder.panHandlers}
-            >
-              <Text
-                style={[
-                  styles.homeText,
-                  {
-                    color: theme.text,
-                    fontFamily: "Nunito_800ExtraBold", // Match existing font
-                    fontSize: 60 * fontScale,
-                  },
-                ]}
-              >
-                {HOME_LOGO_TEXT}
-              </Text>
-          </Animated.View>
-        </View>
-      )}
-
-      {/* Single Configurable Shortcut - Bottom of screen */}
-      {showHomeShortcuts && (
-        <View style={styles.shortcutsContainer}>
-          <TouchableOpacity onPress={() => onAction(homeShortcutAction)} style={styles.shortcutBtn}>
-            <View style={[styles.shortcutIcon, { backgroundColor: theme.card }]}>
-              <Ionicons name={shortcutConfig.icon as any} size={24} color={theme.text} />
-            </View>
-            <Text style={[styles.shortcutLabel, { color: theme.text }]}>{shortcutConfig.label}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+    </TouchableWithoutFeedback>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 0, 
+    zIndex: 0,
   },
   topWidgets: {
     position: 'absolute',
@@ -289,15 +323,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 1
   },
-  homeText: { 
-    letterSpacing: -1, 
-    opacity: 0.9 
+  homeText: {
+    letterSpacing: -1,
+    opacity: 0.9
   },
   clockContainer: {
     alignItems: "center",
   },
   timeText: {
-    fontFamily: typography.families.bold, 
+    fontFamily: typography.families.bold,
     includeFontPadding: false,
   },
   dateText: {

@@ -90,12 +90,14 @@ const SearchHeader = React.memo(
         <View
           style={{
             marginBottom: spacing.sm - 2,
-            backgroundColor: theme.card,
+            backgroundColor: theme.bg, // High contrast against cards
             borderRadius: cornerRadius,
             ...flexRow,
             paddingHorizontal: spacing.md - 1,
             height: 50,
             width: "100%",
+            borderWidth: borderWidths.thin,
+            borderColor: theme.card, // Subtle border against transparent background
           }}
         >
           <Ionicons
@@ -313,6 +315,10 @@ export const TabsView: React.FC<TabsViewProps> = ({
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.lg,
           zIndex: 1000,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
         }}
       >
         <SearchHeader
@@ -333,12 +339,11 @@ export const TabsView: React.FC<TabsViewProps> = ({
         numColumns={numColumns}
         itemHeight={slotHeight}
         itemWidth={slotWidth}
-        gridPaddingTop={10} // Reduced padding since header is outside
+        gridPaddingTop={90} // 10 original + 80 header
         gridPaddingSide={20}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingBottom: 140,
-          paddingTop: 0, // Handled by gridPaddingTop and header being outside
         }}
         onReorder={(from, to) => {
           if (searchText === "") {

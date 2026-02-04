@@ -33,6 +33,8 @@ export interface BrowserSettings {
   homeClockType: "None" | "12h" | "24h";
   homeDateType: "None" | "Above" | "Below";
   homeWeatherType: "None" | "Simple" | "Detailed" | "Hourly";
+  homeLogoType: "None" | "Static" | "Fidget";
+  homeBackgroundImage: string | null;
   showHomeShortcuts: boolean;
   homeShortcutAction: "newTab" | "qr" | "bookmarks" | "history";
 }
@@ -44,10 +46,12 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [backgroundRefresh, setBackgroundRefresh] = useState(false);
 
   // Home Page Settings
-  const [homeClockType, setHomeClockType] = useState<"None" | "12h" | "24h">("12h");
-  const [homeDateType, setHomeDateType] = useState<"None" | "Above" | "Below">("Below");
+  const [homeClockType, setHomeClockType] = useState<"None" | "12h" | "24h">("None");
+  const [homeDateType, setHomeDateType] = useState<"None" | "Above" | "Below">("None");
   const [homeWeatherType, setHomeWeatherType] = useState<"None" | "Simple" | "Detailed" | "Hourly">("None");
-  const [showHomeShortcuts, setShowHomeShortcuts] = useState(true);
+  const [homeLogoType, setHomeLogoType] = useState<"None" | "Static" | "Fidget">("Fidget");
+  const [homeBackgroundImage, setHomeBackgroundImage] = useState<string | null>(null);
+  const [showHomeShortcuts, setShowHomeShortcuts] = useState(false);
   const [homeShortcutAction, setHomeShortcutAction] = useState<"newTab" | "qr" | "bookmarks" | "history">("qr");
 
   // Cosmetic settings
@@ -117,10 +121,12 @@ export const useBrowserSettings = (isAppReady: boolean) => {
 
         setBackgroundRefresh(savedSettings.backgroundRefresh ?? false);
 
-        setHomeClockType(savedSettings.homeClockType ?? "12h");
-        setHomeDateType(savedSettings.homeDateType ?? "Below");
+        setHomeClockType(savedSettings.homeClockType ?? "None");
+        setHomeDateType(savedSettings.homeDateType ?? "None");
         setHomeWeatherType(savedSettings.homeWeatherType ?? "None");
-        setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? true);
+        setHomeLogoType(savedSettings.homeLogoType ?? "Fidget");
+        setHomeBackgroundImage(savedSettings.homeBackgroundImage ?? null);
+        setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
         setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
 
         if (savedSettings.startupTabMode) {
@@ -189,6 +195,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         homeClockType,
         homeDateType,
         homeWeatherType,
+        homeLogoType,
+        homeBackgroundImage,
         showHomeShortcuts,
         homeShortcutAction,
       };
@@ -227,6 +235,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeClockType,
     homeDateType,
     homeWeatherType,
+    homeLogoType,
+    homeBackgroundImage,
     showHomeShortcuts,
     homeShortcutAction
   ]);
@@ -267,10 +277,12 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHistoryLoadCount(10);
     setHistoryGrouping("Time");
     setBackgroundRefresh(false);
-    setHomeClockType("12h");
-    setHomeDateType("Below");
+    setHomeClockType("None");
+    setHomeDateType("None");
     setHomeWeatherType("None");
-    setShowHomeShortcuts(true);
+    setHomeLogoType("Fidget");
+    setHomeBackgroundImage(null);
+    setShowHomeShortcuts(false);
     setHomeShortcutAction("qr");
 
     saveStorage("settings", null);
@@ -308,6 +320,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeClockType, setHomeClockType,
     homeDateType, setHomeDateType,
     homeWeatherType, setHomeWeatherType,
+    homeLogoType, setHomeLogoType,
+    homeBackgroundImage, setHomeBackgroundImage,
     showHomeShortcuts, setShowHomeShortcuts,
     homeShortcutAction, setHomeShortcutAction,
     isAccentExpanded, setIsAccentExpanded,

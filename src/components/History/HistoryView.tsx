@@ -61,12 +61,14 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
     <View
       style={{
         marginBottom: spacing.sm - 2,
-        backgroundColor: theme.card,
+        backgroundColor: theme.bg,
         borderRadius: cornerRadius,
         ...flexRow,
         paddingHorizontal: spacing.md - 1,
         height: 50,
         zIndex: 1000,
+        borderWidth: borderWidths.thin,
+        borderColor: theme.card,
       }}
     >
       <Ionicons
@@ -309,7 +311,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.lg,
         zIndex: 1000,
-        elevation: 10
+        elevation: 10,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
       }}>
         <SearchHeader
           ref={searchInputRef}
@@ -330,7 +336,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         maxToRenderPerBatch={5}
         windowSize={5}
         removeClippedSubviews={true}
-        contentContainerStyle={{ padding: 20, paddingTop: 0, paddingBottom: 100 }} // Reduced top padding
+        contentContainerStyle={{ padding: 20, paddingTop: 80, paddingBottom: 100 }} // 80 = Header Height
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled={false}
         onEndReached={loadMore}

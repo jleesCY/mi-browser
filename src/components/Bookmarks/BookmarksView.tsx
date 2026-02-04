@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, BackHandler, Keyboard, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SCREEN_WIDTH, SNAP_DEFAULT } from '../../constants';
 import { flexCenter, flexRow } from '../../design-system/styles';
-import { borderWidths, iconSizes, shadows, spacing, touchTargets, typography } from '../../design-system/tokens';
+import { borderWidths, iconSizes, shadows, spacing, touchTargets, typography, withOpacity } from '../../design-system/tokens';
 import { BookmarkFolder, BookmarkItem, BookmarkNode } from '../../types';
 import { SortableGrid } from '../Tabs/SortableGrid';
 import { BookmarkRow } from './BookmarkRow';
@@ -109,7 +109,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
     }, [autoAdd]);
 
     const getHierarchyPath = () => {
-        const path = ["Bookmarks", ...folderStack.map(f => f.title)];
+        const path = folderStack.map(f => f.title);
         return "/" + path.join("/");
     };
 
@@ -291,34 +291,49 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
             <View style={{
                 paddingHorizontal: spacing.lg,
                 paddingTop: spacing.sm - 2,
-                zIndex: 10
+                zIndex: 10,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
             }}>
-                <View style={{
-                    ...flexRow,
-                    marginBottom: spacing.sm - 2
-                }}>
-                    {folderStack.length > 0 && (
-                        <TouchableOpacity onPress={handleGoBack} style={{ marginRight: spacing.sm - 2 }}>
-                            <Ionicons name="arrow-back" size={iconSizes.md} color={theme.text} />
-                        </TouchableOpacity>
-                    )}
-                    <Text style={{
-                        color: theme.text,
-                        fontFamily: typography.families.bold,
-                        fontSize: typography.sizes.xl * fontScale
+                {(searchText !== "" || folderStack.length > 0) && (
+                    <View style={{
+                        ...flexRow,
+                        marginBottom: spacing.sm - 2,
+                        backgroundColor: theme.surface,
+                        paddingVertical: 8,
+                        marginHorizontal: -spacing.lg,
+                        paddingHorizontal: spacing.lg,
+                        borderBottomWidth: borderWidths.thin,
+                        borderBottomColor: withOpacity(theme.bg, 0.1),
                     }}>
-                        {searchText ? "Search Results" : getHierarchyPath()}
-                    </Text>
-                </View>
+                        {folderStack.length > 0 && (
+                            <TouchableOpacity onPress={handleGoBack} style={{ marginRight: spacing.sm - 2 }}>
+                                <Ionicons name="arrow-back" size={iconSizes.md} color={theme.text} />
+                            </TouchableOpacity>
+                        )}
+                        <Text style={{
+                            color: theme.text,
+                            fontFamily: typography.families.bold,
+                            fontSize: typography.sizes.xl * fontScale,
+                            flex: 1,
+                        }} numberOfLines={1}>
+                            {searchText ? "Search Results" : getHierarchyPath()}
+                        </Text>
+                    </View>
+                )}
 
                 <View
                     style={{
                         marginBottom: spacing.sm - 2,
-                        backgroundColor: theme.card,
+                        backgroundColor: theme.bg,
                         borderRadius: cornerRadius,
                         ...flexRow,
                         paddingHorizontal: spacing.md - 1,
                         height: 50,
+                        borderWidth: borderWidths.thin,
+                        borderColor: theme.card,
                     }}
                 >
                     <Ionicons
@@ -360,7 +375,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                 numColumns={1}
                 itemHeight={rowTotalHeight}
                 itemWidth={slotWidth}
-                gridPaddingTop={10}
+                gridPaddingTop={(searchText !== "" || folderStack.length > 0) ? 130 : 90} // Dynamic padding based on header visibility
                 gridPaddingSide={20}
                 contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }}
                 onScroll={(e) => {
