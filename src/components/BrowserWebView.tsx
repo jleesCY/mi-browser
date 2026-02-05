@@ -394,22 +394,39 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
                 backgroundColor: "#ff3b30"
               }}
               onPress={() => {
-                const targetUrl = failingUrlRef.current || tab.url;
-                const host = getDisplayHost(targetUrl);
-                if (host) {
-                  // Add to ignored hosts if not already present
-                  if (!ignoredHosts.includes(host)) {
-                    // @ts-ignore
-                    setIgnoredHosts([...ignoredHosts, host]);
-                  }
+                try {
+                  const targetUrl = failingUrlRef.current || tab.url;
+                  const host = getDisplayHost(targetUrl);
 
-                  setSslErrorState(null); // Clear SSL error state
-                  // Short delay to let state update then reload
-                  setTimeout(() => {
+                  // Always clear error states, even if host extraction fails
+                  setErrorState(null);
+                  setSslErrorState(null);
+
+                  if (host && host.length > 0) {
+                    // Add to ignored hosts if not already present
+                    if (!ignoredHosts.includes(host)) {
+                      setIgnoredHosts([...ignoredHosts, host]);
+                    }
+
+                    // Short delay to let state update then reload
+                    setTimeout(() => {
+                      if (localRef.current) {
+                        localRef.current.reload();
+                      }
+                    }, 100);
+                  } else {
+                    // If we can't get the host, just try to reload anyway
                     if (localRef.current) {
                       localRef.current.reload();
                     }
-                  }, 100);
+                  }
+                } catch (error) {
+                  if (__DEV__) {
+                    console.error('[SSL Error] Error handling trust button:', error);
+                  }
+                  // Clear error states anyway
+                  setErrorState(null);
+                  setSslErrorState(null);
                 }
               }}
             >

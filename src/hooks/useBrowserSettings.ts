@@ -40,6 +40,7 @@ export interface BrowserSettings {
   showHomeShortcuts: boolean;
   homeShortcutAction: "newTab" | "qr" | "bookmarks" | "history";
   ignoredHosts: string[];
+  use3DButtons: boolean;
 }
 
 export const useBrowserSettings = (isAppReady: boolean) => {
@@ -59,6 +60,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
 
   // Security
   const [ignoredHosts, setIgnoredHosts] = useState<string[]>([]);
+
+  // UI Enhancement
+  const [use3DButtons, setUse3DButtons] = useState(true);
 
   // Cosmetic settings
   const [cornerRadius, setCornerRadius] = useState(22);
@@ -156,6 +160,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
           setHomeBackgroundImage(savedSettings.homeBackgroundImage ?? null);
           setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
           setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
+          setUse3DButtons(savedSettings.use3DButtons ?? true);
           // ignoredHosts is now loaded and migrated above
 
           if (savedSettings.startupTabMode) {
@@ -240,7 +245,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         homeBackgroundImage,
         showHomeShortcuts,
         homeShortcutAction,
-        fontWeight
+        fontWeight,
+        use3DButtons
         // NOTE: ignoredHosts is saved separately to secure storage
       };
       saveStorage("settings", settingsToSave);
@@ -285,7 +291,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     showHomeShortcuts,
     homeShortcutAction,
     fontWeight,
-    ignoredHosts
+    ignoredHosts,
+    use3DButtons
   ]);
 
   const effectiveTheme = useMemo(() => {
@@ -357,6 +364,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setShowHomeShortcuts(false);
     setHomeShortcutAction("qr");
     setIgnoredHosts([]);
+    setUse3DButtons(true);
 
     saveStorage("settings", null);
   };
@@ -399,6 +407,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     showHomeShortcuts, setShowHomeShortcuts,
     homeShortcutAction, setHomeShortcutAction,
     ignoredHosts, setIgnoredHosts,
+    use3DButtons, setUse3DButtons,
     isAccentExpanded, setIsAccentExpanded,
     isSearchEngineOpen, setIsSearchEngineOpen,
     isShortcutMenuOpen, setIsShortcutMenuOpen,

@@ -121,6 +121,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setHomeShortcutAction,
     isShortcutMenuOpen,
     setIsShortcutMenuOpen,
+    use3DButtons,
+    setUse3DButtons,
   } = settings;
 
   const searchInputRef = useRef<TextInput>(null);
@@ -149,6 +151,63 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     if (!result.canceled) {
       setHomeBackgroundImage(result.assets[0].uri);
+    }
+  };
+
+  // Helper function to create 3D button styles
+  const get3DButtonStyle = (isSelected: boolean, buttonColor: string = accentColor, bgColor: string = effectiveTheme.card) => {
+    // If 3D buttons are disabled, use simple flat style
+    if (!use3DButtons) {
+      return isSelected
+        ? { backgroundColor: accentColor }
+        : {};
+    }
+
+    if (isSelected) {
+      // Selected: valley effect - going INTO the screen with inner shadows
+      // Make the button slightly darker to simulate depth
+      const darkenAmount = effectiveTheme.bg === '#000000' ? 0.05 : 0.03;
+      const rgb = bgColor.match(/\w\w/g);
+      let darkerBg = bgColor;
+      if (rgb && rgb.length >= 3) {
+        const r = Math.max(0, parseInt(rgb[0], 16) - Math.round(255 * darkenAmount));
+        const g = Math.max(0, parseInt(rgb[1], 16) - Math.round(255 * darkenAmount));
+        const b = Math.max(0, parseInt(rgb[2], 16) - Math.round(255 * darkenAmount));
+        darkerBg = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      }
+
+      return {
+        backgroundColor: darkerBg,
+        // Inner shadow simulation - invert the outer shadow effect
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: -2,
+        // Strong inner shadow borders (inverted from outer)
+        borderWidth: 2.5,
+        borderTopColor: 'rgba(0,0,0,0.35)',
+        borderLeftColor: 'rgba(0,0,0,0.3)',
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+        borderRightColor: 'rgba(255,255,255,0.03)',
+      };
+    } else {
+      // Unselected: mountain effect - POPPING OUT of screen with outer shadows
+      return {
+        backgroundColor: bgColor,
+        // Strong outer drop shadow for elevation
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 5,
+        elevation: 5,
+        // Light highlight borders for mountain peak effect
+        borderWidth: 2.5,
+        borderTopColor: 'rgba(255,255,255,0.12)',
+        borderLeftColor: 'rgba(255,255,255,0.1)',
+        borderBottomColor: 'rgba(0,0,0,0.1)',
+        borderRightColor: 'rgba(0,0,0,0.12)',
+      };
     }
   };
 
@@ -588,25 +647,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         style={[
                           {
                             paddingVertical: 8,
+                            paddingHorizontal: 20,
                             borderRadius: cornerRadius,
                           },
-                          themeMode === m && { backgroundColor: accentColor },
-                          { paddingHorizontal: 20 },
+                          get3DButtonStyle(themeMode === m),
                         ]}
                       >
                         <Text
                           style={[
                             {
-                              fontSize: 14 * fontScale,
-                              fontFamily: effectiveTheme.fonts.semibold,
+                              fontSize: 12 * fontScale,
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             themeMode === m
                               ? { color: "#fff" }
                               : { color: effectiveTheme.text },
-                            {
-                              fontFamily: effectiveTheme.fonts.bold,
-                              fontSize: 12 * fontScale,
-                            },
                           ]}
                         >
                           {m.charAt(0).toUpperCase() + m.slice(1)}
@@ -861,7 +916,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          fontWeight === opt.val && { backgroundColor: accentColor },
+                          get3DButtonStyle(fontWeight === opt.val),
                         ]}
                       >
                         <Text
@@ -940,7 +995,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          cornerRadius === opt.val && { backgroundColor: accentColor },
+                          get3DButtonStyle(cornerRadius === opt.val),
                         ]}
                       >
                         <Text
@@ -1012,7 +1067,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          uiPadding === mode && { backgroundColor: accentColor },
+                          get3DButtonStyle(uiPadding === mode),
                         ]}
                       >
                         <Text
@@ -1055,6 +1110,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <Switch
                   value={showStatusBar}
                   onValueChange={setShowStatusBar}
+                  trackColor={{ false: "#767577", true: accentColor }}
+                  thumbColor={"#f4f3f4"}
+                />
+              </SettingRow>
+
+              <SettingRow label="3D Buttons">
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons
+                    name="cube-outline"
+                    size={22}
+                    color={effectiveTheme.text}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={{
+                      color: effectiveTheme.text,
+                      fontFamily: effectiveTheme.fonts.semibold,
+                      fontSize: 16 * fontScale,
+                    }}
+                  >
+                    3D Buttons
+                  </Text>
+                </View>
+                <Switch
+                  value={use3DButtons}
+                  onValueChange={setUse3DButtons}
                   trackColor={{ false: "#767577", true: accentColor }}
                   thumbColor={"#f4f3f4"}
                 />
@@ -1150,7 +1231,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          pillHeight === opt.val && { backgroundColor: accentColor },
+                          get3DButtonStyle(pillHeight === opt.val),
                         ]}
                       >
                         <Text
@@ -1223,9 +1304,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          progressBarMode === mode && {
-                            backgroundColor: accentColor,
-                          },
+                          get3DButtonStyle(progressBarMode === mode),
                         ]}
                       >
                         <Text
@@ -1382,7 +1461,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             borderRadius: cornerRadius,
                             paddingHorizontal: 20,
                           },
-                          homeLogoType === type && { backgroundColor: accentColor },
+                          get3DButtonStyle(homeLogoType === type),
                         ]}
                       >
                         <Text
@@ -1417,7 +1496,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         onPress={() => setHomeClockType(type as any)}
                         style={[
                           { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
-                          homeClockType === type && { backgroundColor: accentColor }
+                          get3DButtonStyle(homeClockType === type)
                         ]}
                       >
                         <Text style={[
@@ -1443,7 +1522,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         onPress={() => setHomeDateType(type as any)}
                         style={[
                           { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
-                          homeDateType === type && { backgroundColor: accentColor }
+                          get3DButtonStyle(homeDateType === type)
                         ]}
                       >
                         <Text style={[
@@ -1469,7 +1548,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         onPress={() => setHomeWeatherType(type as any)}
                         style={[
                           { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
-                          homeWeatherType === type && { backgroundColor: accentColor }
+                          get3DButtonStyle(homeWeatherType === type)
                         ]}
                       >
                         <Text style={[
@@ -1704,7 +1783,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          tabViewMode === mode && { backgroundColor: accentColor },
+                          get3DButtonStyle(tabViewMode === mode),
                         ]}
                       >
                         <Text
@@ -1878,7 +1957,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          historyGrouping === mode && { backgroundColor: accentColor },
+                          get3DButtonStyle(historyGrouping === mode),
                         ]}
                       >
                         <Text
@@ -1952,9 +2031,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          settings.historyLoadCount === count && {
-                            backgroundColor: accentColor,
-                          },
+                          get3DButtonStyle(settings.historyLoadCount === count),
                         ]}
                       >
                         <Text
@@ -2258,7 +2335,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             paddingVertical: 8,
                             borderRadius: cornerRadius,
                           },
-                          startupTabMode === mode && { backgroundColor: accentColor },
+                          get3DButtonStyle(startupTabMode === mode),
                         ]}
                       >
                         <Text
