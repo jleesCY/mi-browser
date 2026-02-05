@@ -2,7 +2,7 @@
   "expo": {
     "name": "mi",
     "slug": "mi-browser",
-    "version": "0.10.0",
+    "version": "0.10.1",
     "orientation": "portrait",
     "scheme": "mibrowser",
     "icon": "./assets/images/icon.png",
@@ -43,10 +43,7 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ],
+          "category": ["BROWSABLE", "DEFAULT"],
           "data": [
             {
               "scheme": "http"
@@ -58,10 +55,7 @@
         },
         {
           "action": "VIEW",
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ],
+          "category": ["BROWSABLE", "DEFAULT"],
           "data": {
             "scheme": "mibrowser"
           }
