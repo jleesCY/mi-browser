@@ -38,6 +38,7 @@ export interface BrowserSettings {
   homeBackgroundImage: string | null;
   showHomeShortcuts: boolean;
   homeShortcutAction: "newTab" | "qr" | "bookmarks" | "history";
+  ignoredHosts: string[];
 }
 
 export const useBrowserSettings = (isAppReady: boolean) => {
@@ -54,6 +55,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [homeBackgroundImage, setHomeBackgroundImage] = useState<string | null>(null);
   const [showHomeShortcuts, setShowHomeShortcuts] = useState(false);
   const [homeShortcutAction, setHomeShortcutAction] = useState<"newTab" | "qr" | "bookmarks" | "history">("qr");
+
+  // Security
+  const [ignoredHosts, setIgnoredHosts] = useState<string[]>([]);
 
   // Cosmetic settings
   const [cornerRadius, setCornerRadius] = useState(22);
@@ -131,6 +135,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setHomeBackgroundImage(savedSettings.homeBackgroundImage ?? null);
         setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
         setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
+        setIgnoredHosts(savedSettings.ignoredHosts ?? []);
 
         if (savedSettings.startupTabMode) {
           setStartupTabMode(savedSettings.startupTabMode);
@@ -202,7 +207,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         homeBackgroundImage,
         showHomeShortcuts,
         homeShortcutAction,
-        fontWeight
+        fontWeight,
+        ignoredHosts
       };
       saveStorage("settings", settingsToSave);
     }
@@ -243,8 +249,10 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeBackgroundImage,
     showHomeShortcuts,
     showHomeShortcuts,
+    showHomeShortcuts,
     homeShortcutAction,
-    fontWeight
+    fontWeight,
+    ignoredHosts
   ]);
 
   const effectiveTheme = useMemo(() => {
@@ -315,6 +323,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHomeBackgroundImage(null);
     setShowHomeShortcuts(false);
     setHomeShortcutAction("qr");
+    setIgnoredHosts([]);
 
     saveStorage("settings", null);
   };
@@ -356,6 +365,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeBackgroundImage, setHomeBackgroundImage,
     showHomeShortcuts, setShowHomeShortcuts,
     homeShortcutAction, setHomeShortcutAction,
+    ignoredHosts, setIgnoredHosts,
     isAccentExpanded, setIsAccentExpanded,
     isSearchEngineOpen, setIsSearchEngineOpen,
     isShortcutMenuOpen, setIsShortcutMenuOpen,

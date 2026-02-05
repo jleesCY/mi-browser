@@ -57,7 +57,18 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
     findInPageConfig
   } = props;
   const localRef = useRef<WebView>(null);
-  const [ignoredHosts, setIgnoredHosts] = useState<Set<string>>(new Set());
+  const failingUrlRef = useRef<string | null>(null);
+  const [sslErrorState, setSslErrorState] = useState<{ url: string } | null>(null);
+  const [errorState, setErrorState] = useState<{
+    errorDomain?: string;
+    errorCode: number;
+    errorDesc: string;
+  } | null>(null);
+
+  const {
+    ignoredHosts,
+    setIgnoredHosts
+  } = settings;
 
   // Handle Find In Page
   React.useEffect(() => {
@@ -241,6 +252,8 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
             backgroundColor: accentColor
           }}
           onPress={() => {
+            setErrorState(null); // Clear general error state
+            setSslErrorState(null); // Clear SSL error state
             if (localRef.current) {
               localRef.current.reload();
             }
@@ -297,13 +310,16 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
                 backgroundColor: "#ff3b30"
               }}
               onPress={() => {
-                const host = getDisplayHost(tab.url);
+                const targetUrl = failingUrlRef.current || tab.url;
+                const host = getDisplayHost(targetUrl);
                 if (host) {
-                  setIgnoredHosts(prev => {
-                    const next = new Set(prev);
-                    next.add(host);
-                    return next;
-                  });
+                  // Add to ignored hosts if not already present
+                  if (!ignoredHosts.includes(host)) {
+                    // @ts-ignore
+                    setIgnoredHosts([...ignoredHosts, host]);
+                  }
+
+                  setSslErrorState(null); // Clear SSL error state
                   // Short delay to let state update then reload
                   setTimeout(() => {
                     if (localRef.current) {
@@ -404,9 +420,16 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
         onReceivedSslError={(event: any) => {
           const url = event.nativeEvent.url;
           const host = getDisplayHost(url);
-          if (ignoredHosts.has(host)) {
+          console.log('[SSL Error]', { url, host, ignoredHosts });
+          // Check if host is in ignoredHosts array
+          if (ignoredHosts && ignoredHosts.includes(host)) {
+            console.log('[SSL Error] Proceeding - host is ignored');
             event.nativeEvent.proceed();
+            setSslErrorState(null); // Clear any existing error state
           } else {
+            console.log('[SSL Error] Canceling and showing error UI');
+            failingUrlRef.current = url;
+            setSslErrorState({ url }); // Set error state to trigger UI
             event.nativeEvent.cancel();
           }
         }}
@@ -415,6 +438,12 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
 
           if (url && (url.startsWith("intent://") || url.startsWith("android-app://") || url === "about:blank")) {
             return;
+          }
+
+          // Clear error states on successful navigation
+          if (url && !loading) {
+            setErrorState(null);
+            setSslErrorState(null);
           }
 
           // Only update if changed
@@ -461,9 +490,16 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
           if (isActive) onLoadEnd();
         }}
         onError={(e) => {
-          if (isActive) onLoadEnd(); // Stop loading indicator
-          // Error handling logic (like auto-search) can be complex to move here completely
-          // without more props, but let's stick to basics.
+          console.log('[WebView Error]', e.nativeEvent);
+          if (isActive) {
+            onLoadEnd(); // Stop loading indicator
+            // Set error state to trigger error UI
+            setErrorState({
+              errorDomain: e.nativeEvent.domain,
+              errorCode: e.nativeEvent.code,
+              errorDesc: e.nativeEvent.description || 'Unknown error'
+            });
+          }
         }}
         onMessage={onMessage}
         onScroll={onScroll}
@@ -512,6 +548,15 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
           onTouchStart={onTouchStart}
         />
       )}
+      {/* Render Error Overlays */}
+      {errorState && (() => {
+        console.log('[WebView Error] Rendering error overlay:', errorState);
+        return renderError(errorState.errorDomain, errorState.errorCode, errorState.errorDesc);
+      })()}
+      {sslErrorState && (() => {
+        console.log('[SSL Error] Rendering error overlay for:', sslErrorState.url);
+        return renderError(undefined, -1200, "ERR_SSL_PROTOCOL_ERROR");
+      })()}
     </View>
   );
 });

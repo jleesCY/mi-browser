@@ -64,6 +64,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setFontScale,
     fontWeight,
     setFontWeight,
+    ignoredHosts,
+    setIgnoredHosts,
     showStatusBar,
     setShowStatusBar,
     pillHeight,
@@ -2360,6 +2362,61 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   trackColor={{ false: "#767577", true: accentColor }}
                   thumbColor={"#f4f3f4"}
                 />
+              </SettingRow>
+
+              <SettingRow label="Ignored Hosts">
+                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+                    <Ionicons
+                      name="shield-checkmark-outline"
+                      size={22}
+                      color={effectiveTheme.text}
+                      style={{ marginRight: 10 }}
+                    />
+                    <Text
+                      style={{
+                        color: effectiveTheme.text,
+                        fontFamily: effectiveTheme.fonts.semibold,
+                        fontSize: 16 * fontScale,
+                      }}
+                    >
+                      Ignored Hosts
+                    </Text>
+                  </View>
+
+                  {ignoredHosts.length === 0 ? (
+                    <Text style={{ color: effectiveTheme.textSec, fontFamily: effectiveTheme.fonts.regular, fontSize: 14 * fontScale, fontStyle: 'italic', marginLeft: 32 }}>
+                      No ignored hosts
+                    </Text>
+                  ) : (
+                    <View style={{ marginTop: 5 }}>
+                      {ignoredHosts.map((host: string, index: number) => (
+                        <View key={host} style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: 8,
+                          borderBottomWidth: index < ignoredHosts.length - 1 ? 1 : 0,
+                          borderBottomColor: effectiveTheme.glassBorder,
+                          marginLeft: 32
+                        }}>
+                          <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.regular, fontSize: 14 * fontScale, flex: 1 }} numberOfLines={1}>
+                            {host}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => {
+                              const newHosts = ignoredHosts.filter((h: string) => h !== host);
+                              setIgnoredHosts(newHosts);
+                            }}
+                            style={{ padding: 5 }}
+                          >
+                            <Ionicons name="trash-outline" size={18} color="#ff3b30" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
               </SettingRow>
             </SettingsGroup>
           </>
