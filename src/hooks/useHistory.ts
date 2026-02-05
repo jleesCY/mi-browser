@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LayoutAnimation } from 'react-native';
-import { loadStorage, saveStorage, getHistoryTitle, generateId, getSearchQueryFromUrl } from '../utils';
 import { HistoryItem } from '../types';
+import { generateId, getHistoryTitle, getSearchQueryFromUrl, loadStorage, saveStorage } from '../utils';
 
 export const useHistory = (isAppReady: boolean) => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -12,33 +12,33 @@ export const useHistory = (isAppReady: boolean) => {
       const savedHistory = await loadStorage("history");
       if (Array.isArray(savedHistory)) {
         let validHistory = savedHistory.filter((item: any) => item && typeof item === 'object' && item.url);
-        
+
         // Ensure unique IDs to fix any existing corruption
         const seenIds = new Set();
         validHistory = validHistory.map((item: any) => {
           if (!item.id || seenIds.has(item.id)) {
-             const newId = generateId();
-             return { ...item, id: newId };
+            const newId = generateId();
+            return { ...item, id: newId };
           }
           seenIds.add(item.id);
           return item;
         });
-        
+
         setHistory(validHistory);
       }
 
       const savedRecent = await loadStorage("recent_searches");
       if (Array.isArray(savedRecent)) {
-         // Fix potential ID corruption in recent searches
-         const seenRecentIds = new Set();
-         const validRecent = savedRecent.map((item: any) => {
-            if (!item.id || seenRecentIds.has(item.id)) {
-                return { ...item, id: generateId() };
-            }
-            seenRecentIds.add(item.id);
-            return item;
-         });
-         setRecentSearches(validRecent);
+        // Fix potential ID corruption in recent searches
+        const seenRecentIds = new Set();
+        const validRecent = savedRecent.map((item: any) => {
+          if (!item.id || seenRecentIds.has(item.id)) {
+            return { ...item, id: generateId() };
+          }
+          seenRecentIds.add(item.id);
+          return item;
+        });
+        setRecentSearches(validRecent);
       }
     };
     loadHistory();
@@ -63,9 +63,9 @@ export const useHistory = (isAppReady: boolean) => {
   useEffect(() => {
     if (!isAppReady) return;
     const cleanRecent = recentSearches.map(item => ({
-        url: item.url,
-        title: item.title,
-        timestamp: item.timestamp
+      url: item.url,
+      title: item.title,
+      timestamp: item.timestamp
     }));
     saveStorage("recent_searches", cleanRecent);
   }, [recentSearches, isAppReady]);
@@ -103,8 +103,8 @@ export const useHistory = (isAppReady: boolean) => {
         // Remove existing identical search queries to avoid duplicates
         // We compare the actual query string, not just the URL
         const filtered = prev.filter(item => {
-           const itemQuery = getSearchQueryFromUrl(item.url);
-           return itemQuery !== searchQuery;
+          const itemQuery = getSearchQueryFromUrl(item.url);
+          return itemQuery !== searchQuery;
         });
 
         const newSearchItem = {

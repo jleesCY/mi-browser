@@ -1,7 +1,43 @@
 import { Linking } from 'react-native';
 import { getDisplayHost } from './utils';
 
-// --- ROBUST EXTERNAL LINK HANDLER ---
+/**
+ *  Handles navigation to external URLs and custom URL schemes
+ * 
+ * This function serves as the main entry point for handling URLs that cannot be
+ * displayed in the WebView directly, including:
+ * - Android Intent URLs (intent://...)
+ * - External app schemes (tel:, mailto:, market:, etc.)
+ * - Deep links to other applications
+ * 
+ * **Flow**:
+ * 1. Detects and routes Intent URLs to {@link handleIntent}
+ * 2. Attempts to open external schemes via React Native's Linking API
+ * 3. Shows error alert if URL cannot be opened
+ * 
+ * @param url - URL to handle (can be http, https, or custom scheme)
+ * @param activeTabId - ID of the currently active tab
+ * @param setTabs - State setter function for tabs array
+ * @param setActiveUrl - State setter for active URL
+ * @param setInputUrl - State setter for address bar display URL
+ * @param onShowAlert - Function to display alert dialogs to user
+ * 
+ * @throws Shows alert dialog on error rather than throwing
+ * 
+ * @example
+ * ```typescript
+ * await handleExternalLink(
+ *   'mailto:example@email.com',
+ *   activeTabId,
+ *   setTabs,
+ *   setActiveUrl,
+ *   setInputUrl,
+ *   onShowAlert
+ * );
+ * ```
+ * 
+ * @see {@link handleIntent} for Intent URL handling
+ */
 export const handleExternalLink = async (
   url: string,
   activeTabId: string,
@@ -34,7 +70,46 @@ export const handleExternalLink = async (
   }
 };
 
-// --- INTENT HANDLER ---
+/**
+ * Handles Android Intent URLs with multiple fallback strategies
+ * 
+ * Android Intent URLs (intent://...) are a special format used by Android apps
+ * to trigger app launches with fallback URLs. This function implements a comprehensive
+ * fallback chain to ensure the user can always access the intended content.
+ * 
+ * **Fallback Strategy (in order)**:
+ * 1. Extract scheme and attempt to open the constructed deep link
+ * 2. Attempt to open the raw intent URL
+ * 3. Extract and validate browser_fallback_url, load in WebView
+ * 4. Extract package name and prompt user to view in app store
+ * 5. Show error if all attempts fail
+ * 
+ * **Security**: Validates fallback URLs to ensure they use http/https schemes only.
+ * This prevents injection of javascript: or other dangerous URLs.
+ * 
+ * @param intentUrl - Android Intent URL to process
+ * @param activeTabId - ID of the currently active tab
+ * @param setTabs - State setter function for tabs array
+ * @param setActiveUrl - State setter for active URL
+ * @param setInputUrl - State setter for address bar display URL
+ * @param onShowAlert - Function to display alert dialogs to user
+ * 
+ * @example
+ * ```typescript
+ * // Intent URL with fallback
+ * await handleIntent(
+ *   'intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;browser_fallback_url=https://example.com;end',
+ *   activeTabId,
+ *   setTabs,
+ *   setActiveUrl,
+ *   setInputUrl,
+ *   onShowAlert
+ * );
+ * // Will attempt to open ZXing scanner, fallback to example.com if app not installed
+ * ```
+ * 
+ * @security Validates fallback URLs - only http/https schemes allowed
+ */
 export const handleIntent = async (
   intentUrl: string,
   activeTabId: string,

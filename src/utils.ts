@@ -6,6 +6,22 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+/**
+ * Converts a hexadecimal color string to RGBA format
+ * 
+ * Supports 6-character (#RRGGBB) and 8-character (#RRGGBBAA) hex formats.
+ * Optional alpha parameter overrides any alpha in the hex string.
+ * 
+ * @param hex - Hexadecimal color string (with or without # prefix)
+ * @param alphaStr - Optional alpha value as hex string (00-FF)
+ * @returns RGBA color string formatted as "rgba(r, g, b, a)"
+ * 
+ * @example
+ * ```typescript
+ * hexToRgba('#007AFF', 'CC');  // "rgba(0, 122, 255, 0.80)"
+ * hexToRgba('FF5733');          // "rgba(255, 87, 51, 1.00)"
+ * ```
+ */
 export const hexToRgba = (hex: string, alphaStr?: string) => {
   let r = 0, g = 0, b = 0, a = 1;
 
@@ -36,6 +52,32 @@ export const hexToRgba = (hex: string, alphaStr?: string) => {
   return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
 };
 
+/**
+ * Generates an adaptive dark theme color palette based on an accent color
+ * 
+ * Creates a cohesive dark theme by deriving background, surface, card, and glass colors
+ * from a single accent color. Includes fallback to default blue theme if parsing fails.
+ * 
+ * @param accentHex - Hex color string for the accent color (#RRGGBB format)
+ * @returns Theme object containing:
+ *   - bg: Background color
+ *   - surface: Surface layer color
+ *   - card: Card background color
+ *   - text: Primary text color
+ *   - textSec: Secondary text color
+ *   - glass: Glassmorphic overlay color
+ *   - glassBorder: Glass border color
+ *   - sheetHeader: Bottom sheet header color
+ *   - inputBg: Input field background color
+ *   - placeholder: Placeholder text color
+ *   - isDark: Boolean indicating dark theme
+ * 
+ * @example
+ * ```typescript
+ * const theme = generateAdaptiveTheme('#007AFF');
+ * // Returns dark theme with blue-tinted backgrounds
+ * ```
+ */
 export const generateAdaptiveTheme = (accentHex: string) => {
   // SANITY CHECK: Fallback if accentHex is missing or invalid
   const safeAccent = (accentHex && accentHex.startsWith('#') && accentHex.length === 7)
@@ -125,6 +167,21 @@ export const generateAdaptiveTheme = (accentHex: string) => {
 
 
 
+/**
+ * Extracts the search query from a search engine URL
+ * 
+ * Recognizes major search engines (Google, DuckDuckGo, Bing, etc.) and extracts
+ * the query parameter from their URL structure.
+ * 
+ * @param url - Full URL string to parse
+ * @returns Extracted search query string, or null if not a recognized search engine
+ * 
+ * @example
+ * ```typescript
+ * getSearchQueryFromUrl('https://www.google.com/search?q=react+native');
+ * // Returns: "react native"
+ * ```
+ */
 export const getSearchQueryFromUrl = (url: string) => {
   try {
     const parsed = new URL(url);
@@ -142,6 +199,27 @@ export const getSearchQueryFromUrl = (url: string) => {
   return null;
 };
 
+/**
+ * Generates a user-friendly title for a history entry
+ * 
+ * Creates meaningful titles for history items by:
+ * 1. Detecting search queries and formatting as "Engine Search: query"
+ * 2. Using page title if available and valid
+ * 3. Falling back to hostname
+ * 
+ * @param url - URL of the page
+ * @param pageTitle - Optional page title from WebView
+ * @returns Formatted history title
+ * 
+ * @example
+ * ```typescript
+ * getHistoryTitle('https://google.com/search?q=test', null);
+ * // Returns: "Google Search: test"
+ * 
+ * getHistoryTitle('https://example.com', 'Example Domain');
+ * // Returns: "Example Domain"
+ * ```
+ */
 export const getHistoryTitle = (url: string, pageTitle?: string | null) => {
   try {
     const query = getSearchQueryFromUrl(url);
@@ -164,6 +242,21 @@ export const getHistoryTitle = (url: string, pageTitle?: string | null) => {
   return getDisplayHost(url);
 };
 
+/**
+ * Extracts the hostname from a URL string
+ * 
+ * Safely parses URLs and returns only the hostname (domain).
+ * Returns the original string if parsing fails.
+ * 
+ * @param url - URL string to parse (can be null)
+ * @returns Hostname (e.g., "example.com") or empty string if null
+ * 
+ * @example
+ * ```typescript
+ * getDisplayHost('https://www.example.com/path');
+ * // Returns: "www.example.com"
+ * ```
+ */
 export const getDisplayHost = (url: string | null) => {
   if (!url) return "";
   try {
@@ -174,6 +267,21 @@ export const getDisplayHost = (url: string | null) => {
   }
 };
 
+/**
+ * Generates a favicon URL for a given website URL
+ * 
+ * Uses Google's favicon service to retrieve site favicon in 128x128 size.
+ * Automatically handles URLs with or without http/https protocol.
+ * 
+ * @param url - Website URL (can be null)
+ * @returns Favicon URL from Google's service, or null if URL is invalid
+ * 
+ * @example
+ * ```typescript
+ * getFaviconUrl('https://github.com');
+ * // Returns: "https://www.google.com/s2/favicons?domain=github.com&sz=128"
+ * ```
+ */
 export const getFaviconUrl = (url: string | null) => {
   if (!url) return null;
   try {
@@ -188,6 +296,26 @@ export const getFaviconUrl = (url: string | null) => {
   }
 };
 
+/**
+ * Parses deep link URLs and extracts the target web URL
+ * 
+ * Handles custom URL schemes:
+ * - mi://https://example.com
+ * - mi-browser://https://example.com
+ * - mi://open?url=https://example.com
+ * 
+ * @param url - Deep link URL to parse
+ * @returns Extracted HTTP/HTTPS URL, or null if not valid
+ * 
+ * @example
+ * ```typescript
+ * parseDeepLinkUrl('mi://https://example.com');
+ * // Returns: "https://example.com"
+ * 
+ * parseDeepLinkUrl('mi://open?url=https://github.com');
+ * // Returns: "https://github.com"
+ * ```
+ */
 export const parseDeepLinkUrl = (url: string) => {
   if (!url) return null;
   try {
@@ -215,6 +343,24 @@ export const parseDeepLinkUrl = (url: string) => {
 };
 
 // --- Storage Helpers ---
+
+/**
+ * Saves data to AsyncStorage with JSON serialization
+ * 
+ * **Note**: This stores data in plaintext. For sensitive data (like security settings),
+ * use `saveSecure()` from `utils/secureStorage.ts` instead.
+ * 
+ * @param key - Storage key identifier
+ * @param value - Any JSON-serializable value to store
+ * 
+ * @example
+ * ```typescript
+ * await saveStorage('settings', { theme: 'dark', fontSize: 16 });
+ * ```
+ * 
+ * @see {@link loadStorage} for loading data
+ * @see `utils/secureStorage.ts` for encrypted storage
+ */
 export const saveStorage = async (key: string, value: any) => {
   try {
     const jsonValue = JSON.stringify(value);
@@ -224,6 +370,24 @@ export const saveStorage = async (key: string, value: any) => {
   }
 };
 
+/**
+ * Loads data from AsyncStorage with JSON deserialization
+ * 
+ * **Note**: This reads plaintext data. For sensitive data, use `loadSecure()`.
+ * 
+ * @param key - Storage key identifier
+ * @returns Parsed data object, or null if key doesn't exist or parsing fails
+ * 
+ * @example
+ * ```typescript
+ * const settings = await loadStorage('settings');
+ * if (settings) {
+ *   console.log(settings.theme);
+ * }
+ * ```
+ * 
+ * @see {@link saveStorage} for saving data
+ */
 export const loadStorage = async (key: string) => {
   try {
     const jsonValue = await AsyncStorage.getItem(key);
@@ -234,6 +398,17 @@ export const loadStorage = async (key: string) => {
   }
 };
 
+/**
+ * Clears all data from AsyncStorage
+ * 
+ * **Warning**: This removes ALL stored data including settings, history, and bookmarks.
+ * Use with caution, typically only for debugging or user-initiated reset.
+ * 
+ * @example
+ * ```typescript
+ * await clearStorage();
+ * ```
+ */
 export const clearStorage = async () => {
   try {
     await AsyncStorage.clear();
@@ -242,6 +417,24 @@ export const clearStorage = async () => {
   }
 };
 
+/**
+ * Formats a timestamp into a smart, relative date string
+ * 
+ * Returns human-friendly date strings:
+ * - "Today" for same day
+ * - "Yesterday" for previous day  
+ * - "This Week" for current week
+ * - Full date ("Jan 15, 2024") for older dates
+ * 
+ * @param timestamp - Unix timestamp in milliseconds
+ * @returns Formatted date string
+ * 
+ * @example
+ * ```typescript
+ * getSmartDate(Date.now());  // "Today"
+ * getSmartDate(Date.now() - 86400000);  // "Yesterday"
+ * ```
+ */
 export const getSmartDate = (timestamp: number) => {
   const date = new Date(timestamp);
   const now = new Date();
@@ -322,6 +515,26 @@ export const groupHistoryBySite = (historyItems: any[]) => {
   });
 };
 
-export const generateId = () => {
+/**
+ * Generates a unique identifier string
+ * 
+ * Creates a pseudo-random unique ID using timestamp and random numbers.
+ * Suitable for client-side ID generation (tabs, bookmarks, history items).
+ * 
+ * **Note**: Not cryptographically secure. Do not use for security-sensitive purposes.
+ * 
+ * @returns Unique identifier string in format "timestamp-random1-random2"
+ * 
+ * @example
+ * ```typescript
+ * const tabId = generateUniqueId();
+ * // Returns something like: "1707073200000-123-456"
+ * ```
+ */
+export const generateUniqueId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 };
+
+// Backward compatibility alias
+export const generateId = generateUniqueId;
+

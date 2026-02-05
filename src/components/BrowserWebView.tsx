@@ -6,31 +6,112 @@ import { WebView } from 'react-native-webview';
 import { TabItem } from '../types';
 import { getDisplayHost } from '../utils';
 
+/**
+ * Props for BrowserWebView component
+ */
 interface BrowserWebViewProps {
+  /** Tab data to display in the WebView */
   tab: TabItem;
+
+  /** Whether this is the currently active tab */
   isActive: boolean;
+
+  /** Whether the WebView is in fullscreen mode */
   isFullscreen: boolean;
+
+  /** Browser settings (theme, security, etc.) */
   settings: any; // BrowserSettings
+
+  /** Computed theme object with colors */
   effectiveTheme: any;
+
+  /** Callback to update tab state */
   onUpdateTab: (id: string, updates: Partial<TabItem>) => void;
+
+  /** Callback to update active tab metadata (navigation state) */
   onActiveTabUpdate: (updates: { canGoBack: boolean; canGoForward: boolean; loading: boolean; url?: string; title?: string }) => void;
+
+  /** Progress callback (0-1) during page load */
   onLoadProgress: (progress: number) => void;
+
+  /** Callback when page load starts */
   onLoadStart: () => void;
+
+  /** Callback when page load completes */
   onLoadEnd: () => void;
+
+  /** Scroll event callback */
   onScroll: (event: any) => void;
+
+  /** Callback when scrolling ends */
   onScrollEnd: () => void;
+
+  /** Callback when user touches the WebView */
   onTouchStart: () => void;
+
+  /** Fullscreen change callback */
   onFullScreen: (isFullScreen: boolean) => void;
+
+  /** Permission request callback (camera, location, etc.) */
   onPermissionRequest: (event: any) => void;
+
+  /** External link callback (for intent:// or custom schemes) */
   onExternalLink: (url: string) => void;
+
+  /** New window request callback (target="_blank" links) */
   onNewWindow?: (url: string) => void;
+
+  /** Message callback from injected JavaScript */
   onMessage: (event: any) => void;
+
+  /** JavaScript code to inject into page */
   injectedJavaScript: string;
+
+  /** Whether to block gesture handling */
   blockGestures?: boolean;
+
+  /** Ref to the container View */
   containerRef?: React.Ref<View>;
+
+  /** Find-in-page configuration */
   findInPageConfig?: { query: string; forward: boolean; timestamp: number } | null;
 }
 
+/**
+ * Core WebView wrapper component for browser functionality
+ * 
+ * Wraps React Native WebView with browser-specific features:
+ * - SSL error handling with user bypass option
+ * - HTTP error display (timeouts, connection failures)
+ * - Reader mode support
+ * - Desktop mode user agent switching
+ * - JavaScript enable/disable
+ * - Cookie blocking
+ * - HTTPS-only mode
+ * - Find-in-page functionality
+ * - Custom error overlays
+ * 
+ * **Security Features**:
+ * - Restricted origin whitelist (http, https, about only)
+ * - SSL certificate validation with user warning
+ * - Debug logs wrapped in __DEV__ checks
+ * 
+ * @component
+ * @example
+ * ```tsx
+ * <BrowserWebView
+ *   ref={webViewRef}
+ *   tab={currentTab}
+ *   isActive={true}
+ *   isFullscreen={false}
+ *   settings={browserSettings}
+ *   effectiveTheme={theme}
+ *   onUpdateTab={handleUpdateTab}
+ *   onActiveTabUpdate={handleActiveUpdate}
+ *   // ... other callbacks
+ * />
+ * ```
+ */
 export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React.Ref<WebView>) => {
   const {
     tab,
