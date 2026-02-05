@@ -36,12 +36,12 @@ export const handleExternalLink = async (
 
 // --- INTENT HANDLER ---
 export const handleIntent = async (
-    intentUrl: string,
-    activeTabId: string,
-    setTabs: (callback: (prev: any[]) => any[]) => void,
-    setActiveUrl: (url: string) => void,
-    setInputUrl: (url: string) => void,
-    onShowAlert: (title: string, message: string, buttons?: any[]) => void
+  intentUrl: string,
+  activeTabId: string,
+  setTabs: (callback: (prev: any[]) => any[]) => void,
+  setActiveUrl: (url: string) => void,
+  setInputUrl: (url: string) => void,
+  onShowAlert: (title: string, message: string, buttons?: any[]) => void
 ) => {
   try {
     // Attempt 1: Extract and Open the Clean Deep Link
@@ -55,7 +55,7 @@ export const handleIntent = async (
 
       try {
         await Linking.openURL(cleanDeepLink);
-        return; 
+        return;
       } catch {
         // Continue
       }
@@ -73,6 +73,17 @@ export const handleIntent = async (
     const fallbackMatch = intentUrl.match(/browser_fallback_url=([^;]+)/);
     if (fallbackMatch && fallbackMatch[1]) {
       const fallbackUrl = decodeURIComponent(fallbackMatch[1]);
+
+      // SECURITY: Validate fallback URL scheme to prevent dangerous URLs
+      if (!fallbackUrl.startsWith('http://') && !fallbackUrl.startsWith('https://')) {
+        onShowAlert(
+          "Invalid Fallback URL",
+          "The fallback URL provided is not a valid web address.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
       // Load fallback in OUR browser
       setTabs((prev) =>
         prev.map((t) =>
@@ -93,8 +104,8 @@ export const handleIntent = async (
         `This feature requires an external app (${packageName}). Would you like to view it in the store?`,
         [
           { text: "Cancel", style: "cancel" },
-          { 
-            text: "View Store", 
+          {
+            text: "View Store",
             onPress: () => Linking.openURL(`market://details?id=${packageName}`)
           }
         ]
@@ -108,6 +119,6 @@ export const handleIntent = async (
       [{ text: "OK" }]
     );
   } catch (err: any) {
-     console.log("Intent Error:", err);
+    console.log("Intent Error:", err);
   }
 };

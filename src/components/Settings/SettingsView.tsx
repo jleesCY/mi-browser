@@ -2400,9 +2400,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           borderBottomColor: effectiveTheme.glassBorder,
                           marginLeft: 32
                         }}>
-                          <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.regular, fontSize: 14 * fontScale, flex: 1 }} numberOfLines={1}>
-                            {host}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            <Ionicons
+                              name="warning"
+                              size={16}
+                              color="#FF9500"
+                              style={{ marginRight: 8 }}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.regular, fontSize: 14 * fontScale }} numberOfLines={1}>
+                                {host}
+                              </Text>
+                              <Text style={{ color: '#FF9500', fontFamily: effectiveTheme.fonts.regular, fontSize: 11 * fontScale, marginTop: 2 }}>
+                                SSL errors ignored
+                              </Text>
+                            </View>
+                          </View>
                           <TouchableOpacity
                             onPress={() => {
                               const newHosts = ignoredHosts.filter((h: string) => h !== host);

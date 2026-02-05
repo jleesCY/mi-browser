@@ -136,6 +136,9 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
     })();
   ` : '';
 
+  // SECURITY: finalInjectedJavaScript combines parent-provided script with reader mode.
+  // WARNING: Never include user input or external data in injectedJavaScript as it
+  // executes in the context of the loaded page and could lead to XSS vulnerabilities.
   const finalInjectedJavaScript = injectedJavaScript + readerScript;
 
   // Render Error View
@@ -305,7 +308,7 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
               style={{
                 marginTop: 15,
                 paddingHorizontal: 20,
-                paddingVertical: 12,
+                paddingVertical: 14,
                 borderRadius: 12,
                 backgroundColor: "#ff3b30"
               }}
@@ -329,12 +332,25 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
                 }
               }}
             >
-              <Text style={{
-                color: "#fff", fontFamily: effectiveTheme.fonts.bold, fontSize: 16
-              }}>
-                Proceed to Unsafe Site
-              </Text>
-            </TouchableOpacity >
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{
+                  color: '#fff',
+                  fontFamily: effectiveTheme.fonts.bold,
+                  fontSize: 16
+                }}>
+                  ⚠️ Trust This Site Anyway
+                </Text>
+                <Text style={{
+                  color: '#fff',
+                  fontFamily: effectiveTheme.fonts.regular,
+                  fontSize: 12,
+                  marginTop: 4,
+                  opacity: 0.9
+                }}>
+                  This will disable security checks for {getDisplayHost(failingUrlRef.current || tab.url)}
+                </Text>
+              </View>
+            </TouchableOpacity>
           )
         }
       </View >
@@ -414,20 +430,26 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
           isFullscreen ? { backgroundColor: "#000" } : { backgroundColor: effectiveTheme.bg }
         }
         renderError={renderError}
-        originWhitelist={["*"]}
+        originWhitelist={["http://*", "https://*", "about:*"]}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         injectedJavaScript={finalInjectedJavaScript}
         onReceivedSslError={(event: any) => {
           const url = event.nativeEvent.url;
           const host = getDisplayHost(url);
-          console.log('[SSL Error]', { url, host, ignoredHosts });
+          if (__DEV__) {
+            console.log('[SSL Error]', { url, host, ignoredHosts });
+          }
           // Check if host is in ignoredHosts array
           if (ignoredHosts && ignoredHosts.includes(host)) {
-            console.log('[SSL Error] Proceeding - host is ignored');
+            if (__DEV__) {
+              console.log('[SSL Error] Proceeding - host is ignored');
+            }
             event.nativeEvent.proceed();
             setSslErrorState(null); // Clear any existing error state
           } else {
-            console.log('[SSL Error] Canceling and showing error UI');
+            if (__DEV__) {
+              console.log('[SSL Error] Canceling and showing error UI');
+            }
             failingUrlRef.current = url;
             setSslErrorState({ url }); // Set error state to trigger UI
             event.nativeEvent.cancel();
@@ -446,6 +468,9 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
             setSslErrorState(null);
           }
 
+          if (__DEV__) {
+            console.log('[Navigation]', { url, loading });
+          }
           // Only update if changed
           const hasChanged =
             tab.url !== url ||
@@ -490,7 +515,9 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
           if (isActive) onLoadEnd();
         }}
         onError={(e) => {
-          console.log('[WebView Error]', e.nativeEvent);
+          if (__DEV__) {
+            console.log('[WebView Error]', e.nativeEvent);
+          }
           if (isActive) {
             onLoadEnd(); // Stop loading indicator
             // Set error state to trigger error UI
@@ -550,11 +577,15 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
       )}
       {/* Render Error Overlays */}
       {errorState && (() => {
-        console.log('[WebView Error] Rendering error overlay:', errorState);
+        if (__DEV__) {
+          console.log('[WebView Error] Rendering error overlay:', errorState);
+        }
         return renderError(errorState.errorDomain, errorState.errorCode, errorState.errorDesc);
       })()}
       {sslErrorState && (() => {
-        console.log('[SSL Error] Rendering error overlay for:', sslErrorState.url);
+        if (__DEV__) {
+          console.log('[SSL Error] Rendering error overlay for:', sslErrorState.url);
+        }
         return renderError(undefined, -1200, "ERR_SSL_PROTOCOL_ERROR");
       })()}
     </View>

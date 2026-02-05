@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { COLORS, DEFAULT_MENU_BAR_ORDER, MenuItemId, SEARCH_ENGINES } from '../constants';
 import { generateAdaptiveTheme, loadStorage, saveStorage } from '../utils';
+import { loadSecure, saveSecure } from '../utils/secureStorage';
 
 export interface BrowserSettings {
   themeMode: "light" | "dark" | "adaptive";
@@ -96,79 +97,111 @@ export const useBrowserSettings = (isAppReady: boolean) => {
 
   const [areSettingsLoaded, setAreSettingsLoaded] = useState(false);
 
+  // Load settings from storage on mount
   useEffect(() => {
     const loadSettings = async () => {
-      const savedSettings = await loadStorage("settings");
+      try {
+        const savedSettings = await loadStorage("settings");
 
-      if (savedSettings && typeof savedSettings === 'object' && !Array.isArray(savedSettings)) {
-        setThemeMode(savedSettings.themeMode ?? "dark");
-        setAccentColor(savedSettings.accentColor ?? "#007AFF");
-        const savedIndex = savedSettings.searchEngineIndex ?? 0;
-        setSearchEngineIndex(
-          savedIndex >= 0 && savedIndex < SEARCH_ENGINES.length ? savedIndex : 0
-        );
-        setCornerRadius(savedSettings.cornerRadius ?? 22);
-        setUiPadding(savedSettings.uiPadding ?? "normal");
-        setFontScale(savedSettings.fontScale ?? 1);
-        setShowStatusBar(savedSettings.showStatusBar !== undefined ? savedSettings.showStatusBar : true);
-        setPillHeight(savedSettings.pillHeight ?? 70);
-        setFontWeight(savedSettings.fontWeight ?? "normal");
-        setProgressBarMode(savedSettings.progressBarMode ?? "ltr");
-        setRecallPosition(savedSettings.recallPosition ?? "center");
+        // SECURITY: Load ignoredHosts from secure storage
+        let secureIgnoredHosts = await loadSecure<string[]>('ignoredHosts');
 
-        setDesktopMode(savedSettings.desktopMode ?? false);
-        setForceSearchMode(savedSettings.forceSearchMode ?? false);
-        setRecentSearchesExpanded(savedSettings.recentSearchesExpanded ?? false);
-        setShowFavoritesDefault(savedSettings.showFavoritesDefault ?? false);
-        setJsEnabled(savedSettings.jsEnabled ?? true);
-        setHttpsOnly(savedSettings.httpsOnly ?? false);
-        setBlockCookies(savedSettings.blockCookies ?? false);
-        setHistoryLoadCount(savedSettings.historyLoadCount ?? 10);
-        setHistoryGrouping(savedSettings.historyGrouping ?? "Time");
+        // Migration: If ignoredHosts exists in AsyncStorage, migrate to SecureStore
+        if (!secureIgnoredHosts && savedSettings?.ignoredHosts) {
+          if (__DEV__) {
+            console.log('[Migration] Moving ignoredHosts to secure storage');
+          }
+          secureIgnoredHosts = savedSettings.ignoredHosts;
+          await saveSecure('ignoredHosts', secureIgnoredHosts);
 
-        setBackgroundRefresh(savedSettings.backgroundRefresh ?? false);
-
-        setHomeClockType(savedSettings.homeClockType ?? "None");
-        setHomeDateType(savedSettings.homeDateType ?? "None");
-        setHomeWeatherType(savedSettings.homeWeatherType ?? "None");
-        setHomeLogoType(savedSettings.homeLogoType ?? "Fidget");
-        setHomeBackgroundImage(savedSettings.homeBackgroundImage ?? null);
-        setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
-        setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
-        setIgnoredHosts(savedSettings.ignoredHosts ?? []);
-
-        if (savedSettings.startupTabMode) {
-          setStartupTabMode(savedSettings.startupTabMode);
+          // Remove from AsyncStorage settings
+          delete savedSettings.ignoredHosts;
+          await saveStorage('settings', savedSettings);
         }
-        setTabViewMode(savedSettings.tabViewMode ?? "rows");
-        setShowTabLogo(savedSettings.showTabLogo ?? true);
-        setShowTabPreview(savedSettings.showTabPreview ?? true);
-        setExpandMenus(savedSettings.expandMenus ?? false);
-        setShowBookmarkIcons(savedSettings.showBookmarkIcons ?? true);
 
-        // Load menu bar order with migration for missing items
-        if (savedSettings.menuBarOrder && Array.isArray(savedSettings.menuBarOrder)) {
-          const loadedOrder = savedSettings.menuBarOrder as string[];
-          // Find missing items
-          const missingItems = DEFAULT_MENU_BAR_ORDER.filter(item => !loadedOrder.includes(item));
+        setIgnoredHosts(secureIgnoredHosts || []);
 
-          if (missingItems.length > 0) {
-            // Add missing items to the end
-            const migratedOrder = [...loadedOrder.filter(item => DEFAULT_MENU_BAR_ORDER.includes(item as MenuItemId)), ...missingItems] as readonly MenuItemId[];
-            setMenuBarOrder(migratedOrder);
-          } else if (loadedOrder.length === DEFAULT_MENU_BAR_ORDER.length) {
-            setMenuBarOrder(loadedOrder as readonly MenuItemId[]);
-          } else {
-            // Reset to default if corrupted
-            setMenuBarOrder(DEFAULT_MENU_BAR_ORDER);
+        if (savedSettings && typeof savedSettings === 'object' && !Array.isArray(savedSettings)) {
+          setThemeMode(savedSettings.themeMode ?? "dark");
+          setAccentColor(savedSettings.accentColor ?? "#007AFF");
+          const savedIndex = savedSettings.searchEngineIndex ?? 0;
+          setSearchEngineIndex(
+            savedIndex >= 0 && savedIndex < SEARCH_ENGINES.length ? savedIndex : 0
+          );
+          setCornerRadius(savedSettings.cornerRadius ?? 22);
+          setUiPadding(savedSettings.uiPadding ?? "normal");
+          setFontScale(savedSettings.fontScale ?? 1);
+          setShowStatusBar(savedSettings.showStatusBar !== undefined ? savedSettings.showStatusBar : true);
+          setPillHeight(savedSettings.pillHeight ?? 70);
+          setFontWeight(savedSettings.fontWeight ?? "normal");
+          setProgressBarMode(savedSettings.progressBarMode ?? "ltr");
+          setRecallPosition(savedSettings.recallPosition ?? "center");
+
+          setDesktopMode(savedSettings.desktopMode ?? false);
+          setForceSearchMode(savedSettings.forceSearchMode ?? false);
+          setRecentSearchesExpanded(savedSettings.recentSearchesExpanded ?? false);
+          setShowFavoritesDefault(savedSettings.showFavoritesDefault ?? false);
+          setJsEnabled(savedSettings.jsEnabled ?? true);
+          setHttpsOnly(savedSettings.httpsOnly ?? false);
+          setBlockCookies(savedSettings.blockCookies ?? false);
+          setHistoryLoadCount(savedSettings.historyLoadCount ?? 10);
+          setHistoryGrouping(savedSettings.historyGrouping ?? "Time");
+
+          setBackgroundRefresh(savedSettings.backgroundRefresh ?? false);
+
+          setHomeClockType(savedSettings.homeClockType ?? "None");
+          setHomeDateType(savedSettings.homeDateType ?? "None");
+          setHomeWeatherType(savedSettings.homeWeatherType ?? "None");
+          setHomeLogoType(savedSettings.homeLogoType ?? "Fidget");
+          setHomeBackgroundImage(savedSettings.homeBackgroundImage ?? null);
+          setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
+          setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
+          // ignoredHosts is now loaded and migrated above
+
+          if (savedSettings.startupTabMode) {
+            setStartupTabMode(savedSettings.startupTabMode);
+          }
+          setTabViewMode(savedSettings.tabViewMode ?? "rows");
+          setShowTabLogo(savedSettings.showTabLogo ?? true);
+          setShowTabPreview(savedSettings.showTabPreview ?? true);
+          setExpandMenus(savedSettings.expandMenus ?? false);
+          setShowBookmarkIcons(savedSettings.showBookmarkIcons ?? true);
+
+          // Load menu bar order with migration for missing items
+          if (savedSettings.menuBarOrder && Array.isArray(savedSettings.menuBarOrder)) {
+            const loadedOrder = savedSettings.menuBarOrder as string[];
+            // Find missing items
+            const missingItems = DEFAULT_MENU_BAR_ORDER.filter(item => !loadedOrder.includes(item));
+
+            if (missingItems.length > 0) {
+              // Add missing items to the end
+              const migratedOrder = [...loadedOrder.filter(item => DEFAULT_MENU_BAR_ORDER.includes(item as MenuItemId)), ...missingItems] as readonly MenuItemId[];
+              setMenuBarOrder(migratedOrder);
+            } else if (loadedOrder.length === DEFAULT_MENU_BAR_ORDER.length) {
+              setMenuBarOrder(loadedOrder as readonly MenuItemId[]);
+            } else {
+              // Reset to default if corrupted
+              setMenuBarOrder(DEFAULT_MENU_BAR_ORDER);
+            }
           }
         }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
       }
       setAreSettingsLoaded(true);
     };
     loadSettings();
   }, []); // Only run on mount
 
+  // Save ignoredHosts to storage whenever it changes
+  useEffect(() => {
+    if (isAppReady) {
+      // SECURITY: Save ignoredHosts to secure storage separately
+      saveSecure('ignoredHosts', ignoredHosts);
+    }
+  }, [ignoredHosts, isAppReady]);
+
+  // Save other settings to storage whenever they change
   useEffect(() => {
     if (isAppReady) {
       const settingsToSave = {
@@ -207,8 +240,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         homeBackgroundImage,
         showHomeShortcuts,
         homeShortcutAction,
-        fontWeight,
-        ignoredHosts
+        fontWeight
+        // NOTE: ignoredHosts is saved separately to secure storage
       };
       saveStorage("settings", settingsToSave);
     }
