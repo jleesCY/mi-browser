@@ -50,7 +50,7 @@ const SettingsSection = ({
             styles.headerText,
             {
               color: theme.textSec,
-              fontFamily: "Nunito_700Bold",
+              fontFamily: theme.fonts.bold,
               fontSize: 14 * fontScale,
             },
           ]}

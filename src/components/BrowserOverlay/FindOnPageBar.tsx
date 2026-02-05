@@ -84,7 +84,7 @@ export const FindOnPageBar = ({
             {
               color: theme.text,
               fontSize: typography.sizes.base * fontScale,
-              fontFamily: typography.families.semibold,
+              fontFamily: theme.fonts.semibold,
             }
           ]}
           placeholder="Find in page..."

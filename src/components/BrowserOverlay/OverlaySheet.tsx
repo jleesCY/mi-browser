@@ -64,7 +64,7 @@ export const OverlaySheet: React.FC<OverlaySheetProps> = ({
           <Text
             style={{
               color: theme.text,
-              fontFamily: typography.families.extrabold,
+              fontFamily: theme.fonts.extrabold,
               fontSize: typography.sizes.xxl * fontScale,
             }}
           >

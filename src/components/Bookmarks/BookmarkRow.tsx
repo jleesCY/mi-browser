@@ -143,7 +143,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
                 ) : (
                   <Text style={{
                     color: theme.text,
-                    fontFamily: typography.families.extrabold,
+                    fontFamily: theme.fonts.extrabold,
                     fontSize: typography.sizes.lg * fontScale
                   }}>
                     {(item.title || "?").charAt(0).toUpperCase()}
@@ -158,7 +158,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
               numberOfLines={1}
               style={{
                 color: theme.text,
-                fontFamily: typography.families.bold,
+                fontFamily: theme.fonts.bold,
                 fontSize: typography.sizes.base * fontScale,
                 marginBottom: spacing.xxs / 2
               }}
@@ -170,7 +170,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({
                 numberOfLines={1}
                 style={{
                   color: theme.textSec,
-                  fontFamily: typography.families.regular,
+                  fontFamily: theme.fonts.regular,
                   fontSize: typography.sizes.xs * fontScale,
                 }}
               >

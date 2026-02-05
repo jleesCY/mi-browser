@@ -22,6 +22,13 @@ export interface Theme {
     inputBg: string;
     placeholder: string;
     isDark: boolean;
+    fonts: {
+        regular: string;
+        semibold: string;
+        bold: string;
+        extrabold: string;
+        light: string;
+    };
 }
 
 export interface StyleConfig {
@@ -85,7 +92,7 @@ export const createButtonStyles = (config: StyleConfig) => {
         primaryText: {
             color: '#FFFFFF',
             fontSize: getScaledFontSize(typography.sizes.base, fontScale),
-            fontFamily: typography.families.semibold,
+            fontFamily: theme.fonts.semibold,
         },
 
         // Secondary button (outlined)
@@ -103,7 +110,7 @@ export const createButtonStyles = (config: StyleConfig) => {
         secondaryText: {
             color: accentColor,
             fontSize: getScaledFontSize(typography.sizes.base, fontScale),
-            fontFamily: typography.families.semibold,
+            fontFamily: theme.fonts.semibold,
         },
 
         // Tertiary button (text only)
@@ -118,7 +125,7 @@ export const createButtonStyles = (config: StyleConfig) => {
         tertiaryText: {
             color: accentColor,
             fontSize: getScaledFontSize(typography.sizes.base, fontScale),
-            fontFamily: typography.families.regular,
+            fontFamily: theme.fonts.regular,
         },
 
         // Icon button
@@ -158,7 +165,7 @@ export const createInputStyles = (config: StyleConfig) => {
         },
         text: {
             fontSize: getScaledFontSize(typography.sizes.base, fontScale),
-            fontFamily: typography.families.regular,
+            fontFamily: theme.fonts.regular,
             color: theme.text,
         },
         placeholder: {
@@ -205,53 +212,53 @@ export const createTextStyles = (config: StyleConfig) => {
         // Headings
         h1: {
             fontSize: getScaledFontSize(typography.sizes.xxxl, fontScale),
-            fontFamily: typography.families.extrabold,
+            fontFamily: theme.fonts.extrabold,
             color: theme.text,
         },
         h2: {
             fontSize: getScaledFontSize(typography.sizes.xxl, fontScale),
-            fontFamily: typography.families.bold,
+            fontFamily: theme.fonts.bold,
             color: theme.text,
         },
         h3: {
             fontSize: getScaledFontSize(typography.sizes.xl, fontScale),
-            fontFamily: typography.families.bold,
+            fontFamily: theme.fonts.bold,
             color: theme.text,
         },
         h4: {
             fontSize: getScaledFontSize(typography.sizes.lg, fontScale),
-            fontFamily: typography.families.semibold,
+            fontFamily: theme.fonts.semibold,
             color: theme.text,
         },
 
         // Body text
         body: {
             fontSize: getScaledFontSize(typography.sizes.base, fontScale),
-            fontFamily: typography.families.regular,
+            fontFamily: theme.fonts.regular,
             color: theme.text,
         },
         bodyBold: {
             fontSize: getScaledFontSize(typography.sizes.base, fontScale),
-            fontFamily: typography.families.bold,
+            fontFamily: theme.fonts.bold,
             color: theme.text,
         },
 
         // Small text
         small: {
             fontSize: getScaledFontSize(typography.sizes.sm, fontScale),
-            fontFamily: typography.families.regular,
+            fontFamily: theme.fonts.regular,
             color: theme.text,
         },
         smallBold: {
             fontSize: getScaledFontSize(typography.sizes.sm, fontScale),
-            fontFamily: typography.families.semibold,
+            fontFamily: theme.fonts.semibold,
             color: theme.text,
         },
 
         // Caption
         caption: {
             fontSize: getScaledFontSize(typography.sizes.xs, fontScale),
-            fontFamily: typography.families.regular,
+            fontFamily: theme.fonts.regular,
             color: theme.textSec,
         },
 

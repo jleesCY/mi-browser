@@ -1,8 +1,8 @@
-import React, { forwardRef, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from "@expo/vector-icons";
 import * as Device from 'expo-device';
+import React, { forwardRef, useRef, useState } from 'react';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { TabItem } from '../types';
 import { getDisplayHost } from '../utils';
 
@@ -31,69 +31,73 @@ interface BrowserWebViewProps {
   findInPageConfig?: { query: string; forward: boolean; timestamp: number } | null;
 }
 
-export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
-  tab,
-  isActive,
-  isFullscreen,
-  settings,
-  effectiveTheme,
-  onUpdateTab,
-  onActiveTabUpdate,
-  onLoadProgress,
-  onLoadStart,
-  onLoadEnd,
-  onScroll,
-  onScrollEnd,
-  onTouchStart,
-  onFullScreen,
-  onPermissionRequest,
-  onExternalLink,
-  onNewWindow,
-  onMessage,
-  injectedJavaScript,
-  blockGestures = false,
-  containerRef,
-  findInPageConfig
-}, ref) => {
+export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React.Ref<WebView>) => {
+  const {
+    tab,
+    isActive,
+    isFullscreen,
+    settings,
+    effectiveTheme,
+    onUpdateTab,
+    onActiveTabUpdate,
+    onLoadProgress,
+    onLoadStart,
+    onLoadEnd,
+    onScroll,
+    onScrollEnd,
+    onTouchStart,
+    onFullScreen,
+    onPermissionRequest,
+    onExternalLink,
+    onNewWindow,
+    onMessage,
+    injectedJavaScript,
+    blockGestures = false,
+    containerRef,
+    findInPageConfig
+  } = props;
   const localRef = useRef<WebView>(null);
   const [ignoredHosts, setIgnoredHosts] = useState<Set<string>>(new Set());
-  
+
   // Handle Find In Page
   React.useEffect(() => {
-      if (isActive && findInPageConfig && localRef.current) {
-          const { query, forward } = findInPageConfig;
-          if (!query) {
-             // Clear selection logic if needed, usually window.getSelection().removeAllRanges()
-             localRef.current.injectJavaScript(`
+    if (isActive && findInPageConfig && localRef.current) {
+      const { query, forward } = findInPageConfig;
+      if (!query) {
+        // Clear selection logic if needed, usually window.getSelection().removeAllRanges()
+        localRef.current.injectJavaScript(`
                 (function(){
                     window.getSelection().removeAllRanges();
                 })();
              `);
-          } else {
-             // window.find(aString, aCaseSensitive, aBackwards, aWrapAround, aWholeWord, aSearchInFrames, aShowDialog);
-             // Android WebView supports: window.find(string) mostly.
-             // Standard: window.find(str, caseSensitive, backwards, wrapAround)
-             const js = `
+      } else {
+        // window.find(aString, aCaseSensitive, aBackwards, aWrapAround, aWholeWord, aSearchInFrames, aShowDialog);
+        // Android WebView supports: window.find(string) mostly.
+        // Standard: window.find(str, caseSensitive, backwards, wrapAround)
+        const js = `
                 (function(){
                     if (window.find) {
                         window.find("${query}", false, ${!forward}, true);
                     }
                 })();
              `;
-             localRef.current.injectJavaScript(js);
-          }
+        localRef.current.injectJavaScript(js);
       }
+    }
   }, [findInPageConfig]);
 
   const {
     jsEnabled,
     desktopMode,
     blockCookies,
-    accentColor,
+    // accentColor, // Removed from destructuring as per instruction
     pillHeight,
     httpsOnly,
     readerModeEnabled
   } = settings;
+
+  const accentColor = settings.accentColor;
+  const fontScale = settings.fontScale || 1;
 
   const isDesktop = tab.desktopMode ?? desktopMode;
   const isReader = tab.readerMode ?? readerModeEnabled;
@@ -101,14 +105,14 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
   // Calculate User Agent
   let userAgent = "";
   if (isDesktop) {
-     userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+    userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
   } else if (Platform.OS === 'ios') {
-     userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
+    userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
   } else {
-     // Dynamic Android UA
-     const model = Device.modelName || "Pixel 7";
-     const osVer = Device.osVersion || "13";
-     userAgent = `Mozilla/5.0 (Linux; Android ${osVer}; ${model}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36`;
+    // Dynamic Android UA
+    const model = Device.modelName || "Pixel 7";
+    const osVer = Device.osVersion || "13";
+    userAgent = `Mozilla/5.0 (Linux; Android ${osVer}; ${model}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36`;
   }
 
   // READER MODE SCRIPT
@@ -134,39 +138,39 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
     let iconName = "alert-circle-outline";
 
     // Detect common SSL/Security errors to offer specific actions
-    const isSslError = 
-        errorDesc.includes("ERR_CERT") || 
-        errorDesc.includes("ERR_SSL") || 
-        errorDesc.includes("ssl_error") || 
-        errorCode === -11 || 
-        (errorCode <= -1200 && errorCode >= -1206); // Android SSL error range
+    const isSslError =
+      errorDesc.includes("ERR_CERT") ||
+      errorDesc.includes("ERR_SSL") ||
+      errorDesc.includes("ssl_error") ||
+      errorCode === -11 ||
+      (errorCode <= -1200 && errorCode >= -1206); // Android SSL error range
 
     const isCleartextError = errorDesc.includes("ERR_CLEARTEXT_NOT_PERMITTED");
 
     if (errorDesc.includes("ERR_NAME_NOT_RESOLVED") || errorCode === -2 || errorCode === -1003) {
-        friendlyTitle = "Site Not Found";
-        friendlyDesc = "We couldn't find this site. Please check your spelling.";
-        iconName = "search-outline";
+      friendlyTitle = "Site Not Found";
+      friendlyDesc = "We couldn't find this site. Please check your spelling.";
+      iconName = "search-outline";
     } else if (errorDesc.includes("ERR_INTERNET_DISCONNECTED") || errorCode === -1009) {
-        friendlyTitle = "No Internet";
-        friendlyDesc = "Please check your Wi-Fi or mobile data connection.";
-        iconName = "wifi-outline";
+      friendlyTitle = "No Internet";
+      friendlyDesc = "Please check your Wi-Fi or mobile data connection.";
+      iconName = "wifi-outline";
     } else if (errorDesc.includes("ERR_CONNECTION_TIMED_OUT") || errorCode === -1001) {
-        friendlyTitle = "Connection Timed Out";
-        friendlyDesc = "The server took too long to respond.";
-        iconName = "time-outline";
+      friendlyTitle = "Connection Timed Out";
+      friendlyDesc = "The server took too long to respond.";
+      iconName = "time-outline";
     } else if (errorDesc.includes("ERR_CONNECTION_REFUSED") || errorCode === -1004) {
-        friendlyTitle = "Connection Refused";
-        friendlyDesc = "The website refused the connection.";
-        iconName = "hand-left-outline";
+      friendlyTitle = "Connection Refused";
+      friendlyDesc = "The website refused the connection.";
+      iconName = "hand-left-outline";
     } else if (isCleartextError) {
-        friendlyTitle = "Security Error";
-        friendlyDesc = "This site requires a secure HTTPS connection.";
-        iconName = "lock-closed-outline";
+      friendlyTitle = "Security Error";
+      friendlyDesc = "This site requires a secure HTTPS connection.";
+      iconName = "lock-closed-outline";
     } else if (isSslError) {
-        friendlyTitle = "Security Warning";
-        friendlyDesc = "The connection to this site is not secure.";
-        iconName = "warning-outline";
+      friendlyTitle = "Security Warning";
+      friendlyDesc = "The connection to this site is not secure.";
+      iconName = "warning-outline";
     }
 
     return (
@@ -190,12 +194,12 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
           color={effectiveTheme.textSec}
           style={{ marginBottom: 20 }}
         />
-        
+
         <Text
           style={{
             color: effectiveTheme.text,
-            fontFamily: "Nunito_800ExtraBold",
-            fontSize: 20,
+            fontFamily: effectiveTheme.fonts.extrabold,
+            fontSize: 20 * fontScale,
             marginBottom: 10,
             textAlign: 'center'
           }}
@@ -204,24 +208,24 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         </Text>
 
         <Text
-            numberOfLines={1}
-            style={{
-                color: accentColor,
-                fontFamily: "Nunito_700Bold",
-                fontSize: 14,
-                marginBottom: 10,
-                marginTop: 0,
-                maxWidth: '85%',
-                textAlign: 'center'
-            }}
+          numberOfLines={1}
+          style={{
+            color: accentColor,
+            fontFamily: effectiveTheme.fonts.bold,
+            fontSize: 14 * fontScale,
+            marginBottom: 10,
+            marginTop: 0,
+            maxWidth: '85%',
+            textAlign: 'center'
+          }}
         >
-            {tab.url}
+          {tab.url}
         </Text>
 
         <Text
           style={{
             color: effectiveTheme.textSec,
-            fontFamily: "Nunito_600SemiBold",
+            fontFamily: effectiveTheme.fonts.semibold,
             textAlign: 'center',
             marginBottom: 30
           }}
@@ -237,79 +241,87 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
             backgroundColor: accentColor
           }}
           onPress={() => {
-              if (localRef.current) {
-                  localRef.current.reload();
-              }
+            if (localRef.current) {
+              localRef.current.reload();
+            }
           }}
         >
           <Text
             style={{
               color: "#fff",
-              fontFamily: "Nunito_700Bold",
-              fontSize: 16,
+              fontFamily: effectiveTheme.fonts.bold,
+              fontSize: 16 * fontScale,
             }}
           >
             Try Again
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity >
 
         {/* Upgrade to HTTPS Option */}
-        {(tab.url && tab.url.startsWith("http://")) && (
-             <TouchableOpacity
-             style={{
-               marginTop: 15,
-               paddingHorizontal: 20,
-               paddingVertical: 12,
-               borderRadius: 12,
-               backgroundColor: effectiveTheme.card
-             }}
-             onPress={() => {
-                 const newUrl = tab.url!.replace(/^http:\/\//i, "https://");
-                 onUpdateTab(tab.id, { url: newUrl, requestedUrl: newUrl });
-                 if (isActive) {
-                    onActiveTabUpdate({ canGoBack: tab.canGoBack || false, canGoForward: tab.canGoForward || false, loading: true, url: newUrl });
-                 }
-             }}
-           >
-             <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 16 }}>
-               Upgrade to HTTPS
-             </Text>
-           </TouchableOpacity>
-        )}
+        {
+          (tab.url && tab.url.startsWith("http://")) && (
+            <TouchableOpacity
+              style={{
+                marginTop: 15,
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                borderRadius: 12,
+                backgroundColor: effectiveTheme.card
+              }}
+              onPress={() => {
+                const newUrl = tab.url!.replace(/^http:\/\//i, "https://");
+                onUpdateTab(tab.id, { url: newUrl, requestedUrl: newUrl });
+                if (isActive) {
+                  onActiveTabUpdate({ canGoBack: tab.canGoBack || false, canGoForward: tab.canGoForward || false, loading: true, url: newUrl });
+                }
+              }}
+            >
+              <Text style={{
+                color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.bold, fontSize: 16
+              }}>
+                Upgrade to HTTPS
+              </Text>
+            </TouchableOpacity >
+          )
+        }
 
         {/* Proceed to Unsafe Site Option */}
-        {(isSslError || isCleartextError) && (
-             <TouchableOpacity
-             style={{
-               marginTop: 15,
-               paddingHorizontal: 20,
-               paddingVertical: 12,
-               borderRadius: 12,
-               backgroundColor: "#ff3b30"
-             }}
-             onPress={() => {
-                 const host = getDisplayHost(tab.url);
-                 if (host) {
-                    setIgnoredHosts(prev => {
-                        const next = new Set(prev);
-                        next.add(host);
-                        return next;
-                    });
-                    // Short delay to let state update then reload
-                    setTimeout(() => {
-                        if (localRef.current) {
-                            localRef.current.reload();
-                        }
-                    }, 100);
-                 }
-             }}
-           >
-             <Text style={{ color: "#fff", fontFamily: "Nunito_700Bold", fontSize: 16 }}>
-               Proceed to Unsafe Site
-             </Text>
-           </TouchableOpacity>
-        )}
-      </View>
+        {
+          (isSslError || isCleartextError) && (
+            <TouchableOpacity
+              style={{
+                marginTop: 15,
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                borderRadius: 12,
+                backgroundColor: "#ff3b30"
+              }}
+              onPress={() => {
+                const host = getDisplayHost(tab.url);
+                if (host) {
+                  setIgnoredHosts(prev => {
+                    const next = new Set(prev);
+                    next.add(host);
+                    return next;
+                  });
+                  // Short delay to let state update then reload
+                  setTimeout(() => {
+                    if (localRef.current) {
+                      localRef.current.reload();
+                    }
+                  }, 100);
+                }
+              }}
+            >
+              <Text style={{
+                color: "#fff", fontFamily: effectiveTheme.fonts.bold, fontSize: 16
+              }}>
+                Proceed to Unsafe Site
+              </Text>
+            </TouchableOpacity >
+          )
+        }
+      </View >
     );
   };
 
@@ -328,7 +340,7 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
       // Skip HTTPS upgrade for IPs and localhost
       const host = getDisplayHost(url);
       const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(host) || host === 'localhost';
-      
+
       if (!isIp) {
         const secureUrl = url.replace(/^http:\/\//i, "https://");
         // Redirect
@@ -340,15 +352,15 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
 
     if (url.startsWith("googleapp://")) return false;
 
-    const isStandardScheme = 
-      url.startsWith("http://") || 
-      url.startsWith("https://") || 
+    const isStandardScheme =
+      url.startsWith("http://") ||
+      url.startsWith("https://") ||
       url.startsWith("about:");
 
     if (isStandardScheme) {
       if (url.includes("intent://") || url.includes("#Intent;")) {
-          onExternalLink(url);
-          return false;
+        onExternalLink(url);
+        return false;
       }
       return true;
     }
@@ -359,19 +371,19 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
 
   return (
     <View
-        ref={containerRef}
-        collapsable={false}
-        style={[
+      ref={containerRef}
+      collapsable={false}
+      style={[
         StyleSheet.absoluteFill,
         {
-            opacity: isActive ? 1 : 0,
-            zIndex: isActive ? 1 : -1,
-            transform: [{ translateX: isActive ? 0 : 9999 }],
+          opacity: isActive ? 1 : 0,
+          zIndex: isActive ? 1 : -1,
+          transform: [{ translateX: isActive ? 0 : 9999 }],
         },
-        ]}
-        pointerEvents={isActive ? "auto" : "none"}
+      ]}
+      pointerEvents={isActive ? "auto" : "none"}
     >
-        <WebView
+      <WebView
         key={tab.id}
         ref={(r) => {
           localRef.current = r;
@@ -383,75 +395,75 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         source={{ uri: tab.requestedUrl || tab.url || tab.initialUrl || "" }}
         style={{ backgroundColor: '#ffffff' }}
         containerStyle={
-            isFullscreen ? { backgroundColor: "#000" } : { backgroundColor: effectiveTheme.bg }
+          isFullscreen ? { backgroundColor: "#000" } : { backgroundColor: effectiveTheme.bg }
         }
         renderError={renderError}
         originWhitelist={["*"]}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         injectedJavaScript={finalInjectedJavaScript}
         onReceivedSslError={(event: any) => {
-            const url = event.nativeEvent.url;
-            const host = getDisplayHost(url);
-            if (ignoredHosts.has(host)) {
-                event.nativeEvent.proceed();
-            } else {
-                event.nativeEvent.cancel();
-            }
+          const url = event.nativeEvent.url;
+          const host = getDisplayHost(url);
+          if (ignoredHosts.has(host)) {
+            event.nativeEvent.proceed();
+          } else {
+            event.nativeEvent.cancel();
+          }
         }}
         onNavigationStateChange={(navState) => {
-            const { url, title, canGoBack, canGoForward, loading } = navState;
+          const { url, title, canGoBack, canGoForward, loading } = navState;
 
-            if (url && (url.startsWith("intent://") || url.startsWith("android-app://") || url === "about:blank")) {
-                return;
-            }
+          if (url && (url.startsWith("intent://") || url.startsWith("android-app://") || url === "about:blank")) {
+            return;
+          }
 
-            // Only update if changed
-            const hasChanged =
-                tab.url !== url ||
-                tab.title !== title ||
-                tab.canGoBack !== canGoBack ||
-                tab.canGoForward !== canGoForward ||
-                tab.loading !== loading;
+          // Only update if changed
+          const hasChanged =
+            tab.url !== url ||
+            tab.title !== title ||
+            tab.canGoBack !== canGoBack ||
+            tab.canGoForward !== canGoForward ||
+            tab.loading !== loading;
 
-            if (!hasChanged) return;
+          if (!hasChanged) return;
 
-            const newTitle =
-                title && title.length > 0 && !title.includes("://")
-                ? title
-                : url
+          const newTitle =
+            title && title.length > 0 && !title.includes("://")
+              ? title
+              : url
                 ? getDisplayHost(url)
                 : "New Tab";
 
-            const updatePayload: Partial<TabItem> = {
-                url,
-                canGoBack,
-                canGoForward,
-                loading,
-            };
+          const updatePayload: Partial<TabItem> = {
+            url,
+            canGoBack,
+            canGoForward,
+            loading,
+          };
 
-            if (!tab.isCustomTitle) {
-                updatePayload.title = newTitle;
-            }
+          if (!tab.isCustomTitle) {
+            updatePayload.title = newTitle;
+          }
 
-            onUpdateTab(tab.id, updatePayload);
+          onUpdateTab(tab.id, updatePayload);
 
-            if (isActive) {
-                onActiveTabUpdate({ canGoBack, canGoForward, loading, url, title: newTitle });
-            }
+          if (isActive) {
+            onActiveTabUpdate({ canGoBack, canGoForward, loading, url, title: newTitle });
+          }
         }}
         onLoadProgress={({ nativeEvent }) => {
-            if (isActive) onLoadProgress(nativeEvent.progress);
+          if (isActive) onLoadProgress(nativeEvent.progress);
         }}
         onLoadStart={() => {
-            if (isActive) onLoadStart();
+          if (isActive) onLoadStart();
         }}
         onLoadEnd={() => {
-            if (isActive) onLoadEnd();
+          if (isActive) onLoadEnd();
         }}
         onError={(e) => {
-            if (isActive) onLoadEnd(); // Stop loading indicator
-            // Error handling logic (like auto-search) can be complex to move here completely
-            // without more props, but let's stick to basics.
+          if (isActive) onLoadEnd(); // Stop loading indicator
+          // Error handling logic (like auto-search) can be complex to move here completely
+          // without more props, but let's stick to basics.
         }}
         onMessage={onMessage}
         onScroll={onScroll}
@@ -475,33 +487,34 @@ export const BrowserWebView = forwardRef<WebView, BrowserWebViewProps>(({
         javaScriptCanOpenWindowsAutomatically={true}
         setSupportMultipleWindows={true}
         onCreateWindow={(syntheticEvent: any) => {
-            const { targetUrl } = syntheticEvent.nativeEvent;
-            if (targetUrl) {
-                if (onNewWindow) {
-                    onNewWindow(targetUrl);
-                } else {
-                    onExternalLink(targetUrl);
-                }
+          const { targetUrl } = syntheticEvent.nativeEvent;
+          if (targetUrl) {
+            if (onNewWindow) {
+              onNewWindow(targetUrl);
+            } else {
+              onExternalLink(targetUrl);
             }
+          }
         }}
         onFullScreen={(event: any) => onFullScreen(event.nativeEvent.fullScreen)}
         contentInset={isFullscreen
-            ? { top: 0, bottom: 0, left: 0, right: 0 }
-            : { bottom: pillHeight + 20 }}
+          ? { top: 0, bottom: 0, left: 0, right: 0 }
+          : { bottom: pillHeight + 20 }}
         onPermissionRequest={onPermissionRequest}
         allowsBackForwardNavigationGestures={true}
+      />
+      {blockGestures && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { zIndex: 99, backgroundColor: 'transparent' }
+          ]}
+          onTouchStart={onTouchStart}
         />
-        {blockGestures && (
-            <View
-                style={[
-                    StyleSheet.absoluteFill,
-                    { zIndex: 99, backgroundColor: 'transparent' }
-                ]}
-                onTouchStart={onTouchStart}
-            />
-        )}
+      )}
     </View>
   );
 });
 
 BrowserWebView.displayName = 'BrowserWebView';
+

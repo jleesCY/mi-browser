@@ -315,7 +315,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                         )}
                         <Text style={{
                             color: theme.text,
-                            fontFamily: typography.families.bold,
+                            fontFamily: theme.fonts.bold,
                             fontSize: typography.sizes.xl * fontScale,
                             flex: 1,
                         }} numberOfLines={1}>
@@ -347,8 +347,8 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                         style={{
                             flex: 1,
                             color: theme.text,
-                            fontFamily: typography.families.semibold,
-                            fontSize: typography.sizes.base,
+                            fontFamily: theme.fonts.semibold,
+                            fontSize: typography.sizes.base * fontScale,
                         }}
                         placeholder="Search Bookmarks..."
                         placeholderTextColor={theme.textSec}
@@ -506,8 +506,8 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                     }}>
                         <Text style={{
                             color: theme.text,
-                            fontFamily: "Nunito_700Bold",
-                            fontSize: 18,
+                            fontFamily: theme.fonts.bold,
+                            fontSize: 18 * fontScale,
                             marginBottom: 15
                         }}>
                             {modalMode === 'add_bookmark' ? "Add Bookmark" :
@@ -591,7 +591,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                 alignItems: 'center'
                             }}
                         >
-                            <Text style={{ color: theme.text, fontFamily: 'Nunito_600SemiBold' }}>
+                            <Text style={{ color: theme.text, fontFamily: theme.fonts.semibold }}>
                                 {getFolderName(modalFolderId)}
                             </Text>
                             <Ionicons name="chevron-forward" size={20} color={theme.textSec} />
@@ -611,7 +611,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                     <TouchableOpacity onPress={() => setShowFolderPicker(false)} style={{ marginRight: 10 }}>
                                         <Ionicons name="arrow-back" size={24} color={theme.text} />
                                     </TouchableOpacity>
-                                    <Text style={{ color: theme.text, fontFamily: "Nunito_700Bold", fontSize: 18 }}>
+                                    <Text style={{ color: theme.text, fontFamily: theme.fonts.bold, fontSize: 18 * fontScale }}>
                                         Select Location
                                     </Text>
                                 </View>
@@ -651,8 +651,8 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                             <Text style={{
                                                 flex: 1, // Allow wrapping
                                                 color: modalFolderId === (item.id === "" ? null : item.id) ? accentColor : theme.text,
-                                                fontFamily: "Nunito_600SemiBold",
-                                                fontSize: 14,
+                                                fontFamily: theme.fonts.semibold,
+                                                fontSize: 14 * fontScale,
                                                 paddingRight: 10
                                             }} numberOfLines={3} ellipsizeMode="tail">
                                                 {item.hierarchyTitle || item.title}
@@ -671,7 +671,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                 onPress={() => setModalVisible(false)}
                                 style={{ padding: 10, marginRight: 10 }}
                             >
-                                <Text style={{ color: theme.textSec, fontFamily: "Nunito_600SemiBold" }}>Cancel</Text>
+                                <Text style={{ color: theme.textSec, fontFamily: theme.fonts.semibold }}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={handleSave}
@@ -681,7 +681,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                                     borderRadius: 8
                                 }}
                             >
-                                <Text style={{ color: '#fff', fontFamily: "Nunito_700Bold" }}>Save</Text>
+                                <Text style={{ color: '#fff', fontFamily: theme.fonts.bold }}>Save</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

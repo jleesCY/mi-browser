@@ -62,6 +62,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setUiPadding,
     fontScale,
     setFontScale,
+    fontWeight,
+    setFontWeight,
     showStatusBar,
     setShowStatusBar,
     pillHeight,
@@ -191,7 +193,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <Text
             style={{
               color: effectiveTheme.text,
-              fontFamily: typography.families.bold,
+              fontFamily: effectiveTheme.fonts.bold,
               fontSize: typography.sizes.base * fontScale,
             }}
           >
@@ -297,7 +299,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <Text
           style={{
             color: effectiveTheme.textSec,
-            fontFamily: typography.families.bold,
+            fontFamily: effectiveTheme.fonts.bold,
             marginTop: spacing.lg,
             marginBottom: spacing.sm - 2,
             fontSize: typography.sizes.sm * fontScale,
@@ -356,7 +358,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             style={{
               flex: 1,
               color: effectiveTheme.text,
-              fontFamily: typography.families.semibold,
+              fontFamily: effectiveTheme.fonts.semibold,
               fontSize: typography.sizes.base,
             }}
             placeholder="Search Settings..."
@@ -411,14 +413,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
               <CategoryButton
                 label="Interface"
-                icon="resize-outline"
+                icon="phone-portrait-outline"
                 color={effectiveTheme.text}
                 onPress={() => setActiveCategory("interface")}
                 hasSeparator
               />
               <CategoryButton
                 label="Pill"
-                icon="scan-outline"
+                icon="unlink-outline"
                 color={effectiveTheme.text}
                 onPress={() => setActiveCategory("pill")}
                 hasSeparator
@@ -437,7 +439,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             >
               <CategoryButton
                 label="Tabs"
-                icon="grid-outline"
+                icon="copy-outline"
                 color={effectiveTheme.text}
                 onPress={() => setActiveCategory("tabs")}
               />
@@ -523,7 +525,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Text
               style={{
                 color: accentColor,
-                fontFamily: typography.families.bold,
+                fontFamily: effectiveTheme.fonts.bold,
                 fontSize: 16 * fontScale,
                 marginLeft: 5,
               }}
@@ -554,7 +556,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     }}
                   >
                     <Ionicons
-                      name="color-palette-outline"
+                      name="eye-outline"
                       size={iconSizes.md - 2}
                       color={effectiveTheme.text}
                       style={{ marginRight: spacing.sm - 2 }}
@@ -562,7 +564,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: typography.families.semibold,
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: typography.sizes.base * fontScale,
                       }}
                     >
@@ -593,14 +595,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <Text
                           style={[
                             {
-                              fontSize: 14,
-                              fontFamily: "Nunito_600SemiBold",
+                              fontSize: 14 * fontScale,
+                              fontFamily: effectiveTheme.fonts.semibold,
                             },
                             themeMode === m
                               ? { color: "#fff" }
                               : { color: effectiveTheme.text },
                             {
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                               fontSize: 12 * fontScale,
                             },
                           ]}
@@ -633,7 +635,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -652,7 +654,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: accentColor,
-                          fontFamily: "Nunito_700Bold",
+                          fontFamily: effectiveTheme.fonts.bold,
                           fontSize: 12 * fontScale,
                         }}
                       >
@@ -735,7 +737,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: effectiveTheme.text,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 16 * fontScale,
                         }}
                       >
@@ -745,7 +747,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.textSec,
-                        fontFamily: "Nunito_700Bold",
+                        fontFamily: effectiveTheme.fonts.bold,
                       }}
                     >
                       {(fontScale * 100).toFixed(0)}%
@@ -800,6 +802,85 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </View>
               </SettingRow>
 
+              <SettingRow label="Font Weight">
+                <View
+                  style={{
+                    flexDirection: "column",
+                    width: "100%",
+                    justifyContent: "center",
+                    paddingVertical: 5,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      width: "100%",
+                      justifyContent: "space-between",
+                      marginBottom: 15,
+                      alignItems: "center",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons
+                        name="barbell-outline"
+                        size={22}
+                        color={effectiveTheme.text}
+                        style={{ marginRight: 10 }}
+                      />
+                      <Text
+                        style={{
+                          color: effectiveTheme.text,
+                          fontFamily: effectiveTheme.fonts.semibold,
+                          fontSize: 16 * fontScale,
+                        }}
+                      >
+                        Font Weight
+                      </Text>
+                    </View>
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      width: "100%",
+                      justifyContent: "space-around",
+                    }}
+                  >
+                    {[
+                      { label: "Light", val: "light" },
+                      { label: "Normal", val: "normal" },
+                      { label: "Bold", val: "bold" },
+                    ].map((opt, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => setFontWeight(opt.val as any)}
+                        style={[
+                          {
+                            paddingHorizontal: 15,
+                            paddingVertical: 8,
+                            borderRadius: cornerRadius,
+                          },
+                          fontWeight === opt.val && { backgroundColor: accentColor },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            {
+                              fontSize: 12 * fontScale,
+                              fontFamily: opt.val === 'light' ? 'Nunito_400Regular' : opt.val === 'bold' ? 'Nunito_700Bold' : 'Nunito_600SemiBold',
+                            },
+                            fontWeight === opt.val
+                              ? { color: "#fff" }
+                              : { color: effectiveTheme.text },
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </SettingRow>
+
               <SettingRow label="Corners">
                 <View
                   style={{
@@ -828,7 +909,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: effectiveTheme.text,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 16 * fontScale,
                         }}
                       >
@@ -864,7 +945,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             cornerRadius === opt.val
                               ? { color: "#fff" }
@@ -904,7 +985,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -936,7 +1017,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             uiPadding === mode
                               ? { color: "#fff" }
@@ -962,7 +1043,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Text
                     style={{
                       color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
+                      fontFamily: effectiveTheme.fonts.semibold,
                       fontSize: 16 * fontScale,
                     }}
                   >
@@ -988,7 +1069,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Text
                     style={{
                       color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
+                      fontFamily: effectiveTheme.fonts.semibold,
                       fontSize: 16 * fontScale,
                     }}
                   >
@@ -1038,7 +1119,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: effectiveTheme.text,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 16 * fontScale,
                         }}
                       >
@@ -1074,7 +1155,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             pillHeight === opt.val
                               ? { color: "#fff" }
@@ -1115,7 +1196,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -1149,7 +1230,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             progressBarMode === mode
                               ? { color: "#fff" }
@@ -1188,7 +1269,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -1223,7 +1304,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -1243,7 +1324,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <View style={{ flexDirection: "column", width: "100%", justifyContent: "center", paddingVertical: 5 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
                     <Ionicons name="reorder-four-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Reorder Icons</Text>
+                    <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>Reorder Icons</Text>
                   </View>
                   <View style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
                     <HorizontalSortableList
@@ -1255,7 +1336,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         return (
                           <View style={{ width: 48, height: 60, backgroundColor: "transparent", justifyContent: "center", alignItems: "center", marginRight: 2 }}>
                             <Ionicons name={menuIcons[item] as any} size={24} color={"#fff"} />
-                            <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 10 * fontScale, marginTop: 4 }}>{menuLabels[item]}</Text>
+                            <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.bold, fontSize: 10 * fontScale, marginTop: 4 }}>{menuLabels[item]}</Text>
                           </View>
                         );
                       }}
@@ -1274,89 +1355,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <>
             {/* --- HOME PAGE --- */}
             <SettingsGroup title="Home Page">
-              <SettingRow label="Clock">
-                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
-                    <Ionicons name="time-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Clock</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-                    {["None", "12h", "24h"].map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        onPress={() => setHomeClockType(type as any)}
-                        style={[
-                          { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
-                          homeClockType === type && { backgroundColor: accentColor }
-                        ]}
-                      >
-                        <Text style={[
-                          { fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" },
-                          homeClockType === type ? { color: "#fff" } : { color: effectiveTheme.text }
-                        ]}>{type}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </SettingRow>
-
-              <SettingRow label="Date">
-                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
-                    <Ionicons name="calendar-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Date</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-                    {["None", "Above", "Below"].map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        onPress={() => setHomeDateType(type as any)}
-                        style={[
-                          { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
-                          homeDateType === type && { backgroundColor: accentColor }
-                        ]}
-                      >
-                        <Text style={[
-                          { fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" },
-                          homeDateType === type ? { color: "#fff" } : { color: effectiveTheme.text }
-                        ]}>{type}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </SettingRow>
-
-              <SettingRow label="Weather">
-                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
-                    <Ionicons name="cloud-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Weather</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-                    {["None", "Simple", "Detailed", "Hourly"].map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        onPress={() => setHomeWeatherType(type as any)}
-                        style={[
-                          { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
-                          homeWeatherType === type && { backgroundColor: accentColor }
-                        ]}
-                      >
-                        <Text style={[
-                          { fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" },
-                          homeWeatherType === type ? { color: "#fff" } : { color: effectiveTheme.text }
-                        ]}>{type}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </SettingRow>
-
               <SettingRow label="Center Logo">
                 <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
                     <Ionicons name="scan-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Logo</Text>
+                    <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>Logo</Text>
                   </View>
                   <View
                     style={{
@@ -1384,7 +1387,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             homeLogoType === type
                               ? { color: "#fff" }
@@ -1393,6 +1396,84 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         >
                           {type}
                         </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </SettingRow>
+
+              <SettingRow label="Clock">
+                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                    <Ionicons name="time-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                    <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>Clock</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                    {["None", "12h", "24h"].map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        onPress={() => setHomeClockType(type as any)}
+                        style={[
+                          { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
+                          homeClockType === type && { backgroundColor: accentColor }
+                        ]}
+                      >
+                        <Text style={[
+                          { fontSize: 12 * fontScale, fontFamily: effectiveTheme.fonts.bold },
+                          homeClockType === type ? { color: "#fff" } : { color: effectiveTheme.text }
+                        ]}>{type}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </SettingRow>
+
+              <SettingRow label="Date">
+                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                    <Ionicons name="calendar-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                    <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>Date</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                    {["None", "Above", "Below"].map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        onPress={() => setHomeDateType(type as any)}
+                        style={[
+                          { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
+                          homeDateType === type && { backgroundColor: accentColor }
+                        ]}
+                      >
+                        <Text style={[
+                          { fontSize: 12 * fontScale, fontFamily: effectiveTheme.fonts.bold },
+                          homeDateType === type ? { color: "#fff" } : { color: effectiveTheme.text }
+                        ]}>{type}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </SettingRow>
+
+              <SettingRow label="Weather">
+                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                    <Ionicons name="cloud-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                    <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>Weather</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                    {["None", "Simple", "Detailed", "Hourly"].map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        onPress={() => setHomeWeatherType(type as any)}
+                        style={[
+                          { paddingHorizontal: 20, paddingVertical: 8, borderRadius: cornerRadius },
+                          homeWeatherType === type && { backgroundColor: accentColor }
+                        ]}
+                      >
+                        <Text style={[
+                          { fontSize: 12 * fontScale, fontFamily: effectiveTheme.fonts.bold },
+                          homeWeatherType === type ? { color: "#fff" } : { color: effectiveTheme.text }
+                        ]}>{type}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1412,7 +1493,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: effectiveTheme.text,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 16 * fontScale,
                         }}
                       >
@@ -1437,10 +1518,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       >
                         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, paddingHorizontal: 15 }}>
                           <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text style={{ color: effectiveTheme.textSec, marginRight: 10, fontFamily: "Nunito_600SemiBold", fontSize: 14 * fontScale }}>Action</Text>
+                            <Text style={{ color: effectiveTheme.textSec, marginRight: 10, fontFamily: effectiveTheme.fonts.semibold, fontSize: 14 * fontScale }}>Action</Text>
                           </View>
                           <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text style={{ color: effectiveTheme.text, marginRight: 5, fontFamily: "Nunito_600SemiBold", fontSize: 14 * fontScale }}>
+                            <Text style={{ color: effectiveTheme.text, marginRight: 5, fontFamily: effectiveTheme.fonts.semibold, fontSize: 14 * fontScale }}>
                               {homeShortcutAction === "newTab" ? "New Tab" : homeShortcutAction === "qr" ? "Scan" : homeShortcutAction === "bookmarks" ? "Saved" : "Recent"}
                             </Text>
                             <Ionicons name={isShortcutMenuOpen ? "chevron-up" : "chevron-down"} size={16} color={effectiveTheme.textSec} />
@@ -1466,7 +1547,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             >
                               <View style={{ flexDirection: "row", alignItems: "center" }}>
                                 <Ionicons name={opt.icon as any} size={20} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                                <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>{opt.label}</Text>
+                                <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>{opt.label}</Text>
                               </View>
                               {homeShortcutAction === opt.val && <Ionicons name="checkmark" size={18} color={accentColor} />}
                             </TouchableOpacity>
@@ -1482,7 +1563,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
                     <Ionicons name="image-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_600SemiBold", fontSize: 16 * fontScale }}>Background Image</Text>
+                    <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>Background Image</Text>
                   </View>
 
                   <View style={{ width: '100%' }}>
@@ -1503,7 +1584,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 marginBottom: 15,
                               }}
                             >
-                              <Text style={{ color: "white", fontFamily: "Nunito_700Bold", fontSize: 12 * fontScale }}>Remove Image</Text>
+                              <Text style={{ color: "white", fontFamily: effectiveTheme.fonts.bold, fontSize: 12 * fontScale }}>Remove Image</Text>
                             </TouchableOpacity>
                           ) : (
                             <TouchableOpacity
@@ -1521,7 +1602,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             >
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Ionicons name="image-outline" size={18} color={effectiveTheme.text} />
-                                <Text style={{ color: effectiveTheme.text, fontFamily: "Nunito_700Bold", fontSize: 12 * fontScale }}>Select from Gallery</Text>
+                                <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.bold, fontSize: 12 * fontScale }}>Select from Gallery</Text>
                               </View>
                             </TouchableOpacity>
                           )}
@@ -1596,7 +1677,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -1628,7 +1709,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             tabViewMode === mode
                               ? { color: "#fff" }
@@ -1646,7 +1727,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <SettingRow label="Site Logo">
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <Ionicons
-                    name="image-outline"
+                    name="information-circle-outline"
                     size={22}
                     color={effectiveTheme.text}
                     style={{ marginRight: 10 }}
@@ -1654,7 +1735,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Text
                     style={{
                       color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
+                      fontFamily: effectiveTheme.fonts.semibold,
                       fontSize: 16 * fontScale,
                     }}
                   >
@@ -1673,7 +1754,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <SettingRow label="Preview Content">
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Ionicons
-                      name="easel-outline"
+                      name="image-outline"
                       size={22}
                       color={effectiveTheme.text}
                       style={{ marginRight: 10 }}
@@ -1681,7 +1762,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -1716,7 +1797,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: effectiveTheme.text,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 16 * fontScale,
                         }}
                       >
@@ -1767,7 +1848,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -1802,7 +1883,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             historyGrouping === mode
                               ? { color: "#fff" }
@@ -1841,7 +1922,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -1878,7 +1959,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             settings.historyLoadCount === count
                               ? { color: "#fff" }
@@ -1923,7 +2004,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: "#ff3b30",
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 16 * fontScale,
                         }}
                       >
@@ -1958,7 +2039,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <Text
                           style={{
                             color: effectiveTheme.text,
-                            fontFamily: "Nunito_600SemiBold",
+                            fontFamily: effectiveTheme.fonts.semibold,
                             fontSize: 16 * fontScale,
                           }}
                         >
@@ -1980,7 +2061,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <SettingRow label="Site Logo">
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <Ionicons
-                    name="image-outline"
+                    name="information-circle-outline"
                     size={22}
                     color={effectiveTheme.text}
                     style={{ marginRight: 10 }}
@@ -1988,7 +2069,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Text
                     style={{
                       color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
+                      fontFamily: effectiveTheme.fonts.semibold,
                       fontSize: 16 * fontScale,
                     }}
                   >
@@ -2038,7 +2119,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Text
                         style={{
                           color: effectiveTheme.text,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 16 * fontScale,
                         }}
                       >
@@ -2056,7 +2137,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         style={{
                           color: effectiveTheme.textSec,
                           marginRight: 5,
-                          fontFamily: "Nunito_600SemiBold",
+                          fontFamily: effectiveTheme.fonts.semibold,
                           fontSize: 14 * fontScale,
                         }}
                       >
@@ -2107,7 +2188,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <Text
                             style={{
                               color: effectiveTheme.text,
-                              fontFamily: "Nunito_600SemiBold",
+                              fontFamily: effectiveTheme.fonts.semibold,
                               fontSize: 16 * fontScale,
                             }}
                           >
@@ -2147,7 +2228,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Text
                       style={{
                         color: effectiveTheme.text,
-                        fontFamily: "Nunito_600SemiBold",
+                        fontFamily: effectiveTheme.fonts.semibold,
                         fontSize: 16 * fontScale,
                       }}
                     >
@@ -2182,7 +2263,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           style={[
                             {
                               fontSize: 12 * fontScale,
-                              fontFamily: "Nunito_700Bold",
+                              fontFamily: effectiveTheme.fonts.bold,
                             },
                             startupTabMode === mode
                               ? { color: "#fff" }
@@ -2214,7 +2295,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Text
                     style={{
                       color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
+                      fontFamily: effectiveTheme.fonts.semibold,
                       fontSize: 16 * fontScale,
                     }}
                   >
@@ -2240,7 +2321,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Text
                     style={{
                       color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
+                      fontFamily: effectiveTheme.fonts.semibold,
                       fontSize: 16 * fontScale,
                     }}
                   >
@@ -2266,7 +2347,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Text
                     style={{
                       color: effectiveTheme.text,
-                      fontFamily: "Nunito_600SemiBold",
+                      fontFamily: effectiveTheme.fonts.semibold,
                       fontSize: 16 * fontScale,
                     }}
                   >
@@ -2307,7 +2388,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Text
                 style={{
                   color: "#fff",
-                  fontFamily: "Nunito_700Bold",
+                  fontFamily: effectiveTheme.fonts.bold,
                   fontSize: 16 * fontScale,
                 }}
               >
@@ -2337,7 +2418,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Text
                 style={{
                   color: "#fff",
-                  fontFamily: "Nunito_700Bold",
+                  fontFamily: effectiveTheme.fonts.bold,
                   fontSize: 16 * fontScale,
                 }}
               >
@@ -2362,7 +2443,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <Ionicons name="help-circle-outline" size={18} color={effectiveTheme.textSec} />
           <Text style={{
             color: effectiveTheme.textSec,
-            fontFamily: 'Nunito_700Bold',
+            fontFamily: effectiveTheme.fonts.bold,
             fontSize: 14 * fontScale
           }}>Help</Text>
         </TouchableOpacity>
@@ -2371,7 +2452,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           style={{
             textAlign: "center",
             color: effectiveTheme.textSec,
-            fontFamily: "Nunito_600SemiBold",
+            fontFamily: effectiveTheme.fonts.semibold,
             marginTop: 10,
             marginBottom: 40,
             fontSize: 12 * fontScale,

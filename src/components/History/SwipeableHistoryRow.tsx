@@ -148,7 +148,7 @@ const SwipeableHistoryRow = ({
                 styles.historyTitle,
                 {
                   color: theme.text,
-                  fontFamily: typography.families.semibold,
+                  fontFamily: theme.fonts.semibold,
                   fontSize: typography.sizes.sm * fontScale,
                 },
               ]}
@@ -162,7 +162,7 @@ const SwipeableHistoryRow = ({
                   color: accent,
                   fontSize: typography.sizes.xs * fontScale,
                   marginRight: spacing.xs - 2,
-                  fontFamily: typography.families.bold,
+                  fontFamily: theme.fonts.bold,
                 }}
               >
                 {timeString}
@@ -172,7 +172,7 @@ const SwipeableHistoryRow = ({
                   styles.historyUrl,
                   {
                     color: theme.textSec,
-                    fontFamily: typography.families.regular,
+                    fontFamily: theme.fonts.regular,
                     fontSize: typography.sizes.xs * fontScale,
                   },
                 ]}

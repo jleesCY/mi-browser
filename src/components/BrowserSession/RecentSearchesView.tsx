@@ -116,7 +116,7 @@ export const RecentSearchesView = ({
             <Text
               style={{
                 color: theme.textSec,
-                fontFamily: typography.families.semibold,
+                fontFamily: theme.fonts.semibold,
                 fontSize: typography.sizes.base * fontScale,
               }}
             >
@@ -140,7 +140,7 @@ export const RecentSearchesView = ({
                   style={{
                     flex: 1,
                     color: theme.text,
-                    fontFamily: typography.families.semibold,
+                    fontFamily: theme.fonts.semibold,
                     fontSize: (typography.sizes.base - 1) * fontScale,
                   }}
                   numberOfLines={1}

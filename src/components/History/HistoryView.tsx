@@ -82,8 +82,8 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
         style={{
           flex: 1,
           color: theme.text,
-          fontFamily: typography.families.semibold,
-          fontSize: typography.sizes.base,
+          fontFamily: theme.fonts.semibold,
+          fontSize: typography.sizes.base * fontScale,
         }}
         placeholder="Search History..."
         placeholderTextColor={theme.textSec}
@@ -164,7 +164,7 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
                 >
                   <View style={{ ...flexRow }}>
                     <Ionicons name="trash-outline" size={iconSizes.sm - 2} color={theme.text} style={{ marginRight: spacing.sm - 2 }} />
-                    <Text style={{ color: theme.text, fontFamily: typography.families.semibold, fontSize: typography.sizes.sm * fontScale }}>Clear History</Text>
+                    <Text style={{ color: theme.text, fontFamily: theme.fonts.semibold, fontSize: typography.sizes.sm * fontScale }}>Clear History</Text>
                   </View>
                   <Ionicons name={clearHistoryVisible ? "chevron-up" : "chevron-down"} size={iconSizes.xs} color={theme.text} />
                 </TouchableOpacity>
@@ -185,7 +185,7 @@ const SearchHeader = React.memo(React.forwardRef(({ theme, cornerRadius, searchT
                           onRequestClearHistory(range.ms, range.label);
                         }}
                       >
-                        <Text style={{ color: theme.text, fontFamily: typography.families.semibold, fontSize: typography.sizes.xs * fontScale * 1.08 }}>
+                        <Text style={{ color: theme.text, fontFamily: theme.fonts.semibold, fontSize: typography.sizes.xs * fontScale * 1.08 }}>
                           {range.label}
                         </Text>
                       </TouchableOpacity>
@@ -363,7 +363,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               <Text
                 style={{
                   color: theme.textSec,
-                  fontFamily: typography.families.bold,
+                  fontFamily: theme.fonts.bold,
                   fontSize: typography.sizes.sm * fontScale
                 }}
               >
@@ -400,7 +400,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <Text
               style={{
                 color: theme.text,
-                fontFamily: "Nunito_600SemiBold",
+                fontFamily: theme.fonts.semibold,
                 marginTop: 10
               }}
             >

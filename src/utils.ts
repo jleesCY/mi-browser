@@ -38,8 +38,8 @@ export const hexToRgba = (hex: string, alphaStr?: string) => {
 
 export const generateAdaptiveTheme = (accentHex: string) => {
   // SANITY CHECK: Fallback if accentHex is missing or invalid
-  const safeAccent = (accentHex && accentHex.startsWith('#') && accentHex.length === 7) 
-    ? accentHex 
+  const safeAccent = (accentHex && accentHex.startsWith('#') && accentHex.length === 7)
+    ? accentHex
     : '#007AFF';
 
   try {
@@ -57,7 +57,7 @@ export const generateAdaptiveTheme = (accentHex: string) => {
     const bgR = mix(10, r, 0.15);
     const bgG = mix(10, g, 0.15);
     const bgB = mix(10, b, 0.15);
-    
+
     // Helper to force 2 digits
     const toHex = (n: number) => n.toString(16).padStart(2, "0");
 
@@ -83,8 +83,8 @@ export const generateAdaptiveTheme = (accentHex: string) => {
     const glassG = mix(30, g, 0.15);
     const glassB = mix(30, b, 0.15);
     const glassColor = `#${toHex(glassR)}${toHex(glassG)}${toHex(glassB)}`;
-    
-    const glassBorderColor = glassColor; 
+
+    const glassBorderColor = glassColor;
 
     // Calculate adaptive solid inputBg (base 25 is lighter than bg base 10)
     const inR = mix(50, r, 0.15);
@@ -101,9 +101,9 @@ export const generateAdaptiveTheme = (accentHex: string) => {
       glass: glassColor,
       glassBorder: glassBorderColor,
       sheetHeader: card,
-      inputBg: adaptiveInputBg, 
+      inputBg: adaptiveInputBg,
       placeholder: "#888",
-      isDark: isDark, 
+      isDark: isDark,
     };
   } catch {
     // FALLBACK THEME (Dark Mode Standard) if math fails
@@ -138,7 +138,7 @@ export const getSearchQueryFromUrl = (url: string) => {
         if (query) return query;
       }
     }
-  } catch {}
+  } catch { }
   return null;
 };
 
@@ -150,12 +150,12 @@ export const getHistoryTitle = (url: string, pageTitle?: string | null) => {
       const parsed = new URL(url);
       const host = parsed.hostname.toLowerCase();
       const engine = SEARCH_ENGINES.find(e => {
-          const u = new URL(e.url);
-          return host.includes(u.hostname.replace("www.", ""));
+        const u = new URL(e.url);
+        return host.includes(u.hostname.replace("www.", ""));
       });
       return engine ? `${engine.name} Search: ${query}` : query;
     }
-  } catch {}
+  } catch { }
 
   // Fallback to title or hostname
   if (pageTitle && pageTitle.length > 0 && !pageTitle.includes("://")) {
@@ -179,7 +179,7 @@ export const getFaviconUrl = (url: string | null) => {
   try {
     let targetUrl = url;
     if (!url.startsWith("http") && !url.includes("://")) {
-        targetUrl = "https://" + url;
+      targetUrl = "https://" + url;
     }
     const domain = new URL(targetUrl).hostname;
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
@@ -195,22 +195,22 @@ export const parseDeepLinkUrl = (url: string) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    
+
     // Handle custom schemes: mi://open?url=... or mi://https://...
     const parsed = new URL(url);
     if (parsed.protocol === 'mi:' || parsed.protocol === 'mi-browser:') {
       // Handle mi:// or mi-browser:// links
       const rest = url.replace(/^(mi|mi-browser):\/\//, '');
       if (rest.startsWith('http://') || rest.startsWith('https://')) {
-          return rest;
+        return rest;
       }
-      
+
       // Case 2: mi://open?url=https://google.com
       const params = new URLSearchParams(parsed.search);
       const target = params.get('url') || params.get('href');
       if (target) return target;
     }
-  } catch {}
+  } catch { }
   return null;
 };
 
@@ -246,7 +246,7 @@ export const getSmartDate = (timestamp: number) => {
   const date = new Date(timestamp);
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
-  
+
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const isYesterday = yesterday.toDateString() === date.toDateString();
@@ -265,7 +265,7 @@ export const getSmartDate = (timestamp: number) => {
 
 export const groupHistoryByDate = (historyItems: any[]) => {
   const sections: { title: string; data: any[] }[] = [];
-  
+
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -302,7 +302,7 @@ export const groupHistoryByDate = (historyItems: any[]) => {
 };
 
 export const groupHistoryBySite = (historyItems: any[]) => {
-  const groups: { [key: string]: any[] } = {};
+  const groups: Record<string, any[]> = {};
 
   historyItems.forEach((item) => {
     const host = getDisplayHost(item.url) || "Unknown";
@@ -312,13 +312,14 @@ export const groupHistoryBySite = (historyItems: any[]) => {
     groups[host].push(item);
   });
 
-  // Sort sections alphabetically by hostname
   const sortedKeys = Object.keys(groups).sort();
 
-  return sortedKeys.map(key => ({
-    title: key,
-    data: groups[key]
-  }));
+  return sortedKeys.map((key) => {
+    return {
+      title: key,
+      data: groups[key]
+    };
+  });
 };
 
 export const generateId = () => {

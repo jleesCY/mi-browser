@@ -135,7 +135,7 @@ const SwipeableTabRow = ({
             <Text
               style={{
                 color: theme.text,
-                fontFamily: typography.families.bold,
+                fontFamily: theme.fonts.bold,
                 fontSize: typography.sizes.base * fontScale,
                 marginBottom: spacing.xxs / 2
               }}
@@ -146,7 +146,7 @@ const SwipeableTabRow = ({
             <Text
               style={{
                 color: theme.textSec,
-                fontFamily: typography.families.semibold,
+                fontFamily: theme.fonts.semibold,
                 fontSize: typography.sizes.xs * fontScale,
               }}
               numberOfLines={1}

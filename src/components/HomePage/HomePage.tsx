@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Animated, Image, Keyboard, PanResponder, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { HOME_LOGO_TEXT } from "../../constants";
-import { typography } from "../../design-system/tokens";
 import { BrowserSettings } from "../../hooks/useBrowserSettings";
 import { useWeather } from "../../hooks/useWeather";
 
@@ -110,7 +109,7 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
   const shortcutConfig = getShortcutConfig();
 
   const renderDate = () => (
-    <Text style={[styles.dateText, { color: theme.textSec, fontSize: 16 * fontScale }]}>
+    <Text style={[styles.dateText, { color: theme.textSec, fontSize: 16 * fontScale, fontFamily: theme.fonts.semibold }]}>
       {time.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
     </Text>
   );
@@ -131,7 +130,7 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
           {homeClockType !== "None" && (
             <View style={styles.clockContainer}>
               {homeDateType === "Above" && renderDate()}
-              <Text style={[styles.timeText, { color: theme.text, fontSize: 72 * fontScale }]}>
+              <Text style={[styles.timeText, { color: theme.text, fontSize: 72 * fontScale, fontFamily: theme.fonts.bold }]}>
                 {time.toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -154,7 +153,7 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
               {weatherLoading && !weather ? (
                 <ActivityIndicator size="small" color={theme.textSec} />
               ) : weatherError ? (
-                <Text style={[styles.weatherText, { color: theme.textSec, fontSize: 14 * fontScale }]}>{weatherError}</Text>
+                <Text style={[styles.weatherText, { color: theme.textSec, fontSize: 14 * fontScale, fontFamily: theme.fonts.regular }]}>{weatherError}</Text>
               ) : weather ? (
                 <View style={{ alignItems: 'center', width: '100%' }}>
 
@@ -163,8 +162,8 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
                     {/* Left: High/Low */}
                     {(homeWeatherType === "Detailed" || homeWeatherType === "Hourly") && (
                       <View style={{ alignItems: 'flex-end', marginRight: 15 }}>
-                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>H: {weather.daily.tempMax}°</Text>
-                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>L: {weather.daily.tempMin}°</Text>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale, fontFamily: theme.fonts.semibold }]}>H: {weather.daily.tempMax}°</Text>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale, fontFamily: theme.fonts.semibold }]}>L: {weather.daily.tempMin}°</Text>
                       </View>
                     )}
 
@@ -172,11 +171,11 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
                     <View style={{ alignItems: 'center' }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name={getWeatherIcon(weather.current.code)} size={32 * fontScale} color={theme.text} />
-                        <Text style={[styles.tempText, { color: theme.text, fontSize: 24 * fontScale, marginLeft: 8 }]}>
+                        <Text style={[styles.tempText, { color: theme.text, fontSize: 24 * fontScale, marginLeft: 8, fontFamily: theme.fonts.bold }]}>
                           {weather.current.temp}°F
                         </Text>
                       </View>
-                      <Text style={[styles.cityText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
+                      <Text style={[styles.cityText, { color: theme.textSec, fontSize: 12 * fontScale, fontFamily: theme.fonts.regular }]}>
                         {weather.city}
                       </Text>
                     </View>
@@ -184,10 +183,10 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
                     {/* Right: Wind/Precip */}
                     {(homeWeatherType === "Detailed" || homeWeatherType === "Hourly") && (
                       <View style={{ alignItems: 'flex-start', marginLeft: 15 }}>
-                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale, fontFamily: theme.fonts.semibold }]}>
                           <Ionicons name="filter" size={10} /> {weather.current.windSpeed} mph
                         </Text>
-                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale }]}>
+                        <Text style={[styles.detailText, { color: theme.textSec, fontSize: 12 * fontScale, fontFamily: theme.fonts.semibold }]}>
                           <Ionicons name="water" size={10} /> {weather.daily.precipProb}%
                         </Text>
                       </View>
@@ -212,12 +211,12 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
                               <Text style={{
                                 color: isCurrent ? theme.text : theme.textSec,
                                 fontSize: 10 * fontScale,
-                                fontFamily: isCurrent ? "Nunito_800ExtraBold" : "Nunito_600SemiBold"
+                                fontFamily: isCurrent ? theme.fonts.extrabold : theme.fonts.semibold
                               }}>
                                 {isCurrent ? "Now" : displayHour}
                               </Text>
                               <Ionicons name={getWeatherIcon(weather.hourly.codes[i * 3])} size={18 * fontScale} color={theme.text} />
-                              <Text style={{ color: theme.text, fontSize: 12 * fontScale, fontFamily: "Nunito_700Bold" }}>
+                              <Text style={{ color: theme.text, fontSize: 12 * fontScale, fontFamily: theme.fonts.bold }}>
                                 {Math.round(weather.hourly.temps[i * 3])}°
                               </Text>
                             </View>
@@ -254,7 +253,7 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
                     styles.homeText,
                     {
                       color: theme.text,
-                      fontFamily: "Nunito_800ExtraBold",
+                      fontFamily: theme.fonts.extrabold,
                       fontSize: 60 * fontScale,
                     },
                   ]}
@@ -275,7 +274,7 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
                     styles.homeText,
                     {
                       color: theme.text,
-                      fontFamily: "Nunito_800ExtraBold",
+                      fontFamily: theme.fonts.extrabold,
                       fontSize: 60 * fontScale,
                     },
                   ]}
@@ -294,7 +293,7 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
               <View style={[styles.shortcutIcon, { backgroundColor: theme.card }]}>
                 <Ionicons name={shortcutConfig.icon as any} size={24} color={theme.text} />
               </View>
-              <Text style={[styles.shortcutLabel, { color: theme.text }]}>{shortcutConfig.label}</Text>
+              <Text style={{ color: theme.text, fontFamily: theme.fonts.bold, fontSize: 12 * fontScale }}>{shortcutConfig.label}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -331,11 +330,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timeText: {
-    fontFamily: typography.families.bold,
     includeFontPadding: false,
   },
   dateText: {
-    fontFamily: typography.families.semibold,
     marginVertical: 2,
   },
   weatherContainer: {
@@ -350,17 +347,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tempText: {
-    fontFamily: typography.families.bold,
   },
   cityText: {
-    fontFamily: typography.families.regular,
     marginTop: 2
   },
   weatherText: {
-    fontFamily: typography.families.regular,
   },
   detailText: {
-    fontFamily: typography.families.semibold,
     marginBottom: 2
   },
   shortcutsContainer: {
@@ -388,8 +381,4 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-  shortcutLabel: {
-    fontSize: 12,
-    fontFamily: typography.families.bold
-  }
 });

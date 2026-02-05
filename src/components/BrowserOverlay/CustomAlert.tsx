@@ -50,7 +50,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
             {
               color: theme.text,
               fontSize: typography.sizes.lg * fontScale,
-              fontFamily: typography.families.bold,
+              fontFamily: theme.fonts.bold,
             }
           ]}>
             {title}
@@ -60,7 +60,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
             {
               color: theme.textSec,
               fontSize: typography.sizes.sm * fontScale,
-              fontFamily: typography.families.regular,
+              fontFamily: theme.fonts.regular,
             }
           ]}>
             {message}
@@ -86,7 +86,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
                     styles.textStyle,
                     {
                       fontSize: typography.sizes.base * fontScale,
-                      fontFamily: typography.families.bold,
+                      fontFamily: theme.fonts.bold,
                     },
                     btn.style === 'cancel' ? { color: theme.text } :
                       btn.style === 'destructive' ? { color: 'white' } :

@@ -111,7 +111,7 @@ const SearchHeader = React.memo(
             style={{
               flex: 1,
               color: theme.text,
-              fontFamily: typography.families.semibold,
+              fontFamily: theme.fonts.semibold,
               fontSize: typography.sizes.base,
             }}
             placeholder="Search Tabs..."
@@ -194,7 +194,7 @@ const SearchHeader = React.memo(
                       <Text
                         style={{
                           color: theme.text,
-                          fontFamily: typography.families.semibold,
+                          fontFamily: theme.fonts.semibold,
                         }}
                       >
                         Clear all tabs

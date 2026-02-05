@@ -148,7 +148,7 @@ const TabCard = ({
                 styles.title,
                 {
                   color: theme.text,
-                  fontFamily: typography.families.bold,
+                  fontFamily: theme.fonts.bold,
                   fontSize: typography.sizes.sm * fontScale,
                 },
               ]}
@@ -161,7 +161,7 @@ const TabCard = ({
                 styles.url,
                 {
                   color: theme.textSec,
-                  fontFamily: typography.families.semibold,
+                  fontFamily: theme.fonts.semibold,
                   fontSize: typography.sizes.xs * fontScale,
                 },
               ]}

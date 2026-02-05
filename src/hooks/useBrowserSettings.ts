@@ -11,6 +11,7 @@ export interface BrowserSettings {
   fontScale: number;
   showStatusBar: boolean;
   pillHeight: number;
+  fontWeight: "light" | "normal" | "bold";
   progressBarMode: "ltr" | "center" | "none";
   recallPosition: "left" | "center" | "right";
   startupTabMode: "new" | "last";
@@ -58,6 +59,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [cornerRadius, setCornerRadius] = useState(22);
   const [uiPadding, setUiPadding] = useState<"compact" | "normal" | "airy">("normal");
   const [fontScale, setFontScale] = useState(1);
+  const [fontWeight, setFontWeight] = useState<"light" | "normal" | "bold">("normal");
   const [showStatusBar, setShowStatusBar] = useState(true);
   const [pillHeight, setPillHeight] = useState(70);
   const [progressBarMode, setProgressBarMode] = useState<"ltr" | "center" | "none">("ltr");
@@ -106,6 +108,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         setFontScale(savedSettings.fontScale ?? 1);
         setShowStatusBar(savedSettings.showStatusBar !== undefined ? savedSettings.showStatusBar : true);
         setPillHeight(savedSettings.pillHeight ?? 70);
+        setFontWeight(savedSettings.fontWeight ?? "normal");
         setProgressBarMode(savedSettings.progressBarMode ?? "ltr");
         setRecallPosition(savedSettings.recallPosition ?? "center");
 
@@ -199,6 +202,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         homeBackgroundImage,
         showHomeShortcuts,
         homeShortcutAction,
+        fontWeight
       };
       saveStorage("settings", settingsToSave);
     }
@@ -238,7 +242,9 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeLogoType,
     homeBackgroundImage,
     showHomeShortcuts,
-    homeShortcutAction
+    showHomeShortcuts,
+    homeShortcutAction,
+    fontWeight
   ]);
 
   const effectiveTheme = useMemo(() => {
@@ -247,8 +253,32 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     else if (themeMode === "dark") selectedTheme = COLORS.dark;
     else selectedTheme = generateAdaptiveTheme(accentColor);
 
-    return { ...selectedTheme };
-  }, [themeMode, accentColor]);
+    // Dynamic Font Mapping
+    let fonts = {
+      regular: "Nunito_400Regular",
+      semibold: "Nunito_600SemiBold",
+      bold: "Nunito_700Bold",
+      extrabold: "Nunito_800ExtraBold",
+    };
+
+    if (fontWeight === 'bold') {
+      fonts = {
+        regular: "Nunito_600SemiBold",
+        semibold: "Nunito_700Bold",
+        bold: "Nunito_800ExtraBold",
+        extrabold: "Nunito_800ExtraBold", // Maxed out
+      };
+    } else if (fontWeight === 'light') {
+      fonts = {
+        regular: "Nunito_400Regular", // Min available
+        semibold: "Nunito_400Regular",
+        bold: "Nunito_600SemiBold",
+        extrabold: "Nunito_700Bold",
+      };
+    }
+
+    return { ...selectedTheme, fonts };
+  }, [themeMode, accentColor, fontWeight]);
 
   const resetSettings = () => {
     setThemeMode("dark");
@@ -257,6 +287,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setCornerRadius(22);
     setUiPadding("normal");
     setFontScale(1);
+    setFontWeight("normal");
     setPillHeight(70);
     setProgressBarMode("ltr");
     setRecallPosition("center");
@@ -296,6 +327,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     cornerRadius, setCornerRadius,
     uiPadding, setUiPadding,
     fontScale, setFontScale,
+    fontWeight, setFontWeight,
     showStatusBar, setShowStatusBar,
     pillHeight, setPillHeight,
     progressBarMode, setProgressBarMode,
