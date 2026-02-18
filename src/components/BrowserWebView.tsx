@@ -528,7 +528,7 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
           isFullscreen ? { backgroundColor: "#000" } : { backgroundColor: effectiveTheme.bg }
         }
         renderError={renderError}
-        originWhitelist={["http://*", "https://*", "about:*"]}
+        originWhitelist={["*"]}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         injectedJavaScript={finalInjectedJavaScript}
         onReceivedSslError={(event: any) => {
