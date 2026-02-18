@@ -23,6 +23,7 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
     homeBackgroundImage,
     showHomeShortcuts,
     homeShortcutAction,
+    homeBackgroundOverlayOpacity,
     fontScale,
     accentColor
   } = settings;
@@ -122,6 +123,15 @@ export const HomePage: React.FC<HomePageProps> = ({ settings, theme, isActive, o
             source={{ uri: homeBackgroundImage }}
             style={StyleSheet.absoluteFillObject}
             resizeMode="cover"
+          />
+        )}
+
+        {homeBackgroundImage && (
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              { backgroundColor: 'black', opacity: homeBackgroundOverlayOpacity }
+            ]}
           />
         )}
 

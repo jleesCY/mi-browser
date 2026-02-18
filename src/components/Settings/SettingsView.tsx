@@ -7,6 +7,7 @@ import {
   Image,
   LayoutAnimation,
   ScrollView,
+  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -96,6 +97,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setExpandMenus,
     showBookmarkIcons,
     setShowBookmarkIcons,
+    homeBackgroundOverlayOpacity,
+    setHomeBackgroundOverlayOpacity,
     isAccentExpanded,
     setIsAccentExpanded,
     isSearchEngineOpen,
@@ -1718,6 +1721,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <Text style={{ color: effectiveTheme.textSec, opacity: 0.5, fontSize: 10 }}>Preview</Text>
                               </View>
                             )}
+
+                            {/* Darkness Overlay for Preview */}
+                            {homeBackgroundImage && (
+                              <View
+                                style={[
+                                  StyleSheet.absoluteFillObject,
+                                  { backgroundColor: 'black', opacity: homeBackgroundOverlayOpacity, zIndex: 1 }
+                                ]}
+                              />
+                            )}
                           </View>
                         </View>
                       );
@@ -1725,6 +1738,73 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </View>
                 </View>
               </SettingRow>
+
+              {homeBackgroundImage && (
+                <SettingRow label="Darkness">
+                  <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                      <Ionicons name="contrast-outline" size={22} color={effectiveTheme.text} style={{ marginRight: 10 }} />
+                      <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.semibold, fontSize: 16 * fontScale }}>Darkness</Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        width: "100%",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        paddingHorizontal: 10,
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => setHomeBackgroundOverlayOpacity(Math.max(0, homeBackgroundOverlayOpacity - 0.1))}
+                      >
+                        <Ionicons
+                          name="remove-circle-outline"
+                          size={28}
+                          color={effectiveTheme.textSec}
+                        />
+                      </TouchableOpacity>
+                      <View
+                        style={{
+                          height: 4,
+                          flex: 1,
+                          backgroundColor: effectiveTheme.bg,
+                          marginHorizontal: 15,
+                          borderRadius: 2,
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <View
+                          style={{
+                            height: "100%",
+                            width: `${Math.min(100, Math.max(0, homeBackgroundOverlayOpacity * 100))}%`,
+                            backgroundColor: accentColor,
+                            borderRadius: 2,
+                          }}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setHomeBackgroundOverlayOpacity(Math.min(1, homeBackgroundOverlayOpacity + 0.1))}
+                      >
+                        <Ionicons
+                          name="add-circle-outline"
+                          size={28}
+                          color={effectiveTheme.textSec}
+                        />
+                      </TouchableOpacity>
+                      <Text style={{
+                        width: 40,
+                        textAlign: 'right',
+                        color: effectiveTheme.text,
+                        fontFamily: effectiveTheme.fonts.bold,
+                        marginLeft: 10
+                      }}>
+                        {(homeBackgroundOverlayOpacity * 100).toFixed(0)}%
+                      </Text>
+                    </View>
+                  </View>
+                </SettingRow>
+              )}
             </SettingsGroup>
           </>
         )}

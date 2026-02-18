@@ -41,6 +41,7 @@ export interface BrowserSettings {
   homeShortcutAction: "newTab" | "qr" | "bookmarks" | "history";
   ignoredHosts: string[];
   use3DButtons: boolean;
+  homeBackgroundOverlayOpacity: number;
 }
 
 export const useBrowserSettings = (isAppReady: boolean) => {
@@ -57,6 +58,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [homeBackgroundImage, setHomeBackgroundImage] = useState<string | null>(null);
   const [showHomeShortcuts, setShowHomeShortcuts] = useState(false);
   const [homeShortcutAction, setHomeShortcutAction] = useState<"newTab" | "qr" | "bookmarks" | "history">("qr");
+  const [homeBackgroundOverlayOpacity, setHomeBackgroundOverlayOpacity] = useState(0.2);
 
   // Security
   const [ignoredHosts, setIgnoredHosts] = useState<string[]>([]);
@@ -160,6 +162,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
           setHomeBackgroundImage(savedSettings.homeBackgroundImage ?? null);
           setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
           setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
+          setHomeBackgroundOverlayOpacity(savedSettings.homeBackgroundOverlayOpacity ?? 0.2);
           setUse3DButtons(savedSettings.use3DButtons ?? false);
           // ignoredHosts is now loaded and migrated above
 
@@ -245,6 +248,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         homeBackgroundImage,
         showHomeShortcuts,
         homeShortcutAction,
+        homeBackgroundOverlayOpacity,
         fontWeight,
         use3DButtons
         // NOTE: ignoredHosts is saved separately to secure storage
@@ -290,6 +294,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     showHomeShortcuts,
     showHomeShortcuts,
     homeShortcutAction,
+    homeBackgroundOverlayOpacity,
     fontWeight,
     ignoredHosts,
     use3DButtons
@@ -363,6 +368,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHomeBackgroundImage(null);
     setShowHomeShortcuts(false);
     setHomeShortcutAction("qr");
+    setHomeBackgroundOverlayOpacity(0.2);
     setIgnoredHosts([]);
     setUse3DButtons(false);
 
@@ -406,6 +412,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeBackgroundImage, setHomeBackgroundImage,
     showHomeShortcuts, setShowHomeShortcuts,
     homeShortcutAction, setHomeShortcutAction,
+    homeBackgroundOverlayOpacity, setHomeBackgroundOverlayOpacity,
     ignoredHosts, setIgnoredHosts,
     use3DButtons, setUse3DButtons,
     isAccentExpanded, setIsAccentExpanded,
