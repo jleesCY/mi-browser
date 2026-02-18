@@ -1541,7 +1541,7 @@ export default function App() {
               />
             );
           }
-          
+
           if (!tab.url) return null;
           if (!tab.hasLoadedOnce) return null;
 
@@ -1579,7 +1579,7 @@ export default function App() {
                   addToHistory(updates.url, updates.title);
                 }
 
-                if (!isInputFocused && updates.url) {
+                if (!isInputFocusedRef.current && updates.url) {
                   setActiveUrl(updates.url);
                   setInputUrl(getDisplayHost(updates.url));
                 }
@@ -2465,10 +2465,12 @@ export default function App() {
                             selectTextOnFocus
                             onFocus={() => {
                               setIsInputFocused(true);
+                              isInputFocusedRef.current = true;
                               setInputUrl(activeUrl || "");
                             }}
                             onBlur={() => {
                               setIsInputFocused(false);
+                              isInputFocusedRef.current = false;
                               setInputUrl(getDisplayHost(activeUrl));
                             }}
                           />
