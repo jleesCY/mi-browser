@@ -62,7 +62,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [ignoredHosts, setIgnoredHosts] = useState<string[]>([]);
 
   // UI Enhancement
-  const [use3DButtons, setUse3DButtons] = useState(true);
+  const [use3DButtons, setUse3DButtons] = useState(false);
 
   // Cosmetic settings
   const [cornerRadius, setCornerRadius] = useState(22);
@@ -160,7 +160,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
           setHomeBackgroundImage(savedSettings.homeBackgroundImage ?? null);
           setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
           setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
-          setUse3DButtons(savedSettings.use3DButtons ?? true);
+          setUse3DButtons(savedSettings.use3DButtons ?? false);
           // ignoredHosts is now loaded and migrated above
 
           if (savedSettings.startupTabMode) {
@@ -364,7 +364,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setShowHomeShortcuts(false);
     setHomeShortcutAction("qr");
     setIgnoredHosts([]);
-    setUse3DButtons(true);
+    setUse3DButtons(false);
 
     saveStorage("settings", null);
   };
