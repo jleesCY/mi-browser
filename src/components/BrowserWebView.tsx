@@ -139,6 +139,7 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
   } = props;
   const localRef = useRef<WebView>(null);
   const failingUrlRef = useRef<string | null>(null);
+  const pendingAllowedHost = useRef<string | null>(null);
   const [sslErrorState, setSslErrorState] = useState<{ url: string } | null>(null);
   const [errorState, setErrorState] = useState<{
     errorDomain?: string;
@@ -388,66 +389,54 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
             <TouchableOpacity
               style={{
                 marginTop: 15,
-                paddingHorizontal: 20,
-                paddingVertical: 14,
-                borderRadius: 12,
-                backgroundColor: "#ff3b30"
+                padding: 10,
               }}
               onPress={() => {
                 try {
                   const targetUrl = failingUrlRef.current || tab.url;
                   const host = getDisplayHost(targetUrl);
 
-                  // Always clear error states, even if host extraction fails
-                  setErrorState(null);
-                  setSslErrorState(null);
-
                   if (host && host.length > 0) {
+                    // Set pending host to allow immediate reload success
+                    pendingAllowedHost.current = host;
+
                     // Add to ignored hosts if not already present
                     if (!ignoredHosts.includes(host)) {
                       setIgnoredHosts([...ignoredHosts, host]);
                     }
 
-                    // Short delay to let state update then reload
-                    setTimeout(() => {
-                      if (localRef.current) {
-                        localRef.current.reload();
-                      }
-                    }, 100);
-                  } else {
-                    // If we can't get the host, just try to reload anyway
+                    // Reload immediately
                     if (localRef.current) {
                       localRef.current.reload();
                     }
+
+                    // Clear error states
+                    setErrorState(null);
+                    setSslErrorState(null);
+                  } else {
+                    // Fallback
+                    if (localRef.current) localRef.current.reload();
+                    setErrorState(null);
+                    setSslErrorState(null);
                   }
                 } catch (error) {
                   if (__DEV__) {
                     console.error('[SSL Error] Error handling trust button:', error);
                   }
-                  // Clear error states anyway
                   setErrorState(null);
                   setSslErrorState(null);
                 }
               }}
             >
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{
-                  color: '#fff',
-                  fontFamily: effectiveTheme.fonts.bold,
-                  fontSize: 16
-                }}>
-                  ⚠️ Trust This Site Anyway
-                </Text>
-                <Text style={{
-                  color: '#fff',
-                  fontFamily: effectiveTheme.fonts.regular,
-                  fontSize: 12,
-                  marginTop: 4,
-                  opacity: 0.9
-                }}>
-                  This will disable security checks for {getDisplayHost(failingUrlRef.current || tab.url)}
-                </Text>
-              </View>
+              <Text style={{
+                color: effectiveTheme.textSec,
+                fontFamily: effectiveTheme.fonts.regular,
+                fontSize: 14 * fontScale,
+                textDecorationLine: 'underline',
+                textAlign: 'center'
+              }}>
+                Proceed to {getDisplayHost(failingUrlRef.current || tab.url)} (unsafe)
+              </Text>
             </TouchableOpacity>
           )
         }
@@ -537,8 +526,8 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
           if (__DEV__) {
             console.log('[SSL Error]', { url, host, ignoredHosts });
           }
-          // Check if host is in ignoredHosts array
-          if (ignoredHosts && ignoredHosts.includes(host)) {
+          // Check if host is in ignoredHosts array or pending allowed
+          if ((ignoredHosts && ignoredHosts.includes(host)) || pendingAllowedHost.current === host) {
             if (__DEV__) {
               console.log('[SSL Error] Proceeding - host is ignored');
             }
