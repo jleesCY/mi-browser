@@ -57,7 +57,7 @@ export const exportData = async () => {
 
         // 5. Generate Zip
         const base64Zip = await zip.generateAsync({ type: 'base64' });
-        const fileName = `export_${Date.now()}.midata`;
+        const fileName = `settings_${Date.now()}.midata`;
         const fileUri = `${CACHE_DIR}${fileName}`;
 
         // 6. Write to File
