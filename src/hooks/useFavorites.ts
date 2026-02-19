@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { loadStorage, saveStorage, getFaviconUrl } from '../utils';
+import { useCallback, useEffect, useState } from 'react';
+import { getFaviconUrl, loadStorage, saveStorage } from '../utils';
 
 export interface FavoriteItem {
   id: string;
@@ -25,10 +25,10 @@ export const useFavorites = (isAppReady: boolean) => {
     if (!isAppReady) return;
     const saveTimeout = setTimeout(() => {
       const cleanFavorites = favorites.map(f => ({
-          id: f.id,
-          url: f.url,
-          title: f.title,
-          icon: f.icon
+        id: f.id,
+        url: f.url,
+        title: f.title,
+        icon: f.icon
       }));
       saveStorage("favorites", cleanFavorites);
     }, 500);
@@ -79,12 +79,17 @@ export const useFavorites = (isAppReady: boolean) => {
     setFavorites([]);
   }, []);
 
+  const replaceFavorites = useCallback((newFavorites: FavoriteItem[]) => {
+    setFavorites(newFavorites);
+  }, []);
+
   return {
     favorites,
     addFavorite,
     removeFavorite,
     updateFavorite,
     reorderFavorites,
-    clearFavorites
+    clearFavorites,
+    replaceFavorites
   };
 };

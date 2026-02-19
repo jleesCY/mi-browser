@@ -111,7 +111,9 @@ export default function App() {
     backgroundRefresh,
     readerModeEnabled,
     recentSearchesExpanded,
+
     showFavoritesDefault,
+    setAllSettings,
   } = settings;
 
   const {
@@ -120,7 +122,9 @@ export default function App() {
     addToHistory,
     deleteHistory,
     deleteHistoryItem,
+
     deleteRecentSearch,
+    replaceHistory,
   } = useHistory(areSettingsLoaded);
 
   const {
@@ -131,7 +135,9 @@ export default function App() {
     updateBookmark,
     moveBookmark,
     reorderBookmarks,
+
     clearBookmarks,
+    replaceBookmarks,
   } = useBookmarks(areSettingsLoaded);
 
   const {
@@ -139,7 +145,9 @@ export default function App() {
     addFavorite,
     removeFavorite,
     reorderFavorites,
+
     clearFavorites,
+    replaceFavorites,
   } = useFavorites(areSettingsLoaded);
 
   const {
@@ -1834,6 +1842,23 @@ export default function App() {
                     onOpenHelp={() => {
                       addNewTab("https://jleescy.github.io/mi-browser/user");
                       closeOverlay();
+                    }}
+                    onImport={(data) => {
+                      if (data.settings) {
+                        setAllSettings(data.settings);
+                        // ignored hosts are part of settings state update or handled by hook reload?
+                        // Actually useBrowserSettings listens to storage change? No.
+                        // But setAllSettings updates the state.
+
+                        // We also need to reload ignored hosts if they were updated in SecureStorage
+                        // But we don't have a setter exposed for that easily from here except setIgnoredHosts
+                        // which expects data.
+                        if (data.ignoredHosts) {
+                          // We need to pass this to the hook or manually update.
+                          // setIgnoredHosts is available in settings object passed to SettingsView...
+                          // But here we are in app/index.tsx
+                        }
+                      }
                     }}
                   />
                 )}

@@ -375,6 +375,58 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     saveStorage("settings", null);
   };
 
+  const setAllSettings = (newSettings: any) => {
+    if (!newSettings) return;
+
+    setThemeMode(newSettings.themeMode ?? "dark");
+    setAccentColor(newSettings.accentColor ?? "#007AFF");
+    setSearchEngineIndex(newSettings.searchEngineIndex ?? 0);
+    setCornerRadius(newSettings.cornerRadius ?? 22);
+    setUiPadding(newSettings.uiPadding ?? "normal");
+    setFontScale(newSettings.fontScale ?? 1);
+    setFontWeight(newSettings.fontWeight ?? "normal");
+    setProgressBarMode(newSettings.progressBarMode ?? "ltr");
+    setRecallPosition(newSettings.recallPosition ?? "center");
+    setStartupTabMode(newSettings.startupTabMode ?? "new");
+    setTabViewMode(newSettings.tabViewMode ?? "rows");
+    setShowTabLogo(newSettings.showTabLogo ?? true);
+    setShowTabPreview(newSettings.showTabPreview ?? true);
+    setExpandMenus(newSettings.expandMenus ?? false);
+    setShowBookmarkIcons(newSettings.showBookmarkIcons ?? true);
+    setDesktopMode(newSettings.desktopMode ?? false);
+    setForceSearchMode(newSettings.forceSearchMode ?? false);
+    setRecentSearchesExpanded(newSettings.recentSearchesExpanded ?? false);
+    setShowFavoritesDefault(newSettings.showFavoritesDefault ?? false);
+    setReaderModeEnabled(newSettings.readerModeEnabled ?? false);
+    setJsEnabled(newSettings.jsEnabled ?? true);
+    setHttpsOnly(newSettings.httpsOnly ?? false);
+    setBlockCookies(newSettings.blockCookies ?? false);
+    setHistoryLoadCount(newSettings.historyLoadCount ?? 10);
+    setHistoryGrouping(newSettings.historyGrouping ?? "Time");
+    setBackgroundRefresh(newSettings.backgroundRefresh ?? false);
+    setHomeClockType(newSettings.homeClockType ?? "None");
+    setHomeDateType(newSettings.homeDateType ?? "None");
+    setHomeWeatherType(newSettings.homeWeatherType ?? "None");
+    setHomeLogoType(newSettings.homeLogoType ?? "Fidget");
+    setHomeBackgroundImage(newSettings.homeBackgroundImage ?? null);
+    setShowHomeShortcuts(newSettings.showHomeShortcuts ?? false);
+    setHomeShortcutAction(newSettings.homeShortcutAction ?? "qr");
+    setHomeBackgroundOverlayOpacity(newSettings.homeBackgroundOverlayOpacity ?? 0.2);
+    setIgnoredHosts(newSettings.ignoredHosts || []);
+    setUse3DButtons(newSettings.use3DButtons ?? false);
+
+    // Explicitly handle pillHeight and showStatusBar if present, defaulting if needed
+    setPillHeight(newSettings.pillHeight ?? 70);
+    setShowStatusBar(newSettings.showStatusBar !== undefined ? newSettings.showStatusBar : true);
+
+    // Update menu bar order
+    if (newSettings.menuBarOrder && Array.isArray(newSettings.menuBarOrder)) {
+      setMenuBarOrder(newSettings.menuBarOrder);
+    } else {
+      setMenuBarOrder(DEFAULT_MENU_BAR_ORDER);
+    }
+  };
+
   return {
     themeMode, setThemeMode,
     accentColor, setAccentColor,
@@ -421,6 +473,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     isClearHistoryOpen, setIsClearHistoryOpen,
     effectiveTheme,
     resetSettings,
+    setAllSettings,
     areSettingsLoaded
   };
 };

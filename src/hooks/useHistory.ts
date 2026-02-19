@@ -147,12 +147,17 @@ export const useHistory = (isAppReady: boolean) => {
     });
   };
 
+  const replaceHistory = (newHistory: HistoryItem[]) => {
+    setHistory(newHistory);
+  };
+
   return {
     history,
     recentSearches,
     addToHistory,
     deleteHistory,
     deleteHistoryItem,
-    deleteRecentSearch
+    deleteRecentSearch,
+    replaceHistory
   };
 };

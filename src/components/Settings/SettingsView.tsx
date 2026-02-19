@@ -23,6 +23,7 @@ import {
 } from "../../constants";
 import { flexRow } from "../../design-system/styles";
 import { borderWidths, iconSizes, spacing, typography } from "../../design-system/tokens";
+import { AppData, exportData, parseImportFile, restoreData } from "../../utils/dataTransfer";
 import { HorizontalSortableList } from "../BrowserSession/HorizontalSortableList";
 
 interface SettingsViewProps {
@@ -35,6 +36,7 @@ interface SettingsViewProps {
   onRequestClearHistory: (ms: number, label: string) => void;
   onRequestBgRefreshConfirm: (value: boolean) => void;
   onOpenHelp: () => void;
+  onImport: (data: AppData) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -47,6 +49,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRequestClearHistory,
   onRequestBgRefreshConfirm,
   onOpenHelp,
+  onImport,
 }) => {
   const {
     themeMode,
@@ -127,6 +130,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     use3DButtons,
     setUse3DButtons,
   } = settings;
+
+
+  const [importData, setImportData] = React.useState<AppData | null>(null);
+
+
+  const handleExport = async () => {
+    await exportData();
+  };
+
+  const handleImport = async () => {
+    const data = await parseImportFile();
+    if (data) {
+      setImportData(data);
+      Alert.alert(
+        "Restore Settings?",
+        "This will replace your current settings and home page background. Continue?",
+        [
+          { text: "Cancel", style: "cancel", onPress: () => setImportData(null) },
+          {
+            text: "Restore",
+            onPress: async () => {
+              // Execute Import directly
+              const success = await restoreData(data);
+              if (success) {
+                onImport(data);
+                Alert.alert("Success", "Settings restored successfully.");
+              }
+              setImportData(null);
+            }
+          }
+        ]
+      );
+    }
+  };
 
   const searchInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -566,10 +603,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }}
             >
               <CategoryButton
-                label="Reset Data"
-                icon="trash-outline"
-                color="#ff3b30"
-                onPress={() => setActiveCategory("reset")}
+                label="App Data"
+                icon="save-outline"
+                color={effectiveTheme.text}
+                onPress={() => setActiveCategory("appData")}
               />
             </View>
           </View>
@@ -2592,101 +2629,101 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </>
         )}
 
-        {(searchText !== "" || activeCategory === "reset") && (
+        {(searchText !== "" || activeCategory === "appData") && (
           <View style={{ marginTop: 20 }}>
+            <Text
+              style={{
+                color: effectiveTheme.textSec,
+                fontFamily: effectiveTheme.fonts.bold,
+                marginTop: spacing.lg,
+                marginBottom: spacing.sm - 2,
+                fontSize: typography.sizes.sm * fontScale,
+              }}
+            >
+              App Data
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleExport}
+              style={{
+                backgroundColor: effectiveTheme.card,
+                paddingVertical: 15,
+                paddingHorizontal: 16,
+                borderRadius: cornerRadius,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                gap: 8,
+                marginBottom: 10
+              }}
+            >
+              <Ionicons name="cloud-upload-outline" size={20} color={effectiveTheme.text} />
+              <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.bold, fontSize: 16 * fontScale }}>Export Settings</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleImport}
+              style={{
+                backgroundColor: effectiveTheme.card,
+                paddingVertical: 15,
+                paddingHorizontal: 16,
+                borderRadius: cornerRadius,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                gap: 8,
+              }}
+            >
+              <Ionicons name="cloud-download-outline" size={20} color={effectiveTheme.text} />
+              <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.bold, fontSize: 16 * fontScale }}>Import Settings</Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 20 }} />
+
             <TouchableOpacity
               onPress={onRequestReset}
               style={{
                 backgroundColor: "#ff3b30",
                 paddingVertical: 15,
-                paddingHorizontal: 20,
+                paddingHorizontal: 16,
                 borderRadius: cornerRadius,
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
+                width: "100%",
+                gap: 8,
+                marginBottom: 10
               }}
             >
-              <Ionicons
-                name="refresh-circle-outline"
-                size={24}
-                color="#fff"
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: "#fff",
-                  fontFamily: effectiveTheme.fonts.bold,
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                Reset all settings
-              </Text>
+              <Ionicons name="refresh-outline" size={20} color="white" />
+              <Text style={{ color: "white", fontFamily: effectiveTheme.fonts.bold, fontSize: 16 * fontScale }}>Reset All Settings</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={onRequestWipeData}
               style={{
-                marginTop: 15,
                 backgroundColor: "#ff3b30",
                 paddingVertical: 15,
-                paddingHorizontal: 20,
+                paddingHorizontal: 16,
                 borderRadius: cornerRadius,
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
+                width: "100%",
+                gap: 8,
               }}
             >
-              <Ionicons
-                name="trash-bin-outline"
-                size={24}
-                color="#fff"
-                style={{ marginRight: 10 }}
-              />
-              <Text
-                style={{
-                  color: "#fff",
-                  fontFamily: effectiveTheme.fonts.bold,
-                  fontSize: 16 * fontScale,
-                }}
-              >
-                Wipe All Data
-              </Text>
+              <Ionicons name="trash-outline" size={20} color="white" />
+              <Text style={{ color: "white", fontFamily: effectiveTheme.fonts.bold, fontSize: 16 * fontScale }}>Wipe All Data</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        <TouchableOpacity
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            opacity: 0.8,
-            marginTop: 30,
-            marginBottom: 5
-          }}
-          onPress={onOpenHelp}
-        >
-          <Ionicons name="help-circle-outline" size={18} color={effectiveTheme.textSec} />
-          <Text style={{
-            color: effectiveTheme.textSec,
-            fontFamily: effectiveTheme.fonts.bold,
-            fontSize: 14 * fontScale
-          }}>Help</Text>
-        </TouchableOpacity>
-
-        <Text
-          style={{
-            textAlign: "center",
-            color: effectiveTheme.textSec,
-            fontFamily: effectiveTheme.fonts.semibold,
-            marginTop: 10,
-            marginBottom: 40,
-            fontSize: 12 * fontScale,
-          }}
-        >
-        </Text>
       </ScrollView>
-    </View >
+
+
+    </View>
   );
 };
