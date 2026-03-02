@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Search as SearchIcon, X, FileText, User, Settings2, Code2, Shield } from "lucide-react";
+import { Code2, FileText, Search as SearchIcon, Settings2, Shield, User, X } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface SearchResult {
@@ -31,28 +31,62 @@ const MOCK_DATA: SearchResult[] = [
   { title: "QR Toolbox", type: "User Guide", href: "/user#qr-toolbox", excerpt: "Scan physical codes, upload images, or generate QR links." },
   { title: "Privacy Commitment", type: "User Guide", href: "/user#privacy", excerpt: "Our local-first, zero-tracking browsing philosophy." },
 
-  // Settings (Granular)
+  // Settings (Granular - every setting, matching SettingItem IDs)
+  // Colors
   { title: "Theme Mode", type: "Settings", href: "/user#setting-theme", excerpt: "Switch between Light, Dark, or Adaptive UI themes." },
-  { title: "Accent Color", type: "Settings", href: "/user#setting-accent", excerpt: "Personalize the app with over 30 custom accent colors." },
-  { title: "Show Status Bar", type: "Settings", href: "/user#setting-status-bar", excerpt: "Toggle the visibility of the system status bar." },
-  { title: "Font Size", type: "Settings", href: "/user#setting-font-size", excerpt: "Adjust the scaling of UI text from 80% to 120%." },
-  { title: "Corner Radius", type: "Settings", href: "/user#setting-radius", excerpt: "Adjust the roundness of UI elements (Square to Round)." },
-  { title: "Tab View Mode", type: "Settings", href: "/user#setting-tab-view", excerpt: "Switch between Rows and Cards for the tab switcher." },
-  { title: "Show Tab Logo", type: "Settings", href: "/user#setting-tab-logo", excerpt: "Toggle favicons in the tab switcher list." },
-  { title: "Show Tab Preview", type: "Settings", href: "/user#setting-tab-preview", excerpt: "Show visual website snapshots in Card view." },
-  { title: "Show Recent History", type: "Settings", href: "/user#setting-recent-history", excerpt: "Automatically expand recent searches in the Pill." },
-  { title: "UI Spacing", type: "Settings", href: "/user#customization", excerpt: "Change UI density between Compact, Normal, and Airy." },
-  { title: "Pill Height", type: "Settings", href: "/user#setting-pill-height", excerpt: "Customize the physical height of the interaction pill." },
-  { title: "Pill Loading Bar", type: "Settings", href: "/user#setting-loading-bar", excerpt: "Choose between Standard, Center Out, or Hidden progress bars." },
-  { title: "Search Engine", type: "Settings", href: "/user#setting-search-engine", excerpt: "Set default provider: Google, DuckDuckGo, Bing, or Yahoo." },
-  { title: "Startup Behavior", type: "Settings", href: "/user#setting-startup", excerpt: "Choose between opening a New Tab or Continuing Session." },
-  { title: "Background Refresh", type: "Settings", href: "/user#setting-bg-refresh", excerpt: "Keep tabs alive in the background for instant switching." },
-  { title: "Enable JavaScript", type: "Settings", href: "/user#setting-js", excerpt: "Toggle JS execution for enhanced privacy or performance." },
-  { title: "HTTPS Only", type: "Settings", href: "/user#setting-https", excerpt: "Force secure connections for all browsing sessions." },
-  { title: "Block Cookies", type: "Settings", href: "/user#setting-cookies", excerpt: "Prevent websites from storing tracking cookies." },
-  { title: "History Load Count", type: "Settings", href: "/user#setting-history-count", excerpt: "Set how many history items to load at once (10-100)." },
+  { title: "Accent Color", type: "Settings", href: "/user#setting-accent-color", excerpt: "Pick from 18 hand-selected colors for buttons and highlights." },
+
+  // Interface
+  { title: "Font Size", type: "Settings", href: "/user#setting-font-size", excerpt: "Adjust the global font scale from 80% to 120%." },
+  { title: "Font Weight", type: "Settings", href: "/user#setting-font-weight", excerpt: "Choose between Light, Normal, or Bold text weight." },
+  { title: "Corner Radius", type: "Settings", href: "/user#setting-corners", excerpt: "Adjust the roundness of UI elements: Square, Semi-Round, or Round." },
+  { title: "UI Spacing", type: "Settings", href: "/user#setting-spacing", excerpt: "Change UI density between Compact, Normal, and Airy." },
+  { title: "Status Bar", type: "Settings", href: "/user#setting-status-bar", excerpt: "Toggle the visibility of the system status bar." },
+  { title: "Expand Menus", type: "Settings", href: "/user#setting-expand-menus", excerpt: "Open menus to full-screen height immediately." },
+
+  // Pill
+  { title: "Pill Size", type: "Settings", href: "/user#setting-size", excerpt: "Choose between Thin, Normal, or Tall pill height." },
+  { title: "Loading Bar", type: "Settings", href: "/user#setting-loading-bar", excerpt: "Choose between Standard, Center Out, or Hidden progress bars." },
+  { title: "Pin Favorites", type: "Settings", href: "/user#setting-pin-favorites", excerpt: "Keep the Favorites Bar visible when the Pill is focused." },
+  { title: "Expand Searches", type: "Settings", href: "/user#setting-expand-searches", excerpt: "Auto-expand recent searches when opening the Pill." },
+  { title: "Reorder Icons", type: "Settings", href: "/user#setting-reorder-icons", excerpt: "Drag and drop Dashboard menu bar icons into your preferred order." },
+
+  // Home Page
+  { title: "Center Logo", type: "Settings", href: "/user#setting-center-logo", excerpt: "Choose the home page logo: None, Static, or Fidget." },
+  { title: "Clock", type: "Settings", href: "/user#setting-clock", excerpt: "Select the home page clock format: None, 12h, or 24h." },
+  { title: "Date", type: "Settings", href: "/user#setting-date", excerpt: "Choose date placement: None, Above Clock, or Below Clock." },
+  { title: "Weather", type: "Settings", href: "/user#setting-weather", excerpt: "Weather widget: None, Simple, Detailed, or Hourly." },
+  { title: "Shortcut", type: "Settings", href: "/user#setting-shortcut", excerpt: "Toggle the home page shortcut button and choose its action." },
+  { title: "Background Image", type: "Settings", href: "/user#setting-background-image", excerpt: "Set a custom home page background with a darkness overlay." },
+
+  // Tabs
+  { title: "Tab View Style", type: "Settings", href: "/user#setting-style", excerpt: "Toggle between Rows (dense list) or Cards (visual grid)." },
+  { title: "Tab Site Logo", type: "Settings", href: "/user#tabs", excerpt: "Toggle favicons in the tab switcher list." },
+  { title: "Preview Content", type: "Settings", href: "/user#setting-preview-content", excerpt: "Show visual website snapshots in Card view." },
+  { title: "Background Refresh", type: "Settings", href: "/user#setting-background-refresh", excerpt: "Keep all tabs alive on startup for instant switching." },
+
+  // History
+  { title: "Group By", type: "Settings", href: "/user#setting-group-by", excerpt: "Organize history by Time or by Site." },
+  { title: "History Load Count", type: "Settings", href: "/user#setting-load-count", excerpt: "Set how many history items to load at once (10-100)." },
   { title: "Clear History", type: "Settings", href: "/user#setting-clear-history", excerpt: "Delete browsing data from the last hour, day, or all time." },
-  { title: "Reset Settings", type: "Settings", href: "/user#setting-reset", excerpt: "Revert all app configurations to their default values." },
+
+  // Bookmarks
+  { title: "Bookmark Site Logo", type: "Settings", href: "/user#bookmarks", excerpt: "Toggle favicons in the bookmarks list." },
+
+  // Browsing
+  { title: "Search Engine", type: "Settings", href: "/user#setting-search-engine", excerpt: "Set default provider: Google, DuckDuckGo, Bing, Brave, Ecosia, or Yahoo." },
+  { title: "On Startup", type: "Settings", href: "/user#setting-on-startup", excerpt: "Start with a New Tab or Continue your last session." },
+
+  // Security
+  { title: "Enable JavaScript", type: "Settings", href: "/user#setting-enable-javascript", excerpt: "Toggle JS execution for enhanced privacy or performance." },
+  { title: "Enable Cookies", type: "Settings", href: "/user#setting-enable-cookies", excerpt: "Allow or block websites from storing cookies." },
+  { title: "HTTPS Only", type: "Settings", href: "/user#setting-https-only", excerpt: "Force secure connections for all browsing sessions." },
+
+  // App Data
+  { title: "Export Settings", type: "Settings", href: "/user#setting-export-settings", excerpt: "Save all settings to a shareable file for backup." },
+  { title: "Import Settings", type: "Settings", href: "/user#setting-import-settings", excerpt: "Restore settings from a previously exported file." },
+  { title: "Reset All Settings", type: "Settings", href: "/user#setting-reset-all-settings", excerpt: "Revert all settings to factory defaults." },
+  { title: "Wipe All Data", type: "Settings", href: "/user#setting-wipe-all-data", excerpt: "Permanently delete all app data including bookmarks and history." },
 
   // Dev Guide Sections
   { title: "UI Reference", type: "Dev Guide", href: "/developer#ui-reference", excerpt: "High-fidelity mockups of the app's core screens." },
@@ -78,7 +112,7 @@ export function Search() {
       setResults([]);
       return;
     }
-    const filtered = MOCK_DATA.filter(item => 
+    const filtered = MOCK_DATA.filter(item =>
       item.title.toLowerCase().includes(query.toLowerCase()) ||
       item.excerpt.toLowerCase().includes(query.toLowerCase())
     );
@@ -117,7 +151,7 @@ export function Search() {
 
   const handleResultClick = (e: React.MouseEvent, href: string) => {
     setIsOpen(false);
-    
+
     // Check if we're navigating to an anchor on the current page
     const [path, hash] = href.split('#');
     const currentPath = window.location.pathname;
@@ -130,13 +164,13 @@ export function Search() {
       if (element) {
         // Use 'start' to ensure we see the top of the section
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
+
         // Add highlight effect
         element.classList.remove('highlight-section');
         // Trigger reflow
         void element.offsetWidth;
         element.classList.add('highlight-section');
-        
+
         // Update URL without jump
         window.history.pushState(null, '', href);
       }
@@ -145,13 +179,13 @@ export function Search() {
 
   const ModalContent = (
     <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md p-4 sm:p-4 flex items-start justify-center overflow-hidden">
-      <div 
-        ref={searchRef} 
+      <div
+        ref={searchRef}
         className="w-full max-w-2xl bg-[#0a0a0a] rounded-3xl shadow-2xl border border-white/10 overflow-hidden mt-12 sm:mt-20 flex flex-col max-h-[70vh] sm:max-h-[80vh]"
       >
         <div className="flex items-center p-4 sm:p-6 border-b border-white/5 shrink-0">
           <SearchIcon className="text-white/40 mr-3 sm:mr-4" size={20} />
-          <input 
+          <input
             autoFocus
             type="text"
             placeholder="Search..."
@@ -159,8 +193,8 @@ export function Search() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button 
-            onClick={() => setIsOpen(false)} 
+          <button
+            onClick={() => setIsOpen(false)}
             className="p-2 hover:bg-white/5 rounded-xl transition-colors ml-2"
           >
             <X size={20} className="text-white/40" />
@@ -170,17 +204,17 @@ export function Search() {
           {results.length > 0 ? (
             <div className="space-y-1">
               {results.map((result, idx) => (
-                <Link 
+                <Link
                   key={idx}
                   href={result.href}
                   onClick={(e) => handleResultClick(e, result.href)}
                   className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group"
                 >
                   <div className="mt-1 p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                    {result.type === "Settings" ? <Settings2 size={18} /> : 
-                     result.type === "Architecture" ? <Code2 size={18} /> :
-                     result.title === "Privacy Commitment" ? <Shield size={18} /> :
-                     result.type === "User Guide" ? <User size={18} /> : <FileText size={18} />}
+                    {result.type === "Settings" ? <Settings2 size={18} /> :
+                      result.type === "Architecture" ? <Code2 size={18} /> :
+                        result.title === "Privacy Commitment" ? <Shield size={18} /> :
+                          result.type === "User Guide" ? <User size={18} /> : <FileText size={18} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -210,7 +244,7 @@ export function Search() {
 
   return (
     <>
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
         className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:bg-white/10 transition-all text-xs sm:text-sm font-semibold w-full sm:max-w-sm"
       >

@@ -1,36 +1,36 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { 
-  Navigation, 
-  MousePointer2, 
-  Layers, 
-  Layout,
-  Settings2, 
-  Search, 
-  Bookmark, 
-  History, 
-  QrCode, 
-  Zap,
-  ShieldCheck,
-  Palette,
-  Maximize,
-  Lock,
-  RefreshCw,
-  Trash2,
-  Monitor,
-  BookOpen,
-  Share2,
-  ChevronRight,
-  FolderHeart,
-  Clock,
-  GripHorizontal,
-  Pencil,
-  Home
-} from "lucide-react";
+import { Navbar } from "@/components/navbar";
 import { useHighlight } from "@/hooks/useHighlight";
+import { motion } from "framer-motion";
+import {
+  Bookmark,
+  BookOpen,
+  ChevronRight,
+  Clock,
+  FolderHeart,
+  GripHorizontal,
+  History,
+  Home,
+  Layers,
+  Layout,
+  Lock,
+  Maximize,
+  Monitor,
+  MousePointer2,
+  Navigation,
+  Palette,
+  Pencil,
+  QrCode,
+  RefreshCw,
+  Search,
+  Settings2,
+  Share2,
+  ShieldCheck,
+  Trash2,
+  Zap
+} from "lucide-react";
 
 const getAssetPath = (path: string) => {
   const isProd = process.env.NODE_ENV === 'production';
@@ -64,7 +64,7 @@ export default function UserDocs() {
           </motion.div>
 
           <section className="space-y-24 sm:space-y-32">
-            
+
             {/* 1. Pill Interactions - IMAGE RIGHT */}
             <motion.div id="the-pill" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
@@ -80,18 +80,18 @@ export default function UserDocs() {
                   </p>
                   <div className="space-y-6 inline-block text-left w-full">
                     <div className="space-y-4">
-                      <GuideItem icon={<MousePointer2 size={18}/>} title="Tap the Pill" desc="Focuses the address bar. Type a URL or a search query to navigate instantly." />
-                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90"/>} title="Swipe Up" desc="Reveals the Dashboard. This is your hub for History, Bookmarks, and System Settings." />
-                      <GuideItem icon={<ChevronRight size={18} className="rotate-90"/>} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap the floating recall button to bring it back." />
+                      <GuideItem icon={<MousePointer2 size={18} />} title="Tap the Pill" desc="Focuses the address bar. Type a URL or a search query to navigate instantly." />
+                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Reveals the Dashboard. This is your hub for History, Bookmarks, and System Settings." />
+                      <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap the floating recall button to bring it back." />
                       <div id="search-engine-only">
-                        <GuideItem icon={<Search size={18}/>} title="Search Engine Only" desc="Tap the search engine icon inside the address bar to force search mode. This bypasses URL parsing and sends your query directly to your search engine." />
+                        <GuideItem icon={<Search size={18} />} title="Search Engine Only" desc="Tap the search engine icon inside the address bar to force search mode. This bypasses URL parsing and sends your query directly to your search engine." />
                       </div>
                     </div>
-                    
+
                     <div id="gestures" className="pt-4 space-y-4 border-t border-white/5">
                       <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-blue-500 mb-4">Navigation Gestures</h4>
-                      <GuideItem icon={<ChevronRight size={18}/>} title="Swipe Right" desc="Go back to the previous page in your history." />
-                      <GuideItem icon={<ChevronRight size={18} className="rotate-180"/>} title="Swipe Left" desc="Go forward to the next page if you've navigated back." />
+                      <GuideItem icon={<ChevronRight size={18} />} title="Swipe Right" desc="Go back to the previous page in your history." />
+                      <GuideItem icon={<ChevronRight size={18} className="rotate-180" />} title="Swipe Left" desc="Go forward to the next page if you've navigated back." />
                     </div>
 
                     <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
@@ -113,17 +113,17 @@ export default function UserDocs() {
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
                 <div className="order-2 lg:order-1">
-                   <DeviceMockup src="/images/dashboard.jpg" color="orange" />
+                  <DeviceMockup src="/images/dashboard.jpg" color="orange" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
                     Swipe up on the Pill from any page to reveal your navigation hub. The Dashboard gives you instant access to your most important data.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                    <GuideItem icon={<Layers size={18}/>} title="Tabs" desc="Switch between your open browsing sessions." />
-                    <GuideItem icon={<Bookmark size={18}/>} title="Bookmarks" desc="Access your saved favorite sites and folders." />
-                    <GuideItem icon={<History size={18}/>} title="History" desc="View and search your recently visited pages." />
-                    <GuideItem icon={<Settings2 size={18}/>} title="Settings" desc="Configure every detail of your browsing experience." />
+                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Switch between your open browsing sessions." />
+                    <GuideItem icon={<Bookmark size={18} />} title="Bookmarks" desc="Access your saved favorite sites and folders." />
+                    <GuideItem icon={<History size={18} />} title="History" desc="View and search your recently visited pages." />
+                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="Configure every detail of your browsing experience." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
                     <p><strong>Secondary Menu:</strong> Tap the &quot;Menu&quot; button on the far right of the Dashboard to access Power Tools like Reader Mode, QR Tools, and Desktop Site toggles.</p>
@@ -146,11 +146,11 @@ export default function UserDocs() {
                     Access your history and favorite sites without leaving the search experience. When the search pill is focused, an expanded interaction area appears.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
-                    <GuideItem icon={<Clock size={18}/>} title="Recent History" desc="Drag the handle above the Pill upwards to reveal a quick-access list of your most recent visits." />
-                    <GuideItem icon={<FolderHeart size={18}/>} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
-                    <GuideItem icon={<Maximize size={18}/>} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
-                    <GuideItem icon={<GripHorizontal size={18}/>} title="Rearrange Favorites" desc="Touch and drag any favorite icon to reorder them instantly." />
-                    <GuideItem icon={<Trash2 size={18}/>} title="Drag to Delete" desc="Drag a favorite icon upwards out of the bar area to remove it." />
+                    <GuideItem icon={<Clock size={18} />} title="Recent History" desc="Drag the handle above the Pill upwards to reveal a quick-access list of your most recent visits." />
+                    <GuideItem icon={<FolderHeart size={18} />} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
+                    <GuideItem icon={<Maximize size={18} />} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
+                    <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and drag any favorite icon to reorder them instantly." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Drag to Delete" desc="Drag a favorite icon upwards out of the bar area to remove it." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
                     <p><strong>Configurable:</strong> Use settings to automatically expand history or keep the Favorites Bar visible every time you focus the Pill.</p>
@@ -170,20 +170,20 @@ export default function UserDocs() {
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
                 <div className="order-2 lg:order-1">
-                   <DeviceMockup src="/images/tab_grid.jpg" color="purple" />
+                  <DeviceMockup src="/images/tab_grid.jpg" color="purple" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
                     Manage multiple sessions with ease. mi. uses high-fidelity snapshots so you never lose your place.
                   </p>
                   <div className="space-y-4 inline-block text-left">
-                    <GuideItem icon={<Layers size={18}/>} title="Grid/Card View" desc="Switch between dense rows or large visual cards in Settings." />
-                    <GuideItem icon={<MousePointer2 size={18}/>} title="Reordering" desc="In the tab view, long-press a tab and drag it to a new position to reorder your workspace." />
-                    <GuideItem icon={<Trash2 size={18}/>} title="Closing Tabs" desc="Swipe left on a tab row or tap the 'X' on a card to close it. Use 'Clear All' to reset completely." />
+                    <GuideItem icon={<Layers size={18} />} title="Grid/Card View" desc="Switch between dense rows or large visual cards in Settings." />
+                    <GuideItem icon={<MousePointer2 size={18} />} title="Reordering" desc="In the tab view, long-press a tab and drag it to a new position to reorder your workspace." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Closing Tabs" desc="Swipe left on a tab row or tap the 'X' on a card to close it. Use 'Clear All' to reset completely." />
                     <div id="tab-editing">
-                      <GuideItem icon={<Pencil size={18}/>} title="Tab Editing" desc="Tap the pencil icon on any tab to change its display name for better organization." />
+                      <GuideItem icon={<Pencil size={18} />} title="Tab Editing" desc="Tap the pencil icon on any tab to change its display name for better organization." />
                     </div>
-                    <GuideItem icon={<Zap size={18}/>} title="Visual Snapshots" desc="Real-time previews of your pages help you identify the right tab in seconds." />
+                    <GuideItem icon={<Zap size={18} />} title="Visual Snapshots" desc="Real-time previews of your pages help you identify the right tab in seconds." />
                   </div>
                 </div>
               </div>
@@ -203,12 +203,12 @@ export default function UserDocs() {
                     Keep your favorite corners of the web organized. mi. Browser provides a flexible bookmarking system with folder support.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
-                    <GuideItem icon={<MousePointer2 size={18}/>} title="Quick Save" desc="Open the Dashboard Menu and select 'Bookmark' to instantly save the current page to your library." />
+                    <GuideItem icon={<MousePointer2 size={18} />} title="Quick Save" desc="Open the Dashboard Menu and select 'Bookmark' to instantly save the current page to your library." />
                     <div id="bookmark-swiping">
-                      <GuideItem icon={<RefreshCw size={18}/>} title="Swipe to Edit" desc="Swipe left on any bookmark or folder to reveal Edit and Delete actions. You can change names, URLs, or move items between folders." />
+                      <GuideItem icon={<RefreshCw size={18} />} title="Swipe to Edit" desc="Swipe left on any bookmark or folder to reveal Edit and Delete actions. You can change names, URLs, or move items between folders." />
                     </div>
-                    <GuideItem icon={<FolderHeart size={18}/>} title="Nested Folders" desc="Create and manage folders to group related bookmarks together for easier access." />
-                    <GuideItem icon={<Search size={18}/>} title="Instant Search" desc="Quickly find any saved bookmark by typing in the search bar at the top of the Bookmarks view." />
+                    <GuideItem icon={<FolderHeart size={18} />} title="Nested Folders" desc="Create and manage folders to group related bookmarks together for easier access." />
+                    <GuideItem icon={<Search size={18} />} title="Instant Search" desc="Quickly find any saved bookmark by typing in the search bar at the top of the Bookmarks view." />
                   </div>
                 </div>
                 <DeviceMockup src="/images/bookmarks.jpg" color="pink" />
@@ -225,17 +225,17 @@ export default function UserDocs() {
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
                 <div className="order-2 lg:order-1">
-                   <DeviceMockup src="/images/history.jpg" color="green" />
+                  <DeviceMockup src="/images/history.jpg" color="green" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
                     Never lose a page you&apos;ve visited. mi. keeps a local-only record of your browsing activity that stays entirely on your device.
                   </p>
                   <div className="space-y-4 inline-block text-left">
-                    <GuideItem icon={<Search size={18}/>} title="Search History" desc="Filter through your past visits using the search bar within the History view." />
-                    <GuideItem icon={<Trash2 size={18}/>} title="Partial Deletion" desc="Swipe left on any history item to remove it individually without affecting the rest of your data." />
-                    <GuideItem icon={<RefreshCw size={18}/>} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, or all time via the trash icon in History." />
-                    <GuideItem icon={<ShieldCheck size={18}/>} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored securely on your local file system." />
+                    <GuideItem icon={<Search size={18} />} title="Search History" desc="Filter through your past visits using the search bar within the History view." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Partial Deletion" desc="Swipe left on any history item to remove it individually without affecting the rest of your data." />
+                    <GuideItem icon={<RefreshCw size={18} />} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, or all time via the trash icon in History." />
+                    <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored securely on your local file system." />
                   </div>
                 </div>
               </div>
@@ -249,7 +249,7 @@ export default function UserDocs() {
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h2>
               </div>
-              
+
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
                   <p className="text-lg text-white/60 leading-relaxed font-medium">
@@ -272,6 +272,7 @@ export default function UserDocs() {
                 {/* Interface */}
                 <SettingsSection title="Interface" icon={<Maximize size={20} />}>
                   <SettingItem title="Font Size" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
+                  <SettingItem title="Font Weight" desc="Choose between Light, Normal, or Bold to adjust the weight of all text throughout the interface." />
                   <SettingItem title="Corners" desc="Choose between Square (0px), Semi-Round (10px), or Round (22px) for all UI components and cards." />
                   <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
@@ -284,7 +285,17 @@ export default function UserDocs() {
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
                   <SettingItem title="Expand Searches" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
-                  <SettingItem title="Reorder Icons" desc="Customise the Dashboard menu bar by dragging icons into your preferred order for quicker access to Tabs, Bookmarks, History, or Settings." />
+                  <SettingItem title="Reorder Icons" desc="Drag and drop the Dashboard menu bar icons into your preferred order for quicker access to Tabs, Bookmarks, History, or Settings." />
+                </SettingsSection>
+
+                {/* Home Page */}
+                <SettingsSection title="Home Page" icon={<Home size={20} />}>
+                  <SettingItem title="Center Logo" desc="Choose the logo style displayed at the top of the home page: None, Static, or Fidget (interactive)." />
+                  <SettingItem title="Clock" desc="Select the clock format on the home page: None, 12h, or 24h." />
+                  <SettingItem title="Date" desc="Choose the date placement on the home page: None, Above Clock, or Below Clock." />
+                  <SettingItem title="Weather" desc="Toggle the weather widget on the home page: None, Simple (icon only), Detailed (with conditions), or Hourly (forecast strip). Requires location permission." />
+                  <SettingItem title="Shortcut" desc="Toggle the home page shortcut button on or off. When enabled, choose its action: New Tab, QR Scanner, Bookmarks, or History." />
+                  <SettingItem title="Background Image" desc="Set a custom background image for the home page from your photo library. Includes a Darkness slider to control the overlay opacity." />
                 </SettingsSection>
 
                 {/* Tabs */}
@@ -297,8 +308,8 @@ export default function UserDocs() {
 
                 {/* History */}
                 <SettingsSection title="History" icon={<History size={20} />}>
-                  <SettingItem title="Load Count" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
                   <SettingItem title="Group By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
+                  <SettingItem title="Load Count" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
                   <SettingItem title="Clear History" desc="Wipe your browsing data for the last 24 hours, 7 days, 4 weeks, or all time." />
                 </SettingsSection>
 
@@ -308,12 +319,24 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 {/* Browsing */}
-                <SettingsSection title="Browsing" icon={<Lock size={20} />}>
+                <SettingsSection title="Browsing" icon={<Monitor size={20} />}>
                   <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
-                  <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (starts from your last tab)." />
+                  <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
+                </SettingsSection>
+
+                {/* Security */}
+                <SettingsSection title="Security" icon={<ShieldCheck size={20} />}>
                   <SettingItem title="Enable JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
-                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections." />
+                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local IP addresses and localhost are excluded." />
+                </SettingsSection>
+
+                {/* App Data */}
+                <SettingsSection title="App Data" icon={<RefreshCw size={20} />}>
+                  <SettingItem title="Export Settings" desc="Save all your settings and home page background to a shareable file for backup or device migration." />
+                  <SettingItem title="Import Settings" desc="Restore settings from a previously exported file. This replaces your current configuration." />
+                  <SettingItem title="Reset All Settings" desc="Revert every setting to factory defaults without affecting your bookmarks, history, or tabs." />
+                  <SettingItem title="Wipe All Data" desc="Permanently delete all app data including bookmarks, history, tabs, favorites, and settings." />
                 </SettingsSection>
               </div>
             </motion.div>
@@ -328,7 +351,7 @@ export default function UserDocs() {
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
                 <div className="order-2 lg:order-1">
-                   <DeviceMockup src="/images/power_tools.jpg" color="cyan" />
+                  <DeviceMockup src="/images/power_tools.jpg" color="cyan" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
@@ -336,20 +359,20 @@ export default function UserDocs() {
                   </p>
                   <div className="grid grid-cols-1 gap-4 inline-block text-left w-full">
                     <div id="home-button">
-                      <GuideItem icon={<Home size={18}/>} title="Home Button" desc="Instantly return to the minimalist home screen and reset your current session." />
+                      <GuideItem icon={<Home size={18} />} title="Home Button" desc="Instantly return to the minimalist home screen and reset your current session." />
                     </div>
                     <div id="quick-bookmark">
-                      <GuideItem icon={<Bookmark size={18}/>} title="Quick Bookmark" desc="Save the current page to your bookmarks with one tap from the Power Tools menu." />
+                      <GuideItem icon={<Bookmark size={18} />} title="Quick Bookmark" desc="Save the current page to your bookmarks with one tap from the Power Tools menu." />
                     </div>
                     <div id="find-in-page">
-                      <GuideItem icon={<Search size={18}/>} title="Find in Page" desc="Search for specific text within the current webpage. Highlighting and navigation between matches included." />
+                      <GuideItem icon={<Search size={18} />} title="Find in Page" desc="Search for specific text within the current webpage. Highlighting and navigation between matches included." />
                     </div>
                     <div id="qr-toolbox">
-                      <GuideItem icon={<QrCode size={18}/>} title="QR Toolbox" desc="Scan physical codes, upload images from your gallery to scan, or generate a code for the current URL." />
+                      <GuideItem icon={<QrCode size={18} />} title="QR Toolbox" desc="Scan physical codes, upload images from your gallery to scan, or generate a code for the current URL." />
                     </div>
-                    <GuideItem icon={<BookOpen size={18}/>} title="Reader Mode" desc="Removes ads and clutter, leaving only the text and essential images for a clean reading experience." />
-                    <GuideItem icon={<Monitor size={18}/>} title="Desktop Mode" desc="Requests the desktop version of the current site for full functionality." />
-                    <GuideItem icon={<Share2 size={18}/>} title="Share &amp; Print" desc="Native integration with your device&apos;s share sheet and wireless printing capabilities." />
+                    <GuideItem icon={<BookOpen size={18} />} title="Reader Mode" desc="Removes ads and clutter, leaving only the text and essential images for a clean reading experience." />
+                    <GuideItem icon={<Monitor size={18} />} title="Desktop Mode" desc="Requests the desktop version of the current site for full functionality." />
+                    <GuideItem icon={<Share2 size={18} />} title="Share &amp; Print" desc="Native integration with your device&apos;s share sheet and wireless printing capabilities." />
                   </div>
                 </div>
               </div>
@@ -357,29 +380,29 @@ export default function UserDocs() {
 
             {/* 9. Privacy Commitment - IMAGE RIGHT */}
             <motion.div id="privacy" {...fadeInUp} className="bg-blue-600 rounded-[2rem] p-12 text-white relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-12 opacity-10">
-                 <ShieldCheck size={200} />
-               </div>
-               <div className="relative z-10 max-w-2xl">
-                 <h2 className="text-3xl font-extrabold mb-6 tracking-tight">Privacy by Design</h2>
-                 <p className="text-xl text-blue-50 font-medium leading-relaxed mb-8">
-                   mi. Browser is not just minimal in design, but minimal in data collection. Your browsing remains yours.
-                 </p>
-                 <div className="grid sm:grid-cols-2 gap-8">
-                   <div className="space-y-2">
-                     <div className="flex items-center gap-2 font-bold">
-                       <Lock size={18} /> No Tracking
-                     </div>
-                     <p className="text-sm text-blue-100/80">We do not track your history, cookies, or search patterns. No data is sent to our servers.</p>
-                   </div>
-                   <div className="space-y-2">
-                     <div className="flex items-center gap-2 font-bold">
-                       <RefreshCw size={18} /> Local Storage
-                     </div>
-                     <p className="text-sm text-blue-100/80">All bookmarks and history are stored locally on your device using industry-standard encryption.</p>
-                   </div>
-                 </div>
-               </div>
+              <div className="absolute top-0 right-0 p-12 opacity-10">
+                <ShieldCheck size={200} />
+              </div>
+              <div className="relative z-10 max-w-2xl">
+                <h2 className="text-3xl font-extrabold mb-6 tracking-tight">Privacy by Design</h2>
+                <p className="text-xl text-blue-50 font-medium leading-relaxed mb-8">
+                  mi. Browser is not just minimal in design, but minimal in data collection. Your browsing remains yours.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 font-bold">
+                      <Lock size={18} /> No Tracking
+                    </div>
+                    <p className="text-sm text-blue-100/80">We do not track your history, cookies, or search patterns. No data is sent to our servers.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 font-bold">
+                      <RefreshCw size={18} /> Local Storage
+                    </div>
+                    <p className="text-sm text-blue-100/80">All bookmarks and history are stored locally on your device using industry-standard encryption.</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </section>
         </div>
@@ -405,8 +428,9 @@ function GuideItem({ icon, title, desc }: { icon: React.ReactNode, title: string
 }
 
 function SettingsSection({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) {
+  const id = title.toLowerCase().replace(/\s+/g, '-');
   return (
-    <div className="space-y-6">
+    <div id={id} className="space-y-6 scroll-mt-28">
       <div className="flex items-center gap-2 pb-2 border-b border-white/5">
         <div className="text-blue-400">{icon}</div>
         <h3 className="font-bold text-xl tracking-tight uppercase text-xs tracking-[0.2em] opacity-50">{title}</h3>
@@ -419,8 +443,9 @@ function SettingsSection({ title, icon, children }: { title: string, icon: React
 }
 
 function SettingItem({ title, desc }: { title: string, desc: string }) {
+  const id = `setting-${title.toLowerCase().replace(/\s+/g, '-')}`;
   return (
-    <div className="p-6 rounded-2xl bg-white/5 border border-white/5 shadow-sm hover:border-blue-500/30 transition-colors">
+    <div id={id} className="p-6 rounded-2xl bg-white/5 border border-white/5 shadow-sm hover:border-blue-500/30 transition-colors scroll-mt-28">
       <h4 className="font-bold text-sm mb-2">{title}</h4>
       <p className="text-xs text-white/50 leading-relaxed font-medium">{desc}</p>
     </div>
@@ -443,9 +468,9 @@ function DeviceMockup({ src, color }: { src: string, color?: string }) {
     <div className="relative group flex justify-center">
       <div className={`absolute -inset-10 ${glowClass} rounded-full blur-[80px] group-hover:opacity-100 transition-opacity opacity-50`} />
       <div className={`relative w-[220px] sm:w-[280px] bg-black rounded-[2rem] p-2 shadow-2xl border-[4px] border-[#1a1a1a] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-1`}>
-        <img 
-          src={getAssetPath(src)} 
-          alt="mi. App Screenshot" 
+        <img
+          src={getAssetPath(src)}
+          alt="mi. App Screenshot"
           className="w-full h-auto block rounded-[1.4rem]"
         />
       </div>
