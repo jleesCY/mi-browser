@@ -1,10 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform, UIManager } from 'react-native';
 import { SEARCH_ENGINES } from "./constants";
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 /**
  * Converts a hexadecimal color string to RGBA format

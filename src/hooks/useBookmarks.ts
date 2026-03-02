@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BookmarkFolder, BookmarkItem, BookmarkNode } from '../types';
-import { getFaviconUrl, loadStorage, saveStorage } from '../utils';
+import { generateUniqueId, getFaviconUrl, loadStorage, saveStorage } from '../utils';
 
 export const useBookmarks = (isAppReady: boolean) => {
   const [bookmarks, setBookmarks] = useState<BookmarkNode[]>([]);
@@ -60,7 +60,7 @@ export const useBookmarks = (isAppReady: boolean) => {
       const icon = getFaviconUrl(url) || undefined;
 
       const newBookmark: BookmarkItem = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         type: "bookmark",
         title: title || url,
         url,
@@ -78,7 +78,7 @@ export const useBookmarks = (isAppReady: boolean) => {
       const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(s => s.order)) : -1;
 
       const newFolder: BookmarkFolder = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         type: "folder",
         title,
         parentId,

@@ -164,6 +164,7 @@ export const useBrowserSettings = (isAppReady: boolean) => {
           setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
           setHomeBackgroundOverlayOpacity(savedSettings.homeBackgroundOverlayOpacity ?? 0.2);
           setUse3DButtons(savedSettings.use3DButtons ?? false);
+          setReaderModeEnabled(savedSettings.readerModeEnabled ?? false);
           // ignoredHosts is now loaded and migrated above
 
           if (savedSettings.startupTabMode) {
@@ -291,8 +292,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeLogoType,
     homeBackgroundImage,
     showHomeShortcuts,
-    showHomeShortcuts,
-    showHomeShortcuts,
     homeShortcutAction,
     homeBackgroundOverlayOpacity,
     fontWeight,
@@ -371,6 +370,8 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHomeBackgroundOverlayOpacity(0.2);
     setIgnoredHosts([]);
     setUse3DButtons(false);
+    setMenuBarOrder(DEFAULT_MENU_BAR_ORDER);
+    setShowStatusBar(true);
 
     saveStorage("settings", null);
   };

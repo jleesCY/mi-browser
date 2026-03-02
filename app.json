@@ -25,7 +25,7 @@
     "android": {
       "package": "com.jlees.mibrowser",
       "usesCleartextTraffic": true,
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.CAMERA",

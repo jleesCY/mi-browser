@@ -731,9 +731,11 @@ export default function App() {
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
       setIsKeyboardVisible(true);
-      keyboardTargetHeight.current = e.endCoordinates.height;
+      const keyboardOffset = Platform.OS === "android" ? Math.max(0, insets.bottom - 1) : 0;
+      const trueHeight = e.endCoordinates.height + keyboardOffset;
+      keyboardTargetHeight.current = trueHeight;
       Animated.timing(keyboardHeight, {
-        toValue: e.endCoordinates.height,
+        toValue: trueHeight,
         duration: 150,
         useNativeDriver: false,
       }).start();
@@ -1458,7 +1460,7 @@ export default function App() {
 
   const focusedPillHeightAdd = handleVisibleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 24],
+    outputRange: [0, 25],
     extrapolate: "clamp",
   });
 
@@ -1523,7 +1525,7 @@ export default function App() {
           {
             paddingBottom: isFullscreen
               ? 0
-              : Animated.add(keyboardHeight, insets.bottom),
+              : keyboardHeight,
             backgroundColor: effectiveTheme.bg,
           },
         ]}
@@ -2394,7 +2396,10 @@ export default function App() {
                       <Animated.View
                         style={[
                           styles.barTabContent,
-                          { paddingTop: focusedPillHeightAdd },
+                          {
+                            paddingTop: focusedPillHeightAdd,
+                            height: totalPillHeight,
+                          },
                         ]}
                       >
                         <Animated.View

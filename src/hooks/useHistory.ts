@@ -62,12 +62,17 @@ export const useHistory = (isAppReady: boolean) => {
 
   useEffect(() => {
     if (!isAppReady) return;
-    const cleanRecent = recentSearches.map(item => ({
-      url: item.url,
-      title: item.title,
-      timestamp: item.timestamp
-    }));
-    saveStorage("recent_searches", cleanRecent);
+
+    const saveTimeout = setTimeout(() => {
+      const cleanRecent = recentSearches.map(item => ({
+        url: item.url,
+        title: item.title,
+        timestamp: item.timestamp
+      }));
+      saveStorage("recent_searches", cleanRecent);
+    }, 1000);
+
+    return () => clearTimeout(saveTimeout);
   }, [recentSearches, isAppReady]);
 
   const addToHistory = (url: string, title?: string | null) => {

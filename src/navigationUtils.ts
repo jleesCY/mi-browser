@@ -57,9 +57,6 @@ export const handleExternalLink = async (
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
-    } else {
-      // Fallback
-      await Linking.openURL(url);
     }
   } catch (err: any) {
     onShowAlert(

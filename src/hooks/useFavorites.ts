@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getFaviconUrl, loadStorage, saveStorage } from '../utils';
+import { generateUniqueId, getFaviconUrl, loadStorage, saveStorage } from '../utils';
 
 export interface FavoriteItem {
   id: string;
@@ -43,7 +43,7 @@ export const useFavorites = (isAppReady: boolean) => {
 
       const icon = getFaviconUrl(url) || undefined;
       const newItem: FavoriteItem = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         title: title || "Favorite",
         url,
         icon
