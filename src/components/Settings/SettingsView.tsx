@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import {
   ACCENTS,
+  APP_VERSION,
   DEFAULT_MENU_BAR_ORDER,
   HISTORY_RANGES,
   MenuItemId,
@@ -127,8 +128,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setHomeShortcutAction,
     isShortcutMenuOpen,
     setIsShortcutMenuOpen,
-    use3DButtons,
-    setUse3DButtons,
+
   } = settings;
 
 
@@ -194,61 +194,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  // Helper function to create 3D button styles
+  // Helper function for button selection styles
   const get3DButtonStyle = (isSelected: boolean, buttonColor: string = accentColor, bgColor: string = effectiveTheme.card) => {
-    // If 3D buttons are disabled, use simple flat style
-    if (!use3DButtons) {
-      return isSelected
-        ? { backgroundColor: accentColor }
-        : {};
-    }
-
-    if (isSelected) {
-      // Selected: valley effect - going INTO the screen with inner shadows
-      // Make the button slightly darker to simulate depth
-      const darkenAmount = effectiveTheme.bg === '#000000' ? 0.05 : 0.03;
-      const rgb = bgColor.match(/\w\w/g);
-      let darkerBg = bgColor;
-      if (rgb && rgb.length >= 3) {
-        const r = Math.max(0, parseInt(rgb[0], 16) - Math.round(255 * darkenAmount));
-        const g = Math.max(0, parseInt(rgb[1], 16) - Math.round(255 * darkenAmount));
-        const b = Math.max(0, parseInt(rgb[2], 16) - Math.round(255 * darkenAmount));
-        darkerBg = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-      }
-
-      return {
-        backgroundColor: darkerBg,
-        // Inner shadow simulation - invert the outer shadow effect
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 3,
-        elevation: -2,
-        // Strong inner shadow borders (inverted from outer)
-        borderWidth: 2.5,
-        borderTopColor: 'rgba(0,0,0,0.35)',
-        borderLeftColor: 'rgba(0,0,0,0.3)',
-        borderBottomColor: 'rgba(255,255,255,0.05)',
-        borderRightColor: 'rgba(255,255,255,0.03)',
-      };
-    } else {
-      // Unselected: mountain effect - POPPING OUT of screen with outer shadows
-      return {
-        backgroundColor: bgColor,
-        // Strong outer drop shadow for elevation
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.25,
-        shadowRadius: 5,
-        elevation: 5,
-        // Light highlight borders for mountain peak effect
-        borderWidth: 2.5,
-        borderTopColor: 'rgba(255,255,255,0.12)',
-        borderLeftColor: 'rgba(255,255,255,0.1)',
-        borderBottomColor: 'rgba(0,0,0,0.1)',
-        borderRightColor: 'rgba(0,0,0,0.12)',
-      };
-    }
+    return isSelected
+      ? { backgroundColor: accentColor }
+      : {};
   };
 
   const CategoryButton = ({
@@ -1155,31 +1105,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
               </SettingRow>
 
-              <SettingRow label="3D Buttons">
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons
-                    name="cube-outline"
-                    size={22}
-                    color={effectiveTheme.text}
-                    style={{ marginRight: 10 }}
-                  />
-                  <Text
-                    style={{
-                      color: effectiveTheme.text,
-                      fontFamily: effectiveTheme.fonts.semibold,
-                      fontSize: 16 * fontScale,
-                    }}
-                  >
-                    3D Buttons
-                  </Text>
-                </View>
-                <Switch
-                  value={use3DButtons}
-                  onValueChange={setUse3DButtons}
-                  trackColor={{ false: "#767577", true: accentColor }}
-                  thumbColor={"#f4f3f4"}
-                />
-              </SettingRow>
 
               <SettingRow label="Expand Menus">
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -1453,16 +1378,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       keyExtractor={(item) => item}
                       renderItem={({ item }: { item: MenuItemId }) => {
                         const menuIcons: Record<MenuItemId, string> = { tabs: "copy-outline", bookmarks: "bookmarks-outline", history: "time-outline", settings: "settings-outline", menu: "menu-outline" };
-                        const menuLabels: Record<MenuItemId, string> = { tabs: "Tabs", bookmarks: "Bookmarks", history: "History", settings: "Settings", menu: "Menu" };
                         return (
-                          <View style={{ width: 48, height: 60, backgroundColor: "transparent", justifyContent: "center", alignItems: "center", marginRight: 2 }}>
+                          <View style={{ width: 48, height: 48, backgroundColor: "transparent", justifyContent: "center", alignItems: "center", marginRight: 2 }}>
                             <Ionicons name={menuIcons[item] as any} size={24} color={"#fff"} />
-                            <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.bold, fontSize: 10 * fontScale, marginTop: 4 }}>{menuLabels[item]}</Text>
                           </View>
                         );
                       }}
                       itemWidth={48 + 2}
-                      itemHeight={60}
+                      itemHeight={48}
                       onReorder={(fromIndex, toIndex) => { const newOrder = [...menuBarOrder]; const [moved] = newOrder.splice(fromIndex, 1); newOrder.splice(toIndex, 0, moved); setMenuBarOrder(newOrder as readonly MenuItemId[]); }}
                     />
                   </View>
@@ -2558,73 +2481,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
               </SettingRow>
 
-              <SettingRow label="Ignored Hosts">
-                <View style={{ flexDirection: "column", width: "100%", paddingVertical: 5 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-                    <Ionicons
-                      name="shield-checkmark-outline"
-                      size={22}
-                      color={effectiveTheme.text}
-                      style={{ marginRight: 10 }}
-                    />
-                    <Text
-                      style={{
-                        color: effectiveTheme.text,
-                        fontFamily: effectiveTheme.fonts.semibold,
-                        fontSize: 16 * fontScale,
-                      }}
-                    >
-                      Ignored Hosts
-                    </Text>
-                  </View>
 
-                  {ignoredHosts.length === 0 ? (
-                    <Text style={{ color: effectiveTheme.textSec, fontFamily: effectiveTheme.fonts.regular, fontSize: 14 * fontScale, fontStyle: 'italic', marginLeft: 32 }}>
-                      No ignored hosts
-                    </Text>
-                  ) : (
-                    <View style={{ marginTop: 5 }}>
-                      {ignoredHosts.map((host: string, index: number) => (
-                        <View key={host} style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingVertical: 8,
-                          borderBottomWidth: index < ignoredHosts.length - 1 ? 1 : 0,
-                          borderBottomColor: effectiveTheme.glassBorder,
-                          marginLeft: 32
-                        }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                            <Ionicons
-                              name="warning"
-                              size={16}
-                              color="#FF9500"
-                              style={{ marginRight: 8 }}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text style={{ color: effectiveTheme.text, fontFamily: effectiveTheme.fonts.regular, fontSize: 14 * fontScale }} numberOfLines={1}>
-                                {host}
-                              </Text>
-                              <Text style={{ color: '#FF9500', fontFamily: effectiveTheme.fonts.regular, fontSize: 11 * fontScale, marginTop: 2 }}>
-                                SSL errors ignored
-                              </Text>
-                            </View>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => {
-                              const newHosts = ignoredHosts.filter((h: string) => h !== host);
-                              setIgnoredHosts(newHosts);
-                            }}
-                            style={{ padding: 5 }}
-                          >
-                            <Ionicons name="trash-outline" size={18} color="#ff3b30" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              </SettingRow>
             </SettingsGroup>
           </>
         )}
@@ -2720,6 +2577,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Footer: Help + Version */}
+        <View style={{ alignItems: "center", marginTop: 30, marginBottom: 40, paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: effectiveTheme.textSec + "30" }}>
+          <TouchableOpacity onPress={onOpenHelp} style={{ flexDirection: "row", alignItems: "center", padding: 8, gap: 6 }}>
+            <Ionicons name="help-circle-outline" size={16 * fontScale} color={accentColor} style={{ opacity: 0.7 }} />
+            <Text style={{ color: accentColor, fontFamily: effectiveTheme.fonts.semibold, fontSize: 14 * fontScale, opacity: 0.7 }}>Help</Text>
+          </TouchableOpacity>
+          <Text style={{ color: effectiveTheme.textSec, fontFamily: effectiveTheme.fonts.regular, fontSize: 11 * fontScale, marginTop: 4, opacity: 0.4 }}>mi browser v{APP_VERSION}</Text>
+        </View>
 
       </ScrollView>
 

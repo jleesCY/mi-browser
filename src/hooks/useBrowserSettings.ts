@@ -40,7 +40,6 @@ export interface BrowserSettings {
   showHomeShortcuts: boolean;
   homeShortcutAction: "newTab" | "qr" | "bookmarks" | "history";
   ignoredHosts: string[];
-  use3DButtons: boolean;
   homeBackgroundOverlayOpacity: number;
 }
 
@@ -64,7 +63,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
   const [ignoredHosts, setIgnoredHosts] = useState<string[]>([]);
 
   // UI Enhancement
-  const [use3DButtons, setUse3DButtons] = useState(false);
 
   // Cosmetic settings
   const [cornerRadius, setCornerRadius] = useState(22);
@@ -163,7 +161,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
           setShowHomeShortcuts(savedSettings.showHomeShortcuts ?? false);
           setHomeShortcutAction(savedSettings.homeShortcutAction ?? "qr");
           setHomeBackgroundOverlayOpacity(savedSettings.homeBackgroundOverlayOpacity ?? 0.2);
-          setUse3DButtons(savedSettings.use3DButtons ?? false);
           setReaderModeEnabled(savedSettings.readerModeEnabled ?? false);
           // ignoredHosts is now loaded and migrated above
 
@@ -251,7 +248,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
         homeShortcutAction,
         homeBackgroundOverlayOpacity,
         fontWeight,
-        use3DButtons
         // NOTE: ignoredHosts is saved separately to secure storage
       };
       saveStorage("settings", settingsToSave);
@@ -296,7 +292,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeBackgroundOverlayOpacity,
     fontWeight,
     ignoredHosts,
-    use3DButtons
   ]);
 
   const effectiveTheme = useMemo(() => {
@@ -369,7 +364,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHomeShortcutAction("qr");
     setHomeBackgroundOverlayOpacity(0.2);
     setIgnoredHosts([]);
-    setUse3DButtons(false);
     setMenuBarOrder(DEFAULT_MENU_BAR_ORDER);
     setShowStatusBar(true);
 
@@ -414,7 +408,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     setHomeShortcutAction(newSettings.homeShortcutAction ?? "qr");
     setHomeBackgroundOverlayOpacity(newSettings.homeBackgroundOverlayOpacity ?? 0.2);
     setIgnoredHosts(newSettings.ignoredHosts || []);
-    setUse3DButtons(newSettings.use3DButtons ?? false);
 
     // Explicitly handle pillHeight and showStatusBar if present, defaulting if needed
     setPillHeight(newSettings.pillHeight ?? 70);
@@ -467,7 +460,6 @@ export const useBrowserSettings = (isAppReady: boolean) => {
     homeShortcutAction, setHomeShortcutAction,
     homeBackgroundOverlayOpacity, setHomeBackgroundOverlayOpacity,
     ignoredHosts, setIgnoredHosts,
-    use3DButtons, setUse3DButtons,
     isAccentExpanded, setIsAccentExpanded,
     isSearchEngineOpen, setIsSearchEngineOpen,
     isShortcutMenuOpen, setIsShortcutMenuOpen,

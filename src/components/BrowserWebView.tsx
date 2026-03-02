@@ -164,13 +164,20 @@ export const BrowserWebView = forwardRef((props: BrowserWebViewProps, ref: React
                 })();
              `);
       } else {
-        // window.find(aString, aCaseSensitive, aBackwards, aWrapAround, aWholeWord, aSearchInFrames, aShowDialog);
-        // Android WebView supports: window.find(string) mostly.
-        // Standard: window.find(str, caseSensitive, backwards, wrapAround)
+        // SECURITY: Escape query to prevent JavaScript injection via find-in-page.
+        // Without escaping, a query like: "); alert("xss
+        // would break out of the string and execute arbitrary JS in the page context.
+        const safeQuery = query
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\u2028/g, '\\u2028')
+          .replace(/\u2029/g, '\\u2029');
         const js = `
                 (function(){
                     if (window.find) {
-                        window.find("${query}", false, ${!forward}, true);
+                        window.find("${safeQuery}", false, ${!forward}, true);
                     }
                 })();
              `;

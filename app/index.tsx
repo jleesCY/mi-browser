@@ -1106,6 +1106,11 @@ export default function App() {
   const handleDownloadImage = async () => {
     const url = contextMenuData?.imgUrl;
     if (!url) return;
+
+    // SECURITY: Only allow http, https, and data URLs for image downloads.
+    // A malicious page could craft file:// or internal-network URLs.
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:')) return;
+
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== "granted") {
@@ -1665,18 +1670,9 @@ export default function App() {
                           setContextMenuData(parsed.data);
                           setContextMenuVisible(true);
                         }, 0);
-                      } else if (parsed.type === "PRINT_HTML") {
-                        setTimeout(async () => {
-                          try {
-                            await Print.printAsync({ html: parsed.html });
-                          } catch {
-                            showAlert(
-                              "Print Error",
-                              "Could not print content.",
-                            );
-                          }
-                        }, 0);
                       }
+                      // SECURITY: PRINT_HTML handler removed — it allowed malicious
+                      // pages to pass arbitrary HTML to native Print API unsanitized.
                     }
                   } catch { }
                 }
@@ -3033,7 +3029,11 @@ export default function App() {
                   onPress={() => {
                     const target =
                       contextMenuData?.url || contextMenuData?.imgUrl;
-                    if (target) addNewTab(target);
+                    // SECURITY: Only navigate to http/https URLs from context menu.
+                    // Prevents javascript:, data:, or custom scheme injection.
+                    if (target && (target.startsWith('http://') || target.startsWith('https://'))) {
+                      addNewTab(target);
+                    }
                     setContextMenuVisible(false);
                   }}
                 >
