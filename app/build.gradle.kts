@@ -46,6 +46,9 @@ android {
     }
 }
 
+// Name build outputs "mi-browser-<version>-<buildType>.apk" (e.g. mi-browser-1.0.0-release.apk)
+base.archivesName.set("mi-browser-${android.defaultConfig.versionName}")
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
