@@ -36,10 +36,10 @@ import com.jlees.mibrowser.ui.ModalFrame
 import com.jlees.mibrowser.ui.SheetSearchField
 import com.jlees.mibrowser.ui.blockTouches
 import com.jlees.mibrowser.ui.common.*
-import com.jlees.mibrowser.ui.tabs.ScrollTopAndFab
-import com.jlees.mibrowser.ui.tabs.SwipeActions
-import com.jlees.mibrowser.ui.tabs.deleteAnim
-import com.jlees.mibrowser.ui.tabs.rememberDeleteAnim
+import com.jlees.mibrowser.ui.common.ScrollTopAndFab
+import com.jlees.mibrowser.ui.common.SwipeActions
+import com.jlees.mibrowser.ui.common.deleteAnim
+import com.jlees.mibrowser.ui.common.rememberDeleteAnim
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

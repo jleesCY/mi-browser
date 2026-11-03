@@ -33,6 +33,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.zIndex
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -42,13 +46,14 @@ import com.jlees.mibrowser.UiEvent
 import com.jlees.mibrowser.logic.hexColor
 import com.jlees.mibrowser.ui.bookmarks.BookmarksView
 import com.jlees.mibrowser.ui.common.LocalUi
+import com.jlees.mibrowser.ui.common.ConnectedChoice
 import com.jlees.mibrowser.ui.common.UiConfig
 import com.jlees.mibrowser.ui.history.HistoryView
 import com.jlees.mibrowser.ui.home.HomePage
 import com.jlees.mibrowser.ui.qr.QrGenerator
 import com.jlees.mibrowser.ui.qr.QrScanner
 import com.jlees.mibrowser.ui.settings.SettingsView
-import com.jlees.mibrowser.ui.tabs.TabsView
+import com.jlees.mibrowser.web.MAX_LIVE_TABS
 import com.jlees.mibrowser.web.WebViewHost
 import kotlinx.coroutines.launch
 
@@ -88,7 +93,6 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     UiEvent.LoadEnd -> pill.loadEnd()
                     is UiEvent.Scroll -> pill.onScroll(it.yDp)
                     UiEvent.ShowBar -> pill.showBar()
-                    UiEvent.SnapToSearch -> pill.snapToSearch()
                     UiEvent.TabSwitched -> pill.tabSwitched()
                     UiEvent.FocusInput -> {}
                 }
@@ -109,10 +113,13 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             activity.requestedOrientation = if (fullscreen) ActivityInfo.SCREEN_ORIENTATION_FULL_USER else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
 
+        // ---- pages read light/dark when their WebView is created: rebuild them when the theme flips
+        var lastDark by remember { mutableStateOf(dark) }
+        LaunchedEffect(dark) { if (dark != lastDark) { lastDark = dark; vm.reloadAllTabs() } }
+
         // ---- pill focus animations
         LaunchedEffect(vm.isInputFocused) { pill.focusAnim.animateTo(if (vm.isInputFocused) 1f else 0f, timing(200)) }
         LaunchedEffect(vm.isInputFocused, kbVisible) { pill.handleAnim.animateTo(if (vm.isInputFocused && kbVisible) 1f else 0f, timing(200)) }
-        LaunchedEffect(vm.isSearchActive) { if (vm.isSearchActive) vm.isSubMenuVisible = false }
 
         BoxWithConstraints(Modifier.fillMaxSize().background(ui.cs.surface)) {
             // Focus sink: when Android re-assigns view focus after clearFocus(), Compose gives it to the first focusable
@@ -135,8 +142,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
             // ---- overlay sheet
             val sheetH = remember { Animatable(0f) }
-            LaunchedEffect(vm.activeView, s.expandMenus) {
-                if (vm.activeView != "none") sheetH.animateTo(if (s.expandMenus) snapFull else snapDefault, Motion.fastSpatial())
+            LaunchedEffect(vm.activeView) {
+                if (vm.activeView != "none") sheetH.animateTo(snapFull, Motion.fastSpatial()) // sheets open full screen
             }
             val closeOverlay: () -> Unit = {
                 focusManager.clearFocus()
@@ -157,12 +164,19 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             LaunchedEffect(vm.tabs, vm.activeTabId, s) {
                 vm.tabs.forEach { t ->
                     if (t.isHome) { if (host.has(t.id)) host.destroy(t.id) }
-                    else if (t.hasLoadedOnce && t.id != vm.activeTabId) host.sync(t)
+                    // background tabs: keep live ones in sync; only warm new ones while under the live-WebView cap
+                    else if (t.hasLoadedOnce && t.id != vm.activeTabId && (host.has(t.id) || host.liveCount < MAX_LIVE_TABS)) host.sync(t)
                 }
             }
 
             // ---- page content
-            Box(Modifier.fillMaxSize().padding(top = if (s.showStatusBar && !fullscreen) statusDp.dp else 0.dp).padding(bottom = if (fullscreen) 0.dp else imeDp.dp).clipToBounds()) {
+            Box(
+                Modifier.fillMaxSize().padding(top = if (s.showStatusBar && !fullscreen) statusDp.dp else 0.dp).padding(bottom = if (fullscreen) 0.dp else imeDp.dp)
+                    .onGloballyPositioned { vm.pageBounds = it.boundsInWindow() }
+                    .graphicsLayer { switcherZoom(vm, this) }
+                    .drawWithContent { switcherOverlay(vm, this, ui.cs.primary) }
+                    .clipToBounds(),
+            ) {
                 val tab = vm.currentTab
                 if (tab != null && tab.isHome) {
                     HomePage(vm, onAction = { a ->
@@ -173,7 +187,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                         }
                     })
                 } else if (tab != null && tab.hasLoadedOnce) {
-                    key(tab.id) {
+                    key(tab.id, host.generation) {
                         AndroidView(
                             factory = { host.sync(tab).also { (it.parent as? ViewGroup)?.removeView(it) } },
                             update = { vm.tabs.firstOrNull { it.id == tab.id }?.let { t -> host.sync(t) } },
@@ -193,20 +207,28 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             }
 
             // status bar backdrop: keeps page content from showing behind the (transparent) status bar
-            if (s.showStatusBar && !fullscreen) Box(Modifier.fillMaxWidth().height(statusDp.dp).background(ui.cs.surface))
+            // fade the browser chrome out as the page zooms into the switcher
+            val chromeFade = Modifier.graphicsLayer { alpha = if (vm.switcherVisible) 1f - vm.switcherAnim.value else 1f }
+            if (s.showStatusBar && !fullscreen) Box(chromeFade.fillMaxWidth().height(statusDp.dp).background(ui.cs.surface))
 
             if (!fullscreen) {
-                if (vm.activeView == "none") {
-                    BottomArea(vm, pill, imeDp, navDp) {
-                        RecentSearches(vm, pill, screenH)
+                val screenW = maxWidth.value
+                Box(chromeFade.fillMaxSize()) {
+                    if (vm.activeView == "none") {
+                        BottomArea(vm, pill, imeDp, navDp) {
+                            RecentSearches(vm, pill, screenH)
+                        }
                     }
+                    RecallButton(vm, pill, navDp, screenW, Modifier.align(Alignment.BottomStart).zIndex(3f))
                 }
-                RecallButton(vm, pill, navDp, maxWidth.value, Modifier.align(Alignment.BottomStart).zIndex(3f))
-                if (vm.activeView != "none") {
-                    val title = when (vm.activeView) { "history" -> "History"; "tabs" -> "Tabs"; "bookmarks" -> "Bookmarks"; else -> "Settings" }
-                    OverlaySheet(title, sheetH, snapDefault, snapFull, imeDp, closeOverlay, scope) {
+                // above the tab switcher (zIndex 150) when opened from it; closing returns to the switcher
+                if (vm.activeView != "none") Box(Modifier.fillMaxSize().zIndex(160f)) {
+                    val library = vm.activeView == "bookmarks" || vm.activeView == "history"
+                    val header: (@Composable () -> Unit)? = if (library) { {
+                        ConnectedChoice(listOf("bookmarks" to "Bookmarks", "history" to "History"), vm.activeView) { vm.activeView = it }
+                    } } else null
+                    OverlaySheet(sheetH, snapDefault, snapFull, imeDp, closeOverlay, scope, header) {
                         when (vm.activeView) {
-                            "tabs" -> TabsView(vm, sheetH.value, snapDefault, kbVisible, focusSheetSearch, closeOverlay)
                             "history" -> HistoryView(vm, focusSheetSearch, closeOverlay)
                             "bookmarks" -> BookmarksView(vm, sheetH.value, snapDefault, kbVisible, focusSheetSearch, closeOverlay)
                             "settings" -> SettingsView(vm, focusSheetSearch, closeOverlay)
@@ -214,6 +236,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     }
                 }
             }
+
+            if (!fullscreen) TabSwitcher(vm, navDp, statusDp)
 
             if (vm.findVisible) FindBar(imeDp, onQuery = { host.findAll(it) }, onNext = { host.findNext(it) }, onClose = {
                 focusManager.clearFocus(); vm.findVisible = false; host.findAll("")
@@ -224,7 +248,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             ConfirmDialog(vm)
             RenameDialog(vm)
             ContextMenu(vm, onSaveImage = { url -> saveImageFromUrl(activity, vm, url) })
-            CustomAlert(vm.alert) { vm.alert = null }
+            CustomAlert(vm.alert, onButton = { vm.alert = null }, onCancel = { vm.alert?.onCancel?.invoke(); vm.alert = null })
 
             host.customView?.let { v ->
                 AndroidView(

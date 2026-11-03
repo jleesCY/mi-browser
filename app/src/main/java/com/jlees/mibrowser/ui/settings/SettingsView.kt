@@ -31,7 +31,6 @@ import com.jlees.mibrowser.AlertButton
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.BuildConfig
 import com.jlees.mibrowser.ConfirmData
-import com.jlees.mibrowser.data.DEFAULT_MENU_BAR_ORDER
 import com.jlees.mibrowser.data.DataTransfer
 import com.jlees.mibrowser.data.ImportError
 import com.jlees.mibrowser.logic.ACCENTS
@@ -100,7 +99,7 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
     val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val err = withContext(Dispatchers.IO) { runCatching { DataTransfer.exportTo(ctx, uri, vm.settings, vm.ignoredHosts) }.exceptionOrNull() }
+            val err = withContext(Dispatchers.IO) { runCatching { DataTransfer.exportTo(ctx, uri, vm.settings) }.exceptionOrNull() }
             if (err == null) vm.showAlert("Success", "Data exported successfully!") else vm.showAlert("Export Failed", err.message ?: "Unknown error occurred")
         }
     }
@@ -112,7 +111,7 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
                 vm.showAlert("Restore Settings?", "This will replace your current settings and home page background. Continue?", listOf(
                     AlertButton("Cancel", "cancel"),
                     AlertButton("Restore") {
-                        vm.applyImport(data.settings, data.ignoredHosts)
+                        vm.applyImport(data)
                         scope.launch { kotlinx.coroutines.delay(300); vm.showAlert("Success", "Settings restored successfully.") }
                     },
                 ))
@@ -133,14 +132,12 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
             SRow("Corners") { ChipsRow("rounded_corner", "Corners", listOf("0" to "Square", "12" to "Soft", "28" to "Round"), s.cornerRadius.toString()) { set { copy(cornerRadius = it.toInt()) } } },
             SRow("Spacing") { ChipsRow("density_medium", "Spacing", listOf("compact" to "Compact", "normal" to "Normal", "airy" to "Airy"), s.uiPadding) { set { copy(uiPadding = it) } } },
             SRow("Status Bar") { SwitchRow("battery_charging_full", "Status Bar", s.showStatusBar) { set { copy(showStatusBar = it) } } },
-            SRow("Expand Menus") { SwitchRow("open_in_full", "Expand Menus", s.expandMenus) { set { copy(expandMenus = it) } } },
         )),
         SGroup("Pill", "pill", listOf(
             SRow("Size") { ChipsRow("crop_free", "Size", listOf("60" to "Thin", "70" to "Normal", "80" to "Tall"), s.pillHeight.toString()) { set { copy(pillHeight = it.toInt()) } } },
             SRow("Loading Bar") { ChipsRow("hourglass_empty", "Loading Bar", listOf("ltr" to "Standard", "center" to "Center Out", "none" to "Hidden"), s.progressBarMode) { set { copy(progressBarMode = it) } } },
             SRow("Pin Favorites") { SwitchRow("star", "Pin Favorites", s.showFavoritesDefault) { set { copy(showFavoritesDefault = it) } } },
             SRow("Expand Searches") { SwitchRow("list", "Expand Searches", s.recentSearchesExpanded) { set { copy(recentSearchesExpanded = it) } } },
-            SRow("Reorder Icons") { ReorderIconsRow(vm) },
         )),
         SGroup("Home Page", "homepage", listOfNotNull(
             SRow("Center Logo") { ChipsRow("crop_free", "Logo", listOf("None", "Static", "Fidget").map { it to it }, s.homeLogoType) { set { copy(homeLogoType = it) } } },
@@ -153,9 +150,7 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
             } else null,
         )),
         SGroup("Tabs", "tabs", listOfNotNull(
-            SRow("Style") { ChipsRow("grid_view", "Style", listOf("rows" to "Rows", "cards" to "Cards"), s.tabViewMode) { set { copy(tabViewMode = it) } } },
             SRow("Site Logo") { SwitchRow("info", "Site Logo", s.showTabLogo) { set { copy(showTabLogo = it) } } },
-            if (s.tabViewMode == "cards") SRow("Preview Content") { SwitchRow("image", "Preview Content", s.showTabPreview) { set { copy(showTabPreview = it) } } } else null,
             SRow("Background Refresh") {
                 SwitchRow("bolt", "Background Refresh", s.backgroundRefresh) { on -> if (on) vm.confirm = ConfirmData("bgRefresh") else set { copy(backgroundRefresh = false) } }
             },
@@ -170,12 +165,25 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
         )),
         SGroup("Browsing", "browsing", listOf(
             SRow("Search Engine") { SearchEngineRow(vm) },
+            SRow("Search Suggestions") { SwitchRow("search", "Search Suggestions", s.searchSuggestions) { set { copy(searchSuggestions = it) } } },
+            SRow("Default Browser") { DefaultBrowserRow() },
             SRow("On Startup") { ChipsRow("power_settings_new", "On Startup", listOf("new" to "New Tab", "last" to "Continue Session"), s.startupTabMode) { set { copy(startupTabMode = it) } } },
         )),
         SGroup("Security", "security", listOf(
             SRow("Enable JavaScript") { SwitchRow("code", "Enable JavaScript", s.jsEnabled) { set { copy(jsEnabled = it) } } },
             SRow("Enable Cookies") { SwitchRow("cookie", "Enable Cookies", !s.blockCookies) { set { copy(blockCookies = !it) } } },
             SRow("HTTPS Only") { SwitchRow("lock", "HTTPS Only", s.httpsOnly) { set { copy(httpsOnly = it) } } },
+            SRow("Block Ads & Trackers") { SwitchRow("shield", "Block Ads & Trackers", s.blockTrackers) { set { copy(blockTrackers = it) } } },
+            SRow("Block Third-Party Cookies") { SwitchRow("cookie", "Block Third-Party Cookies", s.blockThirdPartyCookies) { set { copy(blockThirdPartyCookies = it) } } },
+            SRow("Clear Browsing Data") {
+                Row(rowPad.touchable { vm.confirm = ConfirmData("clearData") }, verticalAlignment = Alignment.CenterVertically) {
+                    Sym("delete", 22f, ui.cs.error, Modifier.padding(end = 10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Txt("Clear Browsing Data", 16f, ui.cs.error, ui.semibold)
+                        Txt("Cookies, site storage and cache", 12f, ui.cs.onSurfaceVariant, ui.regular)
+                    }
+                }
+            },
         )),
     )
 
@@ -225,7 +233,7 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
             // footer
             Box(Modifier.fillMaxWidth().padding(top = 30.dp).height(1.dp).background(ui.cs.onSurfaceVariant.copy(alpha = 0.19f)))
             Column(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(Modifier.alpha(0.7f).touchable { vm.addNewTab("https://jleescy.github.io/mi-browser/user"); closeOverlay() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.alpha(0.7f).touchable { vm.addNewTab("https://jleescy.github.io/mi-browser/user"); vm.switcherVisible = false; closeOverlay() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Sym("help", 16f * ui.fontScale, ui.cs.primary, Modifier.padding(end = 6.dp))
                     Txt("Help", 14f, ui.cs.primary, ui.semibold)
                 }
@@ -326,22 +334,6 @@ private fun AccentRow(vm: BrowserViewModel) {
                         if (selected && !isDyn) Sym("check", 22f, Color.White)
                     }
                 }
-        }
-    }
-}
-
-@Composable
-private fun ReorderIconsRow(vm: BrowserViewModel) {
-    val ui = LocalUi.current
-    val icons = mapOf("tabs" to "tab", "bookmarks" to "bookmarks", "history" to "history", "settings" to "settings", "menu" to "menu")
-    val order = vm.settings.menuBarOrder.takeIf { it.size == 5 } ?: DEFAULT_MENU_BAR_ORDER
-    Column(rowPad.padding(vertical = 5.dp)) {
-        RowHeader("reorder", "Reorder Icons")
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            SortableSlots(order, { it }, 50.dp, 48.dp, horizontal = true, longPressMs = 150, dragScale = 1.1f, dragShadow = false,
-                onReorder = { from, to -> vm.updateSettings { copy(menuBarOrder = order.moved(from, to)) } }) { id ->
-                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Sym(icons[id] ?: "", 24f, ui.cs.onSurface) }
-            }
         }
     }
 }
@@ -468,4 +460,29 @@ fun segmentShape(i: Int, count: Int, radius: Int): RoundedCornerShape {
         topStart = if (i == 0) big else small, topEnd = if (i == 0) big else small,
         bottomStart = if (i == count - 1) big else small, bottomEnd = if (i == count - 1) big else small,
     )
+}
+
+/** Opens Android's default-browser picker (role request on Android 10+, default apps settings before that). */
+@Composable
+private fun DefaultBrowserRow() {
+    val ui = LocalUi.current
+    val ctx = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
+    val roleManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ctx.getSystemService(android.app.role.RoleManager::class.java) else null
+    val isDefault = roleManager?.isRoleHeld(android.app.role.RoleManager.ROLE_BROWSER) == true
+    Row(
+        rowPad.touchable(enabled = !isDefault) {
+            if (roleManager != null && roleManager.isRoleAvailable(android.app.role.RoleManager.ROLE_BROWSER))
+                launcher.launch(roleManager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_BROWSER))
+            else runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)) }
+        },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Sym("public", 22f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
+        Column(Modifier.weight(1f)) {
+            Txt("Default Browser", 16f, ui.cs.onSurface, ui.semibold)
+            Txt(if (isDefault) "mi is your default browser" else "Tap to make mi your default browser", 12f, ui.cs.onSurfaceVariant, ui.regular)
+        }
+        if (isDefault) Sym("check", 20f, ui.cs.primary)
+    }
 }

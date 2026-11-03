@@ -105,7 +105,6 @@ private fun onScan(vm: BrowserViewModel, data: String) {
     val s = vm.settings
     val url = inputToUrl(text, s.forceSearchMode, s.httpsOnly, s.searchEngineIndex) ?: return
     vm.navigateTab(url, text)
-    vm.ui.tryEmit(com.jlees.mibrowser.UiEvent.SnapToSearch)
 }
 
 @Composable

@@ -75,6 +75,28 @@ class LogicTest {
         assertEquals(false, newer("v1.0.0-beta", "1.0.0"))
     }
 
+    @Test fun tabHistoryIsCapped() {
+        val (stack, idx) = capped(List(MAX_TAB_HISTORY + 5) { "https://e.com/$it" }, MAX_TAB_HISTORY + 4)
+        assertEquals(MAX_TAB_HISTORY, stack.size)
+        assertEquals("https://e.com/5", stack.first())
+        assertEquals(MAX_TAB_HISTORY - 1, idx)
+    }
+
+    @Test fun homographHostsShowAsPunycode() {
+        assertEquals("xn--pple-43d.com", displayHost("https://\u0430pple.com/login")) // Cyrillic а
+        assertEquals("apple.com", displayHost("https://apple.com/"))
+    }
+
+    @Test fun blocklistSuffixMatch() {
+        val list = setOf("doubleclick.net", "ads.example.com")
+        val blocked = { h: String -> com.jlees.mibrowser.data.Blocklist.isBlocked(h, list) }
+        assertEquals(true, blocked("doubleclick.net"))
+        assertEquals(true, blocked("stats.g.doubleclick.net"))
+        assertEquals(true, blocked("a.ads.example.com"))
+        assertEquals(false, blocked("example.com"))
+        assertEquals(false, blocked("notdoubleclick.net"))
+    }
+
     @Test fun hex() {
         assertEquals(0xFF007AFF, hexColor("#007AFF"))
         assertEquals(0xFF007AFF, hexColor("bad"))

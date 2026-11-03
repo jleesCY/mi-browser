@@ -3,6 +3,7 @@ package com.jlees.mibrowser
 
 import android.app.Application
 import android.widget.Toast
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,7 +24,8 @@ import kotlinx.serialization.builtins.serializer
 import java.io.File
 
 data class AlertButton(val text: String, val style: String = "default", val onPress: () -> Unit = {})
-data class AlertData(val title: String, val message: String, val buttons: List<AlertButton>)
+/** [onCancel] runs when the dialog is dismissed without a button (back, scrim, or replaced by another alert). */
+data class AlertData(val title: String, val message: String, val buttons: List<AlertButton>, val onCancel: () -> Unit = {})
 data class ContextMenuData(val url: String?, val imgUrl: String?, val text: String)
 data class ConfirmData(val type: String, val ms: Long = 0, val label: String = "")
 
@@ -37,6 +39,8 @@ sealed interface WebCmd {
     data class CapturePreview(val tabId: String) : WebCmd
     data class Destroy(val tabId: String) : WebCmd
     data object WipeWebData : WebCmd
+    data object ClearBrowsingData : WebCmd
+    data object RecreateAll : WebCmd
 }
 
 /** Events for the pill animations (UI collects these). */
@@ -46,19 +50,18 @@ sealed interface UiEvent {
     data object LoadEnd : UiEvent
     data class Scroll(val yDp: Float) : UiEvent
     data object ShowBar : UiEvent
-    data object SnapToSearch : UiEvent
     data object FocusInput : UiEvent
     data object TabSwitched : UiEvent
 }
 
 class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     private val store = JsonStore(File(app.filesDir, "store"))
-    private val secure = SecureStore(File(app.filesDir, "secure"))
     private val cacheDir = app.cacheDir
 
     // ---- persisted state ----
     var settings by mutableStateOf(Settings())
-    var ignoredHosts by mutableStateOf(listOf<String>())
+    /** Hosts the user chose to proceed to despite certificate errors — this session only (never persisted). */
+    var ignoredHosts by mutableStateOf(setOf<String>())
     var tabs by mutableStateOf(listOf<TabItem>())
     var activeTabId by mutableStateOf("")
     var history by mutableStateOf(listOf<HistoryItem>())
@@ -73,7 +76,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var isInputFocused by mutableStateOf(false)
     var isLoading by mutableStateOf(false)
     var isSubMenuVisible by mutableStateOf(false)
-    var isSearchActive by mutableStateOf(true)
+    var switcherVisible by mutableStateOf(false)
+    /** Last tab closed from the switcher, for "Undo". */
+    var closedTab by mutableStateOf<Pair<TabItem, Int>?>(null)
     var findVisible by mutableStateOf(false)
     var qrScannerVisible by mutableStateOf(false)
     var qrGeneratorVisible by mutableStateOf(false)
@@ -83,7 +88,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var renameTabId by mutableStateOf<String?>(null)
     var contextMenu by mutableStateOf<ContextMenuData?>(null)
     var settingsSearch by mutableStateOf("")
-    var tabsSearch by mutableStateOf("")
     var historySearch by mutableStateOf("")
     // transient settings-UI state that RN kept in the settings hook
 
@@ -102,7 +106,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 settings = (store.read("settings", Settings.serializer()) ?: Settings()).sanitized()
-                ignoredHosts = secure.read("ignoredHosts", ListSerializer(String.serializer())) ?: emptyList()
                 history = (store.read("history", ListSerializer(HistoryItem.serializer())) ?: emptyList()).map { it.copy(id = uniqueId()) }
                 recents = (store.read("recent_searches", ListSerializer(HistoryItem.serializer())) ?: emptyList()).map { it.copy(id = uniqueId()) }
                 bookmarks = store.read("bookmarks", ListSerializer(BookmarkNode.serializer())) ?: emptyList()
@@ -113,11 +116,35 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             syncInputToActiveTab()
             launchSavers()
             checkForUpdate()
+            Blocklist.load(getApplication())
         }
+    }
+
+    // ---------------------------------------------------------------- search suggestions
+    var suggestions by mutableStateOf(listOf<String>())
+    private var suggestJob: kotlinx.coroutines.Job? = null
+
+    /** Called as the user types in the address bar: fetches engine suggestions (debounced), only while the search
+     *  drawer is open ([drawerOpen]) — suggestions never expand it. */
+    fun onTyping(text: String, drawerOpen: Boolean) {
+        suggestJob?.cancel()
+        val q = text.trim()
+        if (!drawerOpen || !settings.searchSuggestions || q.isEmpty() || q == activeUrl || q.contains("://")) { suggestions = emptyList(); return }
+        suggestJob = viewModelScope.launch {
+            delay(200)
+            suggestions = Suggest.fetch(settings.searchEngineIndex, q)
+        }
+    }
+
+    /** Light/dark change: pages read the color scheme when their WebView is created, so rebuild and reload them. */
+    fun reloadAllTabs() {
+        tabs = tabs.map { if (it.url != null) it.copy(requestedUrl = it.url, loadNonce = it.loadNonce + 1) else it }
+        web.tryEmit(WebCmd.RecreateAll)
     }
 
     /** Ask GitHub for a newer release once per launch and offer to install it. */
     private fun checkForUpdate() = viewModelScope.launch {
+        if (BuildConfig.DEBUG) return@launch // dev builds are a separate app; releases can't update them
         val current = BuildConfig.VERSION_NAME
         val release = Updates.check(current) ?: return@launch
         if (release.version == settings.skippedUpdate) return@launch
@@ -164,11 +191,25 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             if (blank != null) { list = existing; active = blank.id }
             else { val t = newTab(); list = listOf(t) + existing; active = t.id }
         }
-        tabs = list.map { if (it.id == active) it.copy(hasLoadedOnce = true) else it }
+        tabs = list.map { if (it.id == active) it.copy(hasLoadedOnce = true, lastUsed = System.currentTimeMillis()) else it }
         activeTabId = active
-        // orphaned preview cleanup
-        val valid = tabs.mapNotNull { it.previewImage }.toSet()
-        cacheDir.listFiles { f -> f.name.startsWith("preview_") && f.name.endsWith(".png") }?.forEach { if (it.path !in valid) it.delete() }
+        sweepFiles()
+    }
+
+    /** Startup cleanup of files that outlive their use: orphaned tab previews, camera captures for uploads, shared
+     *  QR images, a downloaded update APK, and home backgrounds that were replaced or reset. */
+    private fun sweepFiles() {
+        val previews = tabs.mapNotNull { it.previewImage }.toSet()
+        val background = settings.homeBackgroundImage
+        viewModelScope.launch(Dispatchers.IO) {
+            cacheDir.listFiles()?.forEach { f ->
+                val stale = (f.name.startsWith("preview_") && f.path !in previews) ||
+                    f.name.startsWith("capture_") || f.name.startsWith("qrcode_share_") || f.name == "updates"
+                if (stale) f.deleteRecursively()
+            }
+            getApplication<Application>().filesDir.listFiles { f -> f.name.startsWith("home_bg_") || f.name.startsWith("bg_") }
+                ?.forEach { if (it.path != background) it.delete() }
+        }
     }
 
     private fun launchSavers() {
@@ -176,7 +217,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             snapshotFlow(read).drop(1).collectLatest { v -> delay(delayMs); withContext(Dispatchers.IO) { write(v) } }
         }
         save(0, { settings }) { store.write("settings", Settings.serializer(), it) }
-        save(0, { ignoredHosts }) { secure.write("ignoredHosts", ListSerializer(String.serializer()), it) }
         save(500, { tabs to activeTabId }) {
             store.write("tabs", ListSerializer(TabItem.serializer()), it.first)
             store.write("activeTabId", String.serializer(), it.second)
@@ -194,17 +234,26 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun syncInputToActiveTab() { inputUrl = activeUrl?.let { displayHost(it) } ?: "" }
 
+    /** Snapshots a tab's page for its switcher card (set by MainActivity while its WebViewHost exists). */
+    var capturePreview: ((String) -> Unit)? = null
+
+    /** Leaving the current tab outside the switcher (a link from another app, a new tab): capture its preview now,
+     *  while its WebView is still on screen. The switcher already captured it on the swipe up. */
+    private fun captureOutgoing() { if (!switcherVisible) capturePreview?.invoke(activeTabId) }
+
     fun setActiveTab(id: String) {
         if (id == activeTabId) return
+        captureOutgoing()
         activeTabId = id
-        updateTab(id) { copy(hasLoadedOnce = true) }
+        updateTab(id) { copy(hasLoadedOnce = true, lastUsed = System.currentTimeMillis()) }
         syncInputToActiveTab()
         isLoading = currentTab?.loading == true
         ui.tryEmit(UiEvent.TabSwitched)
     }
 
     fun addNewTab(url: String? = null) {
-        val t = newTab(url)
+        val t = newTab(url).copy(lastUsed = System.currentTimeMillis())
+        captureOutgoing()
         tabs = listOf(t) + tabs
         activeTabId = t.id
         syncInputToActiveTab()
@@ -216,7 +265,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteTab(id: String) {
         val idx = tabs.indexOfFirst { it.id == id }
         if (idx < 0) return
-        tabs[idx].previewImage?.let { File(it).delete() }
+        closedTab?.first?.previewImage?.let { File(it).delete() } // only the latest closed tab can be restored
+        closedTab = tabs[idx] to idx
         web.tryEmit(WebCmd.Destroy(id))
         val remaining = tabs.filter { it.id != id }
         if (remaining.isEmpty()) {
@@ -224,14 +274,56 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         }
         tabs = remaining
         if (activeTabId == id) {
-            activeTabId = remaining[minOf(maxOf(0, idx - 1), remaining.size - 1)].id
-            updateTab(activeTabId) { copy(hasLoadedOnce = true) }
+            activeTabId = remaining.maxBy { it.lastUsed }.id // like an app switcher: back to the previously used tab
+            updateTab(activeTabId) { copy(hasLoadedOnce = true, lastUsed = System.currentTimeMillis()) }
             syncInputToActiveTab()
             ui.tryEmit(UiEvent.TabSwitched)
         }
     }
 
-    fun reorderTabs(from: Int, to: Int) { tabs = tabs.moved(from, to) }
+    fun dismissUndo() {
+        closedTab?.first?.previewImage?.let { File(it).delete() }
+        closedTab = null
+    }
+
+    /** Restores the last closed tab where it was, reloading its current page. */
+    fun undoCloseTab() {
+        val (t, idx) = closedTab ?: return
+        closedTab = null
+        val url = t.historyStack.getOrNull(t.currentIndex)
+        val restored = t.copy(url = url, requestedUrl = url, loadNonce = t.loadNonce + 1, hasLoadedOnce = true, loading = false)
+        tabs = tabs.toMutableList().apply { add(idx.coerceAtMost(size), restored) }
+    }
+
+    /** Opens [url] in a new tab next to the current one without switching to it. */
+    fun addBackgroundTab(url: String) {
+        // just behind the current tab in recency, so it sits next to it in the switcher
+        val t = newTab(url).copy(id = uniqueId(), hasLoadedOnce = false, lastUsed = (currentTab?.lastUsed ?: System.currentTimeMillis()) - 1)
+        val at = tabs.indexOfFirst { it.id == activeTabId } + 1
+        tabs = tabs.toMutableList().apply { add(at.coerceIn(0, size), t) }
+    }
+
+    // ---------------------------------------------------------------- tab switcher transition
+    /** 0 = browsing, 1 = in the switcher. Driven by the pill drag and by the switcher's open/close animations. */
+    val switcherAnim = Animatable(0f)
+    /** True once fully in the switcher: the switcher sits above the page. While false, the live page is drawn
+     *  on top, scaled between full size and its card, like a system app switcher. */
+    var switcherSettled by mutableStateOf(false)
+    /** Closing: this tab's snapshot expands over the page (its WebView may not have drawn yet). */
+    var flyingTabId by mutableStateOf<String?>(null)
+    /** Page area in the window (content below the status bar) and the active tab's card: the zoom's two ends. */
+    var pageBounds by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    var switcherTarget by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+
+    /** Pill drag started upward: snapshot the page (for its card) and show the switcher behind it. */
+    fun beginSwitcher() {
+        isSubMenuVisible = false
+        switcherSettled = false
+        flyingTabId = null
+        switcherTarget = null
+        web.tryEmit(WebCmd.CapturePreview(activeTabId))
+        switcherVisible = true
+    }
 
     fun clearAllTabs() {
         alert = AlertData("Clear All Tabs", "Are you sure you want to close all tabs?", listOf(
@@ -255,6 +347,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** navigateTab: user navigation in the active tab. */
     fun navigateTab(url: String, title: String? = null) {
         val t = currentTab ?: return
+        switcherVisible = false // opened a bookmark/history entry from a sheet over the switcher: show the page
         val (stack, idx) = pushNavigation(t, url)
         updateTab(t.id) { copy(url = url, requestedUrl = url, title = if (isCustomTitle) this.title else title ?: this.title, historyStack = stack, currentIndex = idx, loadNonce = loadNonce + 1, hasLoadedOnce = true) }
     }
@@ -265,14 +358,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun submitInput(text: String = inputUrl) {
         val url = inputToUrl(text, settings.forceSearchMode, settings.httpsOnly, settings.searchEngineIndex) ?: return
         navigateTab(url, text.trim())
-        ui.tryEmit(UiEvent.SnapToSearch)
     }
 
     fun goHome() {
         updateTab(activeTabId) { copy(url = null, requestedUrl = null, title = "New Tab", loading = false) }
         inputUrl = ""
         isLoading = false
-        ui.tryEmit(UiEvent.SnapToSearch)
     }
 
     /** Back/forward via WebView, falling back to the stored stack (restored sessions). */
@@ -347,8 +438,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun reorderFavorites(from: Int, to: Int) { favorites = favorites.moved(from, to) }
 
     // ---------------------------------------------------------------- overlays
+    /** Opens a sheet. From the tab switcher it opens on top, so closing it returns to the switcher. */
     fun openView(v: String) {
-        if (v == "tabs" && settings.showTabPreview) web.tryEmit(WebCmd.CapturePreview(activeTabId))
         isSubMenuVisible = false
         activeView = v
     }
@@ -356,12 +447,18 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Called by the sheet once its close animation finishes. */
     fun onOverlayClosed() {
         activeView = "none"
-        settingsSearch = ""; tabsSearch = ""; historySearch = ""
-        ui.tryEmit(UiEvent.SnapToSearch)
+        settingsSearch = ""; historySearch = ""
     }
 
     fun showAlert(title: String, message: String, buttons: List<AlertButton> = listOf(AlertButton("OK"))) {
+        alert?.onCancel?.invoke() // an unanswered prompt (e.g. a permission request) counts as declined
         alert = AlertData(title, message, buttons)
+    }
+
+    /** Like [showAlert] but [onCancel] runs if the user dismisses it without choosing. */
+    fun prompt(title: String, message: String, buttons: List<AlertButton>, onCancel: () -> Unit) {
+        alert?.onCancel?.invoke()
+        alert = AlertData(title, message, buttons, onCancel)
     }
 
     // ---------------------------------------------------------------- confirm actions
@@ -371,13 +468,14 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             "resetSettings" -> resetSettings()
             "bgRefresh" -> updateSettings { copy(backgroundRefresh = true) }
             "wipeData" -> wipeData()
+            "clearData" -> web.tryEmit(WebCmd.ClearBrowsingData)
         }
         confirm = null
     }
 
     fun resetSettings() {
         settings = Settings()
-        ignoredHosts = emptyList()
+        ignoredHosts = emptySet()
     }
 
     private fun wipeData() {
@@ -386,19 +484,15 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         resetTabs()
         viewModelScope.launch(Dispatchers.IO) {
             delay(1200) // let the debounced savers flush the empty state first, then remove the files
-            store.clear(); secure.clear()
+            store.clear()
             cacheDir.listFiles()?.forEach { it.deleteRecursively() }
         }
         web.tryEmit(WebCmd.WipeWebData)
         activeView = "none"
-        ui.tryEmit(UiEvent.SnapToSearch)
     }
 
-    /** Applies an imported .midata (settings + ignoredHosts). */
-    fun applyImport(newSettings: Settings, hosts: List<String>?) {
-        settings = newSettings.sanitized()
-        if (hosts != null) ignoredHosts = hosts
-    }
+    /** Applies an imported .midata. */
+    fun applyImport(newSettings: Settings) { settings = newSettings.sanitized() }
 
-    fun trustHost(host: String) { if (host !in ignoredHosts) ignoredHosts = ignoredHosts + host }
+    fun trustHost(host: String) { ignoredHosts = ignoredHosts + host }
 }

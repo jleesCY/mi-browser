@@ -41,14 +41,14 @@ fun inputToUrl(raw: String, forceSearch: Boolean, httpsOnly: Boolean, engineInde
     return engine.url + encodeComponent(text)
 }
 
-/** Hostname of a URL, or the input itself when it can't be parsed (JS `new URL(x).hostname`). */
+/**
+ * Hostname of a URL, or the input itself when it can't be parsed. Non-ASCII (internationalized) hosts are shown in
+ * punycode so look-alike domains ("аpple.com" with a Cyrillic а) can't impersonate real ones.
+ */
 fun displayHost(url: String?): String {
     if (url.isNullOrEmpty()) return ""
-    return try {
-        URI(url).host ?: url
-    } catch (_: Exception) {
-        url
-    }
+    val host = try { java.net.URL(url).host?.takeIf { it.isNotEmpty() } ?: URI(url).host } catch (_: Exception) { null } ?: return url
+    return if (host.any { it.code > 127 }) runCatching { java.net.IDN.toASCII(host, java.net.IDN.ALLOW_UNASSIGNED) }.getOrDefault(host) else host
 }
 
 fun faviconUrl(url: String?): String? {

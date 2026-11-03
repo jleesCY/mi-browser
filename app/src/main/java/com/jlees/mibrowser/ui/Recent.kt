@@ -5,6 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -34,7 +38,13 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
     }
     Box(Modifier.fillMaxSize().background(ui.cs.surfaceContainerLow)) {
         Column(Modifier.fillMaxSize()) {
-            if (items.isEmpty()) {
+            // drawer opened (or closed) while typing: fetch (or drop) suggestions for what's already typed
+            val expanded by remember { derivedStateOf { pill.recentExpanded } }
+            LaunchedEffect(expanded) { if (vm.isInputFocused) vm.onTyping(vm.inputUrl, expanded) }
+            // past searches that match come first; engine suggestions repeating one of them are dropped
+            val searched = items.map { it.title.lowercase() }.toSet()
+            val suggestions = vm.suggestions.filter { it.lowercase() !in searched }
+            if (items.isEmpty() && suggestions.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.TopCenter) {
                     Txt(if (vm.recents.isEmpty()) "No recent history" else "No matches found", 16f, ui.cs.onSurfaceVariant, ui.semibold)
                 }
@@ -48,6 +58,17 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                         ) {
                             Txt(item.title.ifEmpty { "Untitled" }, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 1)
                             Box(Modifier.padding(start = 8.dp).touchable { vm.deleteRecentSearch(item.id) }.padding(6.dp)) { Sym("close", 16f, ui.cs.onSurfaceVariant) }
+                        }
+                    }
+                    if (suggestions.isNotEmpty() && items.isNotEmpty()) item { Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant)) }
+                    // search-engine suggestions: tap to search
+                    items(suggestions, key = { "s_$it" }) { s ->
+                        Row(
+                            Modifier.fillMaxWidth().touchable { focusManager.clearFocus(); vm.submitInput(s) }.padding(vertical = 10.dp, horizontal = 18.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Sym("search", 20f, ui.cs.onSurfaceVariant, Modifier.padding(end = 14.dp))
+                            Txt(s, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 1)
                         }
                     }
                 }
@@ -73,7 +94,6 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                                     vm.inputUrl = displayHost(fav.url)
                                     focusManager.clearFocus()
                                     vm.navigateTab(fav.url, fav.title)
-                                    pill.snapToSearch()
                                 },
                             contentAlignment = Alignment.Center,
                         ) {

@@ -30,7 +30,7 @@ import com.jlees.mibrowser.data.HistoryItem
 import com.jlees.mibrowser.logic.*
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.interp
-import com.jlees.mibrowser.ui.tabs.SearchHeaderWithMenu
+import com.jlees.mibrowser.ui.common.SearchHeaderWithMenu
 import com.jlees.mibrowser.ui.timing
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt

@@ -3,7 +3,6 @@
 package com.jlees.mibrowser.ui
 
 import kotlinx.coroutines.CoroutineStart
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
@@ -24,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -59,7 +59,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-const val SWAP_DISTANCE = 80f
+const val SWITCHER_DRAG = 220f // dp of upward drag that takes the page all the way into the tab switcher
 const val HIDDEN_TRANSLATE_Y = 110f
 
 fun <T> timing(ms: Int) = tween<T>(ms, easing = FastOutSlowInEasing)
@@ -79,7 +79,6 @@ fun interp(v: Float, input: List<Float>, output: List<Float>): Float {
 
 /** All the pill Animated.Values + the actions that drive them. */
 class PillState(private val scope: CoroutineScope, private val vm: BrowserViewModel) {
-    val animVal = Animatable(0f)          // 0 = search pill, -80 = menu pill
     val scrollY = Animatable(0f)          // 0..110 hide offset
     val horizontalDrag = Animatable(0f)
     val focusAnim = Animatable(0f)        // isPillFocusedAnim
@@ -98,11 +97,6 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
     fun hideBar() {
         isBarHidden = true
         scope.launch { scrollY.animateTo(HIDDEN_TRANSLATE_Y, timing(100)) }
-    }
-
-    fun snapToSearch() {
-        vm.isSearchActive = true
-        scope.launch { animVal.animateTo(0f, Motion.fastSpatial()) }
     }
 
     fun onScroll(y: Float) {
@@ -139,38 +133,31 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
     // the release animation, which used to leave the pill stuck half-way.
     private fun now(block: suspend CoroutineScope.() -> Unit) = scope.launch(start = CoroutineStart.UNDISPATCHED, block = block)
 
+    private var toSwitcher = false // this drag went up first: it now drives the switcher transition
+
     fun onPanMove(dx: Float, dy: Float) = now {
-        if (vm.isSearchActive) {
-            if (abs(dx) > abs(dy)) horizontalDrag.snapTo(dx)
-            else if (dy < 0) animVal.snapTo(max(dy, -SWAP_DISTANCE))
-            else scrollY.snapTo(dy.coerceIn(0f, HIDDEN_TRANSLATE_Y))
-        } else animVal.snapTo((-SWAP_DISTANCE + dy).coerceIn(-SWAP_DISTANCE, 0f)) // never past the search position
+        if (!toSwitcher && abs(dx) > abs(dy)) horizontalDrag.snapTo(dx)
+        else if (toSwitcher || dy < 0) {
+            if (!toSwitcher) { toSwitcher = true; vm.beginSwitcher() }
+            vm.switcherAnim.snapTo((-dy / SWITCHER_DRAG).coerceIn(0f, 1f))
+        } else scrollY.snapTo(dy.coerceIn(0f, HIDDEN_TRANSLATE_Y))
     }
 
     fun onPanRelease(dx: Float, dy: Float, vx: Float, vy: Float) {
-        if (vm.isSearchActive) {
-            if (abs(dx) > abs(dy) && (abs(dx) > 32 || (abs(dx) > 12 && abs(vx) > 0.35f))) {
-                val goBack = dx > 0
-                if (goBack) vm.goBack() else vm.goForward()
-                scope.launch { horizontalDrag.animateTo(0f, Motion.spatial()) }
-                scope.launch { animVal.animateTo(0f, Motion.spatial()) }
-                showBar()
-                return
+        scope.launch { horizontalDrag.animateTo(0f, Motion.spatial()) }
+        if (toSwitcher) {
+            toSwitcher = false
+            val open = vy < -0.3f || (vy < 0.3f && vm.switcherAnim.value > 0.15f)
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                vm.switcherAnim.animateTo(if (open) 1f else 0f, Motion.switcher, initialVelocity = -vy * 1000f / SWITCHER_DRAG)
+                if (open) vm.switcherSettled = true else vm.switcherVisible = false
             }
-            scope.launch { horizontalDrag.animateTo(0f, Motion.spatial()) }
-            if (dy < -16 || vy < -0.3f) {
-                vm.isSearchActive = false
-                scope.launch { animVal.animateTo(-SWAP_DISTANCE, Motion.fastSpatial()) }
-            } else {
-                scope.launch { animVal.animateTo(0f, Motion.spatial()) }
-                if (vy > 0.3f || scrollY.value > HIDDEN_TRANSLATE_Y * 0.35f) hideBar() else showBar()
-            }
-        } else {
-            if (dy > 16 || vy > 0.3f) {
-                vm.isSearchActive = true
-                scope.launch { animVal.animateTo(0f, Motion.fastSpatial()) }
-            } else scope.launch { animVal.animateTo(-SWAP_DISTANCE, Motion.fastSpatial()) }
+            return
         }
+        if (abs(dx) > abs(dy) && (abs(dx) > 32 || (abs(dx) > 12 && abs(vx) > 0.35f))) {
+            if (dx > 0) vm.goBack() else vm.goForward()
+            showBar()
+        } else if (vy > 0.3f || scrollY.value > HIDDEN_TRANSLATE_Y * 0.35f) hideBar() else showBar()
     }
 
     fun recallMove(dy: Float) = now { scrollY.snapTo((HIDDEN_TRANSLATE_Y + dy).coerceIn(0f, HIDDEN_TRANSLATE_Y)) }
@@ -183,6 +170,8 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
     var recentStart = 0f
     var recentMin = 0f
     var recentMax = 0f
+    /** The search drawer is open (past half height): only then are engine suggestions fetched and shown. */
+    val recentExpanded get() = recentMax > 0f && recentHeight.value > recentMax / 2
 
     fun recentGrab() { recentStart = recentHeight.value; scope.launch { recentHeight.stop() } }
 
@@ -259,7 +248,7 @@ fun Modifier.panGesture(
     }
 }
 
-/** Bottom floating area: submenu + menu/search pills + recent searches drawer (index.tsx 1906-2654). */
+/** Bottom floating area: the search pill + recent searches drawer. Swipe up opens the tab switcher. */
 @Composable
 fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: Float, navInsetDp: Float, recent: @Composable () -> Unit) {
     val ui = LocalUi.current
@@ -276,11 +265,9 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: Float, navInsetDp: 
     val sy = pill.scrollY.value
     val containerScale = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.6f))
     val containerOpacity = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y * 0.75f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.5f, 0f))
-    val av = pill.animVal.value
     val shape = RoundedCornerShape(pillRadius.dp, pillRadius.dp, bottomRadius.dp, bottomRadius.dp)
 
     Box(Modifier.fillMaxSize()) {
-        if (vm.isSubMenuVisible) Box(Modifier.fillMaxSize().panGesture(true, claimImmediately = true, onMove = { _, _ -> }, onRelease = { _, _, _, _ -> vm.isSubMenuVisible = false }))
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .padding(start = padH.dp, end = padH.dp, bottom = (padB + k).dp)
@@ -302,26 +289,12 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: Float, navInsetDp: 
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        // MENU PILL
-                        val menuScale = interp(av, listOf(-SWAP_DISTANCE, 0f), listOf(1f, 0.9f))
-                        val menuOpacity = interp(av, listOf(-SWAP_DISTANCE, -10f, 0f), listOf(1f, 0f, 0f))
-                        Box(
-                            Modifier.fillMaxWidth().height(s.pillHeight.dp).zIndex(1f)
-                                .graphicsLayer { scaleX = menuScale; scaleY = menuScale; alpha = menuOpacity }
-                                .shadow(elevation.dp, shape, clip = false).clip(shape).background(ui.cs.surfaceContainerHigh),
-                        ) {
-                            MenuItems(vm, pill)
-                        }
                         // SEARCH PILL
-                        val searchOpacity = interp(av, listOf(-SWAP_DISTANCE, -SWAP_DISTANCE / 2, 0f), listOf(0f, 0f, 1f))
                         Box(
                             Modifier.fillMaxWidth().height(totalPillHeight.dp).zIndex(2f)
-                                .offset { IntOffset(0, (av * density).roundToInt()) }
-                                .alpha(searchOpacity)
                                 .shadow(elevation.dp, shape, clip = false).clip(shape).background(ui.cs.surfaceContainerHigh),
                         ) {
-                            // pointerEvents none while the menu pill is active: only compose the interactive content when visible
-                            if (vm.isSearchActive || av > -SWAP_DISTANCE / 2) SearchPillContent(vm, pill, focusedAdd, focusManager)
+                            SearchPillContent(vm, pill, focusedAdd, focusManager)
                         }
                     }
                     // recent searches drawer
@@ -329,35 +302,6 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: Float, navInsetDp: 
                         recent()
                     }
                 }
-                // position: absolute; bottom: pillHeight + 4; right: 0 — zero-size in layout so it never moves the pill
-                if (vm.isSubMenuVisible) SubMenu(
-                    vm,
-                    Modifier.align(Alignment.BottomEnd).layout { m, c ->
-                        val p = m.measure(c.copy(minWidth = 0, minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
-                        layout(0, 0) { p.place(-p.width, -p.height - (s.pillHeight + 4).dp.roundToPx()) }
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MenuItems(vm: BrowserViewModel, pill: PillState) {
-    val ui = LocalUi.current
-    val config = mapOf(
-        "tabs" to Triple("tab", "Tabs") { vm.openView("tabs") },
-        "bookmarks" to Triple("bookmarks", "Bookmarks") { vm.openView("bookmarks") },
-        "history" to Triple("history", "History") { vm.openView("history") },
-        "settings" to Triple("settings", "Settings") { vm.openView("settings") },
-        "menu" to Triple("menu", "Menu") { vm.isSubMenuVisible = !vm.isSubMenuVisible },
-    )
-    Row(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceAround) {
-        vm.settings.menuBarOrder.forEach { id ->
-            val (icon, label, onPress) = config[id] ?: return@forEach
-            Column(Modifier.weight(1f).fillMaxHeight().touchable(enabled = !vm.isSearchActive, onClick = onPress), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Sym(icon, 24f, ui.cs.onSurface)
-                Txt(label, 11f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 4.dp))
             }
         }
     }
@@ -373,11 +317,19 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
     // selectTextOnFocus: the tap that focuses the field places the cursor right after focus; re-select everything
     // once that settles (this also syncs the keyboard's selection, so typing replaces the URL).
     LaunchedEffect(vm.isInputFocused) {
-        if (vm.isInputFocused) { kotlinx.coroutines.delay(120); tfv = tfv.copy(selection = TextRange(0, tfv.text.length)) }
+        if (vm.isInputFocused) {
+            val before = tfv.text
+            kotlinx.coroutines.delay(120)
+            // only if nothing was typed meanwhile, or the first keystroke would be selected and overwritten
+            if (tfv.text == before) tfv = tfv.copy(selection = TextRange(0, tfv.text.length))
+        }
     }
     LaunchedEffect(vm.inputUrl) { if (tfv.text != vm.inputUrl) tfv = TextFieldValue(vm.inputUrl, TextRange(vm.inputUrl.length)) }
+    // The field only takes focus from a touch on it or an explicit request (FocusInput) — never on its own, e.g. when
+    // switching tabs removes the focused WebView and Compose hands focus to the first focusable control.
+    var allowFocus by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        vm.ui.collect { if (it == com.jlees.mibrowser.UiEvent.FocusInput) { focusRequester.requestFocus() } }
+        vm.ui.collect { if (it == com.jlees.mibrowser.UiEvent.FocusInput) { allowFocus = true; focusRequester.requestFocus() } }
     }
     val imeVisible = WindowInsets.isImeVisible
     val hd = pill.horizontalDrag.value
@@ -406,19 +358,38 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                 Modifier.weight(1f).height((s.pillHeight * 0.7f).dp).alpha(contentOpacity)
                     .clip(RoundedCornerShape((s.cornerRadius * 1.5f).dp)).background(ui.cs.surfaceContainerHighest),
             ) {
+                // loading progress: a faint accent fill behind the text, growing left to right or from the center out
                 if (s.progressBarMode != "none" && vm.isLoading) {
-                    val p = pill.progress.value.coerceIn(0f, 1f)
-                    if (s.progressBarMode == "center") Box(Modifier.fillMaxSize().graphicsLayer { scaleX = p }.alpha(0.2f).background(ui.cs.primary))
-                    else LinearWavyProgressIndicator(
-                        progress = { p }, color = ui.cs.primary, trackColor = ui.cs.primary.copy(alpha = 0.15f),
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 18.dp, vertical = 3.dp),
+                    val fromLeft = s.progressBarMode != "center"
+                    Box(
+                        Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = pill.progress.value.coerceIn(0f, 1f)
+                            transformOrigin = TransformOrigin(if (fromLeft) 0f else 0.5f, 0.5f)
+                            alpha = 0.2f
+                        }.background(ui.cs.primary),
                     )
                 }
                 Row(Modifier.fillMaxSize().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     BasicTextField(
                         value = tfv,
-                        onValueChange = { tfv = it; vm.inputUrl = it.text },
-                        modifier = Modifier.weight(1f).padding(horizontal = 16.dp).focusRequester(focusRequester)
+                        onValueChange = { if (it.text != tfv.text) vm.onTyping(it.text, pill.recentExpanded); tfv = it; vm.inputUrl = it.text },
+                        modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                            .pointerInput(Unit) {
+                                awaitEachGesture {
+                                    // a touch on the field unlocks focus for the tap; a swipe (e.g. up to the switcher) locks it again
+                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                    allowFocus = true
+                                    var dragged = false
+                                    while (true) {
+                                        val c = awaitPointerEvent(PointerEventPass.Final).changes.firstOrNull { it.id == down.id } ?: break
+                                        if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) dragged = true
+                                        if (!c.pressed) break
+                                    }
+                                    if (dragged) allowFocus = false
+                                }
+                            }
+                            .focusProperties { canFocus = allowFocus && !vm.switcherVisible }
+                            .focusRequester(focusRequester)
                             .onFocusChanged { st ->
                                 if (st.isFocused && !vm.isInputFocused) {
                                     vm.isInputFocused = true
@@ -426,7 +397,9 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                                     vm.inputUrl = full
                                     tfv = TextFieldValue(full, TextRange(0, full.length)) // selectTextOnFocus
                                 } else if (!st.isFocused && vm.isInputFocused) {
+                                    allowFocus = false
                                     vm.isInputFocused = false
+                                    vm.suggestions = emptyList()
                                     vm.inputUrl = displayHost(vm.activeUrl)
                                 }
                             },

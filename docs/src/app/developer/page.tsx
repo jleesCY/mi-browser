@@ -20,7 +20,7 @@ const PROJECT_STRUCTURE = `
 │       ├── java/com/jlees/mibrowser/
 │       │   ├── MainActivity.kt      # Edge-to-edge host, intents, permissions
 │       │   ├── BrowserViewModel.kt  # All app state + actions
-│       │   ├── data/                # Models, JSON/Keystore storage, .midata import/export
+│       │   ├── data/                # Models, JSON storage, .midata, updates, blocklist
 │       │   ├── logic/               # Pure logic: URL parsing, tab history, bookmarks (unit tested)
 │       │   ├── web/                 # WebViewHost: one WebView per tab, clients, downloads
 │       │   └── ui/                  # Compose UI: pill, sheets, tabs, history, bookmarks,
@@ -107,7 +107,7 @@ export default function DeveloperDocs() {
                           />
                           <TechCard 
                             title="Engine & Storage" 
-                            items={["Android System WebView", "kotlinx.serialization (JSON)", "Android Keystore (AES-GCM)"]} 
+                            items={["Android System WebView", "kotlinx.serialization (JSON)", "StevenBlack hosts (ad/tracker blocklist)"]} 
                             color="pink"
                           />
                           <TechCard 

@@ -10,7 +10,14 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.os.Bundle
+import androidx.compose.ui.graphics.asImageBitmap
+import com.jlees.mibrowser.ui.common.cacheImage
+import android.view.ContextThemeWrapper
+import com.jlees.mibrowser.data.Blocklist
+import java.io.ByteArrayInputStream
 import android.graphics.Canvas
 import android.graphics.Color
 import android.net.Uri
@@ -56,6 +63,9 @@ private const val READER_JS = """(function() {
   document.head.appendChild(style);
 })();"""
 
+/** Live WebViews kept in memory; older tabs are rebuilt from saved state when opened. */
+const val MAX_LIVE_TABS = 5
+
 class WebViewHost(
     private val activity: Activity,
     private val vm: BrowserViewModel,
@@ -64,7 +74,16 @@ class WebViewHost(
 ) {
     private val views = HashMap<String, WebView>()
     private val loaded = HashMap<String, Pair<String?, Int>>()
-    private val pendingAllowedHost = HashMap<String, String>()
+    /** Live WebViews are capped (each is a full page renderer): least recently viewed tabs are evicted, keeping their
+     *  back/forward state here so they come back where they were when opened again. */
+    private val lastUsed = HashMap<String, Long>()
+    private val saved = HashMap<String, Bundle>()
+    val liveCount get() = views.size
+    /** Bumped when all WebViews are rebuilt, so the visible AndroidView re-attaches a fresh one. */
+    var generation by mutableStateOf(0)
+
+    /** "host|resource" pairs the user allowed this session (camera, microphone, location). */
+    private val sitePermissions = HashSet<String>()
 
     /** Error overlay per tab (renderError). */
     val errors = mutableStateMapOf<String, WebError>()
@@ -78,13 +97,24 @@ class WebViewHost(
 
     /** Get or create the tab's WebView, apply settings and perform any requested load. */
     fun sync(tab: TabItem): WebView {
+        val fresh = !views.containsKey(tab.id)
         val wv = views.getOrPut(tab.id) { create(tab.id) }
+        if (tab.id == vm.activeTabId) lastUsed[tab.id] = System.nanoTime()
+        if (fresh) {
+            // a new WebView for an existing tab (evicted, theme change, activity recreated): restore or reopen its page
+            val restored = saved.remove(tab.id)?.let { wv.restoreState(it) != null } == true
+            if (restored || tab.url != null) {
+                loaded[tab.id] = tab.requestedUrl to tab.loadNonce
+                if (!restored) wv.loadUrl(tab.url!!)
+            }
+            trimTo(MAX_LIVE_TABS)
+        }
         val s = vm.settings
         wv.settings.javaScriptEnabled = s.jsEnabled
         val ua = if (tab.desktopMode ?: s.desktopMode) DESKTOP_UA else MOBILE_UA
         if (wv.settings.userAgentString != ua) wv.settings.userAgentString = ua
         CookieManager.getInstance().setAcceptCookie(!s.blockCookies)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !s.blockCookies)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !s.blockCookies && !s.blockThirdPartyCookies)
         val req = tab.requestedUrl
         if (req != null && loaded[tab.id] != (req to tab.loadNonce)) {
             loaded[tab.id] = req to tab.loadNonce
@@ -96,8 +126,21 @@ class WebViewHost(
 
     fun destroy(id: String) {
         views.remove(id)?.let { (it.parent as? ViewGroup)?.removeView(it); it.destroy() }
-        loaded.remove(id); errors.remove(id)
+        loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id)
     }
+
+    /** Evicts least recently viewed WebViews (never the active one) until at most [max] are live. */
+    fun trimTo(max: Int) {
+        while (views.size > max) {
+            val id = views.keys.filter { it != vm.activeTabId }.minByOrNull { lastUsed[it] ?: 0L } ?: return
+            val state = Bundle().also { views[id]?.saveState(it) }
+            destroy(id)
+            saved[id] = state
+        }
+    }
+
+    /** Activity teardown: release every WebView (they hold the Activity). */
+    fun destroyAll() = views.keys.toList().forEach { destroy(it) }
 
     fun handle(cmd: WebCmd) {
         when (cmd) {
@@ -109,11 +152,21 @@ class WebViewHost(
             is WebCmd.CapturePreview -> capturePreview(cmd.tabId)
             is WebCmd.Destroy -> destroy(cmd.tabId)
             WebCmd.WipeWebData -> {
-                CookieManager.getInstance().removeAllCookies(null)
-                WebStorage.getInstance().deleteAllData()
+                clearBrowsingData()
                 views.keys.toList().forEach { destroy(it) }
             }
+            WebCmd.ClearBrowsingData -> clearBrowsingData()
+            WebCmd.RecreateAll -> { views.keys.toList().forEach { destroy(it) }; generation++ }
         }
+    }
+
+    /** Cookies, site storage (localStorage, IndexedDB…), HTTP cache and saved form/auth data. */
+    private fun clearBrowsingData() {
+        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().flush()
+        WebStorage.getInstance().deleteAllData()
+        views.values.forEach { it.clearCache(true); it.clearFormData() }
+        @Suppress("DEPRECATION") WebViewDatabase.getInstance(activity).apply { clearHttpAuthUsernamePassword(); clearFormData() }
     }
 
     fun findNext(forward: Boolean) { views[vm.activeTabId]?.findNext(forward) }
@@ -128,7 +181,8 @@ class WebViewHost(
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun create(id: String): WebView {
-        val wv = WebView(activity)
+        // Pages see prefers-color-scheme from the creating context's theme, so match the app's light/dark setting.
+        val wv = WebView(ContextThemeWrapper(activity, if (isDark()) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar))
         wv.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         wv.setBackgroundColor(Color.WHITE)
         wv.overScrollMode = View.OVER_SCROLL_NEVER
@@ -148,23 +202,37 @@ class WebViewHost(
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             useWideViewPort = true
             loadWithOverviewMode = true
+            safeBrowsingEnabled = true
         }
         wv.webViewClient = Client(id)
         wv.webChromeClient = Chrome(id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.activeTabId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
         wv.setOnLongClickListener { onLongPress(wv) }
-        wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, _ -> download(url, userAgent, contentDisposition, mimetype) }
+        wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> download(url, userAgent, contentDisposition, mimetype, length) }
         return wv
     }
+
+    private fun isDark() = when (vm.settings.themeMode) {
+        "light" -> false
+        "dark" -> true
+        else -> (activity.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    }
+
+    private val emptyResponse get() = WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
 
     private fun nav(id: String, view: WebView, url: String?, loading: Boolean) =
         vm.onWebNav(id, url, view.title, view.canGoBack(), view.canGoForward(), loading)
 
     private inner class Client(val id: String) : WebViewClient() {
+        /** Ad/tracker blocking: drop sub-resource requests to blocklisted hosts (runs on a WebView thread). */
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+            if (vm.settings.blockTrackers && !request.isForMainFrame && Blocklist.isBlocked(request.url.host)) emptyResponse else null
+
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url.toString()
+            val gesture = request.hasGesture()
             if (url.startsWith("blob:") || url.startsWith("data:")) return false
-            if (url.startsWith("mibrowser:")) { vm.handleIncomingUrl(url); return true }
+            if (url.startsWith("mibrowser:")) { if (gesture) vm.handleIncomingUrl(url); return true }
             if (vm.settings.httpsOnly && url.startsWith("http://") && request.isForMainFrame && !isIpOrLocalhost(displayHost(url))) {
                 vm.loadInTab(id, url.replaceFirst("http://", "https://"))
                 return true
@@ -172,10 +240,10 @@ class WebViewHost(
             if (url.startsWith("googleapp://")) return true
             val standard = url.startsWith("http://") || url.startsWith("https://") || url.startsWith("about:")
             if (standard) {
-                if (url.contains("intent://") || url.contains("#Intent;")) { openExternal(url); return true }
+                if (url.contains("intent://") || url.contains("#Intent;")) { openExternal(url, gesture); return true }
                 return false
             }
-            openExternal(url)
+            openExternal(url, gesture)
             return true
         }
 
@@ -205,7 +273,7 @@ class WebViewHost(
         @SuppressLint("WebViewClientOnReceivedSslError")
         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
             val host = displayHost(error.url)
-            if (host in vm.ignoredHosts || pendingAllowedHost[id] == host) { handler.proceed(); return }
+            if (host in vm.ignoredHosts) { handler.proceed(); return }
             handler.cancel()
             if (view.url.equals(error.url, ignoreCase = true) || view.url == null) {
                 errors[id] = WebError(-1200, "ERR_SSL_PROTOCOL_ERROR", error.url)
@@ -225,17 +293,20 @@ class WebViewHost(
 
         /** target=_blank / window.open → new mi tab. */
         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+            if (!isUserGesture) return false // pop-up blocking: only windows opened by a tap/click
             val temp = WebView(activity)
             temp.webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean {
                     val url = r.url.toString()
-                    if (url.startsWith("http://") || url.startsWith("https://")) vm.addNewTab(url) else openExternal(url)
+                    if (url.startsWith("http://") || url.startsWith("https://")) vm.addNewTab(url) else openExternal(url, gesture = true)
                     v.destroy()
                     return true
                 }
             }
             (resultMsg.obj as WebView.WebViewTransport).webView = temp
             resultMsg.sendToTarget()
+            // a pop-up that never navigates (about:blank + script) would otherwise keep this WebView forever
+            temp.postDelayed({ runCatching { temp.destroy() } }, 10_000)
             return true
         }
 
@@ -250,7 +321,24 @@ class WebViewHost(
             customViewCallback = null
         }
 
+        /** Camera/mic: ask the user per site (remembered for this session), then the Android runtime permission. */
         override fun onPermissionRequest(request: PermissionRequest) {
+            val host = request.origin?.host ?: run { request.deny(); return }
+            val wanted = request.resources.filter { it == PermissionRequest.RESOURCE_AUDIO_CAPTURE || it == PermissionRequest.RESOURCE_VIDEO_CAPTURE }
+            if (wanted.isEmpty()) { request.deny(); return }
+            if (wanted.all { "$host|$it" in sitePermissions }) { grantMedia(request); return }
+            val what = wanted.joinToString(" and ") { if (it == PermissionRequest.RESOURCE_VIDEO_CAPTURE) "camera" else "microphone" }
+            vm.prompt(
+                "Allow $what?", "$host wants to use your $what.",
+                listOf(
+                    AlertButton("Block", "cancel") { runCatching { request.deny() } },
+                    AlertButton("Allow") { wanted.forEach { sitePermissions += "$host|$it" }; grantMedia(request) },
+                ),
+                onCancel = { runCatching { request.deny() } },
+            )
+        }
+
+        private fun grantMedia(request: PermissionRequest) {
             val map = mapOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE to Manifest.permission.RECORD_AUDIO, PermissionRequest.RESOURCE_VIDEO_CAPTURE to Manifest.permission.CAMERA)
             val granted = mutableListOf<String>()
             val needed = mutableListOf<String>()
@@ -258,21 +346,37 @@ class WebViewHost(
                 val perm = map[r] ?: continue
                 if (ContextCompat.checkSelfPermission(activity, perm) == PackageManager.PERMISSION_GRANTED) granted += r else needed += perm
             }
-            if (needed.isEmpty()) { if (granted.isEmpty()) request.deny() else request.grant(granted.toTypedArray()); return }
+            val grant = { g: List<String> -> runCatching { if (g.isEmpty()) request.deny() else request.grant(g.distinct().toTypedArray()) } }
+            if (needed.isEmpty()) { grant(granted); return }
             requestPermissions(needed.toTypedArray()) { result ->
                 for ((res, perm) in map) if (res in request.resources && result[perm] == true) granted += res
-                if (granted.isEmpty()) request.deny() else request.grant(granted.distinct().toTypedArray())
+                grant(granted)
             }
         }
 
+        override fun onPermissionRequestCanceled(request: PermissionRequest) { vm.alert = null }
+
+        /** Location: ask the user per site (remembered for this session), then the Android runtime permission. */
         override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) {
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                callback.invoke(origin, true, false); return
+            val host = Uri.parse(origin).host ?: origin
+            val grantLocation = {
+                if (ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                ) callback.invoke(origin, true, false)
+                else requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) { r -> callback.invoke(origin, r.values.any { it }, false) }
             }
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) { r ->
-                callback.invoke(origin, r.values.any { it }, false)
-            }
+            if ("$host|location" in sitePermissions) { grantLocation(); return }
+            vm.prompt(
+                "Allow location?", "$host wants to know your location.",
+                listOf(
+                    AlertButton("Block", "cancel") { callback.invoke(origin, false, false) },
+                    AlertButton("Allow") { sitePermissions += "$host|location"; grantLocation() },
+                ),
+                onCancel = { callback.invoke(origin, false, false) },
+            )
         }
+
+        override fun onGeolocationPermissionsHidePrompt() { vm.alert = null }
 
         override fun onShowFileChooser(webView: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
             val content = params.createIntent().apply {
@@ -327,15 +431,37 @@ class WebViewHost(
     }
 
     // ---------------------------------------------------------------- external links (navigationUtils.ts)
-    fun openExternal(url: String) {
-        try {
-            if (url.startsWith("intent:") || url.contains("#Intent;")) { handleIntent(url); return }
-            val i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)
-            activity.startActivity(i)
-        } catch (e: Exception) {
-            vm.showAlert("Link Error", "Could not open this link.\n\nError: ${e.message ?: "Unknown error"}\n\nURL: $url")
+    /**
+     * Links to other apps (tel:, mailto:, market:, intent://…). Pages can only trigger this from a user tap, and the
+     * user confirms before another app opens. Without a tap, an intent:// link may still fall back to its web URL.
+     */
+    fun openExternal(url: String, gesture: Boolean) {
+        val isIntent = url.startsWith("intent:") || url.contains("#Intent;")
+        if (!gesture) {
+            if (isIntent) fallbackUrl(url)?.let { vm.loadInTab(vm.activeTabId, it) }
+            return
         }
+        val target = if (isIntent) Regex("package=([^;]+)").find(url)?.groupValues?.get(1) ?: "another app"
+        else Uri.parse(url).scheme?.let { "a $it: link" } ?: "another app"
+        vm.prompt(
+            "Open in another app?", "This page wants to open $target.",
+            listOf(
+                AlertButton("Cancel", "cancel"),
+                AlertButton("Open") {
+                    try {
+                        if (isIntent) handleIntent(url)
+                        else activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+                    } catch (e: Exception) {
+                        vm.showAlert("Link Error", "Could not open this link.\n\nError: ${e.message ?: "Unknown error"}\n\nURL: $url")
+                    }
+                },
+            ),
+            onCancel = {},
+        )
     }
+
+    private fun fallbackUrl(intentUrl: String) = Regex("browser_fallback_url=([^;]+)").find(intentUrl)
+        ?.let { Uri.decode(it.groupValues[1]) }?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
 
     private fun handleIntent(intentUrl: String) {
         // Attempt 1/2: launch the intent (component/selector stripped for safety)
@@ -361,7 +487,9 @@ class WebViewHost(
             val pkg = it.groupValues[1]
             vm.showAlert("App Required", "This feature requires an external app ($pkg). Would you like to view it in the store?", listOf(
                 AlertButton("Cancel", "cancel"),
-                AlertButton("View Store") { openExternal("market://details?id=$pkg") },
+                AlertButton("View Store") {
+                    runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg"))) }
+                },
             ))
             return
         }
@@ -374,13 +502,13 @@ class WebViewHost(
     fun proceedUnsafe(id: String) {
         val target = errors[id]?.failingUrl ?: vm.tabs.firstOrNull { it.id == id }?.url
         val host = displayHost(target)
-        if (host.isNotEmpty()) { pendingAllowedHost[id] = host; vm.trustHost(host) }
+        if (host.isNotEmpty()) vm.trustHost(host)
         errors.remove(id)
         views[id]?.reload()
     }
 
     // ---------------------------------------------------------------- downloads (RNWV DownloadListener)
-    private fun download(url: String, userAgent: String, contentDisposition: String?, mimetype: String?) {
+    private fun download(url: String, userAgent: String, contentDisposition: String?, mimetype: String?, length: Long) {
         val req = try { DownloadManager.Request(Uri.parse(url)) } catch (_: IllegalArgumentException) { return }
         val fileName = URLUtil.guessFileName(url, contentDisposition, mimetype).replace(Regex("[/\\\\?%*:|\"<>]"), "_")
         try {
@@ -398,9 +526,17 @@ class WebViewHost(
                 Toast.makeText(activity, "Downloading $fileName", Toast.LENGTH_LONG).show()
             } catch (_: Exception) {}
         }
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P ||
-            ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) go()
-        else requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)) { if (it.values.all { g -> g }) go() }
+        val start = {
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P ||
+                ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) go()
+            else requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)) { if (it.values.all { g -> g }) go() }
+        }
+        val size = if (length > 0) " (" + android.text.format.Formatter.formatShortFileSize(activity, length) + ")" else ""
+        vm.prompt(
+            "Download file?", "$fileName$size\nfrom ${displayHost(url)}",
+            listOf(AlertButton("Cancel", "cancel"), AlertButton("Download") { start() }),
+            onCancel = {},
+        )
     }
 
     // ---------------------------------------------------------------- print / previews
@@ -410,18 +546,22 @@ class WebViewHost(
         (activity.getSystemService(Context.PRINT_SERVICE) as PrintManager).print(title, wv.createPrintDocumentAdapter(title), null)
     }
 
-    private fun capturePreview(id: String) {
+    fun capturePreview(id: String) {
         val wv = views[id]
         val tab = vm.tabs.firstOrNull { it.id == id }
         if (wv != null && tab != null && wv.width > 0 && wv.height > 0 && wv.isAttachedToWindow) {
             try {
                 val bmp = Bitmap.createBitmap(wv.width / 2, wv.height / 2, Bitmap.Config.ARGB_8888)
                 Canvas(bmp).apply { scale(0.5f, 0.5f); translate(-wv.scrollX.toFloat(), -wv.scrollY.toFloat()) }.also { wv.draw(it) }
-                val file = File(activity.cacheDir, "preview_${id}_${System.currentTimeMillis()}.png")
-                file.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 50, it) }
+                // shown from memory right away; the file (for after a restart) is written off the main thread
+                val file = File(activity.cacheDir, "preview_${id}_${System.currentTimeMillis()}.jpg")
+                cacheImage(file.path, bmp.asImageBitmap())
                 val old = tab.previewImage
                 vm.updateTab(id) { copy(previewImage = file.path) }
-                old?.let { File(it).delete() }
+                Thread {
+                    runCatching { file.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 80, it) } }
+                    old?.let { File(it).delete() }
+                }.start()
             } catch (_: Exception) {}
         }
         if (vm.tabs.none { it.url != null }) {

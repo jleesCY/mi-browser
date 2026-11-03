@@ -36,7 +36,14 @@ fun applyNavUpdate(t: TabItem, url: String?, canGoForward: Boolean): Pair<List<S
             }
         }
     }
-    return stack to idx
+    return capped(stack, idx)
+}
+
+/** Per-tab history keeps the newest [MAX_TAB_HISTORY] entries (tabs.json is rewritten on every navigation). */
+const val MAX_TAB_HISTORY = 100
+fun capped(stack: List<String>, idx: Int): Pair<List<String>, Int> {
+    val drop = stack.size - MAX_TAB_HISTORY
+    return if (drop > 0) stack.drop(drop) to (idx - drop).coerceAtLeast(0) else stack to idx
 }
 
 /** User-initiated navigation (navigateTab): truncate forward history and push. */
@@ -50,7 +57,7 @@ fun pushNavigation(t: TabItem, url: String): Pair<List<String>, Int> {
     } else if (idx >= 0) {
         stack[idx] = url
     }
-    return stack to idx
+    return capped(stack, idx)
 }
 
 /** addToHistory: returns new (history, recentSearches). */

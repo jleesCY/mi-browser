@@ -41,6 +41,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
@@ -58,12 +59,25 @@ import com.jlees.mibrowser.ConfirmData
 import com.jlees.mibrowser.UiEvent
 import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.logic.displayHost
+import com.jlees.mibrowser.logic.faviconUrl
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.web.WebError
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+/** Pins a home-screen shortcut that opens [url] in mi (uses the site's favicon when cached). */
+fun pinShortcut(ctx: android.content.Context, title: String, url: String) {
+    val icon = cachedImage(faviconUrl(url))?.asAndroidBitmap()?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
+        ?: androidx.core.graphics.drawable.IconCompat.createWithResource(ctx, com.jlees.mibrowser.R.mipmap.ic_launcher)
+    val info = androidx.core.content.pm.ShortcutInfoCompat.Builder(ctx, "site_" + url.hashCode())
+        .setShortLabel(title.ifBlank { displayHost(url) }.take(25))
+        .setIcon(icon)
+        .setIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).setClass(ctx, com.jlees.mibrowser.MainActivity::class.java))
+        .build()
+    androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(ctx, info, null)
+}
 
 fun shareText(ctx: android.content.Context, text: String, title: String? = null) {
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
@@ -76,6 +90,7 @@ fun Modifier.blockTouches(onTap: () -> Unit = {}) = this.clickable(MutableIntera
 
 // ---------------------------------------------------------------- submenu (index.tsx 1942-2290)
 @Composable
+/** Tab menu (opened from ⋮ in the tab switcher); acts on the active tab. Actions that leave the switcher close it. */
 fun SubMenu(vm: BrowserViewModel, modifier: Modifier) {
     val ui = LocalUi.current
     val ctx = LocalContext.current
@@ -106,16 +121,20 @@ fun SubMenu(vm: BrowserViewModel, modifier: Modifier) {
         }
     }
     Column(modifier.width(256.dp).zIndex(10f).shadow(8.dp, shape).clip(shape).background(ui.cs.surfaceContainer).blockTouches().padding(vertical = 8.dp)) {
-        Item("home", "Home", false) { vm.isSubMenuVisible = false; vm.goHome() }
-        Item("bookmark_add", "Bookmark", true) { vm.isSubMenuVisible = false; vm.bookmarksAutoAdd = true; vm.openView("bookmarks") }
-        Item("share", "Share", true) { vm.activeUrl?.let { shareText(ctx, it, "Share Link") }; vm.isSubMenuVisible = false }
-        Item("search", "Find in Page", true) { vm.isSubMenuVisible = false; vm.findVisible = true }
-        Item("qr_code_scanner", "Scan QR Code", false) { vm.isSubMenuVisible = false; vm.qrScannerVisible = true }
-        Item("qr_code_2", "Generate QR Code", true) { vm.isSubMenuVisible = false; vm.qrGeneratorVisible = true }
-        Item("print", "Print", true) { vm.isSubMenuVisible = false; vm.web.tryEmit(WebCmd.Print) }
+        val leave = { vm.isSubMenuVisible = false; vm.switcherVisible = false }
+        Item("home", "Home", false) { leave(); vm.goHome() }
+        Item("share", "Share", true) { vm.isSubMenuVisible = false; vm.activeUrl?.let { shareText(ctx, it, "Share Link") } }
+        Item("bookmark_add", "Bookmark in folder…", true) { vm.bookmarksAutoAdd = true; vm.openView("bookmarks") }
+        Item("search", "Find in Page", true) { leave(); vm.findVisible = true }
+        Item("qr_code_scanner", "Scan QR Code", false) { leave(); vm.qrScannerVisible = true }
+        Item("qr_code_2", "Generate QR Code", true) { leave(); vm.qrGeneratorVisible = true }
+        Item("print", "Print", true) { leave(); vm.web.tryEmit(WebCmd.Print) }
+        Item("add_to_home_screen", "Add to Home screen", true) { vm.isSubMenuVisible = false; tab?.let { pinShortcut(ctx, it.title, it.url ?: return@let) } }
         Box(Modifier.padding(vertical = 4.dp, horizontal = 16.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
         Toggle("desktop_windows", "Desktop Mode", tab?.desktopMode ?: vm.settings.desktopMode) { vm.setDesktopMode(!(tab?.desktopMode ?: vm.settings.desktopMode)) }
         Toggle("chrome_reader_mode", "Reader Mode", tab?.readerMode ?: vm.settings.readerModeEnabled) { vm.setReaderMode(!(tab?.readerMode ?: vm.settings.readerModeEnabled)) }
+        Box(Modifier.padding(vertical = 4.dp, horizontal = 16.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
+        Item("delete", "Close all tabs", false) { vm.isSubMenuVisible = false; vm.clearAllTabs() }
     }
 }
 
@@ -166,8 +185,8 @@ fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, scree
 // ---------------------------------------------------------------- overlay sheet (OverlaySheet.tsx + sheetPanResponder)
 @Composable
 fun OverlaySheet(
-    title: String, height: Animatable<Float, androidx.compose.animation.core.AnimationVector1D>, snapDefault: Float, snapFull: Float, imeDp: Float,
-    onClose: () -> Unit, scope: kotlinx.coroutines.CoroutineScope, content: @Composable () -> Unit,
+    height: Animatable<Float, androidx.compose.animation.core.AnimationVector1D>, snapDefault: Float, snapFull: Float, imeDp: Float,
+    onClose: () -> Unit, scope: kotlinx.coroutines.CoroutineScope, header: (@Composable () -> Unit)? = null, content: @Composable () -> Unit,
 ) {
     val ui = LocalUi.current
     val shape = RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp)
@@ -202,7 +221,8 @@ fun OverlaySheet(
             ) {
                 Box(Modifier.padding(vertical = 16.dp).size(32.dp, 4.dp).background(ui.cs.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(2.dp)))
                 Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Txt(title, 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
+                    if (header != null) Box(Modifier.weight(1f).padding(end = 12.dp)) { header() }
+                    else Txt("Settings", 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
                     FilledTonalIconButton(onClick = onClose) { Sym("close", 24f, ui.cs.onSecondaryContainer) }
                 }
             }
@@ -280,14 +300,14 @@ fun ModalFrame(visible: Boolean, onDismiss: () -> Unit, dismissOnScrim: Boolean 
 
 /** CustomAlert.tsx → M3 alert dialog */
 @Composable
-fun CustomAlert(data: AlertData?, onDismiss: () -> Unit) {
+fun CustomAlert(data: AlertData?, onButton: () -> Unit, onCancel: () -> Unit) {
     val ui = LocalUi.current
     var last by remember { mutableStateOf(data) }
     if (data != null) last = data
     val d = last ?: return
-    ModalFrame(data != null, onDismiss, dismissOnScrim = true) {
+    ModalFrame(data != null, onCancel, dismissOnScrim = true) {
         DialogCard(d.title, actions = {
-            d.buttons.forEach { b -> DialogAction(b.text, destructive = b.style == "destructive") { b.onPress(); onDismiss() } }
+            d.buttons.forEach { b -> DialogAction(b.text, destructive = b.style == "destructive") { onButton(); b.onPress() } }
         }) {
             Txt(d.message, 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f)
         }
@@ -305,9 +325,10 @@ fun ConfirmDialog(vm: BrowserViewModel) {
         "history" -> "This will permanently delete history for: ${c.label}."
         "bgRefresh" -> "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data."
         "wipeData" -> "This will delete ALL data including history, bookmarks, tabs, and settings. The app will be reset to a fresh state."
+        "clearData" -> "This will delete cookies, site storage and cached files. You will be signed out of websites."
         else -> "This will restore all app settings to their default values. Your history and tabs will be preserved."
     }
-    val action = when (c.type) { "resetSettings" -> "Reset"; "bgRefresh" -> "Enable"; "wipeData" -> "Wipe App"; else -> "Delete" }
+    val action = when (c.type) { "resetSettings" -> "Reset"; "bgRefresh" -> "Enable"; "wipeData" -> "Wipe App"; "clearData" -> "Clear"; else -> "Delete" }
     ModalFrame(vm.confirm != null, { vm.confirm = null }, dismissOnScrim = true) {
         DialogCard("Are you sure?", actions = {
             DialogAction("Cancel") { vm.confirm = null }
@@ -378,7 +399,6 @@ fun SheetSearchField(
 fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
     val ui = LocalUi.current
     val ctx = LocalContext.current
-    val focusInput = { vm.ui.tryEmit(UiEvent.FocusInput) }
     var last by remember { mutableStateOf(vm.contextMenu) }
     vm.contextMenu?.let { last = it }
     val d = last ?: return
@@ -398,12 +418,20 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
                     Txt(label, 15f, ui.cs.onSurface, ui.semibold)
                 }
             }
-            if (target != null) Action("open_in_new", "Open in New Tab") {
-                if (target.startsWith("http://") || target.startsWith("https://")) vm.addNewTab(target)
+            val web = target != null && (target.startsWith("http://") || target.startsWith("https://"))
+            if (web) Action("open_in_new", "Open in New Tab") { vm.addNewTab(target!!); close() }
+            if (web && d.url != null) Action("tab", "Open in Background Tab") {
+                vm.addBackgroundTab(d.url)
+                android.widget.Toast.makeText(ctx, "Opened in background", android.widget.Toast.LENGTH_SHORT).show()
                 close()
             }
-            Action("content_copy", "Copy to Address Bar") {
-                if (target != null) { vm.activeView = "none"; focusInput(); vm.inputUrl = target }
+            if (target != null) Action("content_copy", if (d.url != null) "Copy Link" else "Copy Image Link") {
+                (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                    .setPrimaryClip(android.content.ClipData.newPlainText("link", target))
+                close()
+            }
+            Action("edit", "Edit in Address Bar") {
+                if (target != null) { vm.activeView = "none"; vm.ui.tryEmit(UiEvent.FocusInput); vm.inputUrl = target }
                 close()
             }
             Action("share", "Share") { target?.let { shareText(ctx, it) }; close() }

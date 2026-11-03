@@ -64,7 +64,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 grid sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-12">
            <FeatureBrief icon={<Zap size={24} className="text-yellow-500"/>} title="Instant Interaction" desc="Zero lag, gesture-first navigation." />
            <FeatureBrief icon={<Palette size={24} className="text-pink-500"/>} title="Material You" desc="Colors from your accent or your wallpaper." />
-           <FeatureBrief icon={<Shield size={24} className="text-blue-500"/>} title="Privacy Native" desc="Your data never leaves your device." />
+           <FeatureBrief icon={<Shield size={24} className="text-blue-500"/>} title="Privacy Native" desc="Built-in ad and tracker blocking. Your data never leaves your device." />
         </div>
       </section>
 
@@ -77,9 +77,9 @@ export default function Home() {
           tag="Interaction"
           tagColor="text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20"
           title="One Pill. Total Control."
-          description="The dashboard is the heart of mi. Browser. A single swipe up on the Pill reveals your entire digital world—History, Bookmarks, and Settings—all organized in a Material 3 sheet that follows your finger."
+          description="The Pill is the heart of mi. Browser. Tap to search with live suggestions, swipe sideways to go back or forward, swipe up for the Tab Switcher, and swipe down to hide it."
           bullets={[
-            "Swipe up to open, down to hide",
+            "Swipe up for tabs, down to hide",
             "One-handed optimization",
             "Pin the recall button left, center, or right",
             "Immersive full-screen mode"
@@ -94,11 +94,11 @@ export default function Home() {
           tag="Organization"
           tagColor="text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20"
           title="Visual Tab Management."
-          description="Stop guessing which tab is which. mi. provides a high-fidelity grid view with real-time snapshots of your open sessions, making it effortless to switch context or clean up your workspace."
+          description="Stop guessing which tab is which. The Tab Switcher shows your tabs like recent apps, with live snapshots. Swipe a card up to close it."
           bullets={[
             "Visual snapshot previews",
-            "Seamless reordering",
-            "Clear-all tabs shortcut",
+            "Swipe up to close, with undo",
+            "Tab actions in one bar",
             "Hyper-fast tab switching"
           ]}
           imageSide="left"

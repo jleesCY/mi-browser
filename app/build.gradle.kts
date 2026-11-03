@@ -18,8 +18,8 @@ android {
         applicationId = "com.jlees.mibrowser"
         minSdk = 26
         targetSdk = 36
-        versionCode = 100
-        versionName = "1.0.0"
+        versionCode = 110
+        versionName = "1.1.0"
     }
 
     signingConfigs {
@@ -32,6 +32,11 @@ android {
     }
 
     buildTypes {
+        // installs next to the release app: separate package, name and data
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-dev"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

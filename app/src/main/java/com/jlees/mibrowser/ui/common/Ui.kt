@@ -59,6 +59,9 @@ fun sansFlexTypography(rounded: Boolean) = typographyCache.getOrPut(rounded) { a
 
 /** Material 3 Expressive motion scheme springs (MotionScheme.expressive()). */
 object Motion {
+    /** Page ⇄ tab switcher: quick and settles fast (no long spring tail). */
+    val switcher = spring(dampingRatio = 0.9f, stiffness = 900f, visibilityThreshold = 0.001f)
+
     fun <T> fastSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.6f, stiffness = 800f) // pill swap, sheet open
     fun <T> spatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.8f, stiffness = 380f)     // settles, resets
     fun <T> noBounce(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 600f)      // drawer: never past max

@@ -16,11 +16,12 @@ Features, screenshots and guides: **[jleescy.github.io/mi-browser](https://jlees
 - **[Developer Guide](https://jleescy.github.io/mi-browser/developer)**: architecture, setup and builds.
 
 ## 🚀 Highlights
-- **The Pill**: one control for everything. Tap to search, swipe up for Tabs/Bookmarks/History/Settings, swipe sideways for back/forward, swipe down to hide it. The recall button can be pinned left, center or right.
+- **The Pill**: one control for everything. Tap to search (with suggestions), swipe up for the tab switcher, swipe sideways for back/forward, swipe down to hide it. The recall button can be pinned left, center or right.
 - **Material 3 Expressive**: colors generated from your accent or your wallpaper (Material You), Light/Dark/System themes, Google Sans Flex (with an optional rounded style) and Material Symbols.
-- **Tabs, bookmarks & history**: card or row tab views with live previews, drag to reorder, folders, swipe actions, search, and grouping by time or site.
+- **Tab switcher**: an app-switcher-style carousel of live tab previews. Swipe a card up to close it (with undo); quick actions, the tab menu, bookmarks and settings sit in the bottom bar.
+- **Bookmarks & history**: folders, drag to reorder, swipe actions, search, and grouping by time or site.
 - **Power tools**: find in page, QR scan (camera or image) and generate, reader mode, desktop mode, share and print.
-- **Privacy first**: HTTPS-only mode, cookie and JavaScript toggles, no tracking. All data stays in the app's private storage on your device.
+- **Privacy & security**: built-in ad/tracker blocking, third-party cookies blocked, HTTPS-only mode, per-site camera/mic/location prompts, pop-up blocking, confirmation before downloads or opening other apps, punycode display for look-alike domains, Safe Browsing. No tracking; all data stays on your device.
 
 ## 📥 Installation
 Download the latest APK from the **[Releases page](https://github.com/jleescy/mi-browser/releases)**. Requires Android 8.0+.

@@ -81,7 +81,7 @@ export default function UserDocs() {
                   <div className="space-y-6 inline-block text-left w-full">
                     <div className="space-y-4">
                       <GuideItem icon={<MousePointer2 size={18} />} title="Tap the Pill" desc="Focuses the address bar. Type a URL or a search query to navigate instantly." />
-                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Reveals the Dashboard. This is your hub for History, Bookmarks, and System Settings." />
+                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Opens the Tab Switcher: every open tab as a card, with quick actions, Bookmarks and Settings." />
                       <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap or swipe up on the floating recall button to bring it back." />
                       <div id="recall-button">
                         <GuideItem icon={<GripHorizontal size={18} />} title="Move the Recall Button" desc="While the Pill is hidden, swipe the recall button left or right. It follows your finger and pins to the left, center, or right of the screen, wherever you let go." />
@@ -120,16 +120,16 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Swipe up on the Pill from any page to reveal your navigation hub. The Dashboard gives you instant access to your most important data.
+                    Swipe up on the Pill from any page to open the Tab Switcher. The bar at the bottom acts on the centered tab: share, bookmark, new tab (+), close, and the ⋮ tab menu. Bookmarks sit on the left, Settings on the right.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Switch between your open browsing sessions." />
-                    <GuideItem icon={<Bookmark size={18} />} title="Bookmarks" desc="Access your saved favorite sites and folders." />
-                    <GuideItem icon={<History size={18} />} title="History" desc="View and search your recently visited pages." />
-                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="Configure every detail of your browsing experience." />
+                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to open it." />
+                    <GuideItem icon={<Bookmark size={18} />} title="Bookmarks" desc="The left button opens your Library: Bookmarks and History." />
+                    <GuideItem icon={<History size={18} />} title="History" desc="Switch to History from the Library header." />
+                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button opens app Settings." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Secondary Menu:</strong> Tap the &quot;Menu&quot; button on the far right of the Dashboard to access Power Tools like Reader Mode, QR Tools, and Desktop Site toggles.</p>
+                    <p><strong>Tab Menu:</strong> Tap ⋮ in the switcher for Find in Page, QR tools, Print, Add to Home screen, and the Desktop and Reader Mode toggles.</p>
                   </div>
                 </div>
               </div>
@@ -177,14 +177,12 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Manage multiple sessions with ease. mi. uses high-fidelity snapshots so you never lose your place.
+                    Your tabs are laid out like an app switcher, with live snapshots so you never lose your place.
                   </p>
                   <div className="space-y-4 inline-block text-left">
-                    <GuideItem icon={<Layers size={18} />} title="Grid/Card View" desc="Switch between dense rows or large visual cards in Settings." />
-                    <GuideItem icon={<MousePointer2 size={18} />} title="Reordering" desc="In the tab view, long-press a tab and drag it to a new position to reorder your workspace." />
-                    <GuideItem icon={<Trash2 size={18} />} title="Closing Tabs" desc="Swipe left on a tab row to reveal Edit and Delete, or tap the 'X' on a card. Use 'Clear all tabs' in the ⋮ menu to reset completely." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Closing Tabs" desc="Swipe a card up to close it, then tap Undo if you didn't mean to. Use 'Close all tabs' in the ⋮ menu to reset completely." />
                     <div id="tab-editing">
-                      <GuideItem icon={<Pencil size={18} />} title="Tab Editing" desc="Tap the pencil icon on any tab to change its display name for better organization." />
+                      <GuideItem icon={<Pencil size={18} />} title="Tab Editing" desc="Long-press a card to rename the tab." />
                     </div>
                     <GuideItem icon={<Zap size={18} />} title="Visual Snapshots" desc="Real-time previews of your pages help you identify the right tab in seconds." />
                   </div>
@@ -279,7 +277,6 @@ export default function UserDocs() {
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
-                  <SettingItem title="Expand Menus" desc="When enabled, menus (History, Tabs, Settings) will open to full-screen height immediately." />
                 </SettingsSection>
 
                 {/* Pill */}
@@ -288,7 +285,6 @@ export default function UserDocs() {
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
                   <SettingItem title="Expand Searches" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
-                  <SettingItem title="Reorder Icons" desc="Drag and drop the Dashboard menu bar icons into your preferred order for quicker access to Tabs, Bookmarks, History, or Settings." />
                 </SettingsSection>
 
                 {/* Home Page */}
@@ -302,9 +298,7 @@ export default function UserDocs() {
 
                 {/* Tabs */}
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
-                  <SettingItem title="Style" desc="Toggle between Rows (dense list) or Cards (visual grid)." />
                   <SettingItem title="Site Logo" desc="Toggles the visibility of website icons (favicons) in the tab switcher. When disabled, a globe icon is shown." />
-                  <SettingItem title="Preview Content" desc="Enables real-time snapshots of your pages when using Card view." />
                   <SettingItem title="Background Refresh" desc="When enabled, all tabs render on app startup instead of when opened. This allows for instant switching but uses more battery." />
                 </SettingsSection>
 
@@ -323,6 +317,8 @@ export default function UserDocs() {
                 {/* Browsing */}
                 <SettingsSection title="Browsing" icon={<Monitor size={20} />}>
                   <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
+                  <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
+                  <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
                 </SettingsSection>
 
@@ -331,6 +327,9 @@ export default function UserDocs() {
                   <SettingItem title="Enable JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
                   <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local IP addresses and localhost are excluded." />
+                  <SettingItem title="Block Ads & Trackers" desc="Blocks requests to known ad and tracking domains using a built-in list (StevenBlack hosts). On by default." />
+                  <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. On by default." />
+                  <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage and cached files. You will be signed out of websites." />
                 </SettingsSection>
 
                 {/* App Data */}
@@ -401,7 +400,7 @@ export default function UserDocs() {
                     <div className="flex items-center gap-2 font-bold">
                       <RefreshCw size={18} /> Local Storage
                     </div>
-                    <p className="text-sm text-blue-100/80">Bookmarks, history, and tabs are stored only in the app&apos;s private storage on your device. Sites you allow past certificate warnings are kept encrypted with the Android Keystore.</p>
+                    <p className="text-sm text-blue-100/80">Bookmarks, history, and tabs are stored only in the app&apos;s private storage on your device. Sites you allow past certificate warnings, and camera, microphone or location permissions you grant, last only until you close the app.</p>
                   </div>
                 </div>
               </div>

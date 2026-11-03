@@ -205,6 +205,13 @@ private val imageCache = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024
 
 private const val MAX_IMAGE_PX = 2048
 
+/** An already-loaded image (e.g. a favicon), as an Android bitmap. */
+/** Seeds the image cache so a just-captured preview shows on the next frame, before its file is written. */
+fun cacheImage(key: String, img: ImageBitmap) { imageCache.put(key, img) }
+
+fun cachedImage(src: String?) = src?.let { imageCache.get(it) }
+
+
 /** Loads http(s) URLs or local file paths, downsampling big images (backgrounds). */
 @Composable
 fun rememberImage(src: String?): State<ImageBitmap?> {
@@ -236,9 +243,10 @@ fun rememberImage(src: String?): State<ImageBitmap?> {
 @Composable
 fun NetImage(
     src: String?, modifier: Modifier, contentScale: ContentScale = ContentScale.Crop, alpha: Float = 1f,
-    colorFilter: androidx.compose.ui.graphics.ColorFilter? = null, fallback: @Composable () -> Unit = {},
+    colorFilter: androidx.compose.ui.graphics.ColorFilter? = null, alignmentTop: Boolean = false, fallback: @Composable () -> Unit = {},
 ) {
     val img by rememberImage(src)
     val b = img
-    if (b != null) Image(b, null, modifier, contentScale = contentScale, alpha = alpha, colorFilter = colorFilter) else fallback()
+    if (b != null) Image(b, null, modifier, alignment = if (alignmentTop) Alignment.TopCenter else Alignment.Center, contentScale = contentScale, alpha = alpha, colorFilter = colorFilter)
+    else fallback()
 }

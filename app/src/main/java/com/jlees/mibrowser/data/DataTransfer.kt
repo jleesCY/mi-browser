@@ -1,4 +1,4 @@
-// Port of legacy/src/utils/dataTransfer.ts — .midata = zip { data.json: {settings, ignoredHosts, backgroundImageName}, background.<ext> }
+// Settings backup: .midata = zip { data.json: {settings, backgroundImageName}, background.<ext> }
 package com.jlees.mibrowser.data
 
 import android.content.Context
@@ -20,10 +20,9 @@ import java.util.zip.ZipOutputStream
 
 class ImportError(val title: String, message: String) : Exception(message)
 
-data class ImportedData(val settings: Settings, val ignoredHosts: List<String>?)
 
 object DataTransfer {
-    fun exportTo(ctx: Context, uri: Uri, settings: Settings, ignoredHosts: List<String>) {
+    fun exportTo(ctx: Context, uri: Uri, settings: Settings) {
         ctx.contentResolver.openOutputStream(uri)?.use { out ->
             ZipOutputStream(out).use { zip ->
                 var bgName: String? = null
@@ -33,7 +32,6 @@ object DataTransfer {
                 }
                 val data = JsonObject(mapOf(
                     "settings" to json.encodeToJsonElement(settings),
-                    "ignoredHosts" to JsonArray(ignoredHosts.map { JsonPrimitive(it) }),
                     "backgroundImageName" to (bgName?.let { JsonPrimitive(it) } ?: JsonNull),
                 ))
                 zip.putNextEntry(ZipEntry("data.json")); zip.write(data.toString().toByteArray()); zip.closeEntry()
@@ -47,7 +45,7 @@ object DataTransfer {
         } ?: uri.lastPathSegment ?: ""
 
     /** Validates and parses a .midata file; the background image is copied into filesDir. */
-    fun import(ctx: Context, uri: Uri): ImportedData {
+    fun import(ctx: Context, uri: Uri): Settings {
         val name = displayName(ctx, uri)
         if (!name.endsWith(".midata") && !name.endsWith(".zip")) throw ImportError("Invalid File", "Please select a valid .midata file.")
         val files = HashMap<String, ByteArray>()
@@ -63,13 +61,12 @@ object DataTransfer {
         val obj = json.parseToJsonElement(String(raw)).jsonObject
         val settingsEl = obj["settings"]?.takeIf { it is JsonObject } ?: throw ImportError("Invalid Data", "Structure mismatch.")
         var settings = json.decodeFromJsonElement<Settings>(settingsEl)
-        val hosts = (obj["ignoredHosts"] as? JsonArray)?.jsonArray?.map { it.jsonPrimitive.content }
         val bgName = (obj["backgroundImageName"] as? JsonPrimitive)?.takeIf { it.isString }?.content
         settings = if (bgName != null && files[bgName] != null) {
             val dest = File(ctx.filesDir, "bg_${System.currentTimeMillis()}_${File(bgName).name}")
             dest.writeBytes(files.getValue(bgName))
             settings.copy(homeBackgroundImage = dest.path)
         } else settings.copy(homeBackgroundImage = null)
-        return ImportedData(settings, hosts)
+        return settings
     }
 }
