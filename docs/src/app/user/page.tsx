@@ -81,7 +81,7 @@ export default function UserDocs() {
                   <div className="space-y-6 inline-block text-left w-full">
                     <div className="space-y-4">
                       <GuideItem icon={<MousePointer2 size={18} />} title="Tap the Pill" desc="Focuses the address bar. Type a URL or a search query to navigate instantly." />
-                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Opens the Tab Switcher: every open tab as a card, with quick actions, Bookmarks and Settings." />
+                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Opens the Tab Switcher. The page shrinks into its card as your finger moves, like a phone's recent apps screen." />
                       <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap or swipe up on the floating recall button to bring it back." />
                       <div id="recall-button">
                         <GuideItem icon={<GripHorizontal size={18} />} title="Move the Recall Button" desc="While the Pill is hidden, swipe the recall button left or right. It follows your finger and pins to the left, center, or right of the screen, wherever you let go." />
@@ -102,34 +102,34 @@ export default function UserDocs() {
                     </div>
                   </div>
                 </div>
-                <DeviceMockup src="/images/homepage.jpg" color="blue" />
+                <DeviceMockup src="/images/browsing.jpg" color="blue" />
               </div>
             </motion.div>
 
-            {/* 2. The Dashboard - IMAGE LEFT */}
+            {/* 2. The Tab Switcher - IMAGE LEFT */}
             <motion.div id="dashboard" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
                 <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600">
                   <Layout size={24} />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">The Dashboard</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">The Tab Switcher</h2>
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
                 <div className="order-2 lg:order-1">
-                  <DeviceMockup src="/images/dashboard.jpg" color="orange" />
+                  <DeviceMockup src="/images/tab_switcher.jpg" color="orange" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Swipe up on the Pill from any page to open the Tab Switcher. The bar at the bottom acts on the centered tab: share, bookmark, new tab (+), close, and the ⋮ tab menu. Bookmarks sit on the left, Settings on the right.
+                    Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to open it." />
-                    <GuideItem icon={<Bookmark size={18} />} title="Bookmarks" desc="The left button opens your Library: Bookmarks and History." />
-                    <GuideItem icon={<History size={18} />} title="History" desc="Switch to History from the Library header." />
-                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button opens app Settings." />
+                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to zoom back into it. Most recently used on the right." />
+                    <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button opens Bookmarks and History on top of the switcher; closing it takes you back." />
+                    <GuideItem icon={<History size={18} />} title="New Tab" desc="The + button opens a fresh tab and zooms into it." />
+                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button opens Settings on top of the switcher." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Tab Menu:</strong> Tap ⋮ in the switcher for Find in Page, QR tools, Print, Add to Home screen, and the Desktop and Reader Mode toggles.</p>
+                    <p><strong>Tab Menu:</strong> Tap ⋮ for actions on the centered tab: Share, Bookmark in folder, Find in Page, QR tools, Print, Add to Home screen, Desktop and Reader Mode, and Close all tabs.</p>
                   </div>
                 </div>
               </div>
@@ -150,6 +150,7 @@ export default function UserDocs() {
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
                     <GuideItem icon={<Clock size={18} />} title="Recent Searches" desc="Drag the handle above the focused Pill upwards to reveal your recent searches. Tap one to put it back in the address bar." />
+                    <GuideItem icon={<Search size={18} />} title="Search Suggestions" desc="While the drawer is open, suggestions from your search engine appear as you type, after your own matching past searches. The drawer never opens by itself." />
                     <GuideItem icon={<FolderHeart size={18} />} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
                     <GuideItem icon={<Maximize size={18} />} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
                     <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and drag any favorite icon to reorder them instantly." />
@@ -173,18 +174,18 @@ export default function UserDocs() {
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left lg:flex-row-reverse">
                 <div className="order-2 lg:order-1">
-                  <DeviceMockup src="/images/tab_grid.jpg" color="purple" />
+                  <DeviceMockup src="/images/tab_zoom.jpg" color="purple" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Your tabs are laid out like an app switcher, with live snapshots so you never lose your place.
+                    Moving between tabs feels like switching apps: the live page zooms out into its card under your finger, and zooms back in when you pick a tab.
                   </p>
                   <div className="space-y-4 inline-block text-left">
-                    <GuideItem icon={<Trash2 size={18} />} title="Closing Tabs" desc="Swipe a card up to close it, then tap Undo if you didn't mean to. Use 'Close all tabs' in the ⋮ menu to reset completely." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Closing Tabs" desc="Swipe a card up. It resists until you pass the threshold (you'll feel a tick), then follows your finger; let go to close. Tap Undo if you didn't mean to. 'Close all tabs' is in the ⋮ menu." />
                     <div id="tab-editing">
                       <GuideItem icon={<Pencil size={18} />} title="Tab Editing" desc="Long-press a card to rename the tab." />
                     </div>
-                    <GuideItem icon={<Zap size={18} />} title="Visual Snapshots" desc="Real-time previews of your pages help you identify the right tab in seconds." />
+                    <GuideItem icon={<Zap size={18} />} title="Live Previews" desc="Every card shows a snapshot of its page, updated whenever you leave the tab." />
                   </div>
                 </div>
               </div>
@@ -204,7 +205,7 @@ export default function UserDocs() {
                     Keep your favorite corners of the web organized. mi. Browser provides a flexible bookmarking system with folder support.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
-                    <GuideItem icon={<MousePointer2 size={18} />} title="Quick Save" desc="Open the Dashboard Menu and select 'Bookmark' to instantly save the current page to your library." />
+                    <GuideItem icon={<MousePointer2 size={18} />} title="Quick Save" desc="Open the Tab Switcher's ⋮ menu and choose 'Bookmark in folder…' to save the centered tab to your library." />
                     <div id="bookmark-swiping">
                       <GuideItem icon={<RefreshCw size={18} />} title="Swipe to Edit" desc="Swipe left on any bookmark or folder to reveal Edit and Delete actions. You can change names, URLs, or move items between folders." />
                     </div>
@@ -356,7 +357,7 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Tap the Menu button on the Dashboard to access advanced utility tools for any page.
+                    Tap ⋮ in the Tab Switcher to access utility tools for the centered tab.
                   </p>
                   <div className="grid grid-cols-1 gap-4 inline-block text-left w-full">
                     <div id="home-button">

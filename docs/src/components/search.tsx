@@ -17,7 +17,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Core Interactions", type: "User Guide", href: "/user#the-pill", excerpt: "Master the core interaction element: tap and swipe-up gestures." },
   { title: "The Pill", type: "User Guide", href: "/user#the-pill", excerpt: "Master the core interaction element: tap and swipe-up gestures." },
   { title: "Navigation Gestures", type: "User Guide", href: "/user#gestures", excerpt: "Learn horizontal swipe gestures for back/forward navigation." },
-  { title: "Tab Switcher", type: "User Guide", href: "/user#dashboard", excerpt: "Swipe up on the Pill for your tabs, quick actions, Bookmarks and Settings." },
+  { title: "Tab Switcher", type: "User Guide", href: "/user#dashboard", excerpt: "Swipe up on the Pill: the page zooms into a recent-apps style view of your tabs." },
   { title: "Recent Searches", type: "User Guide", href: "/user#recent-history", excerpt: "Drag the search handle up to reveal recent searches and favorites." },
   { title: "Recall Button", type: "User Guide", href: "/user#recall-button", excerpt: "Swipe the recall button sideways to pin it left, center, or right." },
   { title: "Tab Management", type: "User Guide", href: "/user#tabs", excerpt: "Visual snapshots, swipe to close, and undo." },

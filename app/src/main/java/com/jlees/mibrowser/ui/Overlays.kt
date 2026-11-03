@@ -41,6 +41,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -305,11 +307,29 @@ fun CustomAlert(data: AlertData?, onButton: () -> Unit, onCancel: () -> Unit) {
     var last by remember { mutableStateOf(data) }
     if (data != null) last = data
     val d = last ?: return
+    // 3+ buttons don't fit in one row: the last (main) action becomes a large full-width button, the rest go below it
+    val stacked = d.buttons.size > 2
     ModalFrame(data != null, onCancel, dismissOnScrim = true) {
-        DialogCard(d.title, actions = {
+        DialogCard(d.title, actions = if (stacked) null else { {
             d.buttons.forEach { b -> DialogAction(b.text, destructive = b.style == "destructive") { onButton(); b.onPress() } }
-        }) {
+        } }) {
             Txt(d.message, 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f)
+            if (stacked) {
+                val main = d.buttons.last()
+                Button({ onButton(); main.onPress() }, Modifier.fillMaxWidth().padding(top = 24.dp).heightIn(min = 52.dp)) {
+                    Text(main.text, style = MaterialTheme.typography.labelLarge)
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    d.buttons.dropLast(1).forEach { b ->
+                        TextButton({ onButton(); b.onPress() }, Modifier.weight(1f)) {
+                            Text(
+                                b.text, color = if (b.style == "destructive") ui.cs.error else ui.cs.primary,
+                                style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

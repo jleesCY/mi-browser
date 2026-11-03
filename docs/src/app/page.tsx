@@ -71,9 +71,9 @@ export default function Home() {
       {/* Detailed Features: Alternating Sections */}
       <div className="space-y-24 sm:space-y-32 py-24 sm:py-32">
         
-        {/* The Pill / Dashboard */}
+        {/* The Pill */}
         <FeatureDetail 
-          image={getAssetPath("/images/dashboard.jpg")}
+          image={getAssetPath("/images/browsing.jpg")}
           tag="Interaction"
           tagColor="text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20"
           title="One Pill. Total Control."
@@ -90,16 +90,16 @@ export default function Home() {
 
         {/* Tab Management */}
         <FeatureDetail 
-          image={getAssetPath("/images/tab_grid.jpg")}
+          image={getAssetPath("/images/tab_zoom.jpg")}
           tag="Organization"
           tagColor="text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20"
           title="Visual Tab Management."
-          description="Stop guessing which tab is which. The Tab Switcher shows your tabs like recent apps, with live snapshots. Swipe a card up to close it."
+          description="Swipe up and the page zooms out into a card, just like your phone's recent apps. Your tabs line up by when you last used them, with live previews. Swipe a card up to close it."
           bullets={[
-            "Visual snapshot previews",
+            "Zooms with your finger",
+            "Most recent tab on the right",
             "Swipe up to close, with undo",
-            "Tab actions in one bar",
-            "Hyper-fast tab switching"
+            "Live previews of every tab"
           ]}
           imageSide="left"
           glowColor="purple"
@@ -128,7 +128,7 @@ export default function Home() {
           tag="Utility"
           tagColor="text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20"
           title="Power in your pocket."
-          description="The Power Tools menu provides instant access to the utilities you use most. From built-in QR code generation and scanning to desktop mode toggles and a clean Reader View, everything is just a tap away in the Dashboard Menu."
+          description="The Power Tools menu provides instant access to the utilities you use most. From built-in QR code generation and scanning to desktop mode toggles and a clean Reader View, everything is just a tap away in the Tab Switcher's ⋮ menu."
           bullets={[
             "Integrated QR Toolbox",
             "One-tap Reader Mode",

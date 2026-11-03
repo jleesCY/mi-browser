@@ -314,6 +314,9 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
     val s = vm.settings
     val focusRequester = remember { FocusRequester() }
     var tfv by remember { mutableStateOf(TextFieldValue(vm.inputUrl)) }
+    // On focus the host is swapped for the full URL, but the focusing tap then reports its cursor placement together
+    // with the pre-swap text; that report must not put the host back. Cleared once focus settles.
+    var staleText by remember { mutableStateOf<String?>(null) }
     // selectTextOnFocus: the tap that focuses the field places the cursor right after focus; re-select everything
     // once that settles (this also syncs the keyboard's selection, so typing replaces the URL).
     LaunchedEffect(vm.isInputFocused) {
@@ -322,6 +325,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
             kotlinx.coroutines.delay(120)
             // only if nothing was typed meanwhile, or the first keystroke would be selected and overwritten
             if (tfv.text == before) tfv = tfv.copy(selection = TextRange(0, tfv.text.length))
+            staleText = null
         }
     }
     LaunchedEffect(vm.inputUrl) { if (tfv.text != vm.inputUrl) tfv = TextFieldValue(vm.inputUrl, TextRange(vm.inputUrl.length)) }
@@ -372,7 +376,11 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                 Row(Modifier.fillMaxSize().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     BasicTextField(
                         value = tfv,
-                        onValueChange = { if (it.text != tfv.text) vm.onTyping(it.text, pill.recentExpanded); tfv = it; vm.inputUrl = it.text },
+                        onValueChange = { v ->
+                            if (v.text == staleText && v.text != tfv.text) return@BasicTextField // stale pre-focus text (see staleText)
+                            if (v.text != tfv.text) vm.onTyping(v.text, pill.recentExpanded)
+                            tfv = v; vm.inputUrl = v.text
+                        },
                         modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
                             .pointerInput(Unit) {
                                 awaitEachGesture {
@@ -393,6 +401,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                             .onFocusChanged { st ->
                                 if (st.isFocused && !vm.isInputFocused) {
                                     vm.isInputFocused = true
+                                    staleText = tfv.text
                                     val full = vm.activeUrl ?: ""
                                     vm.inputUrl = full
                                     tfv = TextFieldValue(full, TextRange(0, full.length)) // selectTextOnFocus

@@ -63,7 +63,11 @@ fun pushNavigation(t: TabItem, url: String): Pair<List<String>, Int> {
 /** addToHistory: returns new (history, recentSearches). */
 fun addHistory(history: List<HistoryItem>, recents: List<HistoryItem>, url: String, title: String?, now: Long = System.currentTimeMillis()): Pair<List<HistoryItem>, List<HistoryItem>> {
     if (url.isEmpty() || url == "about:blank") return history to recents
-    val newHistory = if (history.isNotEmpty() && history[0].url == url) history else {
+    val newHistory = if (history.isNotEmpty() && history[0].url == url) {
+        // the page was recorded before its title arrived (host placeholder): take the real title now
+        val better = historyTitle(url, title)
+        if (better != history[0].title && better != displayHost(url)) listOf(history[0].copy(title = better)) + history.drop(1) else history
+    } else {
         val trimmed = url.removeSuffix("/")
         (listOf(HistoryItem(url, historyTitle(url, title), now, uniqueId())) + history.filter { it.url.removeSuffix("/") != trimmed }).take(1000)
     }

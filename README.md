@@ -3,10 +3,10 @@
 **mi.** (pronounced "my") is a hyper-lightweight, distraction-free Android browser. It replaces the traditional toolbar with a single, gesture-driven **Pill**, and is built natively in **Kotlin** with **Jetpack Compose** and **Material 3 Expressive**.
 
 <p align="center">
-  <img src="docs/public/images/homepage.jpg" width="200" alt="Home page" />
-  <img src="docs/public/images/dashboard.jpg" width="200" alt="Pill toolbar" />
-  <img src="docs/public/images/tab_grid.jpg" width="200" alt="Tabs" />
-  <img src="docs/public/images/settings.jpg" width="200" alt="Settings" />
+  <img src="docs/public/images/browsing.jpg" width="200" alt="Browsing with the Pill" />
+  <img src="docs/public/images/tab_zoom.jpg" width="200" alt="Swiping up: the page zooms into the tab switcher" />
+  <img src="docs/public/images/tab_switcher.jpg" width="200" alt="Tab switcher" />
+  <img src="docs/public/images/focused_pill.jpg" width="200" alt="Search with suggestions" />
 </p>
 
 ## 🌐 Website
@@ -18,9 +18,10 @@ Features, screenshots and guides: **[jleescy.github.io/mi-browser](https://jlees
 ## 🚀 Highlights
 - **The Pill**: one control for everything. Tap to search (with suggestions), swipe up for the tab switcher, swipe sideways for back/forward, swipe down to hide it. The recall button can be pinned left, center or right.
 - **Material 3 Expressive**: colors generated from your accent or your wallpaper (Material You), Light/Dark/System themes, Google Sans Flex (with an optional rounded style) and Material Symbols.
-- **Tab switcher**: an app-switcher-style carousel of live tab previews. Swipe a card up to close it (with undo); quick actions, the tab menu, bookmarks and settings sit in the bottom bar.
+- **Tab switcher**: swipe up and the page zooms out into its card, just like your phone's recent apps. Tabs line up by when you last used them (current tab on the right), with live previews. Swipe a card up to close it (with undo); new tab, the tab menu, bookmarks and settings sit in the bottom bar.
+- **Search**: suggestions from your search engine after your own past searches, plus a favorites bar.
 - **Bookmarks & history**: folders, drag to reorder, swipe actions, search, and grouping by time or site.
-- **Power tools**: find in page, QR scan (camera or image) and generate, reader mode, desktop mode, share and print.
+- **Power tools** (in the tab menu): find in page, QR scan (camera or image) and generate, reader mode, desktop mode, share and print.
 - **Privacy & security**: built-in ad/tracker blocking, third-party cookies blocked, HTTPS-only mode, per-site camera/mic/location prompts, pop-up blocking, confirmation before downloads or opening other apps, punycode display for look-alike domains, Safe Browsing. No tracking; all data stays on your device.
 
 ## 📥 Installation
@@ -51,7 +52,7 @@ app/src/main/java/com/jlees/mibrowser/
 docs/                     # project website (Next.js, deployed to GitHub Pages)
 ```
 
-The 0.x releases were built with React Native; 1.0 is a ground-up native rewrite. The old source is in git history at commit `c22a4d8`.
+The 0.x releases were built with React Native; 1.0 is a ground-up native rewrite. The old source is on the [`legacy`](https://github.com/jleescy/mi-browser/tree/legacy) branch.
 
 ---
 <p align="center">

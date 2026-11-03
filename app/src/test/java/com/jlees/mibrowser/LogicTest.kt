@@ -75,6 +75,15 @@ class LogicTest {
         assertEquals(false, newer("v1.0.0-beta", "1.0.0"))
     }
 
+    @Test fun historyTitleUpgradesFromHostPlaceholder() {
+        val url = "https://en.wikipedia.org/wiki/Mars"
+        val (h1, _) = addHistory(emptyList(), emptyList(), url, "en.wikipedia.org") // loaded before the title arrived
+        val (h2, _) = addHistory(h1, emptyList(), url, "Mars - Wikipedia")
+        assertEquals(listOf("Mars - Wikipedia"), h2.map { it.title })
+        val (h3, _) = addHistory(h2, emptyList(), url, null) // a later call without a title keeps the real one
+        assertEquals("Mars - Wikipedia", h3[0].title)
+    }
+
     @Test fun tabHistoryIsCapped() {
         val (stack, idx) = capped(List(MAX_TAB_HISTORY + 5) { "https://e.com/$it" }, MAX_TAB_HISTORY + 4)
         assertEquals(MAX_TAB_HISTORY, stack.size)
