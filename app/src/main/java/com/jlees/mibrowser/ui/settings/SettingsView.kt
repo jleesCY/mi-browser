@@ -35,6 +35,17 @@ import com.jlees.mibrowser.data.DEFAULT_MENU_BAR_ORDER
 import com.jlees.mibrowser.data.DataTransfer
 import com.jlees.mibrowser.data.ImportError
 import com.jlees.mibrowser.logic.ACCENTS
+import com.jlees.mibrowser.logic.DYNAMIC_ACCENT
+import android.os.Build
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.TextButton
 import com.jlees.mibrowser.logic.SEARCH_ENGINES
 import com.jlees.mibrowser.logic.hexColor
 import com.jlees.mibrowser.logic.moved
@@ -113,58 +124,58 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
 
     val groups = listOf(
         SGroup("Colors", "colors", listOf(
-            SRow("Theme") { ChipsRow("eye-outline", "Theme", listOf("light" to "Light", "dark" to "Dark", "adaptive" to "Adaptive"), s.themeMode) { set { copy(themeMode = it) } } },
+            SRow("Theme") { ChipsRow("routine", "Theme", listOf("light" to "Light", "dark" to "Dark", "system" to "System"), s.themeMode) { set { copy(themeMode = it) } } },
             SRow("Accent Color") { AccentRow(vm) },
         )),
         SGroup("Interface", "interface", listOf(
-            SRow("Font Size") { StepperRow("text-outline", "Font Size", s.fontScale, 0.8f, 1.2f, (s.fontScale - 0.8f) / 0.4f) { set { copy(fontScale = it) } } },
-            SRow("Font Weight") { ChipsRow("barbell-outline", "Font Weight", listOf("light" to "Light", "normal" to "Normal", "bold" to "Bold"), s.fontWeight, spaceAround = true) { set { copy(fontWeight = it) } } },
-            SRow("Corners") { ChipsRow("shapes-outline", "Corners", listOf("0" to "Square", "10" to "Semi", "22" to "Round"), s.cornerRadius.toString(), spaceAround = true) { set { copy(cornerRadius = it.toInt()) } } },
-            SRow("Spacing") { ChipsRow("resize-outline", "Spacing", listOf("compact" to "Compact", "normal" to "Normal", "airy" to "Airy"), s.uiPadding) { set { copy(uiPadding = it) } } },
-            SRow("Status Bar") { SwitchRow("battery-charging-outline", "Status Bar", s.showStatusBar) { set { copy(showStatusBar = it) } } },
-            SRow("Expand Menus") { SwitchRow("expand-outline", "Expand Menus", s.expandMenus) { set { copy(expandMenus = it) } } },
+            SRow("Font Size") { StepperRow("format_size", "Font Size", s.fontScale, 0.8f, 1.2f) { set { copy(fontScale = it) } } },
+            SRow("Rounded Font") { SwitchRow("font_download", "Rounded Font", s.roundedFont) { set { copy(roundedFont = it) } } },
+            SRow("Corners") { ChipsRow("rounded_corner", "Corners", listOf("0" to "Square", "12" to "Soft", "28" to "Round"), s.cornerRadius.toString()) { set { copy(cornerRadius = it.toInt()) } } },
+            SRow("Spacing") { ChipsRow("density_medium", "Spacing", listOf("compact" to "Compact", "normal" to "Normal", "airy" to "Airy"), s.uiPadding) { set { copy(uiPadding = it) } } },
+            SRow("Status Bar") { SwitchRow("battery_charging_full", "Status Bar", s.showStatusBar) { set { copy(showStatusBar = it) } } },
+            SRow("Expand Menus") { SwitchRow("open_in_full", "Expand Menus", s.expandMenus) { set { copy(expandMenus = it) } } },
         )),
         SGroup("Pill", "pill", listOf(
-            SRow("Size") { ChipsRow("scan-outline", "Size", listOf("60" to "Thin", "70" to "Normal", "80" to "Tall"), s.pillHeight.toString(), spaceAround = true) { set { copy(pillHeight = it.toInt()) } } },
-            SRow("Loading Bar") { ChipsRow("hourglass-outline", "Loading Bar", listOf("ltr" to "Standard", "center" to "Center Out", "none" to "Hidden"), s.progressBarMode) { set { copy(progressBarMode = it) } } },
-            SRow("Pin Favorites") { SwitchRow("star-outline", "Pin Favorites", s.showFavoritesDefault) { set { copy(showFavoritesDefault = it) } } },
-            SRow("Expand Searches") { SwitchRow("list-outline", "Expand Searches", s.recentSearchesExpanded) { set { copy(recentSearchesExpanded = it) } } },
+            SRow("Size") { ChipsRow("crop_free", "Size", listOf("60" to "Thin", "70" to "Normal", "80" to "Tall"), s.pillHeight.toString()) { set { copy(pillHeight = it.toInt()) } } },
+            SRow("Loading Bar") { ChipsRow("hourglass_empty", "Loading Bar", listOf("ltr" to "Standard", "center" to "Center Out", "none" to "Hidden"), s.progressBarMode) { set { copy(progressBarMode = it) } } },
+            SRow("Pin Favorites") { SwitchRow("star", "Pin Favorites", s.showFavoritesDefault) { set { copy(showFavoritesDefault = it) } } },
+            SRow("Expand Searches") { SwitchRow("list", "Expand Searches", s.recentSearchesExpanded) { set { copy(recentSearchesExpanded = it) } } },
             SRow("Reorder Icons") { ReorderIconsRow(vm) },
         )),
         SGroup("Home Page", "homepage", listOfNotNull(
-            SRow("Center Logo") { ChipsRow("scan-outline", "Logo", listOf("None", "Static", "Fidget").map { it to it }, s.homeLogoType) { set { copy(homeLogoType = it) } } },
-            SRow("Clock") { ChipsRow("time-outline", "Clock", listOf("None", "12h", "24h").map { it to it }, s.homeClockType) { set { copy(homeClockType = it) } } },
-            SRow("Date") { ChipsRow("calendar-outline", "Date", listOf("None", "Above", "Below").map { it to it }, s.homeDateType) { set { copy(homeDateType = it) } } },
+            SRow("Center Logo") { ChipsRow("crop_free", "Logo", listOf("None", "Static", "Fidget").map { it to it }, s.homeLogoType) { set { copy(homeLogoType = it) } } },
+            SRow("Clock") { ChipsRow("history", "Clock", listOf("None", "12h", "24h").map { it to it }, s.homeClockType) { set { copy(homeClockType = it) } } },
+            SRow("Date") { ChipsRow("calendar_today", "Date", listOf("None", "Above", "Below").map { it to it }, s.homeDateType) { set { copy(homeDateType = it) } } },
             SRow("Shortcut") { ShortcutRow(vm) },
             SRow("Background Image") { BackgroundRow(vm) { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             if (s.homeBackgroundImage != null) SRow("Darkness") {
-                StepperRow("contrast-outline", "Darkness", s.homeBackgroundOverlayOpacity, 0f, 1f, s.homeBackgroundOverlayOpacity) { set { copy(homeBackgroundOverlayOpacity = it) } }
+                StepperRow("contrast", "Darkness", s.homeBackgroundOverlayOpacity, 0f, 1f) { set { copy(homeBackgroundOverlayOpacity = it) } }
             } else null,
         )),
         SGroup("Tabs", "tabs", listOfNotNull(
-            SRow("Style") { ChipsRow("grid-outline", "Style", listOf("rows" to "Rows", "cards" to "Cards"), s.tabViewMode) { set { copy(tabViewMode = it) } } },
-            SRow("Site Logo") { SwitchRow("information-circle-outline", "Site Logo", s.showTabLogo) { set { copy(showTabLogo = it) } } },
-            if (s.tabViewMode == "cards") SRow("Preview Content") { SwitchRow("image-outline", "Preview Content", s.showTabPreview) { set { copy(showTabPreview = it) } } } else null,
+            SRow("Style") { ChipsRow("grid_view", "Style", listOf("rows" to "Rows", "cards" to "Cards"), s.tabViewMode) { set { copy(tabViewMode = it) } } },
+            SRow("Site Logo") { SwitchRow("info", "Site Logo", s.showTabLogo) { set { copy(showTabLogo = it) } } },
+            if (s.tabViewMode == "cards") SRow("Preview Content") { SwitchRow("image", "Preview Content", s.showTabPreview) { set { copy(showTabPreview = it) } } } else null,
             SRow("Background Refresh") {
-                SwitchRow("flash-outline", "Background Refresh", s.backgroundRefresh) { on -> if (on) vm.confirm = ConfirmData("bgRefresh") else set { copy(backgroundRefresh = false) } }
+                SwitchRow("bolt", "Background Refresh", s.backgroundRefresh) { on -> if (on) vm.confirm = ConfirmData("bgRefresh") else set { copy(backgroundRefresh = false) } }
             },
         )),
         SGroup("History", "history", listOf(
-            SRow("Group By") { ChipsRow("layers-outline", "Group By", listOf("Time", "Site").map { it to it }, s.historyGrouping) { set { copy(historyGrouping = it) } } },
-            SRow("Load Count") { ChipsRow("list-outline", "Load Count", listOf(10, 25, 50, 100).map { it.toString() to it.toString() }, s.historyLoadCount.toString()) { set { copy(historyLoadCount = it.toInt()) } } },
+            SRow("Group By") { ChipsRow("layers", "Group By", listOf("Time", "Site").map { it to it }, s.historyGrouping) { set { copy(historyGrouping = it) } } },
+            SRow("Load Count") { ChipsRow("list", "Load Count", listOf(10, 25, 50, 100).map { it.toString() to it.toString() }, s.historyLoadCount.toString()) { set { copy(historyLoadCount = it.toInt()) } } },
             SRow("Clear History") { ClearHistoryRow(vm) },
         )),
         SGroup("Bookmarks", "bookmarks", listOf(
-            SRow("Site Logo") { SwitchRow("information-circle-outline", "Site Logo", s.showBookmarkIcons) { set { copy(showBookmarkIcons = it) } } },
+            SRow("Site Logo") { SwitchRow("info", "Site Logo", s.showBookmarkIcons) { set { copy(showBookmarkIcons = it) } } },
         )),
         SGroup("Browsing", "browsing", listOf(
             SRow("Search Engine") { SearchEngineRow(vm) },
-            SRow("On Startup") { ChipsRow("power-outline", "On Startup", listOf("new" to "New Tab", "last" to "Continue Session"), s.startupTabMode) { set { copy(startupTabMode = it) } } },
+            SRow("On Startup") { ChipsRow("power_settings_new", "On Startup", listOf("new" to "New Tab", "last" to "Continue Session"), s.startupTabMode) { set { copy(startupTabMode = it) } } },
         )),
         SGroup("Security", "security", listOf(
-            SRow("Enable JavaScript") { SwitchRow("code-slash-outline", "Enable JavaScript", s.jsEnabled) { set { copy(jsEnabled = it) } } },
-            SRow("Enable Cookies") { SwitchRow("cafe-outline", "Enable Cookies", !s.blockCookies) { set { copy(blockCookies = !it) } } },
-            SRow("HTTPS Only") { SwitchRow("lock-closed-outline", "HTTPS Only", s.httpsOnly) { set { copy(httpsOnly = it) } } },
+            SRow("Enable JavaScript") { SwitchRow("code", "Enable JavaScript", s.jsEnabled) { set { copy(jsEnabled = it) } } },
+            SRow("Enable Cookies") { SwitchRow("cookie", "Enable Cookies", !s.blockCookies) { set { copy(blockCookies = !it) } } },
+            SRow("HTTPS Only") { SwitchRow("lock", "HTTPS Only", s.httpsOnly) { set { copy(httpsOnly = it) } } },
         )),
     )
 
@@ -175,18 +186,18 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
         Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 20.dp, end = 20.dp, top = 90.dp, bottom = 100.dp)) {
             if (search.isEmpty() && category == null) {
                 Spacer(Modifier.height(16.dp))
-                CategoryCard(listOf(Triple("Colors", "color-palette-outline", "colors"), Triple("Interface", "phone-portrait-outline", "interface"), Triple("Pill", "unlink-outline", "pill"))) { category = it }
+                CategoryCard(listOf(Triple("Colors", "palette", "colors"), Triple("Interface", "smartphone", "interface"), Triple("Pill", "toolbar", "pill"))) { category = it }
                 Spacer(Modifier.height(20.dp))
-                CategoryCard(listOf(Triple("Tabs", "copy-outline", "tabs"), Triple("History", "time-outline", "history"), Triple("Bookmarks", "bookmarks-outline", "bookmarks"))) { category = it }
+                CategoryCard(listOf(Triple("Tabs", "tab", "tabs"), Triple("History", "history", "history"), Triple("Bookmarks", "bookmarks", "bookmarks"))) { category = it }
                 Spacer(Modifier.height(20.dp))
-                CategoryCard(listOf(Triple("Browsing", "search-outline", "browsing"), Triple("Security", "lock-closed-outline", "security"), Triple("Home Page", "home-outline", "homepage"))) { category = it }
+                CategoryCard(listOf(Triple("Browsing", "search", "browsing"), Triple("Security", "lock", "security"), Triple("Home Page", "home", "homepage"))) { category = it }
                 Spacer(Modifier.height(20.dp))
-                CategoryCard(listOf(Triple("App Data", "save-outline", "appData"))) { category = it }
+                CategoryCard(listOf(Triple("App Data", "save", "appData"))) { category = it }
             }
             if (search.isEmpty() && category != null) {
-                Row(Modifier.padding(top = 12.dp, bottom = 16.dp).touchable { category = null }, verticalAlignment = Alignment.CenterVertically) {
-                    Ion("chevron-back", 24f, ui.accent)
-                    Txt("Back", 16f, ui.accent, ui.bold, Modifier.padding(start = 5.dp))
+                TextButton(onClick = { category = null }, modifier = Modifier.padding(top = 8.dp)) {
+                    Sym("arrow_back", 20f, ui.cs.primary, Modifier.padding(end = 8.dp))
+                    Txt("Back", 16f, ui.cs.primary, ui.bold)
                 }
             }
             groups.forEach { g ->
@@ -194,32 +205,31 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
                 val groupMatch = q.isNotEmpty() && g.title.lowercase().contains(q)
                 val rows = g.rows.filter { groupMatch || matches(it.label) }
                 if (rows.isEmpty()) return@forEach
-                Txt(g.title, 14f, ui.textSec, ui.bold, Modifier.padding(top = 20.dp, bottom = 10.dp))
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(ui.radius.dp)).background(ui.card).animateContentSize()) {
+                Txt(g.title, 14f, ui.cs.primary, ui.bold, Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp))
+                Column(Modifier.fillMaxWidth().animateContentSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     rows.forEachIndexed { i, r ->
-                        if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
-                        r.content()
+                        Box(Modifier.fillMaxWidth().clip(segmentShape(i, rows.size, ui.radius)).background(ui.cs.surfaceContainerHighest)) { r.content() }
                     }
                 }
             }
             if (search.isNotEmpty() || category == "appData") {
                 Column(Modifier.padding(top = 20.dp)) {
-                    Txt("App Data", 14f, ui.textSec, ui.bold, Modifier.padding(bottom = 10.dp))
-                    DataButton("cloud-upload-outline", "Export Settings", ui.card, ui.text) { exporter.launch("settings_${System.currentTimeMillis()}.midata") }
-                    DataButton("cloud-download-outline", "Import Settings", ui.card, ui.text) { importer.launch(arrayOf("*/*")) }
-                    Spacer(Modifier.height(20.dp))
-                    DataButton("refresh-outline", "Reset All Settings", Red, Color.White) { vm.confirm = ConfirmData("resetSettings") }
-                    DataButton("trash-outline", "Wipe All Data", Red, Color.White) { vm.confirm = ConfirmData("wipeData") }
+                    Txt("App Data", 14f, ui.cs.primary, ui.bold, Modifier.padding(start = 16.dp, bottom = 8.dp))
+                    DataButton("upload", "Export Settings", false) { exporter.launch("settings_${System.currentTimeMillis()}.midata") }
+                    DataButton("download", "Import Settings", false) { importer.launch(arrayOf("*/*")) }
+                    Spacer(Modifier.height(16.dp))
+                    DataButton("restart_alt", "Reset All Settings", true) { vm.confirm = ConfirmData("resetSettings") }
+                    DataButton("delete", "Wipe All Data", true) { vm.confirm = ConfirmData("wipeData") }
                 }
             }
             // footer
-            Box(Modifier.fillMaxWidth().padding(top = 30.dp).height(1.dp).background(ui.textSec.copy(alpha = 0.19f)))
+            Box(Modifier.fillMaxWidth().padding(top = 30.dp).height(1.dp).background(ui.cs.onSurfaceVariant.copy(alpha = 0.19f)))
             Column(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(Modifier.alpha(0.7f).touchable { vm.addNewTab("https://jleescy.github.io/mi-browser/user"); closeOverlay() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Ion("help-circle-outline", 16f * ui.fontScale, ui.accent, Modifier.padding(end = 6.dp))
-                    Txt("Help", 14f, ui.accent, ui.semibold)
+                    Sym("help", 16f * ui.fontScale, ui.cs.primary, Modifier.padding(end = 6.dp))
+                    Txt("Help", 14f, ui.cs.primary, ui.semibold)
                 }
-                Txt("mi browser v${BuildConfig.VERSION_NAME}", 11f, ui.textSec, ui.regular, Modifier.padding(top = 4.dp).alpha(0.4f))
+                Txt("mi browser v${BuildConfig.VERSION_NAME}", 11f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 4.dp).alpha(0.4f))
             }
         }
         SheetSearchField(search, { vm.settingsSearch = it }, "Search Settings...", onFocusSearch, Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp))
@@ -231,12 +241,17 @@ fun SettingsView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: 
 @Composable
 private fun CategoryCard(items: List<Triple<String, String, String>>, onPick: (String) -> Unit) {
     val ui = LocalUi.current
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(ui.radius.dp)).background(ui.card)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         items.forEachIndexed { i, (label, icon, id) ->
-            if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
-            Row(Modifier.fillMaxWidth().touchable { onPick(id) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Ion(icon, 20f, ui.text, Modifier.padding(end = 16.dp))
-                Txt(label, 16f, ui.text, ui.bold)
+            Row(
+                Modifier.fillMaxWidth().clip(segmentShape(i, items.size, ui.radius)).background(ui.cs.surfaceContainerHighest).touchable { onPick(id) }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.padding(end = 16.dp).size(40.dp).clip(CircleShape).background(ui.cs.primaryContainer), contentAlignment = Alignment.Center) {
+                    Sym(icon, 22f, ui.cs.onPrimaryContainer)
+                }
+                Txt(label, 17f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+                Sym("chevron_right", 22f, ui.cs.onSurfaceVariant)
             }
         }
     }
@@ -246,8 +261,8 @@ private fun CategoryCard(items: List<Triple<String, String, String>>, onPick: (S
 private fun RowHeader(icon: String, label: String, trailing: (@Composable () -> Unit)? = null) {
     val ui = LocalUi.current
     Row(Modifier.fillMaxWidth().padding(bottom = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-        Ion(icon, 22f, ui.text, Modifier.padding(end = 10.dp))
-        Txt(label, 16f, ui.text, ui.semibold, Modifier.weight(1f))
+        Sym(icon, 22f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
+        Txt(label, 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
         trailing?.invoke()
     }
 }
@@ -255,21 +270,10 @@ private fun RowHeader(icon: String, label: String, trailing: (@Composable () -> 
 private val rowPad = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 15.dp)
 
 @Composable
-private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val ui = LocalUi.current
-    Box(
-        Modifier.clip(RoundedCornerShape(ui.radius.dp)).background(if (selected) ui.accent else Color.Transparent).touchable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 20.dp),
-    ) { Txt(label, 12f, if (selected) Color.White else ui.text, ui.bold) }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ChipsRow(icon: String, label: String, options: List<Pair<String, String>>, value: String, spaceAround: Boolean = false, onPick: (String) -> Unit) {
-    Column(rowPad.padding(vertical = 5.dp)) {
+private fun ChipsRow(icon: String, label: String, options: List<Pair<String, String>>, value: String, onPick: (String) -> Unit) {
+    Column(rowPad.padding(vertical = 4.dp)) {
         RowHeader(icon, label)
-        if (spaceAround) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) { options.forEach { (v, l) -> Chip(l, v == value) { onPick(v) } } }
-        else FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { options.forEach { (v, l) -> Chip(l, v == value) { onPick(v) } } }
+        ConnectedChoice(options, value, onPick = onPick)
     }
 }
 
@@ -277,26 +281,22 @@ private fun ChipsRow(icon: String, label: String, options: List<Pair<String, Str
 private fun SwitchRow(icon: String, label: String, value: Boolean, onChange: (Boolean) -> Unit) {
     val ui = LocalUi.current
     Row(rowPad, verticalAlignment = Alignment.CenterVertically) {
-        Ion(icon, 22f, ui.text, Modifier.padding(end = 10.dp))
-        Txt(label, 16f, ui.text, ui.semibold, Modifier.weight(1f))
+        Sym(icon, 22f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
+        Txt(label, 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
         MiSwitch(value, onChange)
     }
 }
 
-/** −/+ stepper with a progress bar (Font Size, Darkness): step 0.1 within [min,max]. */
+/** Stepped M3 slider (Font Size, Darkness): 0.1 steps within [min,max]. */
 @Composable
-private fun StepperRow(icon: String, label: String, value: Float, min: Float, max: Float, fraction: Float, onChange: (Float) -> Unit) {
+private fun StepperRow(icon: String, label: String, value: Float, min: Float, max: Float, onChange: (Float) -> Unit) {
     val ui = LocalUi.current
-    fun round(v: Float) = Math.round(v * 10f) / 10f
-    Column(rowPad.padding(vertical = 5.dp)) {
-        RowHeader(icon, label) { Txt("${Math.round(value * 100)}%", 14f, ui.textSec, ui.bold, scaled = false) }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.touchable { onChange(round(maxOf(min, value - 0.1f))) }) { Ion("remove-circle-outline", 28f, ui.textSec) }
-            Box(Modifier.weight(1f).padding(horizontal = 15.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(ui.bg)) {
-                Box(Modifier.fillMaxHeight().fillMaxWidth(fraction.coerceIn(0f, 1f)).background(ui.accent, RoundedCornerShape(2.dp)))
-            }
-            Box(Modifier.touchable { onChange(round(minOf(max, value + 0.1f))) }) { Ion("add-circle-outline", 28f, ui.textSec) }
-        }
+    Column(rowPad.padding(vertical = 4.dp)) {
+        RowHeader(icon, label) { Txt("${Math.round(value * 100)}%", 14f, ui.cs.onSurfaceVariant, ui.bold, scaled = false) }
+        Slider(
+            value = value, valueRange = min..max, steps = Math.round((max - min) / 0.1f) - 1,
+            onValueChange = { onChange(Math.round(it * 10f) / 10f) },
+        )
     }
 }
 
@@ -305,25 +305,27 @@ private fun StepperRow(icon: String, label: String, value: Float, min: Float, ma
 private fun AccentRow(vm: BrowserViewModel) {
     val ui = LocalUi.current
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 15.dp)) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-            Txt("Accent Color", 16f, ui.text, ui.semibold, Modifier.weight(1f))
-            Box(Modifier.touchable { vm.isAccentExpanded = !vm.isAccentExpanded }.padding(5.dp)) {
-                Txt(if (vm.isAccentExpanded) "Show Less" else "Show More", 12f, ui.accent, ui.bold)
-            }
-        }
-        BoxWithConstraints(Modifier.fillMaxWidth().animateContentSize()) {
-            val size = maxWidth * 0.14f
-            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                (if (vm.isAccentExpanded) ACCENTS else ACCENTS.take(6)).forEach { hex ->
+        Txt("Accent Color", 16f, ui.cs.onSurface, ui.semibold, Modifier.padding(bottom = 15.dp))
+        // adaptive (wallpaper colors, Android 12+), gray, blue, green, red, orange, yellow, purple — horizontally scrollable
+        val dynamicOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        val list = (if (dynamicOk) listOf(DYNAMIC_ACCENT) else emptyList()) + ACCENTS
+        val size = 52.dp
+        LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(list) { hex ->
                     val selected = vm.settings.accentColor == hex
+                    val scale by animateFloatAsState(if (selected) 0.86f else 1f, Motion.fastSpatial(), label = "swatch")
+                    val isDyn = hex == DYNAMIC_ACCENT
                     Box(
-                        Modifier.size(size).graphicsLayer { val sc = if (selected) 0.9f else 1f; scaleX = sc; scaleY = sc }
-                            .clip(RoundedCornerShape(10.dp)).background(c(hexColor(hex)))
-                            .then(if (selected) Modifier.border(3.dp, ui.text, RoundedCornerShape(10.dp)) else Modifier)
+                        Modifier.size(size).graphicsLayer { scaleX = scale; scaleY = scale }
+                            .clip(if (selected) RoundedCornerShape(30) else CircleShape)
+                            .background(if (isDyn) ui.cs.tertiaryContainer else Color(hexColor(hex)))
                             .touchable { vm.updateSettings { copy(accentColor = hex) } },
-                    )
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (isDyn) Sym("wallpaper", 22f, ui.cs.onTertiaryContainer)
+                        if (selected && !isDyn) Sym("check", 22f, Color.White)
+                    }
                 }
-            }
         }
     }
 }
@@ -331,14 +333,14 @@ private fun AccentRow(vm: BrowserViewModel) {
 @Composable
 private fun ReorderIconsRow(vm: BrowserViewModel) {
     val ui = LocalUi.current
-    val icons = mapOf("tabs" to "copy-outline", "bookmarks" to "bookmarks-outline", "history" to "time-outline", "settings" to "settings-outline", "menu" to "menu-outline")
+    val icons = mapOf("tabs" to "tab", "bookmarks" to "bookmarks", "history" to "history", "settings" to "settings", "menu" to "menu")
     val order = vm.settings.menuBarOrder.takeIf { it.size == 5 } ?: DEFAULT_MENU_BAR_ORDER
     Column(rowPad.padding(vertical = 5.dp)) {
-        RowHeader("reorder-four-outline", "Reorder Icons")
+        RowHeader("reorder", "Reorder Icons")
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             SortableSlots(order, { it }, 50.dp, 48.dp, horizontal = true, longPressMs = 150, dragScale = 1.1f, dragShadow = false,
                 onReorder = { from, to -> vm.updateSettings { copy(menuBarOrder = order.moved(from, to)) } }) { id ->
-                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Ion(icons[id] ?: "", 24f, ui.text) }
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Sym(icons[id] ?: "", 24f, ui.cs.onSurface) }
             }
         }
     }
@@ -347,22 +349,23 @@ private fun ReorderIconsRow(vm: BrowserViewModel) {
 @Composable
 private fun ShortcutRow(vm: BrowserViewModel) {
     val ui = LocalUi.current
+    var isShortcutMenuOpen by remember { mutableStateOf(false) }
     val s = vm.settings
-    val options = listOf(Triple("New Tab", "newTab", "add"), Triple("Scan", "qr", "qr-code-outline"), Triple("Saved", "bookmarks", "bookmarks-outline"), Triple("Recent", "history", "time-outline"))
+    val options = listOf(Triple("New Tab", "newTab", "add"), Triple("Scan", "qr", "qr_code_scanner"), Triple("Saved", "bookmarks", "bookmarks"), Triple("Recent", "history", "history"))
     Column(Modifier.fillMaxWidth().animateContentSize()) {
-        SwitchRow("apps-outline", "Shortcut", s.showHomeShortcuts) { vm.updateSettings { copy(showHomeShortcuts = it) } }
+        SwitchRow("apps", "Shortcut", s.showHomeShortcuts) { vm.updateSettings { copy(showHomeShortcuts = it) } }
         if (s.showHomeShortcuts) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
-            Row(Modifier.fillMaxWidth().touchable { vm.isShortcutMenuOpen = !vm.isShortcutMenuOpen }.padding(horizontal = 15.dp, vertical = 12.dp).padding(start = 32.dp), verticalAlignment = Alignment.CenterVertically) {
-                Txt("Action", 14f, ui.textSec, ui.semibold, Modifier.weight(1f))
-                Txt(options.first { it.second == s.homeShortcutAction }.first, 14f, ui.text, ui.semibold, Modifier.padding(end = 5.dp))
-                Ion(if (vm.isShortcutMenuOpen) "chevron-up" else "chevron-down", 16f, ui.textSec)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.cs.surface))
+            Row(Modifier.fillMaxWidth().touchable { isShortcutMenuOpen = !isShortcutMenuOpen }.padding(horizontal = 15.dp, vertical = 12.dp).padding(start = 32.dp), verticalAlignment = Alignment.CenterVertically) {
+                Txt("Action", 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.weight(1f))
+                Txt(options.first { it.second == s.homeShortcutAction }.first, 14f, ui.cs.onSurface, ui.semibold, Modifier.padding(end = 5.dp))
+                Sym(if (isShortcutMenuOpen) "keyboard_arrow_up" else "keyboard_arrow_down", 16f, ui.cs.onSurfaceVariant)
             }
-            if (vm.isShortcutMenuOpen) options.forEach { (label, v, icon) ->
-                Row(Modifier.fillMaxWidth().touchable { vm.updateSettings { copy(homeShortcutAction = v) }; vm.isShortcutMenuOpen = false }.padding(vertical = 12.dp).padding(start = 47.dp, end = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Ion(icon, 18f, ui.text, Modifier.padding(end = 10.dp))
-                    Txt(label, 14f, ui.text, ui.semibold, Modifier.weight(1f))
-                    if (s.homeShortcutAction == v) Ion("checkmark", 18f, ui.accent)
+            if (isShortcutMenuOpen) options.forEach { (label, v, icon) ->
+                Row(Modifier.fillMaxWidth().touchable { vm.updateSettings { copy(homeShortcutAction = v) }; isShortcutMenuOpen = false }.padding(vertical = 12.dp).padding(start = 47.dp, end = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Sym(icon, 18f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
+                    Txt(label, 14f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+                    if (s.homeShortcutAction == v) Sym("check", 18f, ui.cs.primary)
                 }
             }
         }
@@ -375,28 +378,28 @@ private fun BackgroundRow(vm: BrowserViewModel, onPick: () -> Unit) {
     val s = vm.settings
     val config = LocalConfiguration.current
     Column(rowPad.padding(vertical = 5.dp)) {
-        RowHeader("image-outline", "Background Image")
+        RowHeader("image", "Background Image")
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             if (s.homeBackgroundImage != null) {
-                Box(Modifier.padding(bottom = 15.dp).background(Red, RoundedCornerShape(ui.radius.dp)).touchable { vm.updateSettings { copy(homeBackgroundImage = null) } }.padding(horizontal = 20.dp, vertical = 10.dp)) {
-                    Txt("Remove Image", 12f, Color.White, ui.bold)
-                }
+                Button(
+                    onClick = { vm.updateSettings { copy(homeBackgroundImage = null) } }, modifier = Modifier.padding(bottom = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ui.cs.errorContainer, contentColor = ui.cs.onErrorContainer),
+                ) { Sym("delete", 18f, ui.cs.onErrorContainer, Modifier.padding(end = 8.dp)); Txt("Remove Image", 14f, ui.cs.onErrorContainer, ui.bold) }
             } else {
-                Row(Modifier.padding(bottom = 15.dp).background(ui.card, RoundedCornerShape(ui.radius.dp)).border(1.dp, ui.bg, RoundedCornerShape(ui.radius.dp)).touchable(onClick = onPick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Ion("image-outline", 18f, ui.text, Modifier.padding(end = 8.dp))
-                    Txt("Select from Gallery", 12f, ui.text, ui.bold)
+                FilledTonalButton(onClick = onPick, modifier = Modifier.padding(bottom = 16.dp)) {
+                    Sym("image", 18f, ui.cs.onSecondaryContainer, Modifier.padding(end = 8.dp)); Txt("Select from Gallery", 14f, ui.cs.onSecondaryContainer, ui.bold)
                 }
             }
             Box(
                 Modifier.fillMaxWidth(0.4f).aspectRatio(config.screenWidthDp.toFloat() / config.screenHeightDp).shadow(5.dp, RoundedCornerShape(ui.radius.dp))
-                    .clip(RoundedCornerShape(ui.radius.dp)).background(ui.bg).border(1.dp, ui.bg, RoundedCornerShape(ui.radius.dp)),
+                    .clip(RoundedCornerShape(ui.radius.dp)).background(ui.cs.surface).border(1.dp, ui.cs.surface, RoundedCornerShape(ui.radius.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 val img = s.homeBackgroundImage
                 if (img != null) {
                     NetImage(img, Modifier.fillMaxSize(), ContentScale.Crop)
                     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = s.homeBackgroundOverlayOpacity)))
-                } else Txt("Preview", 10f, ui.textSec, ui.regular, Modifier.alpha(0.5f), scaled = false)
+                } else Txt("Preview", 10f, ui.cs.onSurfaceVariant, ui.regular, Modifier.alpha(0.5f), scaled = false)
             }
         }
     }
@@ -405,16 +408,17 @@ private fun BackgroundRow(vm: BrowserViewModel, onPick: () -> Unit) {
 @Composable
 private fun ClearHistoryRow(vm: BrowserViewModel) {
     val ui = LocalUi.current
+    var isClearHistoryOpen by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().animateContentSize()) {
-        Row(rowPad.touchable { vm.isClearHistoryOpen = !vm.isClearHistoryOpen }, verticalAlignment = Alignment.CenterVertically) {
-            Ion("trash-outline", 22f, Red, Modifier.padding(end = 10.dp))
-            Txt("Clear History", 16f, Red, ui.semibold, Modifier.weight(1f))
-            Ion(if (vm.isClearHistoryOpen) "chevron-up" else "chevron-down", 16f, ui.textSec)
+        Row(rowPad.touchable { isClearHistoryOpen = !isClearHistoryOpen }, verticalAlignment = Alignment.CenterVertically) {
+            Sym("delete", 22f, ui.cs.error, Modifier.padding(end = 10.dp))
+            Txt("Clear History", 16f, ui.cs.error, ui.semibold, Modifier.weight(1f))
+            Sym(if (isClearHistoryOpen) "keyboard_arrow_up" else "keyboard_arrow_down", 16f, ui.cs.onSurfaceVariant)
         }
-        if (vm.isClearHistoryOpen) HISTORY_RANGES.forEach { (label, ms) ->
-            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
+        if (isClearHistoryOpen) HISTORY_RANGES.forEach { (label, ms) ->
+            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.cs.surface))
             Box(Modifier.fillMaxWidth().touchable { vm.confirm = ConfirmData("history", ms, label) }.padding(vertical = 12.dp).padding(start = 40.dp)) {
-                Txt(label, 14f, ui.text, ui.semibold)
+                Txt(label, 14f, ui.cs.onSurface, ui.semibold)
             }
         }
     }
@@ -423,22 +427,23 @@ private fun ClearHistoryRow(vm: BrowserViewModel) {
 @Composable
 private fun SearchEngineRow(vm: BrowserViewModel) {
     val ui = LocalUi.current
+    var isSearchEngineOpen by remember { mutableStateOf(false) }
     val cur = SEARCH_ENGINES.getOrElse(vm.settings.searchEngineIndex) { SEARCH_ENGINES[0] }
     Column(Modifier.fillMaxWidth().animateContentSize()) {
-        Row(rowPad.touchable { vm.isSearchEngineOpen = !vm.isSearchEngineOpen }, verticalAlignment = Alignment.CenterVertically) {
-            Ion("search-outline", 22f, ui.text, Modifier.padding(end = 10.dp))
-            Txt("Search Engine", 16f, ui.text, ui.semibold, Modifier.weight(1f))
-            Ion(cur.icon, 18f, ui.text, Modifier.padding(end = 5.dp))
-            Txt(cur.name, 14f, ui.textSec, ui.semibold, Modifier.padding(end = 5.dp))
-            Ion(if (vm.isSearchEngineOpen) "chevron-up" else "chevron-down", 16f, ui.textSec)
+        Row(rowPad.touchable { isSearchEngineOpen = !isSearchEngineOpen }, verticalAlignment = Alignment.CenterVertically) {
+            Sym("search", 22f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
+            Txt("Search Engine", 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+            EngineIcon(vm.settings.searchEngineIndex, 18f, modifier = Modifier.padding(end = 6.dp))
+            Txt(cur.name, 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(end = 5.dp))
+            Sym(if (isSearchEngineOpen) "keyboard_arrow_up" else "keyboard_arrow_down", 16f, ui.cs.onSurfaceVariant)
         }
-        if (vm.isSearchEngineOpen) Column(Modifier.fillMaxWidth()) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
+        if (isSearchEngineOpen) Column(Modifier.fillMaxWidth()) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.cs.surface))
             SEARCH_ENGINES.forEachIndexed { i, e ->
-                Row(Modifier.fillMaxWidth().touchable { vm.updateSettings { copy(searchEngineIndex = i) }; vm.isSearchEngineOpen = false }.padding(vertical = 12.dp).padding(start = 40.dp, end = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Ion(e.icon, 20f, ui.text, Modifier.padding(end = 10.dp))
-                    Txt(e.name, 16f, ui.text, ui.semibold, Modifier.weight(1f))
-                    if (vm.settings.searchEngineIndex == i) Ion("checkmark", 18f, ui.accent)
+                Row(Modifier.fillMaxWidth().touchable { vm.updateSettings { copy(searchEngineIndex = i) }; isSearchEngineOpen = false }.padding(vertical = 12.dp).padding(start = 40.dp, end = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+                    EngineIcon(i, 20f, modifier = Modifier.padding(end = 12.dp))
+                    Txt(e.name, 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+                    if (vm.settings.searchEngineIndex == i) Sym("check", 18f, ui.cs.primary)
                 }
             }
         }
@@ -446,13 +451,21 @@ private fun SearchEngineRow(vm: BrowserViewModel) {
 }
 
 @Composable
-private fun DataButton(icon: String, label: String, bg: Color, fg: Color, onClick: () -> Unit) {
+private fun DataButton(icon: String, label: String, destructive: Boolean, onClick: () -> Unit) {
     val ui = LocalUi.current
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(ui.radius.dp)).background(bg).touchable(onClick = onClick).padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Ion(icon, 20f, fg)
-        Txt(label, 16f, fg, ui.bold)
-    }
+    val content = if (destructive) ui.cs.onErrorContainer else ui.cs.onSecondaryContainer
+    val inner: @Composable RowScope.() -> Unit = { Sym(icon, 20f, content, Modifier.padding(end = 10.dp)); Txt(label, 16f, content, ui.bold) }
+    val m = Modifier.fillMaxWidth().padding(bottom = 8.dp).height(56.dp)
+    if (destructive) Button(onClick, m, colors = ButtonDefaults.buttonColors(containerColor = ui.cs.errorContainer, contentColor = content), content = inner)
+    else FilledTonalButton(onClick, m, content = inner)
+}
+
+/** Expressive segmented list: large outer corners, small inner corners, 2dp gaps. */
+fun segmentShape(i: Int, count: Int, radius: Int): RoundedCornerShape {
+    val big = radius.coerceAtLeast(4).dp
+    val small = 4.dp
+    return RoundedCornerShape(
+        topStart = if (i == 0) big else small, topEnd = if (i == 0) big else small,
+        bottomStart = if (i == count - 1) big else small, bottomEnd = if (i == count - 1) big else small,
+    )
 }

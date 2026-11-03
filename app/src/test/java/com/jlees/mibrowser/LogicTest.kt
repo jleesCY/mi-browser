@@ -65,10 +65,18 @@ class LogicTest {
         assertEquals(1, pruneHistory(listOf(HistoryItem("a", "", 0), HistoryItem("b", "", 9_000)), 5_000, { it.timestamp }, 10_000).size)
     }
 
-    @Test fun adaptiveTheme() {
-        val p = adaptivePalette("#007AFF")
-        assertEquals(0xFF081A2E, p.bg) // floor(8.5)=8, floor(26.8)=26, floor(46.75)=46
-        assertEquals(true, p.isDark)
-        assertEquals(p, adaptivePalette("bad")) // invalid accent falls back to #007AFF
+    @Test fun updateVersions() {
+        val newer = com.jlees.mibrowser.data.Updates::isNewer
+        assertEquals(true, newer("v1.0.1", "1.0.0"))
+        assertEquals(true, newer("v1.10.0", "1.9.9"))
+        assertEquals(true, newer("2.0", "1.9.9"))
+        assertEquals(false, newer("v0.10.3", "1.0.0"))
+        assertEquals(false, newer("v1.0.0", "1.0.0"))
+        assertEquals(false, newer("v1.0.0-beta", "1.0.0"))
+    }
+
+    @Test fun hex() {
+        assertEquals(0xFF007AFF, hexColor("#007AFF"))
+        assertEquals(0xFF007AFF, hexColor("bad"))
     }
 }

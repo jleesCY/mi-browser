@@ -1,6 +1,11 @@
 // Port of legacy/src/components/HomePage/HomePage.tsx (weather widget intentionally removed in 1.0)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui.home
 
+import kotlinx.coroutines.CoroutineStart
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
@@ -22,8 +27,6 @@ import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ui.blockTouches
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.panGesture
-import com.jlees.mibrowser.ui.springDefault
-import com.jlees.mibrowser.ui.springT80F6
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -43,7 +46,7 @@ fun HomePage(vm: BrowserViewModel, onAction: (String) -> Unit) {
         while (true) { now = System.currentTimeMillis(); delay(1000) }
     }
 
-    Box(Modifier.fillMaxSize().background(ui.bg).blockTouches { focusManager.clearFocus() }) {
+    Box(Modifier.fillMaxSize().background(ui.cs.surface).blockTouches { focusManager.clearFocus() }) {
         s.homeBackgroundImage?.let { bg ->
             NetImage(bg, Modifier.fillMaxSize(), ContentScale.Crop)
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = s.homeBackgroundOverlayOpacity)))
@@ -51,10 +54,10 @@ fun HomePage(vm: BrowserViewModel, onAction: (String) -> Unit) {
 
         // top widgets
         Column(Modifier.fillMaxWidth().padding(top = 60.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(15.dp)) {
-            val dateText = @Composable { Txt(SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date(now)), 16f, ui.textSec, ui.semibold, Modifier.padding(vertical = 2.dp)) }
+            val dateText = @Composable { Txt(SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date(now)), 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(vertical = 2.dp)) }
             if (s.homeClockType != "None") Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (s.homeDateType == "Above") dateText()
-                Txt(SimpleDateFormat(if (s.homeClockType == "12h") "hh:mm a" else "HH:mm", Locale.getDefault()).format(Date(now)), 72f, ui.text, ui.bold)
+                Txt(SimpleDateFormat(if (s.homeClockType == "12h") "hh:mm a" else "HH:mm", Locale.getDefault()).format(Date(now)), 72f, ui.cs.onSurface, ui.bold)
                 if (s.homeDateType == "Below") dateText()
             } else if (s.homeDateType != "None") dateText()
 
@@ -62,23 +65,23 @@ fun HomePage(vm: BrowserViewModel, onAction: (String) -> Unit) {
 
         // center logo
         if (s.homeLogoType != "None") Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (s.homeLogoType == "Fidget") FidgetLogo() else Txt("mi.", 60f, ui.text, ui.extrabold, Modifier.alpha(0.9f), letterSpacing = -1f)
+            if (s.homeLogoType == "Fidget") FidgetLogo() else Txt("mi.", 60f, ui.cs.onSurface, ui.extrabold, Modifier.alpha(0.9f), letterSpacing = -1f, font = sansFlex(true))
         }
 
         // shortcut
         if (s.showHomeShortcuts) {
             val (icon, label) = when (s.homeShortcutAction) {
                 "newTab" -> "add" to "New Tab"
-                "bookmarks" -> "bookmarks-outline" to "Saved"
-                "history" -> "time-outline" to "Recent"
-                else -> "qr-code-outline" to "Scan"
+                "bookmarks" -> "bookmarks" to "Saved"
+                "history" -> "history" to "Recent"
+                else -> "qr_code_scanner" to "Scan"
             }
             Column(
                 Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp).touchable { onAction(s.homeShortcutAction) },
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Box(Modifier.size(60.dp).shadow(5.dp, CircleShape).background(ui.card, CircleShape), contentAlignment = Alignment.Center) { Ion(icon, 24f, ui.text) }
-                Txt(label, 12f, ui.text, ui.bold)
+                Box(Modifier.size(72.dp).shadow(3.dp, MaterialShapes.Cookie9Sided.toShape()).clip(MaterialShapes.Cookie9Sided.toShape()).background(ui.cs.primaryContainer), contentAlignment = Alignment.Center) { Sym(icon, 30f, ui.cs.onPrimaryContainer) }
+                Txt(label, 12f, ui.cs.onSurface, ui.bold)
             }
         }
     }
@@ -96,12 +99,12 @@ private fun FidgetLogo() {
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
             .panGesture(
                 true, claimImmediately = true,
-                onStart = { scope.launch { scale.animateTo(1.2f, springDefault()) } },
-                onMove = { dx, dy -> scope.launch { pan.snapTo(Offset(dx, dy)) } },
+                onStart = { scope.launch { scale.animateTo(1.2f, Motion.spatial()) } },
+                onMove = { dx, dy -> scope.launch(start = CoroutineStart.UNDISPATCHED) { pan.snapTo(Offset(dx, dy)) } },
                 onRelease = { _, _, _, _ ->
-                    scope.launch { pan.animateTo(Offset.Zero, springT80F6()) }
-                    scope.launch { scale.animateTo(1f, springT80F6()) }
+                    scope.launch { pan.animateTo(Offset.Zero, Motion.playful()) }
+                    scope.launch { scale.animateTo(1f, Motion.playful()) }
                 },
             ),
-    ) { Txt("mi.", 60f, ui.text, ui.extrabold, Modifier.alpha(0.9f), letterSpacing = -1f) }
+    ) { Txt("mi.", 60f, ui.cs.onSurface, ui.extrabold, Modifier.alpha(0.9f), letterSpacing = -1f, font = sansFlex(true)) }
 }

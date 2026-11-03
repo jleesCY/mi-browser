@@ -1,26 +1,56 @@
 # mi. Browser 🌐
 
-**mi.** (pronounced "my") is a hyper-lightweight, distraction-free mobile browser designed for the modern web. 
+**mi.** (pronounced "my") is a hyper-lightweight, distraction-free Android browser. It replaces the traditional toolbar with a single, gesture-driven **Pill**, and is built natively in **Kotlin** with **Jetpack Compose** and **Material 3 Expressive**.
 
-## 🌐 Visit the Website
-For a full visual overview, features, and installation guide, visit our official site:
-**[jleescy.github.io/mi-browser](https://jleescy.github.io/mi-browser)**
+<p align="center">
+  <img src="docs/public/images/homepage.jpg" width="200" alt="Home page" />
+  <img src="docs/public/images/dashboard.jpg" width="200" alt="Pill toolbar" />
+  <img src="docs/public/images/tab_grid.jpg" width="200" alt="Tabs" />
+  <img src="docs/public/images/settings.jpg" width="200" alt="Settings" />
+</p>
 
----
+## 🌐 Website
+Features, screenshots and guides: **[jleescy.github.io/mi-browser](https://jleescy.github.io/mi-browser)**
 
-## 🚀 Quick Overview
-**mi.** rethinks the mobile browsing experience by replacing the traditional toolbar with a single, intelligent "Pill" interface. 
+- **[User Guide](https://jleescy.github.io/mi-browser/user)**: every gesture, tool and setting.
+- **[Developer Guide](https://jleescy.github.io/mi-browser/developer)**: architecture, setup and builds.
 
-- **The Pill:** A single gesture-driven control center.
-- **Deep Customization:** Adaptive theming and visual shaping.
-- **Privacy First:** HTTPS only, cookie blocking, and local history.
-
-## 📖 Documentation
-- **[User Guide](https://jleescy.github.io/mi-browser/user)**: Learn how to use mi. browser and its features.
-- **[Developer Guide](https://jleescy.github.io/mi-browser/developer)**: Technical details and contribution guidelines for developers.
+## 🚀 Highlights
+- **The Pill**: one control for everything. Tap to search, swipe up for Tabs/Bookmarks/History/Settings, swipe sideways for back/forward, swipe down to hide it. The recall button can be pinned left, center or right.
+- **Material 3 Expressive**: colors generated from your accent or your wallpaper (Material You), Light/Dark/System themes, Google Sans Flex (with an optional rounded style) and Material Symbols.
+- **Tabs, bookmarks & history**: card or row tab views with live previews, drag to reorder, folders, swipe actions, search, and grouping by time or site.
+- **Power tools**: find in page, QR scan (camera or image) and generate, reader mode, desktop mode, share and print.
+- **Privacy first**: HTTPS-only mode, cookie and JavaScript toggles, no tracking. All data stays in the app's private storage on your device.
 
 ## 📥 Installation
-We provide a direct APK download for Android users on the [Releases Page](https://github.com/jleescy/mi-browser/releases).
+Download the latest APK from the **[Releases page](https://github.com/jleescy/mi-browser/releases)**. Requires Android 8.0+.
+
+## 🛠️ Building from source
+Requirements: Android Studio (latest stable) or JDK 17+ with Android SDK 37.
+
+```bash
+git clone https://github.com/jleescy/mi-browser.git
+cd mi-browser
+./gradlew installDebug          # build and install on a connected device
+./gradlew testDebugUnitTest     # run the logic tests
+./gradlew assembleRelease       # minified release APK → app/build/outputs/apk/release/
+```
+
+To sign release builds, add a git-ignored `keystore.properties` in the project root with `storeFile`, `storePassword`, `keyAlias` and `keyPassword`.
+
+### Project layout
+```
+app/src/main/java/com/jlees/mibrowser/
+├── MainActivity.kt       # edge-to-edge host, intents, permissions
+├── BrowserViewModel.kt   # app state + actions
+├── data/                 # models, storage, settings import/export
+├── logic/                # URL parsing, tab history, bookmarks (unit tested)
+├── web/                  # WebViewHost: one WebView per tab
+└── ui/                   # Compose UI: pill, sheets, tabs, history, bookmarks, settings, home, QR
+docs/                     # project website (Next.js, deployed to GitHub Pages)
+```
+
+The 0.x releases were built with React Native; 1.0 is a ground-up native rewrite. The old source is in git history at commit `c22a4d8`.
 
 ---
 <p align="center">

@@ -8,17 +8,17 @@ val DEFAULT_MENU_BAR_ORDER = listOf("tabs", "bookmarks", "history", "settings", 
 
 @Serializable
 data class Settings(
-    val themeMode: String = "dark", // light | dark | adaptive
+    val themeMode: String = "dark", // light | dark | system
     val accentColor: String = "#007AFF",
     val searchEngineIndex: Int = 0,
-    val cornerRadius: Int = 22,
+    val cornerRadius: Int = 28, // 0 | 12 | 28
     val uiPadding: String = "normal", // compact | normal | airy
     val fontScale: Float = 1f,
-    val fontWeight: String = "normal", // light | normal | bold
+    val roundedFont: Boolean = false, // Google Sans Flex ROND axis
     val showStatusBar: Boolean = true,
     val pillHeight: Int = 70,
     val progressBarMode: String = "ltr", // ltr | center | none
-    val recallPosition: String = "center", // persisted only (no UI, no effect) — kept for export compatibility
+    val recallPosition: String = "center", // left | center | right — set by swiping the recall handle sideways
     val startupTabMode: String = "new", // new | last
     val tabViewMode: String = "rows", // rows | cards
     val showTabLogo: Boolean = true,
@@ -44,6 +44,7 @@ data class Settings(
     val showHomeShortcuts: Boolean = false,
     val homeShortcutAction: String = "qr", // newTab | qr | bookmarks | history
     val homeBackgroundOverlayOpacity: Float = 0.2f,
+    val skippedUpdate: String? = null, // release version the user chose to skip
 ) {
     /** Load-time sanitising (useBrowserSettings loadSettings). */
     fun sanitized(): Settings {

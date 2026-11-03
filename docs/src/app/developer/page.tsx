@@ -15,14 +15,19 @@ const getAssetPath = (path: string) => {
 
 const PROJECT_STRUCTURE = `
 /
-├── app/                 # Expo Router pages (UI screens)
-├── assets/              # Static assets (images, fonts)
-├── src/
-│   ├── components/      # Reusable UI components
-│   ├── hooks/           # Custom hooks (logic extraction)
-│   ├── utils/           # Helper functions
-│   └── constants.ts     # App-wide configuration
-└── ...config files
+├── app/
+│   └── src/main/
+│       ├── java/com/jlees/mibrowser/
+│       │   ├── MainActivity.kt      # Edge-to-edge host, intents, permissions
+│       │   ├── BrowserViewModel.kt  # All app state + actions
+│       │   ├── data/                # Models, JSON/Keystore storage, .midata import/export
+│       │   ├── logic/               # Pure logic: URL parsing, tab history, bookmarks (unit tested)
+│       │   ├── web/                 # WebViewHost: one WebView per tab, clients, downloads
+│       │   └── ui/                  # Compose UI: pill, sheets, tabs, history, bookmarks,
+│       │                            #   settings, home, QR, shared M3 widgets
+│       └── res/                     # Fonts, Material Symbols, launcher icons
+├── docs/                    # This website (Next.js)
+└── notes/                   # Port plan & project status
 `.trim();
 
 export default function DeveloperDocs() {
@@ -92,22 +97,22 @@ export default function DeveloperDocs() {
                         <div className="grid sm:grid-cols-2 gap-6">
                           <TechCard 
                             title="Core Framework" 
-                            items={["React Native", "Expo (SDK 52+)", "Expo Router"]} 
+                            items={["Kotlin", "Jetpack Compose", "Single Activity + ViewModel"]} 
                             color="blue"
                           />
                           <TechCard 
-                            title="Engines & Logic" 
-                            items={["react-native-webview", "React Hooks", "AsyncStorage"]} 
+                            title="Design" 
+                            items={["Material 3 Expressive", "MaterialKolor (seed color schemes)", "Google Sans Flex", "Material Symbols Rounded"]} 
                             color="purple"
                           />
                           <TechCard 
-                            title="Animation & Interaction" 
-                            items={["Reanimated", "Gesture Handler", "PanResponder"]} 
+                            title="Engine & Storage" 
+                            items={["Android System WebView", "kotlinx.serialization (JSON)", "Android Keystore (AES-GCM)"]} 
                             color="pink"
                           />
                           <TechCard 
                             title="System Integration" 
-                            items={["Quick Actions", "File System", "Haptics", "Print"]} 
+                            items={["CameraX + ZXing (QR)", "DownloadManager", "PrintManager", "App Shortcuts"]} 
                             color="cyan"
                           />
                         </div>
@@ -138,7 +143,7 @@ export default function DeveloperDocs() {
                 <div className="space-y-4">
                   <h3 className="text-xl font-bold">Prerequisites</h3>
                   <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {["Node.js (LTS)", "npm or yarn", "Expo CLI (npx)", "Expo Go or Emulator"].map(item => (
+                    {["Android Studio (latest stable)", "JDK 17+", "Android SDK 37", "A device or emulator (Android 8.0+)"].map(item => (
                       <li key={item} className="flex items-center gap-3 text-white/60 font-medium">
                         <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                         {item}
@@ -150,18 +155,18 @@ export default function DeveloperDocs() {
                 <div className="space-y-6">
                   <h3 className="text-xl font-bold">Installation</h3>
                   <CodeBlock 
-                    command={`git clone https://github.com/jleescy/mi-browser.git\ncd mi-browser\nnpm install`}
+                    command={`git clone https://github.com/jleescy/mi-browser.git\ncd mi-browser`}
                   />
                 </div>
 
                 <div className="space-y-6">
                   <h3 className="text-xl font-bold text-white">Running the App</h3>
                   <CodeBlock 
-                    command={`npx expo start`}
+                    command={`./gradlew installDebug        # build + install on the connected device\n./gradlew testDebugUnitTest    # run the logic tests`}
                   />
                   <div className="flex gap-4 text-sm font-medium text-white/50 bg-white/5 p-4 rounded-2xl border border-white/5">
                     <Info size={18} className="shrink-0" />
-                    <p>Press <code className="bg-white/10 px-1 rounded">a</code> for Android Emulator or scan the QR code for Expo Go on your physical device.</p>
+                    <p>Or open the project folder in Android Studio and press Run. There is no JavaScript toolchain anymore: the app is a single Gradle module.</p>
                   </div>
                 </div>
 
@@ -170,31 +175,23 @@ export default function DeveloperDocs() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
                       <h4 className="font-bold text-sm mb-2">State Management</h4>
-                      <p className="text-xs text-white/50 leading-relaxed">Most app state is centralized in custom hooks (useBrowserSettings, useTabs, etc.) and persisted using AsyncStorage.</p>
+                      <p className="text-xs text-white/50 leading-relaxed">All state lives in BrowserViewModel as Compose state and is saved (debounced) as JSON files in app-private storage. WebViews live outside Compose in WebViewHost, one per tab.</p>
                     </div>
                     <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
                       <h4 className="font-bold text-sm mb-2">Gesture Logic</h4>
-                      <p className="text-xs text-white/50 leading-relaxed">The Pill uses a combination of PanResponder and Reanimated to handle complex multi-directional swipes with haptic feedback.</p>
+                      <p className="text-xs text-white/50 leading-relaxed">The Pill, sheets, and drawer share one pan detector that tracks the finger in screen coordinates and always settles on release, animated with Material 3 Expressive springs.</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   <h3 className="text-xl font-bold text-white">Building</h3>
-                  <p className="text-sm text-white/60">Standard EAS builds can be triggered via:</p>
+                  <p className="text-sm text-white/60">Build a minified release APK with Gradle:</p>
                   <CodeBlock 
-                    command={`eas build -p android --profile preview`}
+                    command={`./gradlew assembleRelease\n# → app/build/outputs/apk/release/`}
                   />
-                  
-                  <div className="pt-4 space-y-4">
-                    <h4 className="text-lg font-bold text-white/80">Local APK Generation</h4>
-                    <p className="text-sm text-white/60">For faster local iterations without waiting for EAS queues, use the provided build script. This requires <code className="bg-white/10 px-1 rounded">bundletool</code> and a local Android environment.</p>
-                    <CodeBlock 
-                      command={`chmod +x build_apk.sh\n./build_apk.sh --version 1.0.0`}
-                    />
-                    <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 text-xs text-blue-400/80">
-                      <p><strong>Note:</strong> The script performs a local EAS build, extracts the AAB, and uses bundletool to generate a universal installable APK in the <code className="bg-white/10 px-1 rounded">./builds</code> folder.</p>
-                    </div>
+                  <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 text-xs text-blue-400/80">
+                    <p><strong>Signing:</strong> create a <code className="bg-white/10 px-1 rounded">keystore.properties</code> file in the project root (it is git-ignored) with <code className="bg-white/10 px-1 rounded">storeFile</code>, <code className="bg-white/10 px-1 rounded">storePassword</code>, <code className="bg-white/10 px-1 rounded">keyAlias</code> and <code className="bg-white/10 px-1 rounded">keyPassword</code>. Without it, the release APK is built unsigned.</p>
                   </div>
                 </div>
               </div>

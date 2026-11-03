@@ -1,6 +1,7 @@
 // Port of legacy/src/components/History/{HistoryView,SwipeableHistoryRow}.tsx
 package com.jlees.mibrowser.ui.history
 
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
@@ -29,7 +30,6 @@ import com.jlees.mibrowser.data.HistoryItem
 import com.jlees.mibrowser.logic.*
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.interp
-import com.jlees.mibrowser.ui.springDefault
 import com.jlees.mibrowser.ui.tabs.SearchHeaderWithMenu
 import com.jlees.mibrowser.ui.timing
 import kotlinx.coroutines.launch
@@ -66,8 +66,8 @@ fun HistoryView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: (
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 80.dp, bottom = 100.dp)) {
             if (sections.isEmpty()) item {
                 Column(Modifier.fillMaxWidth().padding(top = 50.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Ion("time-outline", 50f, ui.textSec)
-                    Txt("No history found.", 16f, ui.textSec, ui.semibold, Modifier.padding(top = 10.dp))
+                    Sym("history", 50f, ui.cs.onSurfaceVariant)
+                    Txt("No history found.", 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 10.dp))
                 }
             }
             sections.forEach { sec ->
@@ -77,8 +77,8 @@ fun HistoryView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: (
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (vm.settings.historyGrouping == "Site") NetImage(faviconUrl(sec.title), Modifier.padding(end = 8.dp).size(16.dp).clip(RoundedCornerShape(2.dp)))
-                        Txt(sec.title, 14f, ui.textSec, ui.bold, Modifier.weight(1f))
-                        Ion(if (sec.title in collapsed && !searching) "chevron-down" else "chevron-up", 16f, ui.textSec)
+                        Txt(sec.title, 14f, ui.cs.onSurfaceVariant, ui.bold, Modifier.weight(1f))
+                        Sym(if (sec.title in collapsed && !searching) "keyboard_arrow_down" else "keyboard_arrow_up", 16f, ui.cs.onSurfaceVariant)
                     }
                 }
                 if (searching || sec.title !in collapsed) {
@@ -92,15 +92,15 @@ fun HistoryView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: (
         SearchHeaderWithMenu(search, { vm.historySearch = it }, "Search History...", onFocusSearch) { close ->
             var open by remember { mutableStateOf(false) }
             Row(Modifier.fillMaxWidth().touchable { open = !open }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Ion("trash-outline", 18f, ui.text, Modifier.padding(end = 10.dp))
-                Txt("Clear History", 14f, ui.text, ui.semibold, Modifier.weight(1f))
-                Ion(if (open) "chevron-up" else "chevron-down", 16f, ui.text)
+                Sym("delete", 18f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
+                Txt("Clear History", 14f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+                Sym(if (open) "keyboard_arrow_up" else "keyboard_arrow_down", 16f, ui.cs.onSurface)
             }
             if (open) Column(Modifier.animateContentSize().padding(top = 5.dp)) {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(ui.cs.surface))
                 HISTORY_RANGES.forEach { (label, ms) ->
                     Box(Modifier.fillMaxWidth().touchable { close(); vm.confirm = ConfirmData("history", ms, label) }.padding(start = 38.dp, top = 8.dp, bottom = 8.dp)) {
-                        Txt(label, 12f * 1.08f, ui.text, ui.semibold)
+                        Txt(label, 12f * 1.08f, ui.cs.onSurface, ui.semibold)
                     }
                 }
             }
@@ -110,9 +110,9 @@ fun HistoryView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: (
         val showTop = list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset / density > 100
         if (showTop) Box(
             Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 40.dp).size(40.dp)
-                .background(ui.card, CircleShape).touchable { scope.launch { list.animateScrollToItem(0) } },
+                .background(ui.cs.surfaceContainerHighest, CircleShape).touchable { scope.launch { list.animateScrollToItem(0) } },
             contentAlignment = Alignment.Center,
-        ) { Ion("arrow-up", 24f, ui.text) }
+        ) { Sym("arrow_upward", 24f, ui.cs.onSurface) }
     }
 }
 
@@ -122,46 +122,46 @@ private fun HistoryRow(item: HistoryItem, modifier: Modifier, onPress: () -> Uni
     val scope = rememberCoroutineScope()
     val height = rowHeight("history", ui.padding, ui.fontScale)
     val margin = rowMargin(ui.padding)
-    val tx = remember { Animatable(0f) }
+    var tx by remember { mutableFloatStateOf(0f) }
     val collapse = remember { Animatable(1f) }
     var deleting by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier.fillMaxWidth().height(((height + margin) * collapse.value).dp).alpha(collapse.value)) {
         val wPx = constraints.maxWidth.toFloat()
         val density = LocalDensity.current.density
-        val iconScale = interp(tx.value / density, listOf(-100f, -50f, 0f), listOf(1.2f, 0.5f, 0f))
+        val iconScale = interp(tx / density, listOf(-100f, -50f, 0f), listOf(1.2f, 0.5f, 0f))
         Box(Modifier.align(Alignment.TopEnd).height(height.dp).padding(end = 20.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale }, contentAlignment = Alignment.Center) {
-            Ion("trash", 20f, Red)
+            Sym("delete", 20f, ui.cs.error)
         }
         Row(
             Modifier.fillMaxWidth().height(height.dp)
-                .offset { IntOffset(tx.value.roundToInt(), 0) }
+                .offset { IntOffset(tx.roundToInt(), 0) }
                 .draggable(
-                    rememberDraggableState { d -> if (!deleting) scope.launch { tx.snapTo((tx.value + d).coerceAtMost(0f)) } },
+                    rememberDraggableState { d -> if (!deleting) tx = (tx + d).coerceAtMost(0f) },
                     Orientation.Horizontal, enabled = !deleting,
-                    onDragStopped = {
-                        if (tx.value < -wPx * 0.3f) {
+                    onDragStopped = { v ->
+                        if (tx < -wPx * 0.25f || (v < -1200f && tx < -wPx * 0.08f)) {
                             deleting = true
-                            launch { tx.animateTo(-wPx, timing(200)) }
+                            launch { animate(tx, -wPx, animationSpec = timing(200)) { value, _ -> tx = value } }
                             collapse.animateTo(0f, timing(200))
                             onDelete()
-                        } else tx.animateTo(0f, springDefault())
+                        } else animate(tx, 0f, v, Motion.spatial()) { value, _ -> tx = value }
                     },
                 )
-                .clip(RoundedCornerShape((ui.radius / 2f).dp)).background(ui.card)
-                .touchable(activeOpacity = 0.9f, onClick = onPress).padding(horizontal = 15.dp),
+                .clip(RoundedCornerShape((ui.radius / 2f).dp)).background(ui.cs.surfaceContainerHighest)
+                .touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.padding(end = 15.dp).size(32.dp).background(ui.text.copy(alpha = 0.05f), RoundedCornerShape((ui.radius / 3f).dp)), contentAlignment = Alignment.Center) {
-                Ion("time-outline", 16f, ui.textSec)
+            Box(Modifier.padding(end = 15.dp).size(32.dp).background(ui.cs.onSurface.copy(alpha = 0.05f), RoundedCornerShape((ui.radius / 3f).dp)), contentAlignment = Alignment.Center) {
+                Sym("history", 16f, ui.cs.onSurfaceVariant)
             }
             Column(Modifier.weight(1f)) {
-                Txt(item.title.ifEmpty { "Untitled" }, 15f, ui.text, ui.bold, maxLines = 1)
+                Txt(item.title.ifEmpty { "Untitled" }, 15f, ui.cs.onSurface, ui.bold, maxLines = 1)
                 Row {
-                    Txt(smartDate(item.timestamp), 12f, ui.accent, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
-                    Txt(displayHost(item.url), 12f, ui.textSec, ui.regular, maxLines = 1)
+                    Txt(smartDate(item.timestamp), 12f, ui.cs.primary, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
+                    Txt(displayHost(item.url), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
                 }
             }
-            Ion("chevron-forward", 20f, ui.textSec)
+            Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
         }
     }
 }

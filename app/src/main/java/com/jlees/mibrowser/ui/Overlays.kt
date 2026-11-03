@@ -2,8 +2,17 @@
 // CustomAlert.tsx, renderError (BrowserWebView.tsx).
 package com.jlees.mibrowser.ui
 
+import kotlinx.coroutines.CoroutineStart
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
@@ -53,6 +62,7 @@ import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.web.WebError
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 fun shareText(ctx: android.content.Context, text: String, title: String? = null) {
@@ -66,62 +76,90 @@ fun Modifier.blockTouches(onTap: () -> Unit = {}) = this.clickable(MutableIntera
 
 // ---------------------------------------------------------------- submenu (index.tsx 1942-2290)
 @Composable
-fun SubMenu(vm: BrowserViewModel, modifier: Modifier, @Suppress("UNUSED_PARAMETER") onAction: (String) -> Unit) {
+fun SubMenu(vm: BrowserViewModel, modifier: Modifier) {
     val ui = LocalUi.current
     val ctx = LocalContext.current
     val hasUrl = vm.activeUrl != null
     val tab = vm.currentTab
-    val shape = RoundedCornerShape(ui.radius.dp)
+    val shape = RoundedCornerShape(minOf(ui.radius, 24).dp)
     @Composable
-    fun Item(icon: String, label: String, needsUrl: Boolean, last: Boolean = false, onPress: () -> Unit) {
+    fun Item(icon: String, label: String, needsUrl: Boolean, onPress: () -> Unit) {
         val enabled = !needsUrl || hasUrl
         Row(
-            Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.5f).touchable(enabled, onClick = onPress).padding(15.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp).clip(RoundedCornerShape(12.dp)).alpha(if (enabled) 1f else 0.38f)
+                .touchable(enabled, onClick = onPress).heightIn(min = 48.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Ion(icon, 20f, ui.text, Modifier.padding(end = 12.dp))
-            Txt(label, 14f, ui.text, FontWeight.W700)
+            Sym(icon, 22f, ui.cs.onSurfaceVariant, Modifier.padding(end = 14.dp))
+            Txt(label, 15f, ui.cs.onSurface, ui.semibold)
         }
-        if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
     }
     @Composable
-    fun Toggle(icon: String, label: String, value: Boolean, last: Boolean, onPress: () -> Unit) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).touchable(onClick = onPress).padding(horizontal = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-            Ion(icon, 20f, ui.text, Modifier.padding(end = 12.dp))
-            Txt(label, 14f, ui.text, FontWeight.W700, Modifier.weight(1f))
+    fun Toggle(icon: String, label: String, value: Boolean, onPress: () -> Unit) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp).clip(RoundedCornerShape(12.dp)).touchable(onClick = onPress).heightIn(min = 52.dp).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Sym(icon, 22f, ui.cs.onSurfaceVariant, Modifier.padding(end = 14.dp))
+            Txt(label, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
             MiSwitch(value, null)
         }
-        if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
     }
-    Column(modifier.width(240.dp).zIndex(10f).shadow(20.dp, shape).clip(shape).background(ui.glass).blockTouches()) {
-        Item("home-outline", "Home", false) { vm.isSubMenuVisible = false; vm.goHome() }
-        Item("bookmark-outline", "Bookmark", true) { vm.isSubMenuVisible = false; vm.bookmarksAutoAdd = true; vm.openView("bookmarks") }
-        Item("share-social-outline", "Share", true) { vm.activeUrl?.let { shareText(ctx, it, "Share Link") }; vm.isSubMenuVisible = false }
-        Item("search-outline", "Find in Page", true) { vm.isSubMenuVisible = false; vm.findVisible = true }
-        Item("qr-code-outline", "Scan QR Code", false) { vm.isSubMenuVisible = false; vm.qrScannerVisible = true }
-        Item("barcode-outline", "Generate QR Code", true) { vm.isSubMenuVisible = false; vm.qrGeneratorVisible = true }
-        Item("print-outline", "Print", true) { vm.isSubMenuVisible = false; vm.web.tryEmit(WebCmd.Print) }
-        Toggle("desktop-outline", "Desktop Mode", tab?.desktopMode ?: vm.settings.desktopMode, false) { vm.setDesktopMode(!(tab?.desktopMode ?: vm.settings.desktopMode)) }
-        Toggle("book-outline", "Reader Mode", tab?.readerMode ?: vm.settings.readerModeEnabled, true) { vm.setReaderMode(!(tab?.readerMode ?: vm.settings.readerModeEnabled)) }
+    Column(modifier.width(256.dp).zIndex(10f).shadow(8.dp, shape).clip(shape).background(ui.cs.surfaceContainer).blockTouches().padding(vertical = 8.dp)) {
+        Item("home", "Home", false) { vm.isSubMenuVisible = false; vm.goHome() }
+        Item("bookmark_add", "Bookmark", true) { vm.isSubMenuVisible = false; vm.bookmarksAutoAdd = true; vm.openView("bookmarks") }
+        Item("share", "Share", true) { vm.activeUrl?.let { shareText(ctx, it, "Share Link") }; vm.isSubMenuVisible = false }
+        Item("search", "Find in Page", true) { vm.isSubMenuVisible = false; vm.findVisible = true }
+        Item("qr_code_scanner", "Scan QR Code", false) { vm.isSubMenuVisible = false; vm.qrScannerVisible = true }
+        Item("qr_code_2", "Generate QR Code", true) { vm.isSubMenuVisible = false; vm.qrGeneratorVisible = true }
+        Item("print", "Print", true) { vm.isSubMenuVisible = false; vm.web.tryEmit(WebCmd.Print) }
+        Box(Modifier.padding(vertical = 4.dp, horizontal = 16.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
+        Toggle("desktop_windows", "Desktop Mode", tab?.desktopMode ?: vm.settings.desktopMode) { vm.setDesktopMode(!(tab?.desktopMode ?: vm.settings.desktopMode)) }
+        Toggle("chrome_reader_mode", "Reader Mode", tab?.readerMode ?: vm.settings.readerModeEnabled) { vm.setReaderMode(!(tab?.readerMode ?: vm.settings.readerModeEnabled)) }
     }
 }
 
 // ---------------------------------------------------------------- recall handle
+/**
+ * Shown while the pill is hidden. Tap or swipe up → show the pill. Swipe left/right → the handle follows the finger
+ * and pins to the left, center or right third it is released in (persisted as Settings.recallPosition).
+ */
 @Composable
-fun RecallButton(pill: PillState, navInsetDp: Float, modifier: Modifier) {
+fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, screenW: Float, modifier: Modifier) {
     val ui = LocalUi.current
+    val scope = rememberCoroutineScope()
+    val w = 56f
+    val margin = 16f
+    fun baseX(pos: String) = when (pos) { "left" -> margin; "right" -> screenW - margin - w; else -> (screenW - w) / 2 }
+    val x = remember { Animatable(baseX(vm.settings.recallPosition)) }
+    LaunchedEffect(screenW) { x.snapTo(baseX(vm.settings.recallPosition)) }
+    var horizontal by remember { mutableStateOf<Boolean?>(null) }
+    var startX by remember { mutableFloatStateOf(0f) }
     val opacity = interp(pill.scrollY.value, listOf(0f, HIDDEN_TRANSLATE_Y - 20, HIDDEN_TRANSLATE_Y), listOf(0f, 0f, 1f))
-    Box(modifier.padding(bottom = maxOf(navInsetDp + 10f, 10f).dp).alpha(opacity)) {
+    Box(modifier.offset { IntOffset((x.value * density).roundToInt(), 0) }.padding(bottom = maxOf(navInsetDp + 10f, 10f).dp).alpha(opacity)) {
         Box(
-            Modifier.size(50.dp, 30.dp).clip(RoundedCornerShape(25.dp)).background(ui.inputBg)
+            Modifier.size(w.dp, 32.dp).shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(ui.cs.secondaryContainer)
                 .panGesture(
-                    enabled = pill.isBarHidden, slopDp = 2f,
-                    onMove = { _, dy -> pill.recallMove(dy) },
-                    onRelease = { _, dy, _, vy -> pill.recallRelease(dy, vy) },
+                    enabled = pill.isBarHidden, slopDp = 4f,
+                    onStart = { startX = x.value; horizontal = null },
+                    onMove = { dx, dy ->
+                        if (horizontal == null) horizontal = abs(dx) > abs(dy)
+                        if (horizontal == true) scope.launch(start = CoroutineStart.UNDISPATCHED) { x.snapTo((startX + dx).coerceIn(margin, screenW - margin - w)) }
+                        else pill.recallMove(dy)
+                    },
+                    onRelease = { _, dy, _, vy ->
+                        if (horizontal == true) {
+                            val center = x.value + w / 2
+                            val pos = when { center < screenW / 3 -> "left"; center > screenW * 2 / 3 -> "right"; else -> "center" }
+                            vm.updateSettings { copy(recallPosition = pos) }
+                            scope.launch { x.animateTo(baseX(pos), Motion.spatial()) }
+                        } else pill.recallRelease(dy, vy)
+                        horizontal = null
+                    },
                     onTap = { pill.showBar() },
                 ),
             contentAlignment = Alignment.Center,
-        ) { Ion("chevron-up", 24f, ui.text) }
+        ) { Sym("keyboard_arrow_up", 24f, ui.cs.onSecondaryContainer) }
     }
 }
 
@@ -136,17 +174,17 @@ fun OverlaySheet(
     val h = height
     var start by remember { mutableFloatStateOf(0f) }
     Box(Modifier.fillMaxSize().zIndex(100f)) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).blockTouches(onClose))
+        Box(Modifier.fillMaxSize().background(ui.cs.scrim.copy(alpha = 0.32f)).blockTouches(onClose))
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(h.value.coerceAtLeast(0f).dp)
-                .shadow(12.dp, shape).clip(shape).background(ui.surface).blockTouches(),
+                .shadow(6.dp, shape).clip(shape).background(ui.cs.surfaceContainerLow).blockTouches(),
         ) {
             Column(
-                Modifier.fillMaxWidth().background(ui.sheetHeader)
+                Modifier.fillMaxWidth().background(ui.cs.surfaceContainerLow)
                     .panGesture(
-                        enabled = true, slopDp = 5f,
+                        enabled = true,
                         onStart = { start = h.value; scope.launch { h.stop() } },
-                        onMove = { _, dy -> scope.launch { h.snapTo(minOf(start - dy, snapFull)) } },
+                        onMove = { _, dy -> scope.launch(start = CoroutineStart.UNDISPATCHED) { h.snapTo(minOf(start - dy, snapFull)) } },
                         onRelease = { _, dy, _, vy ->
                             val final = start - dy
                             var target = when {
@@ -154,21 +192,20 @@ fun OverlaySheet(
                                 final > snapDefault * 0.7f -> snapDefault
                                 else -> 0f
                             }
-                            if (vy < -1) target = snapFull
-                            if (vy > 1) target = if (final > snapDefault) snapDefault else 0f
-                            if (target == 0f) onClose() else scope.launch { h.animateTo(target, springT50F8()) }
+                            if (vy < -0.4f) target = snapFull
+                            if (vy > 0.4f) target = if (start > snapDefault + 1f && final > snapDefault * 0.6f) snapDefault else 0f
+                            if (target == 0f) onClose() else scope.launch { h.animateTo(target, Motion.spatial()) }
                         },
                     )
-                    .padding(top = 15.dp, bottom = 10.dp),
+                    .padding(bottom = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(Modifier.padding(vertical = 10.dp).size(40.dp, 5.dp).background(ui.text.copy(alpha = 0.3f), RoundedCornerShape(2.5.dp)))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Txt(title, 24f, ui.text, ui.extrabold, Modifier.weight(1f))
-                    Box(Modifier.touchable(onClick = onClose).padding(5.dp)) { Ion("close-circle", 28f, ui.accent) }
+                Box(Modifier.padding(vertical = 16.dp).size(32.dp, 4.dp).background(ui.cs.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(2.dp)))
+                Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Txt(title, 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
+                    FilledTonalIconButton(onClick = onClose) { Sym("close", 24f, ui.cs.onSecondaryContainer) }
                 }
             }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg.copy(alpha = 0.5f)))
             Box(Modifier.fillMaxWidth().weight(1f).padding(bottom = imeDp.dp)) { content() }
         }
     }
@@ -177,51 +214,51 @@ fun OverlaySheet(
 
 // ---------------------------------------------------------------- find in page
 @Composable
-fun FindBar(vm: BrowserViewModel, imeDp: Float, onQuery: (String) -> Unit, onClose: () -> Unit) {
+fun FindBar(imeDp: Float, onQuery: (String) -> Unit, onNext: (forward: Boolean) -> Unit, onClose: () -> Unit) {
     val ui = LocalUi.current
     val slide = remember { Animatable(100f) }
     val fr = remember { FocusRequester() }
     var text by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
-        slide.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.824f, stiffness = 230.2f))
+        slide.animateTo(0f, Motion.spatial())
         fr.requestFocus()
     }
     Box(Modifier.fillMaxSize().zIndex(100f)) {
         Row(
             Modifier.align(Alignment.BottomCenter).padding(bottom = imeDp.dp).offset { IntOffset(0, (slide.value * density).roundToInt()) }
                 .fillMaxWidth().height(60.dp)
-                .shadow(4.dp, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp))
-                .background(ui.surface, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp)).blockTouches()
+                .shadow(3.dp, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp))
+                .background(ui.cs.surfaceContainer, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp)).blockTouches()
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
-                Modifier.weight(1f).height(40.dp).padding(end = 10.dp).background(ui.inputBg, RoundedCornerShape(maxOf(ui.radius - 4, 0).dp)),
+                Modifier.weight(1f).height(44.dp).padding(end = 6.dp).background(ui.cs.surfaceContainerHighest, RoundedCornerShape(22.dp)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Ion("search", 20f, ui.textSec, Modifier.padding(start = 8.dp))
+                Sym("search", 20f, ui.cs.onSurfaceVariant, Modifier.padding(start = 8.dp))
                 BasicTextField(
                     value = text,
                     onValueChange = { text = it; onQuery(it) },
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp).focusRequester(fr),
                     singleLine = true,
-                    textStyle = TextStyle(color = ui.text, fontFamily = Nunito, fontWeight = ui.semibold, fontSize = (16 * ui.fontScale).sp),
-                    cursorBrush = SolidColor(ui.accent),
+                    textStyle = TextStyle(color = ui.cs.onSurface, fontFamily = ui.font, fontWeight = ui.semibold, fontSize = (16 * ui.fontScale).sp),
+                    cursorBrush = SolidColor(ui.cs.primary),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { if (text.isNotEmpty()) vm.web.tryEmit(WebCmd.Find(text, true)) }),
-                    decorationBox = { inner -> Box { if (text.isEmpty()) Txt("Find in page...", 16f, ui.textSec, ui.semibold); inner() } },
+                    keyboardActions = KeyboardActions(onSearch = { if (text.isNotEmpty()) onNext(true) }),
+                    decorationBox = { inner -> Box { if (text.isEmpty()) Txt("Find in page...", 16f, ui.cs.onSurfaceVariant, ui.semibold); inner() } },
                 )
             }
-            Box(Modifier.touchable { if (text.isNotEmpty()) vm.web.tryEmit(WebCmd.Find(text, false)) }.padding(4.dp)) { Ion("chevron-up", 24f, ui.text) }
-            Box(Modifier.touchable { if (text.isNotEmpty()) vm.web.tryEmit(WebCmd.Find(text, true)) }.padding(4.dp)) { Ion("chevron-down", 24f, ui.text) }
-            Box(Modifier.padding(start = 8.dp).touchable(onClick = onClose).padding(4.dp)) { Ion("close", 24f, ui.textSec) }
+            IconButton(onClick = { if (text.isNotEmpty()) onNext(false) }) { Sym("keyboard_arrow_up", 24f, ui.cs.onSurface) }
+            IconButton(onClick = { if (text.isNotEmpty()) onNext(true) }) { Sym("keyboard_arrow_down", 24f, ui.cs.onSurface) }
+            FilledTonalIconButton(onClick = onClose) { Sym("close", 22f, ui.cs.onSecondaryContainer) }
         }
     }
 }
 
 // ---------------------------------------------------------------- modal frame (RN <Modal transparent animationType="fade">)
 @Composable
-fun ModalFrame(visible: Boolean, onDismiss: () -> Unit, scrim: Float = 0.5f, dismissOnScrim: Boolean = false, content: @Composable BoxScope.() -> Unit) {
+fun ModalFrame(visible: Boolean, onDismiss: () -> Unit, dismissOnScrim: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     val state = remember { MutableTransitionState(false) }
     state.targetState = visible
     if (!state.currentState && !state.targetState && state.isIdle) return
@@ -234,40 +271,25 @@ fun ModalFrame(visible: Boolean, onDismiss: () -> Unit, scrim: Float = 0.5f, dis
         }
         AnimatedVisibility(state, enter = fadeIn(), exit = fadeOut()) {
             Box(
-                Modifier.fillMaxSize().background(Color.Black.copy(alpha = scrim)).blockTouches { if (dismissOnScrim) onDismiss() }.imePadding(),
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).blockTouches { if (dismissOnScrim) onDismiss() }.imePadding(),
                 contentAlignment = Alignment.Center, content = content,
             )
         }
     }
 }
 
-/** CustomAlert.tsx */
+/** CustomAlert.tsx → M3 alert dialog */
 @Composable
 fun CustomAlert(data: AlertData?, onDismiss: () -> Unit) {
     val ui = LocalUi.current
     var last by remember { mutableStateOf(data) }
     if (data != null) last = data
     val d = last ?: return
-    ModalFrame(data != null, onDismiss) {
-        Column(
-            Modifier.padding(20.dp).widthIn(max = 320.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)).background(ui.surface, RoundedCornerShape(20.dp)).blockTouches().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Txt(d.title, 18f, ui.text, ui.bold, Modifier.padding(bottom = 10.dp), align = TextAlign.Center)
-            Txt(d.message, 14f, ui.textSec, ui.regular, Modifier.padding(bottom = 24.dp), align = TextAlign.Center, lineHeight = 22f)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                d.buttons.forEach { b ->
-                    val base = Modifier.weight(1f).defaultMinSize(minWidth = 80.dp).clip(RoundedCornerShape(10.dp))
-                    val styled = when (b.style) {
-                        "cancel" -> base.border(1.dp, ui.textSec, RoundedCornerShape(10.dp))
-                        "destructive" -> base.background(Red)
-                        else -> base.background(ui.accent)
-                    }
-                    Box(styled.touchable { b.onPress(); onDismiss() }.padding(horizontal = 20.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
-                        Txt(b.text, 16f, if (b.style == "cancel") ui.text else Color.White, ui.bold, align = TextAlign.Center)
-                    }
-                }
-            }
+    ModalFrame(data != null, onDismiss, dismissOnScrim = true) {
+        DialogCard(d.title, actions = {
+            d.buttons.forEach { b -> DialogAction(b.text, destructive = b.style == "destructive") { b.onPress(); onDismiss() } }
+        }) {
+            Txt(d.message, 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f)
         }
     }
 }
@@ -286,39 +308,26 @@ fun ConfirmDialog(vm: BrowserViewModel) {
         else -> "This will restore all app settings to their default values. Your history and tabs will be preserved."
     }
     val action = when (c.type) { "resetSettings" -> "Reset"; "bgRefresh" -> "Enable"; "wipeData" -> "Wipe App"; else -> "Delete" }
-    ModalFrame(vm.confirm != null, { vm.confirm = null }) {
-        Column(Modifier.fillMaxWidth(0.8f).shadow(5.dp, RoundedCornerShape(ui.radius.dp)).background(ui.surface, RoundedCornerShape(ui.radius.dp)).blockTouches().padding(20.dp)) {
-            Txt("Are you sure?", 20f, ui.text, FontWeight.W700, Modifier.padding(bottom = 15.dp), scaled = false)
-            Txt(message, 16f, ui.textSec, FontWeight.W600, Modifier.padding(bottom = 20.dp), scaled = false)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Box(Modifier.touchable { vm.confirm = null }.padding(horizontal = 15.dp, vertical = 10.dp)) { Txt("Cancel", 14f, ui.textSec, FontWeight.W700, scaled = false) }
-                Box(Modifier.padding(start = 10.dp).background(Color(0xFFFF3B30), RoundedCornerShape((ui.radius / 2f).dp)).touchable { vm.confirmAction(c) }.padding(horizontal = 15.dp, vertical = 10.dp)) {
-                    Txt(action, 14f, Color.White, FontWeight.W700, scaled = false)
-                }
-            }
-        }
+    ModalFrame(vm.confirm != null, { vm.confirm = null }, dismissOnScrim = true) {
+        DialogCard("Are you sure?", actions = {
+            DialogAction("Cancel") { vm.confirm = null }
+            DialogAction(action, destructive = c.type != "bgRefresh") { vm.confirmAction(c) }
+        }) { Txt(message, 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f, scaled = false) }
     }
 }
 
 /** Rename tab modal (index.tsx 2827-2956) */
 @Composable
 fun RenameDialog(vm: BrowserViewModel) {
-    val ui = LocalUi.current
     val id = vm.renameTabId
     var text by remember(id) { mutableStateOf(vm.tabs.firstOrNull { it.id == id }?.title ?: "") }
     val fr = remember { FocusRequester() }
     LaunchedEffect(id) { if (id != null) { delay(300); runCatching { fr.requestFocus() } } }
     ModalFrame(id != null, { vm.renameTabId = null }) {
-        Column(Modifier.fillMaxWidth(0.8f).background(ui.surface, RoundedCornerShape(ui.radius.dp)).blockTouches().padding(20.dp)) {
-            Txt("Edit Tab", 20f, ui.text, FontWeight.W700, Modifier.padding(bottom = 15.dp), scaled = false)
-            ClearableField(text, { text = it }, fr, Modifier.padding(bottom = 20.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Box(Modifier.touchable { vm.renameTabId = null }.padding(horizontal = 15.dp, vertical = 10.dp)) { Txt("Cancel", 14f, ui.textSec, FontWeight.W700, scaled = false) }
-                Box(Modifier.padding(start = 10.dp).background(ui.accent, RoundedCornerShape((ui.radius / 2f).dp)).touchable { id?.let { vm.renameTab(it, text) } }.padding(horizontal = 15.dp, vertical = 10.dp)) {
-                    Txt("Save", 14f, Color.White, FontWeight.W700, scaled = false)
-                }
-            }
-        }
+        DialogCard("Edit Tab", actions = {
+            DialogAction("Cancel") { vm.renameTabId = null }
+            DialogAction("Save") { id?.let { vm.renameTab(it, text) } }
+        }) { ClearableField(text, { text = it }, fr) }
     }
 }
 
@@ -327,17 +336,16 @@ fun RenameDialog(vm: BrowserViewModel) {
 fun ClearableField(value: String, onChange: (String) -> Unit, fr: FocusRequester = remember { FocusRequester() }, modifier: Modifier = Modifier, uri: Boolean = false) {
     val ui = LocalUi.current
     Row(
-        modifier.fillMaxWidth().height(48.dp).background(ui.inputBg, RoundedCornerShape((ui.radius / 2f).dp))
-            .border(1.dp, Color(0x33808080), RoundedCornerShape((ui.radius / 2f).dp)).padding(horizontal = 12.dp),
+        modifier.fillMaxWidth().height(56.dp).background(ui.cs.surfaceContainerHighest, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BasicTextField(
             value, onChange, Modifier.weight(1f).focusRequester(fr), singleLine = true,
-            textStyle = TextStyle(color = ui.text, fontFamily = Nunito, fontWeight = FontWeight.W600, fontSize = 16.sp),
-            cursorBrush = SolidColor(ui.accent),
+            textStyle = TextStyle(color = ui.cs.onSurface, fontFamily = ui.font, fontWeight = FontWeight.W600, fontSize = 16.sp),
+            cursorBrush = SolidColor(ui.cs.primary),
             keyboardOptions = if (uri) KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri) else KeyboardOptions.Default,
         )
-        if (value.isNotEmpty()) Box(Modifier.touchable { onChange(""); fr.requestFocus() }) { Ion("close-circle", 20f, ui.textSec) }
+        if (value.isNotEmpty()) Box(Modifier.touchable { onChange(""); fr.requestFocus() }) { Sym("cancel", 20f, ui.cs.onSurfaceVariant) }
     }
 }
 
@@ -350,18 +358,17 @@ fun SheetSearchField(
     val ui = LocalUi.current
     val fr = remember { FocusRequester() }
     Row(
-        modifier.fillMaxWidth().height(50.dp).background(ui.bg, RoundedCornerShape(ui.radius.dp)).border(1.dp, ui.card, RoundedCornerShape(ui.radius.dp))
-            .padding(horizontal = 15.dp),
+        modifier.fillMaxWidth().height(56.dp).background(ui.cs.surfaceContainerHigh, RoundedCornerShape(28.dp)).padding(start = 16.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Ion("search", 20f, ui.textSec, Modifier.padding(end = 10.dp))
+        Sym("search", 24f, ui.cs.onSurfaceVariant, Modifier.padding(end = 12.dp))
         BasicTextField(
             value, onChange, Modifier.weight(1f).focusRequester(fr).onFocusChanged { if (it.isFocused) onFocus() }, singleLine = true,
-            textStyle = TextStyle(color = ui.text, fontFamily = Nunito, fontWeight = ui.semibold, fontSize = 16.sp),
-            cursorBrush = SolidColor(ui.accent),
-            decorationBox = { inner -> Box { if (value.isEmpty()) Txt(placeholder, 16f, ui.textSec, ui.semibold, scaled = false); inner() } },
+            textStyle = TextStyle(color = ui.cs.onSurface, fontFamily = ui.font, fontWeight = ui.semibold, fontSize = 16.sp),
+            cursorBrush = SolidColor(ui.cs.primary),
+            decorationBox = { inner -> Box { if (value.isEmpty()) Txt(placeholder, 16f, ui.cs.onSurfaceVariant, ui.semibold, scaled = false); inner() } },
         )
-        if (value.isNotEmpty()) Box(Modifier.touchable { onChange(""); fr.requestFocus() }) { Ion("close-circle", 20f, ui.textSec) }
+        if (value.isNotEmpty()) IconButton(onClick = { onChange(""); fr.requestFocus() }) { Sym("close", 22f, ui.cs.onSurfaceVariant) }
         else trailing?.invoke()
     }
 }
@@ -377,42 +384,36 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
     val d = last ?: return
     val target = d.url ?: d.imgUrl
     val close = { vm.contextMenu = null }
-    ModalFrame(vm.contextMenu != null, close, scrim = 0.4f, dismissOnScrim = true) {
-        Column(
-            Modifier.fillMaxWidth(0.7f).widthIn(max = 280.dp).shadow(10.dp, RoundedCornerShape(ui.radius.dp)).clip(RoundedCornerShape(ui.radius.dp)).background(ui.surface).blockTouches(),
-        ) {
-            Column(Modifier.fillMaxWidth().padding(15.dp)) {
-                Txt(d.text.ifEmpty { if (d.imgUrl != null) "Image" else "Link" }, 14f, ui.text, FontWeight.W700, Modifier.padding(bottom = 2.dp), maxLines = 2)
-                Txt(target ?: "", 11f, ui.textSec, FontWeight.W600, maxLines = 1)
-            }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
+    ModalFrame(vm.contextMenu != null, close, dismissOnScrim = true) {
+        DialogCard(null, actions = { DialogAction("Cancel", onClick = close) }) {
+            Txt(d.text.ifEmpty { if (d.imgUrl != null) "Image" else "Link" }, 18f, ui.cs.onSurface, ui.semibold, Modifier.padding(bottom = 4.dp), maxLines = 2)
+            Txt(target ?: "", 12f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 12.dp), maxLines = 1)
             @Composable
             fun Action(icon: String, label: String, onPress: () -> Unit) {
-                Row(Modifier.fillMaxWidth().touchable(onClick = onPress).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Ion(icon, 18f * ui.fontScale, ui.text, Modifier.padding(end = 10.dp))
-                    Txt(label, 14f, ui.text, FontWeight.W600)
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).touchable(onClick = onPress).heightIn(min = 48.dp).padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Sym(icon, 22f, ui.cs.onSurfaceVariant, Modifier.padding(end = 16.dp))
+                    Txt(label, 15f, ui.cs.onSurface, ui.semibold)
                 }
             }
-            Column(Modifier.padding(vertical = 2.dp)) {
-                if (target != null) Action("open-outline", "Open in New Tab") {
-                    if (target.startsWith("http://") || target.startsWith("https://")) vm.addNewTab(target)
-                    close()
-                }
-                Action("copy-outline", "Copy to Address Bar") {
-                    if (target != null) { vm.activeView = "none"; focusInput(); vm.inputUrl = target }
-                    close()
-                }
-                Action("share-social-outline", "Share") { target?.let { shareText(ctx, it) }; close() }
-                if (d.imgUrl != null) Action("download-outline", "Save Image") { onSaveImage(d.imgUrl) }
+            if (target != null) Action("open_in_new", "Open in New Tab") {
+                if (target.startsWith("http://") || target.startsWith("https://")) vm.addNewTab(target)
+                close()
             }
-            Box(Modifier.fillMaxWidth().background(ui.card).touchable(onClick = close).padding(12.dp), contentAlignment = Alignment.Center) {
-                Txt("Cancel", 13f, ui.textSec, FontWeight.W700)
+            Action("content_copy", "Copy to Address Bar") {
+                if (target != null) { vm.activeView = "none"; focusInput(); vm.inputUrl = target }
+                close()
             }
+            Action("share", "Share") { target?.let { shareText(ctx, it) }; close() }
+            if (d.imgUrl != null) Action("download", "Save Image") { onSaveImage(d.imgUrl) }
         }
     }
 }
 
 // ---------------------------------------------------------------- error page (renderError)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ErrorPage(err: WebError, tabUrl: String?, onRetry: () -> Unit, onUpgrade: (() -> Unit)?, onProceed: () -> Unit) {
     val ui = LocalUi.current
@@ -421,30 +422,30 @@ fun ErrorPage(err: WebError, tabUrl: String?, onRetry: () -> Unit, onUpgrade: ((
     val isSsl = desc.contains("ERR_CERT") || desc.contains("ERR_SSL") || desc.contains("ssl_error") || code == -11 || code in -1206..-1200
     val isCleartext = desc.contains("ERR_CLEARTEXT_NOT_PERMITTED")
     val (title, text, icon) = when {
-        desc.contains("ERR_NAME_NOT_RESOLVED") || code == -2 -> Triple("Site Not Found", "We couldn't find this site. Please check your spelling.", "search-outline")
-        desc.contains("ERR_INTERNET_DISCONNECTED") -> Triple("No Internet", "Please check your Wi-Fi or mobile data connection.", "wifi-outline")
-        desc.contains("ERR_CONNECTION_TIMED_OUT") || code == -8 -> Triple("Connection Timed Out", "The server took too long to respond.", "time-outline")
-        desc.contains("ERR_CONNECTION_REFUSED") -> Triple("Connection Refused", "The website refused the connection.", "hand-left-outline")
-        isCleartext -> Triple("Security Error", "This site requires a secure HTTPS connection.", "lock-closed-outline")
-        isSsl -> Triple("Security Warning", "The connection to this site is not secure.", "warning-outline")
-        else -> Triple("Can't Load Page", "Something went wrong while loading this website.", "alert-circle-outline")
+        desc.contains("ERR_NAME_NOT_RESOLVED") || code == -2 -> Triple("Site Not Found", "We couldn't find this site. Please check your spelling.", "search")
+        desc.contains("ERR_INTERNET_DISCONNECTED") -> Triple("No Internet", "Please check your Wi-Fi or mobile data connection.", "wifi_off")
+        desc.contains("ERR_CONNECTION_TIMED_OUT") || code == -8 -> Triple("Connection Timed Out", "The server took too long to respond.", "history")
+        desc.contains("ERR_CONNECTION_REFUSED") -> Triple("Connection Refused", "The website refused the connection.", "block")
+        isCleartext -> Triple("Security Error", "This site requires a secure HTTPS connection.", "lock")
+        isSsl -> Triple("Security Warning", "The connection to this site is not secure.", "warning")
+        else -> Triple("Can't Load Page", "Something went wrong while loading this website.", "error")
     }
     Column(
-        Modifier.fillMaxSize().background(ui.bg).blockTouches().padding(20.dp),
+        Modifier.fillMaxSize().background(ui.cs.surface).blockTouches().padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
-        Ion(icon, 64f, ui.textSec, Modifier.padding(bottom = 20.dp))
-        Txt(title, 20f, ui.text, ui.extrabold, Modifier.padding(bottom = 10.dp), align = TextAlign.Center)
-        Txt(tabUrl ?: "", 14f, ui.accent, ui.bold, Modifier.fillMaxWidth(0.85f).padding(bottom = 10.dp), maxLines = 1, align = TextAlign.Center)
-        Txt(text, 14f, ui.textSec, ui.semibold, Modifier.padding(bottom = 30.dp), align = TextAlign.Center, scaled = false)
-        Box(Modifier.background(ui.accent, RoundedCornerShape(12.dp)).touchable(onClick = onRetry).padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Txt("Try Again", 16f, Color.White, ui.bold)
+        Box(Modifier.padding(bottom = 24.dp).size(112.dp).clip(MaterialShapes.Cookie9Sided.toShape()).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) {
+            Sym(icon, 56f, ui.cs.onSecondaryContainer)
         }
-        if (onUpgrade != null) Box(Modifier.padding(top = 15.dp).background(ui.card, RoundedCornerShape(12.dp)).touchable(onClick = onUpgrade).padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Txt("Upgrade to HTTPS", 16f, ui.text, ui.bold, scaled = false)
+        Txt(title, 20f, ui.cs.onSurface, ui.extrabold, Modifier.padding(bottom = 10.dp), align = TextAlign.Center)
+        Txt(tabUrl ?: "", 14f, ui.cs.primary, ui.bold, Modifier.fillMaxWidth(0.85f).padding(bottom = 10.dp), maxLines = 1, align = TextAlign.Center)
+        Txt(text, 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(bottom = 30.dp), align = TextAlign.Center, scaled = false)
+        Button(onClick = onRetry, modifier = Modifier.heightIn(min = 56.dp)) { Sym("refresh", 20f, ui.cs.onPrimary, Modifier.padding(end = 8.dp)); Txt("Try Again", 16f, ui.cs.onPrimary, ui.bold) }
+        if (onUpgrade != null) FilledTonalButton(onClick = onUpgrade, modifier = Modifier.padding(top = 12.dp).heightIn(min = 48.dp)) {
+            Sym("lock", 18f, ui.cs.onSecondaryContainer, Modifier.padding(end = 8.dp)); Txt("Upgrade to HTTPS", 15f, ui.cs.onSecondaryContainer, ui.bold, scaled = false)
         }
-        if (isSsl || isCleartext) Box(Modifier.padding(top = 15.dp).touchable(onClick = onProceed).padding(10.dp)) {
-            Txt("Proceed to ${displayHost(err.failingUrl ?: tabUrl)} (unsafe)", 14f, ui.textSec, ui.regular, align = TextAlign.Center, underline = true)
+        if (isSsl || isCleartext) TextButton(onClick = onProceed, modifier = Modifier.padding(top = 12.dp)) {
+            Txt("Proceed to ${displayHost(err.failingUrl ?: tabUrl)} (unsafe)", 14f, ui.cs.error, ui.semibold, align = TextAlign.Center)
         }
     }
 }

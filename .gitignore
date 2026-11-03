@@ -15,9 +15,10 @@ keystore.properties
 *.jks
 *.keystore
 
-# Legacy RN (reference only, deleted at 1.0)
+# Docs site (Next.js)
 node_modules/
-.expo/
+docs/.next/
+docs/out/
 
 # macOS
 .DS_Store

@@ -1,6 +1,12 @@
 // Port of legacy/src/components/Tabs/{TabsView,TabCard,SwipeableTabRow}.tsx
 package com.jlees.mibrowser.ui.tabs
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,13 +49,12 @@ fun SearchHeaderWithMenu(
     var open by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth().zIndex(1000f).padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
         SheetSearchField(value, onChange, placeholder, onFocus, trailing = {
-            Box(Modifier.touchable { open = !open }.padding(5.dp)) { Ion("ellipsis-vertical", 20f, ui.textSec) }
+            IconButton(onClick = { open = !open }) { Sym("more_vert", 24f, ui.cs.onSurfaceVariant) }
         })
         if (open) {
             Column(
-                Modifier.align(Alignment.TopEnd).padding(top = 50.dp).width(IntrinsicSize.Max).widthIn(min = 150.dp)
-                    .shadow(4.dp, RoundedCornerShape(10.dp)).background(ui.surface, RoundedCornerShape(10.dp))
-                    .border(1.dp, ui.bg, RoundedCornerShape(10.dp)).padding(5.dp),
+                Modifier.align(Alignment.TopEnd).padding(top = 60.dp).width(IntrinsicSize.Max).widthIn(min = 200.dp)
+                    .shadow(8.dp, RoundedCornerShape(16.dp)).background(ui.cs.surfaceContainer, RoundedCornerShape(16.dp)).padding(vertical = 8.dp, horizontal = 4.dp),
             ) { menu { open = false } }
         }
     }
@@ -65,11 +70,9 @@ fun ScrollTopAndFab(sheetH: Float, snapDefault: Float, kbVisible: Boolean, showS
             horizontalAlignment = Alignment.End,
         ) {
             if (showScrollTop && !kbVisible) {
-                Box(
-                    Modifier.padding(bottom = 15.dp).size(40.dp).shadow(4.dp, CircleShape).background(ui.card, CircleShape).border(1.dp, ui.bg, CircleShape)
-                        .touchable(onClick = onScrollTop),
-                    contentAlignment = Alignment.Center,
-                ) { Ion("arrow-up", 24f, ui.text) }
+                SmallFloatingActionButton(onClick = onScrollTop, modifier = Modifier.padding(bottom = 16.dp), containerColor = ui.cs.secondaryContainer) {
+                    Sym("arrow_upward", 24f, ui.cs.onSecondaryContainer)
+                }
             }
             if (!kbVisible) fabs()
         }
@@ -100,7 +103,6 @@ fun TabsView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVisible:
             key(vm.settings.tabViewMode) {
                 SortableSlots(
                     items = filtered, key = { it.id }, slotW = slotW.dp, slotH = slotH.dp, columns = if (cards) 2 else 1,
-                    enabled = true,
                     onReorder = { from, to -> if (search.isEmpty()) vm.reorderTabs(from, to) },
                 ) { tab ->
                     val active = tab.id == vm.activeTabId
@@ -116,16 +118,15 @@ fun TabsView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVisible:
 
         SearchHeaderWithMenu(search, { vm.tabsSearch = it }, "Search Tabs...", onFocusSearch) { close ->
             Row(Modifier.fillMaxWidth().touchable { close(); vm.clearAllTabs() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Ion("trash-outline", 18f, ui.text, Modifier.padding(end = 10.dp))
-                Txt("Clear all tabs", 14f, ui.text, ui.semibold)
+                Sym("delete", 18f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
+                Txt("Clear all tabs", 14f, ui.cs.onSurface, ui.semibold)
             }
         }
 
         ScrollTopAndFab(sheetH, snapDefault, kbVisible, scroll.value / density > 100, { scope.launch { scroll.animateScrollTo(0) } }) {
-            Box(
-                Modifier.size(56.dp).shadow(8.dp, CircleShape).background(ui.accent, CircleShape).touchable { vm.addNewTab(); closeOverlay() },
-                contentAlignment = Alignment.Center,
-            ) { Ion("add", 32f, Color.White) }
+            FloatingActionButton(onClick = { vm.addNewTab(); closeOverlay() }, containerColor = ui.cs.primaryContainer) {
+                Sym("add", 28f, ui.cs.onPrimaryContainer)
+            }
         }
     }
 }
@@ -140,17 +141,18 @@ fun rememberDeleteAnim(): Pair<Animatable<Float, *>, (() -> Unit) -> Unit> {
 
 fun Modifier.deleteAnim(v: Float) = graphicsLayer { scaleX = v; scaleY = v; alpha = interp(v, listOf(0f, 0.3f, 1f), listOf(0f, 1f, 1f)) }
 
+/** Favicon in an expressive shape: a cookie for the active tab, a circle otherwise. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FaviconBox(url: String?, active: Boolean, show: Boolean) {
     val ui = LocalUi.current
-    val r = ui.radius
+    val shape = if (active) MaterialShapes.Cookie9Sided.toShape() else CircleShape
     Box(
-        Modifier.size(44.dp).clip(RoundedCornerShape(if (r == 22) 22.dp else (r / 2f).dp))
-            .background(if (active) ui.accent else ui.text.copy(alpha = if (ui.p.isDark) 0.1f else 0.05f)),
+        Modifier.size(44.dp).clip(shape).background(if (active) ui.cs.primaryContainer else ui.cs.surfaceContainerLow),
         contentAlignment = Alignment.Center,
     ) {
-        val globe = @Composable { Ion("globe-outline", 32f, if (active) Color.White else ui.text) }
-        if (show && url != null) NetImage(faviconUrl(url), Modifier.size(36.dp).clip(RoundedCornerShape(if (r == 22) 18.dp else (r / 2.5f).dp)), fallback = globe)
+        val globe = @Composable { Sym("public", 26f, if (active) ui.cs.onPrimaryContainer else ui.cs.onSurfaceVariant) }
+        if (show && url != null) NetImage(faviconUrl(url), Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)), fallback = globe)
         else globe()
     }
 }
@@ -159,8 +161,8 @@ fun FaviconBox(url: String?, active: Boolean, show: Boolean) {
 fun SwipeActions(height: Dp, onRename: () -> Unit, onDelete: () -> Unit) {
     val ui = LocalUi.current
     val shape = RoundedCornerShape(ui.radius.dp)
-    Box(Modifier.padding(start = 10.dp).size(70.dp, height).clip(shape).background(ui.textSec).touchable(onClick = onRename), contentAlignment = Alignment.Center) { Ion("pencil", 24f, Color.White) }
-    Box(Modifier.padding(start = 10.dp).size(70.dp, height).clip(shape).background(Red).touchable(onClick = onDelete), contentAlignment = Alignment.Center) { Ion("trash", 24f, Color.White) }
+    Box(Modifier.padding(start = 8.dp).size(72.dp, height).clip(shape).background(ui.cs.secondaryContainer).touchable(onClick = onRename), contentAlignment = Alignment.Center) { Sym("edit", 24f, ui.cs.onSecondaryContainer) }
+    Box(Modifier.padding(start = 8.dp).size(72.dp, height).clip(shape).background(ui.cs.errorContainer).touchable(onClick = onDelete), contentAlignment = Alignment.Center) { Sym("delete", 24f, ui.cs.onErrorContainer) }
 }
 
 @Composable
@@ -170,16 +172,16 @@ private fun TabRow(tab: TabItem, active: Boolean, height: Dp, showLogo: Boolean,
     val shape = RoundedCornerShape(ui.radius.dp)
     SwipeRevealRow(160.dp, { SwipeActions(height, onRename) { del(onDelete) } }, Modifier.height(height).deleteAnim(anim.value)) {
         Row(
-            Modifier.fillMaxWidth().height(height).clip(shape).background(ui.card)
-                .border(2.dp, if (active) ui.accent else Color.Transparent, shape)
-                .touchable(activeOpacity = 0.9f, onClick = onPress).padding(horizontal = 15.dp),
+            Modifier.fillMaxWidth().height(height).clip(shape).background(ui.cs.surfaceContainerHighest)
+                .border(2.dp, if (active) ui.cs.primary else Color.Transparent, shape)
+                .touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FaviconBox(tab.url, active, showLogo)
             Spacer(Modifier.width(15.dp))
             Column(Modifier.weight(1f)) {
-                Txt(tab.title.ifEmpty { "New Tab" }, 16f, ui.text, ui.bold, Modifier.padding(bottom = 2.dp), maxLines = 1)
-                Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.textSec, ui.semibold, maxLines = 1)
+                Txt(tab.title.ifEmpty { "New Tab" }, 16f, ui.cs.onSurface, ui.bold, Modifier.padding(bottom = 2.dp), maxLines = 1)
+                Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.semibold, maxLines = 1)
             }
         }
     }
@@ -192,33 +194,33 @@ private fun TabCard(tab: TabItem, active: Boolean, width: Dp, showLogo: Boolean,
     val shape = RoundedCornerShape(ui.radius.dp)
     Box(Modifier.padding(vertical = 8.dp).width(width).aspectRatio(0.85f).deleteAnim(anim.value)) {
         Box(
-            Modifier.fillMaxSize().shadow(2.dp, shape).clip(shape).background(ui.card)
-                .border(2.dp, if (active) ui.accent else Color.Transparent, shape)
-                .touchable(activeOpacity = 0.9f, onClick = onPress),
+            Modifier.fillMaxSize().shadow(2.dp, shape).clip(shape).background(ui.cs.surfaceContainerHighest)
+                .border(2.dp, if (active) ui.cs.primary else Color.Transparent, shape)
+                .touchable(onClick = onPress),
         ) {
             if (showPreview && tab.previewImage != null) {
                 NetImage(tab.previewImage, Modifier.fillMaxSize(), alpha = 0.6f)
-                Box(Modifier.fillMaxSize().background(if (ui.p.isDark) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.7f)))
+                Box(Modifier.fillMaxSize().background(ui.cs.surfaceContainerHighest.copy(alpha = 0.7f)))
             }
             Column(Modifier.fillMaxSize().padding(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                     FaviconBox(tab.url, active, showLogo)
                     Spacer(Modifier.weight(1f))
                     Box(
-                        Modifier.size(24.dp).clip(RoundedCornerShape((ui.radius / 2f).dp)).background(ui.bg).touchable { del(onDelete) },
+                        Modifier.size(32.dp).clip(CircleShape).background(ui.cs.surfaceContainerLow).touchable { del(onDelete) },
                         contentAlignment = Alignment.Center,
-                    ) { Ion("close", 16f, ui.text) }
+                    ) { Sym("close", 16f, ui.cs.onSurface) }
                 }
                 Column(Modifier.weight(1f).padding(vertical = 8.dp), verticalArrangement = Arrangement.Center) {
-                    Txt(tab.title.ifEmpty { "New Tab" }, 14f, ui.text, ui.bold, Modifier.padding(bottom = 4.dp), maxLines = 2)
-                    Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.textSec, ui.semibold, Modifier.alpha(0.7f), maxLines = 1)
+                    Txt(tab.title.ifEmpty { "New Tab" }, 14f, ui.cs.onSurface, ui.bold, Modifier.padding(bottom = 4.dp), maxLines = 2)
+                    Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.alpha(0.7f), maxLines = 1)
                 }
             }
             Box(
-                Modifier.align(Alignment.BottomEnd).padding(10.dp).size(24.dp).alpha(0.6f)
-                    .border(1.dp, ui.textSec, RoundedCornerShape((ui.radius / 2f).dp)).touchable(onClick = onRename),
+                Modifier.align(Alignment.BottomEnd).padding(10.dp).size(32.dp)
+                    .clip(CircleShape).background(ui.cs.surfaceContainerLow).touchable(onClick = onRename),
                 contentAlignment = Alignment.Center,
-            ) { Ion("pencil", 12f, ui.textSec) }
+            ) { Sym("edit", 12f, ui.cs.onSurfaceVariant) }
         }
     }
 }

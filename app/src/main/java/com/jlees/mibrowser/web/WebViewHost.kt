@@ -105,8 +105,6 @@ class WebViewHost(
             is WebCmd.Stop -> views[cmd.tabId]?.stopLoading()
             is WebCmd.GoBack -> views[cmd.tabId]?.goBack()
             is WebCmd.GoForward -> views[cmd.tabId]?.goForward()
-            is WebCmd.Find -> views[vm.activeTabId]?.findNext(cmd.forward)
-            WebCmd.ClearFind -> views[vm.activeTabId]?.clearMatches()
             WebCmd.Print -> print()
             is WebCmd.CapturePreview -> capturePreview(cmd.tabId)
             is WebCmd.Destroy -> destroy(cmd.tabId)
@@ -118,7 +116,9 @@ class WebViewHost(
         }
     }
 
-    /** New search text: highlight all matches and jump to the first (findAllAsync). */
+    fun findNext(forward: Boolean) { views[vm.activeTabId]?.findNext(forward) }
+
+    /** New search text: highlight all matches and jump to the first (findAllAsync); empty clears. */
     fun findAll(query: String) {
         val wv = views[vm.activeTabId] ?: return
         if (query.isEmpty()) wv.clearMatches() else wv.findAllAsync(query)

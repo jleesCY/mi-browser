@@ -2,6 +2,7 @@
 package com.jlees.mibrowser
 
 import android.app.Application
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -32,8 +33,6 @@ sealed interface WebCmd {
     data class Stop(val tabId: String) : WebCmd
     data class GoBack(val tabId: String) : WebCmd
     data class GoForward(val tabId: String) : WebCmd
-    data class Find(val query: String, val forward: Boolean) : WebCmd
-    data object ClearFind : WebCmd
     data object Print : WebCmd
     data class CapturePreview(val tabId: String) : WebCmd
     data class Destroy(val tabId: String) : WebCmd
@@ -87,17 +86,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var tabsSearch by mutableStateOf("")
     var historySearch by mutableStateOf("")
     // transient settings-UI state that RN kept in the settings hook
-    var isAccentExpanded by mutableStateOf(false)
-    var isSearchEngineOpen by mutableStateOf(false)
-    var isShortcutMenuOpen by mutableStateOf(false)
-    var isClearHistoryOpen by mutableStateOf(false)
 
     val web = MutableSharedFlow<WebCmd>(extraBufferCapacity = 64)
     val ui = MutableSharedFlow<UiEvent>(extraBufferCapacity = 64)
 
     val currentTab get() = tabs.firstOrNull { it.id == activeTabId }
     val activeUrl get() = currentTab?.url
-    val palette get() = paletteFor(settings.themeMode, settings.accentColor)
 
     // ---------------------------------------------------------------- startup
     private var started = false
@@ -118,7 +112,31 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             ready = true
             syncInputToActiveTab()
             launchSavers()
+            checkForUpdate()
         }
+    }
+
+    /** Ask GitHub for a newer release once per launch and offer to install it. */
+    private fun checkForUpdate() = viewModelScope.launch {
+        val current = BuildConfig.VERSION_NAME
+        val release = Updates.check(current) ?: return@launch
+        if (release.version == settings.skippedUpdate) return@launch
+        showAlert(
+            "Update available",
+            "mi browser ${release.version} is available (you have $current). Download and install it now?",
+            listOf(
+                AlertButton("Skip this version", "cancel") { updateSettings { copy(skippedUpdate = release.version) } },
+                AlertButton("Later", "cancel"),
+                AlertButton("Install") { installUpdate(release) },
+            ),
+        )
+    }
+
+    private fun installUpdate(release: Release) = viewModelScope.launch {
+        val app = getApplication<Application>()
+        Toast.makeText(app, "Downloading update…", Toast.LENGTH_SHORT).show()
+        runCatching { Updates.downloadAndInstall(app, release) }
+            .onFailure { showAlert("Update failed", it.message ?: "Could not download the update.") }
     }
 
     /** useTabs.loadTabs */
@@ -332,8 +350,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun openView(v: String) {
         if (v == "tabs" && settings.showTabPreview) web.tryEmit(WebCmd.CapturePreview(activeTabId))
         isSubMenuVisible = false
-        isSearchEngineOpen = false
-        isClearHistoryOpen = false
         activeView = v
     }
 

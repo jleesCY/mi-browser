@@ -18,9 +18,10 @@ const MOCK_DATA: SearchResult[] = [
   { title: "The Pill", type: "User Guide", href: "/user#the-pill", excerpt: "Master the core interaction element: tap and swipe-up gestures." },
   { title: "Navigation Gestures", type: "User Guide", href: "/user#gestures", excerpt: "Learn horizontal swipe gestures for back/forward navigation." },
   { title: "The Dashboard", type: "User Guide", href: "/user#dashboard", excerpt: "Instant access to Tabs, Bookmarks, History, and Settings via swipe-up." },
-  { title: "Recent History", type: "User Guide", href: "/user#recent-history", excerpt: "Drag the search handle up to reveal recent searches and visits." },
+  { title: "Recent Searches", type: "User Guide", href: "/user#recent-history", excerpt: "Drag the search handle up to reveal recent searches and favorites." },
+  { title: "Recall Button", type: "User Guide", href: "/user#recall-button", excerpt: "Swipe the recall button sideways to pin it left, center, or right." },
   { title: "Tab Management", type: "User Guide", href: "/user#tabs", excerpt: "Visual snapshots, reordering, and clearing browser tabs." },
-  { title: "Tab Editing", type: "User Guide", href: "/user#tab-editing", excerpt: "Rename tabs and change their icons for better organization." },
+  { title: "Tab Editing", type: "User Guide", href: "/user#tab-editing", excerpt: "Rename tabs for better organization." },
   { title: "Bookmark Management", type: "User Guide", href: "/user#bookmarks", excerpt: "Organize favorite sites with folders and reordering." },
   { title: "Bookmark Editing", type: "User Guide", href: "/user#bookmark-swiping", excerpt: "Swipe to edit or delete bookmarks and folders." },
   { title: "History Management", type: "User Guide", href: "/user#history", excerpt: "Local-only records of your visits with search and bulk clear." },
@@ -33,13 +34,13 @@ const MOCK_DATA: SearchResult[] = [
 
   // Settings (Granular - every setting, matching SettingItem IDs)
   // Colors
-  { title: "Theme Mode", type: "Settings", href: "/user#setting-theme", excerpt: "Switch between Light, Dark, or Adaptive UI themes." },
-  { title: "Accent Color", type: "Settings", href: "/user#setting-accent-color", excerpt: "Pick from 18 hand-selected colors for buttons and highlights." },
+  { title: "Theme Mode", type: "Settings", href: "/user#setting-theme", excerpt: "Switch between Light, Dark, or System themes." },
+  { title: "Accent Color", type: "Settings", href: "/user#setting-accent-color", excerpt: "Adaptive (wallpaper), Gray, Blue, Green, Red, Orange, Yellow, or Purple." },
 
   // Interface
   { title: "Font Size", type: "Settings", href: "/user#setting-font-size", excerpt: "Adjust the global font scale from 80% to 120%." },
-  { title: "Font Weight", type: "Settings", href: "/user#setting-font-weight", excerpt: "Choose between Light, Normal, or Bold text weight." },
-  { title: "Corner Radius", type: "Settings", href: "/user#setting-corners", excerpt: "Adjust the roundness of UI elements: Square, Semi-Round, or Round." },
+  { title: "Rounded Font", type: "Settings", href: "/user#setting-rounded-font", excerpt: "Round the stroke ends of the interface font." },
+  { title: "Corner Radius", type: "Settings", href: "/user#setting-corners", excerpt: "Adjust the roundness of UI elements: Square, Soft, or Round." },
   { title: "UI Spacing", type: "Settings", href: "/user#setting-spacing", excerpt: "Change UI density between Compact, Normal, and Airy." },
   { title: "Status Bar", type: "Settings", href: "/user#setting-status-bar", excerpt: "Toggle the visibility of the system status bar." },
   { title: "Expand Menus", type: "Settings", href: "/user#setting-expand-menus", excerpt: "Open menus to full-screen height immediately." },
@@ -55,7 +56,6 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Center Logo", type: "Settings", href: "/user#setting-center-logo", excerpt: "Choose the home page logo: None, Static, or Fidget." },
   { title: "Clock", type: "Settings", href: "/user#setting-clock", excerpt: "Select the home page clock format: None, 12h, or 24h." },
   { title: "Date", type: "Settings", href: "/user#setting-date", excerpt: "Choose date placement: None, Above Clock, or Below Clock." },
-  { title: "Weather", type: "Settings", href: "/user#setting-weather", excerpt: "Weather widget: None, Simple, Detailed, or Hourly." },
   { title: "Shortcut", type: "Settings", href: "/user#setting-shortcut", excerpt: "Toggle the home page shortcut button and choose its action." },
   { title: "Background Image", type: "Settings", href: "/user#setting-background-image", excerpt: "Set a custom home page background with a darkness overlay." },
 
@@ -90,10 +90,10 @@ const MOCK_DATA: SearchResult[] = [
 
   // Dev Guide Sections
   { title: "UI Reference", type: "Dev Guide", href: "/developer#ui-reference", excerpt: "High-fidelity mockups of the app's core screens." },
-  { title: "Tech Stack", type: "Architecture", href: "/developer#tech-stack", excerpt: "React Native, Expo, Reanimated, and WebView core." },
+  { title: "Tech Stack", type: "Architecture", href: "/developer#tech-stack", excerpt: "Kotlin, Jetpack Compose, Material 3 Expressive, and Android WebView." },
   { title: "Project Structure", type: "Architecture", href: "/developer#project-structure", excerpt: "Deep dive into the file and folder organization." },
   { title: "Development Setup", type: "Dev Guide", href: "/developer#setup", excerpt: "Step-by-step guide to cloning and running the project." },
-  { title: "Building & Deployment", type: "Dev Guide", href: "/developer#setup", excerpt: "Instructions for EAS builds and APK generation." },
+  { title: "Building & Deployment", type: "Dev Guide", href: "/developer#setup", excerpt: "Build debug and release APKs with Gradle." },
 ];
 
 export function Search() {

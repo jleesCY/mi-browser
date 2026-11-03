@@ -1,4 +1,5 @@
 // Port of legacy/src/components/QR/{QRScannerView,QRGeneratorView}.tsx and legacy/src/utils/qrPolyfill.ts (ZXing replaces jsQR / rn-qr-generator / react-native-qrcode-svg)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui.qr
 
 import android.Manifest
@@ -27,7 +28,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.ui.draw.clip
+import com.jlees.mibrowser.ui.common.DialogCard
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -128,31 +135,26 @@ fun QrScanner(vm: BrowserViewModel) {
     AnimatedVisibility(vm.qrScannerVisible, enter = slideInVertically { it }, exit = slideOutVertically { it }, modifier = Modifier.zIndex(900f)) {
         BackHandler(onBack = close)
         if (!granted) {
-            Column(Modifier.fillMaxSize().background(ui.bg).blockTouches().padding(20.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Txt("We need your permission to show the camera", 16f, ui.text, ui.regular, Modifier.padding(bottom = 20.dp), align = TextAlign.Center)
-                Box(Modifier.background(ui.accent, RoundedCornerShape(10.dp)).touchable { permLauncher.launch(Manifest.permission.CAMERA) }.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Txt("Grant Permission", 16f, Color.White, FontWeight.Bold)
+            Column(Modifier.fillMaxSize().background(ui.cs.surface).blockTouches().padding(20.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                Txt("We need your permission to show the camera", 16f, ui.cs.onSurface, ui.regular, Modifier.padding(bottom = 20.dp), align = TextAlign.Center)
+                Button(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }, modifier = Modifier.heightIn(min = 56.dp)) {
+                    Sym("qr_code_scanner", 20f, ui.cs.onPrimary, Modifier.padding(end = 8.dp)); Txt("Grant Permission", 16f, ui.cs.onPrimary, ui.bold)
                 }
-                Box(Modifier.padding(top = 10.dp).background(ui.card, RoundedCornerShape(10.dp)).touchable(onClick = close).padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Txt("Close", 16f, ui.text, FontWeight.Bold)
-                }
+                FilledTonalButton(onClick = close, modifier = Modifier.padding(top = 12.dp).heightIn(min = 48.dp)) { Txt("Close", 16f, ui.cs.onSecondaryContainer, ui.bold) }
             }
             return@AnimatedVisibility
         }
         Box(Modifier.fillMaxSize().background(Color.Black).blockTouches()) {
             CameraPreview { text -> if (!scanned && !processing) { scanned = true; onScan(vm, text) } }
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(50.dp).shadow(4.dp, CircleShape).background(ui.surface, CircleShape).touchable(onClick = close), contentAlignment = Alignment.Center) { Ion("close", 30f, ui.text) }
-                Txt("Scan QR Code", 20f, Color.White, FontWeight.Bold, Modifier.padding(start = 15.dp).weight(1f))
-                Box(
-                    Modifier.size(50.dp).shadow(4.dp, CircleShape).background(ui.surface, CircleShape)
-                        .touchable(enabled = !processing) { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (processing) CircularProgressIndicator(Modifier.size(20.dp), color = ui.text, strokeWidth = 2.dp) else Ion("image-outline", 30f, ui.text)
-                }
+                FilledTonalIconButton(onClick = close, modifier = Modifier.size(56.dp)) { Sym("close", 28f, ui.cs.onSecondaryContainer) }
+                Txt("Scan QR Code", 22f, Color.White, ui.bold, Modifier.padding(start = 16.dp).weight(1f))
+                if (processing) LoadingIndicator(Modifier.size(56.dp))
+                else FilledTonalIconButton(
+                    onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.size(56.dp),
+                ) { Sym("image", 28f, ui.cs.onSecondaryContainer) }
             }
-            Box(Modifier.align(Alignment.Center).size(250.dp).border(2.dp, Color.White, RoundedCornerShape(20.dp)))
+            Box(Modifier.align(Alignment.Center).size(250.dp).border(4.dp, ui.cs.primaryContainer, RoundedCornerShape(36.dp)))
             Txt("Align the QR code within the frame", 16f, Color.White, FontWeight.W600, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 60.dp))
         }
     }
@@ -177,7 +179,7 @@ private fun CameraPreview(onResult: (String) -> Unit) {
                 val buf = plane.buffer
                 val bytes = ByteArray(buf.remaining()).also { buf.get(it) }
                 val source = PlanarYUVLuminanceSource(bytes, plane.rowStride, img.height, 0, 0, img.width, img.height, false)
-                val text = try { QRCodeReader().decode(BinaryBitmap(HybridBinarizer(source)), hints).text } catch (_: Exception) { null }
+                val text = decode(source)
                 img.close()
                 if (text != null) view.post { latest(text) }
             }
@@ -201,28 +203,26 @@ fun QrGenerator(vm: BrowserViewModel) {
         ))
     }
     ModalFrame(vm.qrGeneratorVisible, { vm.qrGeneratorVisible = false }) {
-        Column(
-            Modifier.padding(20.dp).widthIn(max = 320.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)).background(ui.surface, RoundedCornerShape(20.dp)).blockTouches().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Txt("QR Code", 18f, ui.text, FontWeight.Bold, Modifier.weight(1f))
-                Box(Modifier.touchable { vm.qrGeneratorVisible = false }) { Ion("close", 24f, ui.text) }
+        DialogCard(null) {
+          Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Txt("QR Code", 24f, ui.cs.onSurface, ui.regular, Modifier.weight(1f), scaled = false)
+                IconButton(onClick = { vm.qrGeneratorVisible = false }) { Sym("close", 24f, ui.cs.onSurfaceVariant) }
             }
-            bmp?.let { Image(it.asImageBitmap(), null, Modifier.padding(bottom = 15.dp).size(220.dp).background(Color.White, RoundedCornerShape(10.dp))) }
-            Txt(url, 12f, ui.textSec, ui.regular, Modifier.padding(bottom = 20.dp), maxLines = 2, align = TextAlign.Center)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            bmp?.let { Image(it.asImageBitmap(), null, Modifier.padding(bottom = 16.dp).size(220.dp).clip(RoundedCornerShape(20.dp)).background(Color.White)) }
+            Txt(url, 12f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 20.dp), maxLines = 2, align = TextAlign.Center)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
-                    Modifier.weight(1f).background(ui.accent, RoundedCornerShape(10.dp)).touchable {
+                    Modifier.weight(1f).height(48.dp).clip(CircleShape).background(ui.cs.primary).touchable {
                         val b = bmp ?: return@touchable
                         if (needsLegacyWritePermission(ctx)) { permLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE); return@touchable }
                         try { saveBitmapToGallery(ctx, b, "qrcode_${System.currentTimeMillis()}.png"); vm.showAlert("Success", "QR Code saved to gallery!") }
                         catch (e: Exception) { vm.showAlert("Error", "Failed to save QR code: ${e.message ?: "Unknown error"}") }
-                    }.padding(12.dp),
+                    },
                     horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
-                ) { Ion("download-outline", 20f, Color.White, Modifier.padding(end = 8.dp)); Txt("Save", 14f, Color.White, FontWeight.Bold, scaled = false) }
+                ) { Sym("download", 20f, ui.cs.onPrimary, Modifier.padding(end = 8.dp)); Txt("Save", 14f, ui.cs.onPrimary, ui.bold, scaled = false) }
                 Row(
-                    Modifier.weight(1f).background(ui.card, RoundedCornerShape(10.dp)).border(1.dp, ui.bg, RoundedCornerShape(10.dp)).touchable {
+                    Modifier.weight(1f).height(48.dp).clip(CircleShape).background(ui.cs.secondaryContainer).touchable {
                         val b = bmp ?: return@touchable
                         try {
                             val f = File(ctx.cacheDir, "qrcode_share_${System.currentTimeMillis()}.png")
@@ -230,10 +230,11 @@ fun QrGenerator(vm: BrowserViewModel) {
                             val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f)
                             ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
                         } catch (_: Exception) { vm.showAlert("Error", "Failed to share QR code.") }
-                    }.padding(12.dp),
+                    },
                     horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
-                ) { Ion("share-social-outline", 20f, ui.text, Modifier.padding(end = 8.dp)); Txt("Share", 14f, ui.text, FontWeight.Bold, scaled = false) }
+                ) { Sym("share", 20f, ui.cs.onSecondaryContainer, Modifier.padding(end = 8.dp)); Txt("Share", 14f, ui.cs.onSecondaryContainer, ui.bold, scaled = false) }
             }
+          }
         }
     }
 }

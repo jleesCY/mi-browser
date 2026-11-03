@@ -32,29 +32,29 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
         else if (activeUrl != null && (filter == activeUrl || filter == displayHost(activeUrl))) true
         else item.title.lowercase().contains(filter.lowercase())
     }
-    Box(Modifier.fillMaxSize().background(ui.surface)) {
+    Box(Modifier.fillMaxSize().background(ui.cs.surfaceContainerLow)) {
         Column(Modifier.fillMaxSize()) {
             if (items.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.TopCenter) {
-                    Txt(if (vm.recents.isEmpty()) "No recent history" else "No matches found", 16f, ui.textSec, ui.semibold)
+                    Txt(if (vm.recents.isEmpty()) "No recent history" else "No matches found", 16f, ui.cs.onSurfaceVariant, ui.semibold)
                 }
             } else {
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)) {
                     items(items, key = { it.id }) { item ->
                         Row(
-                            Modifier.fillMaxWidth().touchable(activeOpacity = 0.2f) { vm.inputUrl = item.title; vm.ui.tryEmit(com.jlees.mibrowser.UiEvent.FocusInput) }
+                            Modifier.fillMaxWidth().touchable { vm.inputUrl = item.title; vm.ui.tryEmit(com.jlees.mibrowser.UiEvent.FocusInput) }
                                 .padding(vertical = 7.dp, horizontal = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Txt(item.title.ifEmpty { "Untitled" }, 15f, ui.text, ui.semibold, Modifier.weight(1f), maxLines = 1)
-                            Box(Modifier.padding(start = 8.dp).touchable { vm.deleteRecentSearch(item.id) }.padding(6.dp)) { Ion("close", 16f, ui.textSec) }
+                            Txt(item.title.ifEmpty { "Untitled" }, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 1)
+                            Box(Modifier.padding(start = 8.dp).touchable { vm.deleteRecentSearch(item.id) }.padding(6.dp)) { Sym("close", 16f, ui.cs.onSurfaceVariant) }
                         }
                     }
                 }
             }
             // favorites bar
             Row(
-                Modifier.fillMaxWidth().background(ui.glass).border(1.dp, ui.bg).padding(vertical = 10.dp),
+                Modifier.fillMaxWidth().background(ui.cs.surfaceContainerHigh).border(1.dp, ui.cs.surface).padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
                 SortableSlots(
@@ -68,8 +68,8 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                 ) { fav ->
                     Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                         Box(
-                            Modifier.size(44.dp).clip(CircleShape).background(ui.text.copy(alpha = if (ui.p.isDark) 0.1f else 0.05f))
-                                .touchable(activeOpacity = 0.8f) {
+                            Modifier.size(44.dp).clip(CircleShape).background(ui.cs.onSurface.copy(alpha = if (ui.isDark) 0.1f else 0.05f))
+                                .touchable {
                                     vm.inputUrl = displayHost(fav.url)
                                     focusManager.clearFocus()
                                     vm.navigateTab(fav.url, fav.title)
@@ -77,28 +77,28 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
-                            NetImage(fav.icon ?: faviconUrl(fav.url), Modifier.size(36.dp).clip(CircleShape)) { Ion("globe-outline", 32f, ui.text) }
+                            NetImage(fav.icon ?: faviconUrl(fav.url), Modifier.size(36.dp).clip(CircleShape)) { Sym("public", 32f, ui.cs.onSurface) }
                         }
                     }
                 }
                 if (vm.favorites.size < 5) {
                     Box(
-                        Modifier.padding(horizontal = 8.dp).size(44.dp).clip(CircleShape).background(ui.card).border(1.dp, ui.bg, CircleShape)
+                        Modifier.padding(horizontal = 8.dp).size(44.dp).clip(CircleShape).background(ui.cs.surfaceContainerHighest).border(1.dp, ui.cs.surface, CircleShape)
                             .touchable {
                                 val url = vm.activeUrl
                                 if (url != null && url != "about:blank") vm.addFavorite(vm.currentTab?.title ?: displayHost(url), url)
                             },
                         contentAlignment = Alignment.Center,
-                    ) { Ion("add", 28f, ui.text) }
+                    ) { Sym("add", 28f, ui.cs.onSurface) }
                 }
             }
         }
         // floating close button
         Box(
             Modifier.align(Alignment.BottomEnd).padding(bottom = 80.dp, end = 20.dp).size(40.dp).shadow(4.dp, CircleShape)
-                .background(ui.card, CircleShape).border(1.dp, ui.bg, CircleShape).touchable { pill.animateRecent(pill.recentMin) },
+                .background(ui.cs.surfaceContainerHighest, CircleShape).border(1.dp, ui.cs.surface, CircleShape).touchable { pill.animateRecent(pill.recentMin) },
             contentAlignment = Alignment.Center,
-        ) { Ion("chevron-down", 24f, ui.text) }
+        ) { Sym("keyboard_arrow_down", 24f, ui.cs.onSurface) }
     }
 }
 

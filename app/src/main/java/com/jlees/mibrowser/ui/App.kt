@@ -1,6 +1,7 @@
 // Root screen. Port of legacy/app/index.tsx render tree + effects.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.ui.common.Motion
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.ViewGroup
@@ -12,6 +13,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.ui.platform.LocalContext
+import com.jlees.mibrowser.logic.DYNAMIC_ACCENT
+import com.jlees.mibrowser.logic.GRAY_ACCENT
+import com.jlees.mibrowser.ui.common.sansFlex
+import com.jlees.mibrowser.ui.common.sansFlexTypography
+import com.materialkolor.PaletteStyle
+import com.materialkolor.rememberDynamicColorScheme
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -28,7 +43,6 @@ import com.jlees.mibrowser.logic.hexColor
 import com.jlees.mibrowser.ui.bookmarks.BookmarksView
 import com.jlees.mibrowser.ui.common.LocalUi
 import com.jlees.mibrowser.ui.common.UiConfig
-import com.jlees.mibrowser.ui.common.c
 import com.jlees.mibrowser.ui.history.HistoryView
 import com.jlees.mibrowser.ui.home.HomePage
 import com.jlees.mibrowser.ui.qr.QrGenerator
@@ -38,11 +52,20 @@ import com.jlees.mibrowser.ui.tabs.TabsView
 import com.jlees.mibrowser.web.WebViewHost
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
     val s = vm.settings
-    val ui = UiConfig(vm.palette, c(hexColor(s.accentColor)), s.cornerRadius, s.fontScale, s.uiPadding, s.fontWeight)
+    val dark = when (s.themeMode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
+    val ctx = LocalContext.current
+    val cs = if (s.accentColor == DYNAMIC_ACCENT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
+    } else rememberDynamicColorScheme(
+        seedColor = Color(hexColor(s.accentColor)), isDark = dark,
+        style = if (s.accentColor == GRAY_ACCENT) PaletteStyle.Monochrome else PaletteStyle.Vibrant,
+    )
+    val ui = UiConfig(cs, dark, s.cornerRadius, s.fontScale, s.uiPadding, sansFlex(s.roundedFont))
+    MaterialExpressiveTheme(colorScheme = cs, motionScheme = MotionScheme.expressive(), typography = sansFlexTypography(s.roundedFont)) {
     CompositionLocalProvider(LocalUi provides ui) {
         val scope = rememberCoroutineScope()
         val pill = remember { PillState(scope, vm) }
@@ -73,10 +96,10 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         }
 
         // ---- system bars / orientation (StatusBar + onFullScreen)
-        LaunchedEffect(s.showStatusBar, fullscreen, ui.p.isDark) {
+        LaunchedEffect(s.showStatusBar, fullscreen, ui.isDark) {
             val ctl = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-            ctl.isAppearanceLightStatusBars = !ui.p.isDark
-            ctl.isAppearanceLightNavigationBars = !ui.p.isDark
+            ctl.isAppearanceLightStatusBars = !ui.isDark
+            ctl.isAppearanceLightNavigationBars = !ui.isDark
             ctl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             if (fullscreen) ctl.hide(WindowInsetsCompat.Type.systemBars())
             else {
@@ -91,7 +114,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         LaunchedEffect(vm.isInputFocused, kbVisible) { pill.handleAnim.animateTo(if (vm.isInputFocused && kbVisible) 1f else 0f, timing(200)) }
         LaunchedEffect(vm.isSearchActive) { if (vm.isSearchActive) vm.isSubMenuVisible = false }
 
-        BoxWithConstraints(Modifier.fillMaxSize().background(ui.bg)) {
+        BoxWithConstraints(Modifier.fillMaxSize().background(ui.cs.surface)) {
             // Focus sink: when Android re-assigns view focus after clearFocus(), Compose gives it to the first focusable
             // node. Without this that is the address bar, which would pop the keyboard back up.
             Box(Modifier.size(1.dp).focusable())
@@ -113,13 +136,13 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             // ---- overlay sheet
             val sheetH = remember { Animatable(0f) }
             LaunchedEffect(vm.activeView, s.expandMenus) {
-                if (vm.activeView != "none") sheetH.animateTo(if (s.expandMenus) snapFull else snapDefault, springT60F9())
+                if (vm.activeView != "none") sheetH.animateTo(if (s.expandMenus) snapFull else snapDefault, Motion.fastSpatial())
             }
             val closeOverlay: () -> Unit = {
                 focusManager.clearFocus()
                 scope.launch { sheetH.animateTo(0f, timing(250)); vm.onOverlayClosed() }
             }
-            val focusSheetSearch: () -> Unit = { scope.launch { sheetH.animateTo(snapFull, springT60F9()) } }
+            val focusSheetSearch: () -> Unit = { scope.launch { sheetH.animateTo(snapFull, Motion.fastSpatial()) } }
 
             BackHandler(enabled = fullscreen || vm.activeView != "none" || vm.isInputFocused || (vm.currentTab?.currentIndex ?: 0) > 0) {
                 when {
@@ -170,15 +193,15 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             }
 
             // status bar backdrop: keeps page content from showing behind the (transparent) status bar
-            if (s.showStatusBar && !fullscreen) Box(Modifier.fillMaxWidth().height(statusDp.dp).background(ui.bg))
+            if (s.showStatusBar && !fullscreen) Box(Modifier.fillMaxWidth().height(statusDp.dp).background(ui.cs.surface))
 
             if (!fullscreen) {
                 if (vm.activeView == "none") {
-                    BottomArea(vm, pill, imeDp, navDp, onSubmenuAction = {}) {
+                    BottomArea(vm, pill, imeDp, navDp) {
                         RecentSearches(vm, pill, screenH)
                     }
                 }
-                RecallButton(pill, navDp, Modifier.align(Alignment.BottomCenter).zIndex(3f))
+                RecallButton(vm, pill, navDp, maxWidth.value, Modifier.align(Alignment.BottomStart).zIndex(3f))
                 if (vm.activeView != "none") {
                     val title = when (vm.activeView) { "history" -> "History"; "tabs" -> "Tabs"; "bookmarks" -> "Bookmarks"; else -> "Settings" }
                     OverlaySheet(title, sheetH, snapDefault, snapFull, imeDp, closeOverlay, scope) {
@@ -192,8 +215,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
             }
 
-            if (vm.findVisible) FindBar(vm, imeDp, onQuery = { host.findAll(it) }, onClose = {
-                focusManager.clearFocus(); vm.findVisible = false; host.handle(com.jlees.mibrowser.WebCmd.ClearFind)
+            if (vm.findVisible) FindBar(imeDp, onQuery = { host.findAll(it) }, onNext = { host.findNext(it) }, onClose = {
+                focusManager.clearFocus(); vm.findVisible = false; host.findAll("")
             })
 
             QrScanner(vm)
@@ -210,5 +233,6 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 )
             }
         }
+    }
     }
 }

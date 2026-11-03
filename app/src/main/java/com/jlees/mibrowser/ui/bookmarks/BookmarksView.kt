@@ -1,6 +1,13 @@
 // Port of legacy/src/components/Bookmarks/{BookmarksView,BookmarkRow}.tsx
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui.bookmarks
 
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
+import com.jlees.mibrowser.ui.common.DialogCard
+import com.jlees.mibrowser.ui.common.DialogAction
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -36,8 +43,6 @@ import com.jlees.mibrowser.ui.tabs.rememberDeleteAnim
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private data class Folder(val id: String, val title: String)
-
 @Composable
 fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVisible: Boolean, onFocusSearch: () -> Unit, closeOverlay: () -> Unit) {
     val ui = LocalUi.current
@@ -45,7 +50,7 @@ fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVis
     val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
     val density = LocalDensity.current.density
-    var folderStack by remember { mutableStateOf(listOf<Folder>()) }
+    var folderStack by remember { mutableStateOf(listOf<BookmarkNode>()) }
     val currentFolder = folderStack.lastOrNull()?.id
     var search by remember { mutableStateOf("") }
 
@@ -100,7 +105,7 @@ fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVis
                 onReorder = { from, to -> if (search.isEmpty()) vm.bookmarks = reorderBookmarks(vm.bookmarks, currentFolder, from, to) },
             ) { b ->
                 BookmarkRow(b, rowH, vm.settings.showBookmarkIcons,
-                    onPress = { if (b.isFolder) folderStack = folderStack + Folder(b.id, b.title) else { vm.navigateTab(b.url, b.title); closeOverlay() } },
+                    onPress = { if (b.isFolder) folderStack = folderStack + b else { vm.navigateTab(b.url, b.title); closeOverlay() } },
                     onDelete = { vm.bookmarks = deleteBookmark(vm.bookmarks, b.id) },
                     onRename = { openEdit(b) })
             }
@@ -109,20 +114,18 @@ fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVis
         // header
         Column(Modifier.fillMaxWidth().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
             if (showPath) Row(Modifier.fillMaxWidth().padding(bottom = 10.dp).height(30.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (folderStack.isNotEmpty()) Box(Modifier.padding(end = 10.dp).touchable { folderStack = folderStack.dropLast(1) }) { Ion("arrow-back", 24f, ui.text) }
-                Txt(if (search.isNotEmpty()) "Search Results" else "/" + folderStack.joinToString("/") { it.title }, 16f, ui.text, ui.bold, maxLines = 1)
+                if (folderStack.isNotEmpty()) Box(Modifier.padding(end = 10.dp).touchable { folderStack = folderStack.dropLast(1) }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
+                Txt(if (search.isNotEmpty()) "Search Results" else "/" + folderStack.joinToString("/") { it.title }, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
             }
             SheetSearchField(search, { search = it }, "Search Bookmarks...", onFocusSearch)
         }
 
         if (search.isEmpty()) ScrollTopAndFab(sheetH, snapDefault, kbVisible, scroll.value / density > 100, { scope.launch { scroll.animateScrollTo(0) } }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.padding(end = 15.dp).size(48.dp).shadow(8.dp, CircleShape).background(ui.card, CircleShape).touchable { openFolder() }, contentAlignment = Alignment.Center) {
-                    Ion("folder-outline", 28f, ui.text)
+                SmallFloatingActionButton(onClick = { openFolder() }, modifier = Modifier.padding(end = 16.dp), containerColor = ui.cs.secondaryContainer) {
+                    Sym("create_new_folder", 24f, ui.cs.onSecondaryContainer)
                 }
-                Box(Modifier.size(56.dp).shadow(8.dp, CircleShape).background(ui.accent, CircleShape).touchable { openAdd() }, contentAlignment = Alignment.Center) {
-                    Ion("add", 32f, Color.White)
-                }
+                FloatingActionButton(onClick = { openAdd() }, containerColor = ui.cs.primaryContainer) { Sym("add", 28f, ui.cs.onPrimaryContainer) }
             }
         }
     }
@@ -131,33 +134,31 @@ fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVis
     val titleFr = remember { FocusRequester() }
     LaunchedEffect(modalMode, picker) { if (modalMode != null && !picker) { delay(150); runCatching { titleFr.requestFocus() } } }
     ModalFrame(modalMode != null, { if (picker) picker = false else modalMode = null }) {
-        Column(Modifier.fillMaxWidth(0.85f).background(ui.surface, RoundedCornerShape(ui.radius.dp)).blockTouches().padding(20.dp)) {
+        DialogCard(null) {
             if (!picker) {
-                Txt(when (modalMode) { "add_bookmark" -> "Add Bookmark"; "add_folder" -> "New Folder"; else -> "Edit Item" }, 20f, ui.text, ui.bold, Modifier.padding(bottom = 15.dp))
-                Txt("Title", 14f, ui.textSec, ui.regular, Modifier.padding(bottom = 5.dp))
+                Txt(when (modalMode) { "add_bookmark" -> "Add Bookmark"; "add_folder" -> "New Folder"; else -> "Edit Item" }, 24f, ui.cs.onSurface, ui.regular, Modifier.padding(bottom = 16.dp), scaled = false)
+                Txt("Title", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
                 ClearableField(title, { title = it }, titleFr, Modifier.padding(bottom = 15.dp))
                 if (modalMode == "add_bookmark" || (modalMode == "edit" && editing?.isFolder == false)) {
-                    Txt("URL", 14f, ui.textSec, ui.regular, Modifier.padding(bottom = 5.dp))
+                    Txt("URL", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
                     ClearableField(url, { url = it }, modifier = Modifier.padding(bottom = 15.dp), uri = true)
                 }
-                Txt("Location", 14f, ui.textSec, ui.regular, Modifier.padding(bottom = 5.dp))
+                Txt("Location", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
                 Row(
-                    Modifier.fillMaxWidth().background(ui.inputBg, RoundedCornerShape((ui.radius / 2f).dp)).touchable { picker = true }.padding(12.dp),
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(ui.cs.surfaceContainerHighest).touchable { picker = true }.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Txt(modalFolder?.let { id -> vm.bookmarks.firstOrNull { it.id == id }?.title ?: "Unknown" } ?: "Bookmarks", 16f, ui.text, ui.semibold, Modifier.weight(1f))
-                    Ion("chevron-forward", 20f, ui.textSec)
+                    Txt(modalFolder?.let { id -> vm.bookmarks.firstOrNull { it.id == id }?.title ?: "Unknown" } ?: "Bookmarks", 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+                    Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
-                    Box(Modifier.touchable { modalMode = null }.padding(10.dp)) { Txt("Cancel", 14f, ui.textSec, ui.semibold) }
-                    Box(Modifier.padding(start = 10.dp).background(ui.accent, RoundedCornerShape((ui.radius / 2f).dp)).touchable { save() }.padding(horizontal = 20.dp, vertical = 10.dp)) {
-                        Txt("Save", 14f, Color.White, ui.bold)
-                    }
+                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                    DialogAction("Cancel") { modalMode = null }
+                    DialogAction("Save") { save() }
                 }
             } else {
                 Row(Modifier.padding(bottom = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.padding(end = 10.dp).touchable { picker = false }) { Ion("arrow-back", 24f, ui.text) }
-                    Txt("Select Location", 18f, ui.text, ui.bold)
+                    Box(Modifier.padding(end = 10.dp).touchable { picker = false }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
+                    Txt("Select Location", 18f, ui.cs.onSurface, ui.bold)
                 }
                 val e = editing
                 val excluded = if (modalMode == "edit" && e != null && e.isFolder) descendantsAndSelf(vm.bookmarks, e.id) else emptySet()
@@ -169,11 +170,11 @@ fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVis
                             Modifier.fillMaxWidth().touchable { modalFolder = id; picker = false }.padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Ion(if (id == null) "home-outline" else "folder-outline", 20f, ui.textSec, Modifier.padding(end = 10.dp))
-                            Txt(path, 16f, ui.text, ui.semibold, Modifier.weight(1f).padding(end = 10.dp), maxLines = 3)
-                            if (modalFolder == id) Ion("checkmark", 20f, ui.accent)
+                            Sym(if (id == null) "home" else "folder", 20f, ui.cs.onSurfaceVariant, Modifier.padding(end = 10.dp))
+                            Txt(path, 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f).padding(end = 10.dp), maxLines = 3)
+                            if (modalFolder == id) Sym("check", 20f, ui.cs.primary)
                         }
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(ui.bg))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(ui.cs.surface))
                     }
                 }
             }
@@ -188,25 +189,25 @@ private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPre
     val shape = RoundedCornerShape(ui.radius.dp)
     SwipeRevealRow(160.dp, { SwipeActions(height.dp, onRename) { del(onDelete) } }, Modifier.height(height.dp).deleteAnim(anim.value)) {
         Row(
-            Modifier.fillMaxWidth().height(height.dp).clip(shape).background(ui.card).touchable(activeOpacity = 0.9f, onClick = onPress).padding(horizontal = 15.dp),
+            Modifier.fillMaxWidth().height(height.dp).clip(shape).background(ui.cs.surfaceContainerHighest).touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.padding(end = 15.dp).size(44.dp).clip(RoundedCornerShape(if (ui.radius == 22) 22.dp else (ui.radius / 2f).dp))
-                    .background(ui.text.copy(alpha = if (ui.p.isDark) 0.1f else 0.05f)),
+                Modifier.padding(end = 15.dp).size(44.dp).clip(if (b.isFolder) MaterialShapes.Cookie6Sided.toShape() else CircleShape)
+                    .background(if (b.isFolder) ui.cs.tertiaryContainer else ui.cs.surfaceContainerLow),
                 contentAlignment = Alignment.Center,
             ) {
                 when {
-                    b.isFolder -> Ion("folder", 32f, ui.accent)
-                    showIcon -> NetImage(b.icon ?: faviconUrl(b.url), Modifier.size(32.dp).clip(RoundedCornerShape(4.dp))) { Ion("globe-outline", 32f, ui.text) }
-                    else -> Txt(b.title.ifEmpty { "?" }.take(1).uppercase(), 20f, ui.text, FontWeight.W700)
+                    b.isFolder -> Sym("folder_fill", 24f, ui.cs.onTertiaryContainer)
+                    showIcon -> NetImage(b.icon ?: faviconUrl(b.url), Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))) { Sym("public", 26f, ui.cs.onSurfaceVariant) }
+                    else -> Txt(b.title.ifEmpty { "?" }.take(1).uppercase(), 20f, ui.cs.onSurface, FontWeight.W700)
                 }
             }
             Column(Modifier.weight(1f)) {
-                Txt(b.title, 16f, ui.text, ui.bold, maxLines = 1)
-                if (!b.isFolder) Txt(b.url, 12f, ui.textSec, ui.regular, maxLines = 1)
+                Txt(b.title, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
+                if (!b.isFolder) Txt(b.url, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
             }
-            if (b.isFolder) Ion("chevron-forward", 20f, ui.textSec)
+            if (b.isFolder) Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
         }
     }
 }

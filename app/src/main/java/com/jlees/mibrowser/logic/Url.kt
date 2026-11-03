@@ -112,5 +112,4 @@ fun parseDeepLink(url: String?): String? {
 fun normalizeUrl(u: String) = u.replace(Regex("^https?://"), "").replace(Regex("^www\\."), "")
     .replace(Regex("/$"), "").replace(Regex("/index\\.html$"), "").lowercase()
 
-fun uniqueId(): String = java.lang.Long.toString(System.currentTimeMillis(), 36) +
-    (1..9).map { "0123456789abcdefghijklmnopqrstuvwxyz".random() }.joinToString("")
+fun uniqueId(): String = java.util.UUID.randomUUID().toString()

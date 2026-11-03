@@ -2,6 +2,8 @@
 // RNGH Swipeable (tab/bookmark rows) and a minimal image loader (expo-image / RN Image).
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.animation.core.animate
+import kotlinx.coroutines.Job
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import androidx.compose.animation.core.Animatable
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -49,8 +52,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.roundToInt
 
-/** Reanimated { damping: 50, stiffness: 500, overshootClamping } */
-val SortSpring = spring<Offset>(dampingRatio = 1.118f, stiffness = 500f)
 
 /**
  * Fixed-slot drag-to-reorder container (grid when columns > 1, horizontal row when [horizontal]).
@@ -94,20 +95,23 @@ fun <T> SortableSlots(
                 var windowOrigin by remember { mutableStateOf(Offset.Zero) }
                 val isDragging = dragging == k
                 val target = slot(order[k] ?: index)
-                LaunchedEffect(target, isDragging) { if (!isDragging) pos.animateTo(target, SortSpring) }
-                val scale by animateFloatAsState(if (isDragging) dragScale else 1f, spring(1.118f, 500f), label = "scale")
+                LaunchedEffect(target, isDragging) { if (!isDragging) pos.animateTo(target, Motion.spatial()) }
+                val scale by animateFloatAsState(if (isDragging) dragScale else 1f, Motion.fastSpatial(), label = "scale")
                 Box(
                     Modifier
                         .offset { IntOffset((pos.value.x + drag.x).roundToInt(), (pos.value.y + drag.y).roundToInt()) }
                         .size(slotW, slotH)
                         .zIndex(if (isDragging) 100f else 1f)
                         .graphicsLayer { scaleX = scale; scaleY = scale }
-                        .then(if (isDragging && dragShadow) Modifier.shadow(5.dp) else Modifier)
+                        .then(if (isDragging && dragShadow) Modifier.shadow(8.dp, RoundedCornerShape(LocalUi.current.radius.dp)) else Modifier)
                         .onGloballyPositioned { windowOrigin = it.positionInWindow() - Offset(pos.value.x + drag.x, pos.value.y + drag.y) }
                         .pointerInput(k, enabled, count) {
                             if (!enabled) return@pointerInput
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
+                                // raw screen position of the touch-down (the dragged item moves under the finger)
+                                val downMe = currentEvent.motionEvent
+                                val origin = if (downMe != null) Offset(downMe.rawX, downMe.rawY) else null
                                 // wait for the long-press delay; abort if the finger moves or lifts first
                                 val held = withTimeoutOrNull(longPressMs) {
                                     while (true) {
@@ -128,7 +132,8 @@ fun <T> SortableSlots(
                                     val e = awaitPointerEvent()
                                     val c = e.changes.firstOrNull { it.id == down.id } ?: break
                                     if (!c.pressed) { last = c.position; break }
-                                    total += c.positionChange()
+                                    val me = e.motionEvent
+                                    total = if (me != null && origin != null) Offset(me.rawX, me.rawY) - origin else total + c.positionChange()
                                     last = c.position
                                     c.consume()
                                     drag = total
@@ -151,7 +156,7 @@ fun <T> SortableSlots(
                                 val visual = pos.value + drag
                                 val endWindow = windowOrigin + visual + last
                                 drag = Offset.Zero
-                                scope.launch { pos.snapTo(visual); dragging = null; pos.animateTo(slot(to), SortSpring) }
+                                scope.launch { pos.snapTo(visual); dragging = null; pos.animateTo(slot(to), Motion.spatial()) }
                                 if (to != index) onReorder(index, to)
                                 onDragEnd(item, endWindow)
                             }
@@ -168,19 +173,23 @@ fun <T> SortableSlots(
 @Composable
 fun SwipeRevealRow(actionsWidth: Dp, actions: @Composable () -> Unit, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val maxPx = with(LocalDensity.current) { actionsWidth.toPx() }
-    val offset = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
+    // Plain state updated synchronously while dragging (no per-delta coroutines that could land after — and
+    // cancel — the settle animation, which left rows stuck half-open). The settle animates the same state.
+    var offset by remember { mutableFloatStateOf(0f) }
+    var settleJob by remember { mutableStateOf<Job?>(null) }
     Box(modifier) {
         Row(Modifier.align(Alignment.CenterEnd).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) { actions() }
         Box(
             Modifier.fillMaxWidth()
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .offset { IntOffset(offset.roundToInt(), 0) }
                 .draggable(
-                    rememberDraggableState { delta -> scope.launch { offset.snapTo((offset.value + delta).coerceIn(-maxPx * 1.2f, 0f)) } },
+                    rememberDraggableState { delta -> offset = (offset + delta).coerceIn(-maxPx * 1.2f, 0f) },
                     Orientation.Horizontal,
+                    onDragStarted = { settleJob?.cancel() },
                     onDragStopped = { v ->
-                        val open = offset.value < -maxPx / 2 || v < -1000f
-                        offset.animateTo(if (open && v < 1000f) -maxPx else 0f, spring(0.85f, Spring.StiffnessMediumLow))
+                        settleJob = coroutineContext[Job]
+                        val open = (offset < -maxPx / 3 || v < -400f) && v < 400f
+                        animate(offset, if (open) -maxPx else 0f, v, Motion.spatial()) { value, _ -> offset = value }
                     },
                 ),
             content = content,
@@ -194,9 +203,11 @@ private val imageCache = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024
     override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
 }
 
-/** Loads http(s) URLs or local file paths; [maxPx] downsamples big images (backgrounds). */
+private const val MAX_IMAGE_PX = 2048
+
+/** Loads http(s) URLs or local file paths, downsampling big images (backgrounds). */
 @Composable
-fun rememberImage(src: String?, maxPx: Int = 2048): State<ImageBitmap?> {
+fun rememberImage(src: String?): State<ImageBitmap?> {
     val state = remember(src) { mutableStateOf(src?.let { imageCache.get(it) }) }
     var failed by remember(src) { mutableStateOf(false) }
     LaunchedEffect(src) {
@@ -212,7 +223,7 @@ fun rememberImage(src: String?, maxPx: Int = 2048): State<ImageBitmap?> {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
                 var sample = 1
-                while (bounds.outWidth / sample > maxPx || bounds.outHeight / sample > maxPx) sample *= 2
+                while (bounds.outWidth / sample > MAX_IMAGE_PX || bounds.outHeight / sample > MAX_IMAGE_PX) sample *= 2
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
             } catch (_: Exception) { null }
         }
@@ -223,8 +234,11 @@ fun rememberImage(src: String?, maxPx: Int = 2048): State<ImageBitmap?> {
 
 /** Image with a fallback while loading/failed (RN Image onError → fallback icon). */
 @Composable
-fun NetImage(src: String?, modifier: Modifier, contentScale: ContentScale = ContentScale.Crop, alpha: Float = 1f, fallback: @Composable () -> Unit = {}) {
+fun NetImage(
+    src: String?, modifier: Modifier, contentScale: ContentScale = ContentScale.Crop, alpha: Float = 1f,
+    colorFilter: androidx.compose.ui.graphics.ColorFilter? = null, fallback: @Composable () -> Unit = {},
+) {
     val img by rememberImage(src)
     val b = img
-    if (b != null) Image(b, null, modifier, contentScale = contentScale, alpha = alpha) else fallback()
+    if (b != null) Image(b, null, modifier, contentScale = contentScale, alpha = alpha, colorFilter = colorFilter) else fallback()
 }

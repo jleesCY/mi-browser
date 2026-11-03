@@ -1,98 +1,89 @@
-// Shared UI primitives. Replaces legacy/src/design-system/tokens.ts + RN Text/TouchableOpacity/Switch/Ionicons.
+// Shared UI primitives: Material 3 Expressive theme glue (color roles, Google Sans Flex, Material Symbols, motion).
 package com.jlees.mibrowser.ui.common
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.IndicationNodeFactory
-import androidx.compose.foundation.interaction.InteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.node.DelegatableNode
-import androidx.compose.ui.node.DrawModifierNode
-import androidx.compose.ui.node.invalidateDraw
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jlees.mibrowser.R
-import com.jlees.mibrowser.logic.DARK
-import com.jlees.mibrowser.logic.Palette
 
-val Nunito = FontFamily(
-    Font(R.font.nunito_400, FontWeight.W400),
-    Font(R.font.nunito_600, FontWeight.W600),
-    Font(R.font.nunito_700, FontWeight.W700),
-    Font(R.font.nunito_800, FontWeight.W800),
+/** Google Sans Flex (M3 Expressive typeface). The heaviest weight uses the rounded (ROND) axis for display text. */
+private fun gsf(w: Int, rond: Float = 0f) = Font(
+    R.font.google_sans_flex, FontWeight(w),
+    variationSettings = FontVariation.Settings(FontVariation.weight(w), FontVariation.Setting("ROND", rond)),
 )
-private val Ionicons = FontFamily(Font(R.font.ionicons))
 
-fun c(argb: Long) = Color(argb)
+private val SansFlexStandard = FontFamily(gsf(400), gsf(500), gsf(600), gsf(700), gsf(800, 100f))
+private val SansFlexRounded = FontFamily(gsf(400, 100f), gsf(500, 100f), gsf(600, 100f), gsf(700, 100f), gsf(800, 100f))
 
-val Red = Color(0xFFFF3B30)
+/** Google Sans Flex; [rounded] turns on the ROND axis (rounded stroke ends) for every weight. */
+fun sansFlex(rounded: Boolean) = if (rounded) SansFlexRounded else SansFlexStandard
 
-/** Everything the RN components received as theme/accentColor/cornerRadius/fontScale/uiPadding props. */
+private val typographyCache = HashMap<Boolean, androidx.compose.material3.Typography>()
+
+/** M3 type scale set in Google Sans Flex. */
+fun sansFlexTypography(rounded: Boolean) = typographyCache.getOrPut(rounded) { androidx.compose.material3.Typography().run {
+    val family = sansFlex(rounded)
+    fun TextStyle.f() = copy(fontFamily = family)
+    copy(
+        displayLarge.f(), displayMedium.f(), displaySmall.f(), headlineLarge.f(), headlineMedium.f(), headlineSmall.f(),
+        titleLarge.f(), titleMedium.f(), titleSmall.f(), bodyLarge.f(), bodyMedium.f(), bodySmall.f(),
+        labelLarge.f(), labelMedium.f(), labelSmall.f(),
+    )
+} }
+
+/** Material 3 Expressive motion scheme springs (MotionScheme.expressive()). */
+object Motion {
+    fun <T> fastSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.6f, stiffness = 800f) // pill swap, sheet open
+    fun <T> spatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.8f, stiffness = 380f)     // settles, resets
+    fun <T> noBounce(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 600f)      // drawer: never past max
+    fun <T> playful(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.5f, stiffness = 300f)     // fidget logo
+}
+
+/** App-wide styling inputs: the M3 color scheme plus the user's shape/size/density/weight settings. */
 @Immutable
 data class UiConfig(
-    val p: Palette = DARK,
-    val accent: Color = Color(0xFF007AFF),
-    val radius: Int = 22,
+    val cs: ColorScheme = darkColorScheme(),
+    val isDark: Boolean = true,
+    val radius: Int = 28,
     val fontScale: Float = 1f,
     val padding: String = "normal",
-    val fontWeight: String = "normal",
+    val font: FontFamily = sansFlex(false),
 ) {
-    val bg get() = c(p.bg)
-    val surface get() = c(p.surface)
-    val glass get() = c(p.glass)
-    val text get() = c(p.text)
-    val textSec get() = c(p.textSec)
-    val card get() = c(p.card)
-    val sheetHeader get() = c(p.sheetHeader)
-    val inputBg get() = c(p.inputBg)
-
-    // theme.fonts.* mapping (useBrowserSettings effectiveTheme)
-    val regular get() = when (fontWeight) { "bold" -> FontWeight.W600; else -> FontWeight.W400 }
-    val semibold get() = when (fontWeight) { "bold" -> FontWeight.W700; "light" -> FontWeight.W400; else -> FontWeight.W600 }
-    val bold get() = when (fontWeight) { "bold" -> FontWeight.W800; "light" -> FontWeight.W600; else -> FontWeight.W700 }
-    val extrabold get() = when (fontWeight) { "light" -> FontWeight.W700; else -> FontWeight.W800 }
+    // Type weights
+    val regular get() = FontWeight.W400
+    val semibold get() = FontWeight.W500
+    val bold get() = FontWeight.W600
+    val extrabold get() = FontWeight.W800
 }
 
 val LocalUi = staticCompositionLocalOf { UiConfig() }
 
-/** RN <Text>: Nunito, size in sp (scaled by the app font-scale setting only when [scaled]). */
 @Composable
 fun Txt(
     text: String,
@@ -106,6 +97,7 @@ fun Txt(
     lineHeight: Float? = null,
     letterSpacing: Float? = null,
     underline: Boolean = false,
+    font: FontFamily? = null,
 ) {
     val fs = if (scaled) size * LocalUi.current.fontScale else size
     BasicText(
@@ -114,76 +106,34 @@ fun Txt(
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
         style = TextStyle(
-            color = color, fontSize = fs.sp, fontFamily = Nunito, fontWeight = weight,
+            color = color, fontSize = fs.sp, fontFamily = font ?: LocalUi.current.font, fontWeight = weight,
             textAlign = align ?: TextAlign.Unspecified,
-            lineHeight = lineHeight?.sp ?: androidx.compose.ui.unit.TextUnit.Unspecified,
-            letterSpacing = letterSpacing?.sp ?: androidx.compose.ui.unit.TextUnit.Unspecified,
+            lineHeight = lineHeight?.sp ?: TextUnit.Unspecified,
+            letterSpacing = letterSpacing?.sp ?: TextUnit.Unspecified,
             textDecoration = if (underline) TextDecoration.Underline else null,
         ),
     )
 }
 
-/** Ionicons glyph, sized in dp like @expo/vector-icons. */
+/** Material Symbols Rounded icon, sized in dp. */
 @Composable
-fun Ion(name: String, size: Float, color: Color, modifier: Modifier = Modifier) {
-    val glyph = IonGlyphs[name] ?: return
-    val fontSize = with(LocalDensity.current) { size.dp.toSp() }
-    BasicText(
-        text = String(Character.toChars(glyph)),
-        modifier = modifier,
-        style = TextStyle(
-            color = color, fontFamily = Ionicons, fontSize = fontSize, lineHeight = fontSize,
-            lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
-        ),
-    )
+fun Sym(name: String, size: Float, color: Color, modifier: Modifier = Modifier) {
+    val res = SymbolRes[name] ?: return
+    Icon(painterResource(res), null, modifier.size(size.dp), tint = color)
 }
 
-/** TouchableOpacity: fades to [activeOpacity] while pressed, no ripple. */
-fun Modifier.touchable(enabled: Boolean = true, activeOpacity: Float = 0.2f, onClick: () -> Unit): Modifier =
-    clickable(interactionSource = null, indication = OpacityIndication(activeOpacity), enabled = enabled, onClick = onClick)
+/** Clickable with the Material ripple. Clip the modifier first for a shaped ripple. */
+fun Modifier.touchable(enabled: Boolean = true, onClick: () -> Unit): Modifier =
+    clickable(interactionSource = null, indication = ripple(), enabled = enabled, onClick = onClick)
 
-private data class OpacityIndication(val active: Float) : IndicationNodeFactory {
-    override fun create(interactionSource: InteractionSource): DelegatableNode = OpacityNode(interactionSource, active)
-}
-
-private class OpacityNode(val source: InteractionSource, val active: Float) : Modifier.Node(), DrawModifierNode {
-    private var pressed = false
-    override fun onAttach() {
-        coroutineScope.launch {
-            source.interactions.collect {
-                when (it) {
-                    is PressInteraction.Press -> { pressed = true; invalidateDraw() }
-                    is PressInteraction.Release, is PressInteraction.Cancel -> { pressed = false; invalidateDraw() }
-                }
-            }
-        }
-    }
-    override fun ContentDrawScope.draw() {
-        if (!pressed) { drawContent(); return }
-        drawContext.canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { alpha = active })
-        drawContent()
-        drawContext.canvas.restore()
-    }
-}
-
-/** RN shadow/elevation helper. */
-fun Modifier.elevated(elevation: Dp, radius: Dp): Modifier =
-    if (elevation <= 0.dp) this else shadow(elevation, RoundedCornerShape(radius), clip = false)
-
-/** Android RN <Switch>: thin track + round thumb (track off #767577, on accent; thumb #f4f3f4). */
+/** M3 switch with the expressive check thumb icon. */
 @Composable
 fun MiSwitch(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
-    val accent = LocalUi.current.accent
-    val track by animateColorAsState(if (checked) accent else Color(0xFF767577), tween(150), label = "track")
-    val x by animateFloatAsState(if (checked) 16f else 0f, tween(150), label = "thumb")
-    Box(
-        Modifier.size(width = 40.dp, height = 24.dp)
-            .then(if (onChange != null) Modifier.clickable(remember { MutableInteractionSource() }, null) { onChange(!checked) } else Modifier),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Box(Modifier.padding(horizontal = 3.dp).size(34.dp, 14.dp).clip(RoundedCornerShape(7.dp)).background(track))
-        Box(Modifier.offset(x = x.dp).padding(horizontal = 2.dp).size(20.dp).shadow(2.dp, CircleShape).background(Color(0xFFF4F3F4), CircleShape))
-    }
+    Switch(
+        checked = checked, onCheckedChange = onChange,
+        thumbContent = if (checked) { { Sym("check", 16f, MaterialTheme.colorScheme.onPrimaryContainer) } } else null,
+        colors = SwitchDefaults.colors(),
+    )
 }
 
 /** Spacing-mode helpers shared by tabs/history rows. */
@@ -193,3 +143,4 @@ fun rowHeight(kind: String, padding: String, fontScale: Float): Float = fontScal
 }
 
 fun rowMargin(padding: String): Float = when (padding) { "compact" -> 8f; "airy" -> 25f; else -> 15f }
+
