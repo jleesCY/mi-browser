@@ -28,13 +28,13 @@ export default function Home() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-6 border border-blue-500/20">
                <Sparkles size={14} />
-               Now in Beta
+               1.0 · Native Android
             </div>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter mb-6 leading-[1.1]">
               A minimal <span className="text-blue-600 italic">masterpiece</span> for the modern web.
             </h1>
             <p className="text-base sm:text-xl text-black/60 dark:text-white/60 mb-8 max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">
-              mi. is a hyper-lightweight browser that replaces bulky toolbars with a single, intelligent Pill. Fast, private, and deeply customizable.
+              mi. is a hyper-lightweight browser that replaces bulky toolbars with a single, intelligent Pill. Built natively in Kotlin with Material 3 Expressive. Fast, private, and deeply customizable.
             </p>
             <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
               <a href="#download" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all active:scale-95">
@@ -63,8 +63,8 @@ export default function Home() {
       <section className="py-16 sm:py-24 border-y border-black/5 dark:border-white/5 bg-white dark:bg-black/20">
         <div className="max-w-6xl mx-auto px-6 grid sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-12">
            <FeatureBrief icon={<Zap size={24} className="text-yellow-500"/>} title="Instant Interaction" desc="Zero lag, gesture-first navigation." />
-           <FeatureBrief icon={<Palette size={24} className="text-pink-500"/>} title="Adaptive UI" desc="Harmonizes with your chosen accent." />
-           <FeatureBrief icon={<Shield size={24} className="text-blue-500"/>} title="Privacy Native" desc="Your data never leaves your device." />
+           <FeatureBrief icon={<Palette size={24} className="text-pink-500"/>} title="Material You" desc="Colors from your accent or your wallpaper." />
+           <FeatureBrief icon={<Shield size={24} className="text-blue-500"/>} title="Privacy Native" desc="Built-in ad and tracker blocking. Your data never leaves your device." />
         </div>
       </section>
 
@@ -77,11 +77,11 @@ export default function Home() {
           tag="Interaction"
           tagColor="text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20"
           title="One Pill. Total Control."
-          description="The dashboard is the heart of mi. Browser. A single swipe up on the Pill reveals your entire digital world—History, Bookmarks, and Settings—all logically organized in an elegant, glass-morphism sheet."
+          description="The Pill is the heart of mi. Browser. Tap to search with live suggestions, swipe sideways to go back or forward, swipe up for the Tab Switcher, and swipe down to hide it."
           bullets={[
-            "Swipe up to open, down to hide",
+            "Swipe up for tabs, down to hide",
             "One-handed optimization",
-            "Haptic-feedback gestures",
+            "Pin the recall button left, center, or right",
             "Immersive full-screen mode"
           ]}
           imageSide="right"
@@ -94,11 +94,11 @@ export default function Home() {
           tag="Organization"
           tagColor="text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20"
           title="Visual Tab Management."
-          description="Stop guessing which tab is which. mi. provides a high-fidelity grid view with real-time snapshots of your open sessions, making it effortless to switch context or clean up your workspace."
+          description="Stop guessing which tab is which. The Tab Switcher shows your tabs like recent apps, with live snapshots. Swipe a card up to close it."
           bullets={[
             "Visual snapshot previews",
-            "Seamless reordering",
-            "Clear-all tabs shortcut",
+            "Swipe up to close, with undo",
+            "Tab actions in one bar",
             "Hyper-fast tab switching"
           ]}
           imageSide="left"
@@ -111,11 +111,11 @@ export default function Home() {
           tag="Aesthetic"
           tagColor="text-pink-600 dark:text-pink-400 bg-pink-500/10 border-pink-500/20"
           title="Deeply, truly yours."
-          description="Browser settings shouldn't be boring. mi. offers a robust customization engine that lets you adjust UI density, pill height, and corner radius. Change your accent color and watch the entire app adapt instantly."
+          description="Browser settings shouldn't be boring. mi. offers a robust customization engine that lets you adjust UI density, pill height, and corner radius. Pick an accent (or use your wallpaper) and the whole Material 3 color scheme regenerates instantly."
           bullets={[
-            "Real-time theme engine",
+            "Material You dynamic color",
             "Adjustable corner geometry",
-            "Custom search engine support",
+            "Rounded Google Sans Flex option",
             "UI density & font scaling"
           ]}
           imageSide="right"

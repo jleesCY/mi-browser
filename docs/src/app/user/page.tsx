@@ -81,8 +81,11 @@ export default function UserDocs() {
                   <div className="space-y-6 inline-block text-left w-full">
                     <div className="space-y-4">
                       <GuideItem icon={<MousePointer2 size={18} />} title="Tap the Pill" desc="Focuses the address bar. Type a URL or a search query to navigate instantly." />
-                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Reveals the Dashboard. This is your hub for History, Bookmarks, and System Settings." />
-                      <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap the floating recall button to bring it back." />
+                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Opens the Tab Switcher: every open tab as a card, with quick actions, Bookmarks and Settings." />
+                      <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap or swipe up on the floating recall button to bring it back." />
+                      <div id="recall-button">
+                        <GuideItem icon={<GripHorizontal size={18} />} title="Move the Recall Button" desc="While the Pill is hidden, swipe the recall button left or right. It follows your finger and pins to the left, center, or right of the screen, wherever you let go." />
+                      </div>
                       <div id="search-engine-only">
                         <GuideItem icon={<Search size={18} />} title="Search Engine Only" desc="Tap the search engine icon inside the address bar to force search mode. This bypasses URL parsing and sends your query directly to your search engine." />
                       </div>
@@ -117,16 +120,16 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Swipe up on the Pill from any page to reveal your navigation hub. The Dashboard gives you instant access to your most important data.
+                    Swipe up on the Pill from any page to open the Tab Switcher. The bar at the bottom acts on the centered tab: share, bookmark, new tab (+), close, and the ⋮ tab menu. Bookmarks sit on the left, Settings on the right.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Switch between your open browsing sessions." />
-                    <GuideItem icon={<Bookmark size={18} />} title="Bookmarks" desc="Access your saved favorite sites and folders." />
-                    <GuideItem icon={<History size={18} />} title="History" desc="View and search your recently visited pages." />
-                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="Configure every detail of your browsing experience." />
+                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to open it." />
+                    <GuideItem icon={<Bookmark size={18} />} title="Bookmarks" desc="The left button opens your Library: Bookmarks and History." />
+                    <GuideItem icon={<History size={18} />} title="History" desc="Switch to History from the Library header." />
+                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button opens app Settings." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Secondary Menu:</strong> Tap the &quot;Menu&quot; button on the far right of the Dashboard to access Power Tools like Reader Mode, QR Tools, and Desktop Site toggles.</p>
+                    <p><strong>Tab Menu:</strong> Tap ⋮ in the switcher for Find in Page, QR tools, Print, Add to Home screen, and the Desktop and Reader Mode toggles.</p>
                   </div>
                 </div>
               </div>
@@ -146,7 +149,7 @@ export default function UserDocs() {
                     Access your history and favorite sites without leaving the search experience. When the search pill is focused, an expanded interaction area appears.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
-                    <GuideItem icon={<Clock size={18} />} title="Recent History" desc="Drag the handle above the Pill upwards to reveal a quick-access list of your most recent visits." />
+                    <GuideItem icon={<Clock size={18} />} title="Recent Searches" desc="Drag the handle above the focused Pill upwards to reveal your recent searches. Tap one to put it back in the address bar." />
                     <GuideItem icon={<FolderHeart size={18} />} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
                     <GuideItem icon={<Maximize size={18} />} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
                     <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and drag any favorite icon to reorder them instantly." />
@@ -174,14 +177,12 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Manage multiple sessions with ease. mi. uses high-fidelity snapshots so you never lose your place.
+                    Your tabs are laid out like an app switcher, with live snapshots so you never lose your place.
                   </p>
                   <div className="space-y-4 inline-block text-left">
-                    <GuideItem icon={<Layers size={18} />} title="Grid/Card View" desc="Switch between dense rows or large visual cards in Settings." />
-                    <GuideItem icon={<MousePointer2 size={18} />} title="Reordering" desc="In the tab view, long-press a tab and drag it to a new position to reorder your workspace." />
-                    <GuideItem icon={<Trash2 size={18} />} title="Closing Tabs" desc="Swipe left on a tab row or tap the 'X' on a card to close it. Use 'Clear All' to reset completely." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Closing Tabs" desc="Swipe a card up to close it, then tap Undo if you didn't mean to. Use 'Close all tabs' in the ⋮ menu to reset completely." />
                     <div id="tab-editing">
-                      <GuideItem icon={<Pencil size={18} />} title="Tab Editing" desc="Tap the pencil icon on any tab to change its display name for better organization." />
+                      <GuideItem icon={<Pencil size={18} />} title="Tab Editing" desc="Long-press a card to rename the tab." />
                     </div>
                     <GuideItem icon={<Zap size={18} />} title="Visual Snapshots" desc="Real-time previews of your pages help you identify the right tab in seconds." />
                   </div>
@@ -234,8 +235,8 @@ export default function UserDocs() {
                   <div className="space-y-4 inline-block text-left">
                     <GuideItem icon={<Search size={18} />} title="Search History" desc="Filter through your past visits using the search bar within the History view." />
                     <GuideItem icon={<Trash2 size={18} />} title="Partial Deletion" desc="Swipe left on any history item to remove it individually without affecting the rest of your data." />
-                    <GuideItem icon={<RefreshCw size={18} />} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, or all time via the trash icon in History." />
-                    <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored securely on your local file system." />
+                    <GuideItem icon={<RefreshCw size={18} />} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, four weeks, or all time via the ⋮ menu in History." />
+                    <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored only in the app's private storage on your device." />
                   </div>
                 </div>
               </div>
@@ -265,18 +266,17 @@ export default function UserDocs() {
               <div className="grid gap-12">
                 {/* Colors */}
                 <SettingsSection title="Colors" icon={<Palette size={20} />}>
-                  <SettingItem title="Theme" desc="Choose between Light, Dark, or Adaptive. Adaptive mode generates a custom theme based on your Accent Color." />
-                  <SettingItem title="Accent Color" desc="Pick from 18 hand-selected colors that define the app's UI elements, buttons, and highlights." />
+                  <SettingItem title="Theme" desc="Choose Light, Dark, or System (follows your device's dark mode)." />
+                  <SettingItem title="Accent Color" desc="Adaptive (your wallpaper colors, Android 12+), Gray, Blue, Green, Red, Orange, Yellow, or Purple. The full Material 3 color scheme is generated from your choice." />
                 </SettingsSection>
 
                 {/* Interface */}
                 <SettingsSection title="Interface" icon={<Maximize size={20} />}>
                   <SettingItem title="Font Size" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
-                  <SettingItem title="Font Weight" desc="Choose between Light, Normal, or Bold to adjust the weight of all text throughout the interface." />
-                  <SettingItem title="Corners" desc="Choose between Square (0px), Semi-Round (10px), or Round (22px) for all UI components and cards." />
+                  <SettingItem title="Rounded Font" desc="Rounds the stroke ends of Google Sans Flex across the whole interface. The mi. logo is always rounded." />
+                  <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
-                  <SettingItem title="Expand Menus" desc="When enabled, menus (History, Tabs, Settings) will open to full-screen height immediately." />
                 </SettingsSection>
 
                 {/* Pill */}
@@ -285,7 +285,6 @@ export default function UserDocs() {
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
                   <SettingItem title="Expand Searches" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
-                  <SettingItem title="Reorder Icons" desc="Drag and drop the Dashboard menu bar icons into your preferred order for quicker access to Tabs, Bookmarks, History, or Settings." />
                 </SettingsSection>
 
                 {/* Home Page */}
@@ -293,16 +292,13 @@ export default function UserDocs() {
                   <SettingItem title="Center Logo" desc="Choose the logo style displayed at the top of the home page: None, Static, or Fidget (interactive)." />
                   <SettingItem title="Clock" desc="Select the clock format on the home page: None, 12h, or 24h." />
                   <SettingItem title="Date" desc="Choose the date placement on the home page: None, Above Clock, or Below Clock." />
-                  <SettingItem title="Weather" desc="Toggle the weather widget on the home page: None, Simple (icon only), Detailed (with conditions), or Hourly (forecast strip). Requires location permission." />
                   <SettingItem title="Shortcut" desc="Toggle the home page shortcut button on or off. When enabled, choose its action: New Tab, QR Scanner, Bookmarks, or History." />
                   <SettingItem title="Background Image" desc="Set a custom background image for the home page from your photo library. Includes a Darkness slider to control the overlay opacity." />
                 </SettingsSection>
 
                 {/* Tabs */}
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
-                  <SettingItem title="Style" desc="Toggle between Rows (dense list) or Cards (visual grid)." />
-                  <SettingItem title="Site Logo" desc="Toggles the visibility of website icons (favicons) in the tab switcher. When disabled, a letter avatar is shown." />
-                  <SettingItem title="Preview Content" desc="Enables real-time snapshots of your pages when using Card view." />
+                  <SettingItem title="Site Logo" desc="Toggles the visibility of website icons (favicons) in the tab switcher. When disabled, a globe icon is shown." />
                   <SettingItem title="Background Refresh" desc="When enabled, all tabs render on app startup instead of when opened. This allows for instant switching but uses more battery." />
                 </SettingsSection>
 
@@ -310,7 +306,7 @@ export default function UserDocs() {
                 <SettingsSection title="History" icon={<History size={20} />}>
                   <SettingItem title="Group By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
                   <SettingItem title="Load Count" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
-                  <SettingItem title="Clear History" desc="Wipe your browsing data for the last 24 hours, 7 days, 4 weeks, or all time." />
+                  <SettingItem title="Clear History" desc="Wipe your browsing data for the last hour, 24 hours, 7 days, 4 weeks, or all time." />
                 </SettingsSection>
 
                 {/* Bookmarks */}
@@ -321,6 +317,8 @@ export default function UserDocs() {
                 {/* Browsing */}
                 <SettingsSection title="Browsing" icon={<Monitor size={20} />}>
                   <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
+                  <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
+                  <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
                 </SettingsSection>
 
@@ -329,6 +327,9 @@ export default function UserDocs() {
                   <SettingItem title="Enable JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
                   <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local IP addresses and localhost are excluded." />
+                  <SettingItem title="Block Ads & Trackers" desc="Blocks requests to known ad and tracking domains using a built-in list (StevenBlack hosts). On by default." />
+                  <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. On by default." />
+                  <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage and cached files. You will be signed out of websites." />
                 </SettingsSection>
 
                 {/* App Data */}
@@ -372,7 +373,7 @@ export default function UserDocs() {
                     </div>
                     <GuideItem icon={<BookOpen size={18} />} title="Reader Mode" desc="Removes ads and clutter, leaving only the text and essential images for a clean reading experience." />
                     <GuideItem icon={<Monitor size={18} />} title="Desktop Mode" desc="Requests the desktop version of the current site for full functionality." />
-                    <GuideItem icon={<Share2 size={18} />} title="Share &amp; Print" desc="Native integration with your device&apos;s share sheet and wireless printing capabilities." />
+                    <GuideItem icon={<Share2 size={18} />} title="Share &amp; Print" desc="Native integration with your device&apos;s share sheet and Android&apos;s print service (print or save as PDF)." />
                   </div>
                 </div>
               </div>
@@ -399,7 +400,7 @@ export default function UserDocs() {
                     <div className="flex items-center gap-2 font-bold">
                       <RefreshCw size={18} /> Local Storage
                     </div>
-                    <p className="text-sm text-blue-100/80">All bookmarks and history are stored locally on your device using industry-standard encryption.</p>
+                    <p className="text-sm text-blue-100/80">Bookmarks, history, and tabs are stored only in the app&apos;s private storage on your device. Sites you allow past certificate warnings, and camera, microphone or location permissions you grant, last only until you close the app.</p>
                   </div>
                 </div>
               </div>
