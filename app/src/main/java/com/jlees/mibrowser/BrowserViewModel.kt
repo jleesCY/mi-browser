@@ -1,6 +1,8 @@
 // State + actions. Port of legacy/app/index.tsx handlers and the hooks in legacy/src/hooks/*
 package com.jlees.mibrowser
 
+import com.jlees.mibrowser.ui.common.clearImageCache
+import com.jlees.mibrowser.data.Favicons
 import android.app.Application
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
@@ -30,7 +32,7 @@ data class ContextMenuData(val url: String?, val imgUrl: String?, val text: Stri
 data class ConfirmData(val type: String, val ms: Long = 0, val label: String = "")
 
 /** A site asked for a username and password (HTTP authentication). */
-data class AuthRequest(val host: String, val realm: String, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
+data class AuthRequest(val host: String, val realm: String, val insecure: Boolean, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
 
 /** Commands for the WebView layer (MainActivity's WebViewHost collects these). */
 sealed interface WebCmd {
@@ -322,8 +324,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     fun allowPopups(site: String) { if (site !in settings.popupSites) updateSettings { copy(popupSites = popupSites + site) } }
 
-    /** The typed address couldn't connect over https: open it over http instead (once). */
-    fun fallBackToHttp(id: String, url: String) = updateTab(id) { copy(url = url, requestedUrl = url, httpFallback = false, loading = true, loadNonce = loadNonce + 1) }
     fun clearHttpFallback(id: String) { if (tabs.any { it.id == id && it.httpFallback }) updateTab(id) { copy(httpFallback = false) } }
 
     fun deleteTab(id: String) {
@@ -502,7 +502,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- favorites
     fun addFavorite(title: String, url: String) {
         if (favorites.size >= 5 || favorites.any { it.url == url }) return
-        favorites = favorites + Favorite(uniqueId(), url, title.ifEmpty { "Favorite" }, faviconUrl(url))
+        favorites = favorites + Favorite(uniqueId(), url, title.ifEmpty { "Favorite" })
     }
 
     fun removeFavorite(id: String) { favorites = favorites.filter { it.id != id } }
@@ -562,5 +562,37 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun applyImport(newSettings: Settings) { settings = newSettings.sanitized() }
 
     fun trustHost(host: String) { ignoredHosts = ignoredHosts + host }
-    fun clearSessionGrants() { ignoredHosts = emptySet() }
+
+    /**
+     * Clear Browsing Data, beyond what WebView holds: tab snapshots (screenshots of pages), stored site icons and mi's
+     * own HTTP cache (icons, suggestions), all of which reveal what was browsed. Snapshots of open tabs are retaken the
+     * next time each tab is left.
+     */
+    fun clearBrowsingTraces() {
+        ignoredHosts = emptySet() // certificate exceptions granted this session
+        tabs = tabs.map { it.copy(previewImage = null) }
+        closedTab = closedTab?.let { (t, i) -> t.copy(previewImage = null) to i }
+        suggestions = emptyList()
+        clearImageCache()
+        Favicons.clear()
+        viewModelScope.launch(Dispatchers.IO) {
+            cacheDir.listFiles { f -> f.name.startsWith("preview_") }?.forEach { it.delete() }
+            runCatching {
+                android.net.http.HttpResponseCache.getInstalled()?.delete() // uninstalls and deletes its contents
+                android.net.http.HttpResponseCache.install(File(cacheDir, "http"), 16L * 1024 * 1024)
+            }
+        }
+    }
+
+    /** The visible page's connection isn't secure (see [isNotSecure]); the pill shows a "Not secure" marker. */
+    val connectionNotSecure get() = isNotSecure(activeUrl, ignoredHosts)
+
+    fun explainNotSecure() {
+        val certError = activeUrl?.startsWith("https://", ignoreCase = true) == true
+        showAlert(
+            "Connection not secure",
+            if (certError) "You chose to continue to ${displayHost(activeUrl)} despite a certificate problem, so this connection may be intercepted. Don't enter passwords, payment details or other sensitive information here."
+            else "${displayHost(activeUrl)} doesn't use an encrypted connection, so others on the network could see or change what you send and receive. Don't enter passwords, payment details or other sensitive information here.",
+        )
+    }
 }

@@ -48,6 +48,9 @@ import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.data.TabItem
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.logic.isLocalHost
+import com.jlees.mibrowser.logic.isLoopback
+import com.jlees.mibrowser.logic.faviconHost
+import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.logic.uniqueId
 import com.jlees.mibrowser.AuthRequest
 import com.jlees.mibrowser.ui.shareText
@@ -101,6 +104,16 @@ private const val READER_JS = """(function() {
   style.appendChild(document.createTextNode('body { max-width: 800px; margin: 0 auto; padding: 20px; font-size: 18px; line-height: 1.6; color: #333; background: #fff; } img { max-width: 100%; height: auto; } nav, header, footer, .ad, .advertisement, .sidebar { display: none !important; }'));
   document.head.appendChild(style);
 })();"""
+
+/** The page's largest declared icon (touch icons count as 180 px when unsized), as an absolute URL, or null. */
+private const val TOUCH_ICON_JS = """(() => {
+  let best = null, size = 0;
+  for (const e of document.querySelectorAll('link[rel~="apple-touch-icon"],link[rel~="apple-touch-icon-precomposed"],link[rel~="icon"]')) {
+    const s = parseInt(((e.sizes && e.sizes.value) || '').split(/x/i)[0]) || (/apple/.test(e.rel) ? 180 : 16);
+    if (s > size && e.href) { size = s; best = e.href; }
+  }
+  return size >= 48 ? best : null;
+})()"""
 
 /** Live WebViews kept in memory; older tabs are rebuilt from saved state when opened. */
 const val MAX_LIVE_TABS = 5
@@ -173,6 +186,9 @@ class WebViewHost(
 
     /** Last "pop-up blocked" notice (site|page), so a page that keeps trying doesn't stack dialogs. */
     private var lastPopupNotice: String? = null
+
+    /** Each tab's latest main-frame navigation (including server redirects): the scheme of a sign-in challenge. */
+    private val mainNav = HashMap<String, String>()
 
     /** HTTP authentication typed this session ("host|realm" → user, password); never written to disk. */
     private val httpAuth = HashMap<String, Pair<String, String>>()
@@ -247,6 +263,7 @@ class WebViewHost(
         if (req != null && loaded[tab.id] != (req to tab.loadNonce)) {
             loaded[tab.id] = req to tab.loadNonce
             errors.remove(tab.id)
+            mainNav[tab.id] = req
             wv.loadUrl(req)
         }
         return wv
@@ -256,7 +273,7 @@ class WebViewHost(
         if (id in printing) { closeAfterPrint += id; views[id]?.let { (it.parent as? ViewGroup)?.removeView(it) }; return }
         views.remove(id)?.let { (it.parent as? ViewGroup)?.removeView(it); it.destroy() }
         loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id)
-        pausedViews.remove(id); dialogTimes.remove(id); dialogsBlocked.remove(id)
+        pausedViews.remove(id); dialogTimes.remove(id); dialogsBlocked.remove(id); mainNav.remove(id)
     }
 
     /** Evicts least recently viewed WebViews (never the active one) until at most [max] are live. */
@@ -300,7 +317,8 @@ class WebViewHost(
         views.values.forEach { it.clearCache(true); it.clearFormData() }
         @Suppress("DEPRECATION") WebViewDatabase.getInstance(activity).apply { clearHttpAuthUsernamePassword(); clearFormData() }
         // and what was granted this session: sign-ins, camera/mic/location, certificate exceptions
-        httpAuth.clear(); authAnswered.clear(); sitePermissions.clear(); vm.clearSessionGrants()
+        httpAuth.clear(); authAnswered.clear(); sitePermissions.clear()
+        vm.clearBrowsingTraces() // tab snapshots, site icons, mi's own HTTP cache
     }
 
     fun findNext(forward: Boolean) { views[vm.activeTabId]?.findNext(forward) }
@@ -430,6 +448,7 @@ class WebViewHost(
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url.toString()
+            if (request.isForMainFrame) mainNav[id] = url
             val gesture = request.hasGesture()
             if (url.startsWith("blob:") || url.startsWith("data:")) return false
             if (url.startsWith("mibrowser:")) { if (gesture) vm.handleIncomingUrl(url); return true }
@@ -455,6 +474,7 @@ class WebViewHost(
         }
 
         override fun onPageFinished(view: WebView, url: String?) {
+            fetchTouchIcon(view, url)
             authAnswered.removeAll { true }
             if (errors[id] == null) vm.clearHttpFallback(id) // https worked: later failures in this tab are real errors
             val t = vm.tabs.firstOrNull { it.id == id }
@@ -490,11 +510,27 @@ class WebViewHost(
             }
         }
 
+        /**
+         * The page's high-resolution icon (apple-touch-icon / sized icon links), read from its own HTML once it has
+         * loaded. The site it is stored for comes from WebView ([url]), never from the page's script, and the result is
+         * dropped if the tab has navigated away meanwhile, so a page can only ever set its own icon.
+         */
+        private fun fetchTouchIcon(view: WebView, url: String?) {
+            val host = faviconHost(url) ?: return
+            if (view.url != url) return
+            if (!vm.settings.jsEnabled) { Favicons.upgrade(host); return }
+            view.evaluateJavascript(TOUCH_ICON_JS) { result ->
+                if (view.url != url) return@evaluateJavascript
+                val href = runCatching { org.json.JSONTokener(result).nextValue() as? String }.getOrNull()
+                if (href != null) Favicons.fetchFor(host, href) else Favicons.upgrade(host)
+            }
+        }
+
         /** A typed address (no scheme) failed over https: retry it over http, once, unless HTTPS-Only is on. */
         private fun fallBackToHttp(url: String?): Boolean {
             val t = vm.tabs.firstOrNull { it.id == id } ?: return false
             if (!t.httpFallback || vm.settings.httpsOnly || url == null || !url.startsWith("https://")) return false
-            vm.fallBackToHttp(id, "http://" + url.removePrefix("https://"))
+            vm.loadInTab(id, "http://" + url.removePrefix("https://")) // also clears the fallback flag: only once
             return true
         }
 
@@ -504,8 +540,11 @@ class WebViewHost(
             val known = httpAuth[key]
             if (known != null && key !in authAnswered) { authAnswered += key; handler.proceed(known.first, known.second); return }
             httpAuth.remove(key)
+            // the challenge doesn't say http or https: use this tab's navigation to that host (else the current page)
+            val nav = mainNav[id]?.takeIf { displayHost(it).equals(host, ignoreCase = true) } ?: view.url
+            val insecure = nav?.startsWith("http://", ignoreCase = true) == true && !isLoopback(host)
             vm.authRequest = AuthRequest(
-                host, realm,
+                host, realm, insecure,
                 onSubmit = { user, pass -> httpAuth[key] = user to pass; authAnswered += key; handler.proceed(user, pass) },
                 onCancel = { handler.cancel() },
             )
@@ -529,6 +568,17 @@ class WebViewHost(
     private inner class Chrome(val id: String) : WebChromeClient() {
         override fun onProgressChanged(view: WebView, newProgress: Int) {
             if (id == vm.activeTabId) vm.ui.tryEmit(UiEvent.LoadProgress(newProgress / 100f))
+        }
+
+        /**
+         * Site icons come from the page itself and are kept on the device (see Favicons). The icon is paired with the
+         * page through WebView's history entry, not view.url: around a navigation the previous page's icon can arrive
+         * after the address has already changed.
+         */
+        override fun onReceivedIcon(view: WebView, icon: Bitmap?) {
+            val item = view.copyBackForwardList().currentItem ?: return
+            val host = faviconHost(item.url) ?: return
+            item.favicon?.let { Favicons.save(host, it) }
         }
 
         override fun onReceivedTitle(view: WebView, title: String?) {

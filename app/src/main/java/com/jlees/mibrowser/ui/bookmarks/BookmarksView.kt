@@ -2,6 +2,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui.bookmarks
 
+import com.jlees.mibrowser.data.Favicons
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.MaterialShapes
@@ -201,7 +202,7 @@ private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPre
             ) {
                 when {
                     b.isFolder -> Sym("folder_fill", 24f, ui.cs.onTertiaryContainer)
-                    showIcon -> NetImage(b.icon ?: faviconUrl(b.url), Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))) { Sym("public", 26f, ui.cs.onSurfaceVariant) }
+                    showIcon -> NetImage(Favicons.src(b.url), Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))) { Sym("public", 26f, ui.cs.onSurfaceVariant) }
                     else -> Txt(b.title.ifEmpty { "?" }.take(1).uppercase(), 20f, ui.cs.onSurface, FontWeight.W700)
                 }
             }

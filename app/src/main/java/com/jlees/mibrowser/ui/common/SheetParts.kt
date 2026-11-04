@@ -31,7 +31,6 @@ import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.TabItem
 import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.logic.faviconUrl
 import com.jlees.mibrowser.ui.SheetSearchField
 import com.jlees.mibrowser.ui.blockTouches
 import com.jlees.mibrowser.ui.interp

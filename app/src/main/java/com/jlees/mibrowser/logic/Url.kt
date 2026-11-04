@@ -43,6 +43,24 @@ fun isLocalHost(host: String?): Boolean {
     return h.substringAfterLast('.') in LOCAL_TLDS
 }
 
+/** Loopback hosts: traffic to them never leaves this device, so plain http there isn't exposed to the network. */
+fun isLoopback(host: String?): Boolean {
+    val h = host?.trim()?.lowercase()?.removePrefix("[")?.removeSuffix("]")?.trimEnd('.') ?: return false
+    return h == "localhost" || h.endsWith(".localhost") || h == "::1" || (h.startsWith("127.") && IPV4.matches(h))
+}
+
+/**
+ * Whether the connection to [url] should be flagged "Not secure": plain http that leaves the device (anything but
+ * loopback; LAN http crosses the network unencrypted too), or https to a host the user allowed past a certificate
+ * error ([certExceptions], hosts as [displayHost] gives them).
+ */
+fun isNotSecure(url: String?, certExceptions: Set<String>): Boolean = when {
+    url == null -> false
+    url.startsWith("http://", ignoreCase = true) -> !isLoopback(displayHost(url))
+    url.startsWith("https://", ignoreCase = true) -> displayHost(url) in certExceptions
+    else -> false
+}
+
 /** A typed address split into host and port; null if it isn't shaped like one (spaces, userinfo, bad port). */
 private data class TypedHost(val host: String, val hasPort: Boolean)
 
@@ -107,11 +125,12 @@ fun displayHost(url: String?): String {
     return if (host.any { it.code > 127 }) runCatching { java.net.IDN.toASCII(host, java.net.IDN.ALLOW_UNASSIGNED) }.getOrDefault(host) else host
 }
 
-fun faviconUrl(url: String?): String? {
+/** The host whose icon represents [url] (a URL, or a bare host such as a history group title); null if none. */
+fun faviconHost(url: String?): String? {
     if (url.isNullOrEmpty()) return null
-    val target = if (!url.startsWith("http") && !url.contains("://")) "https://$url" else url
-    val host = try { URI(target).host } catch (_: Exception) { null } ?: return null
-    return "https://www.google.com/s2/favicons?domain=$host&sz=128"
+    val target = if (!url.contains("://")) "https://$url" else url
+    if (!target.startsWith("http://") && !target.startsWith("https://")) return null
+    return displayHost(target).lowercase().takeIf { it.isNotEmpty() && !it.contains('/') && !it.contains(':') }
 }
 
 private fun queryParam(url: String, name: String): String? {

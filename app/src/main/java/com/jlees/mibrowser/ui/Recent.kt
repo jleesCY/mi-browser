@@ -21,7 +21,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.logic.faviconUrl
+import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.*
 
 @Composable
@@ -97,7 +97,7 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
-                            NetImage(fav.icon ?: faviconUrl(fav.url), Modifier.size(36.dp).clip(CircleShape)) { Sym("public", 32f, ui.cs.onSurface) }
+                            NetImage(Favicons.src(fav.url), Modifier.size(36.dp).clip(CircleShape)) { Sym("public", 32f, ui.cs.onSurface) }
                         }
                     }
                 }

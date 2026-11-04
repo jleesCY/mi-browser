@@ -17,6 +17,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -407,6 +408,16 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                     )
                 }
                 Row(Modifier.fillMaxSize().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // "Not secure": plain http off the device, or a site allowed past a certificate error. Tap to explain.
+                    val notSecure = !vm.isInputFocused && vm.connectionNotSecure
+                    if (notSecure) Row(
+                        Modifier.padding(start = 10.dp).clip(CircleShape).background(ui.cs.errorContainer)
+                            .touchable { vm.explainNotSecure() }.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Sym("warning", 15f, ui.cs.onErrorContainer, Modifier.padding(end = 4.dp))
+                        Txt("Not secure", 12f, ui.cs.onErrorContainer, ui.bold, maxLines = 1)
+                    }
                     BasicTextField(
                         value = tfv,
                         onValueChange = { v ->
@@ -414,7 +425,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                             if (v.text != tfv.text) vm.onTyping(v.text, pill.recentExpanded)
                             tfv = v; vm.inputUrl = v.text
                         },
-                        modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                        modifier = Modifier.weight(1f).padding(start = if (notSecure) 8.dp else 16.dp, end = 16.dp)
                             .pointerInput(Unit) {
                                 awaitEachGesture {
                                     // a touch on the field unlocks focus for the tap; a swipe (e.g. up to the switcher) locks it again

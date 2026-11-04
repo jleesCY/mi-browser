@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         preferHighestRefreshRate()
+        com.jlees.mibrowser.data.Favicons.init(applicationContext)
         // disk cache for HttpURLConnection (favicons, suggestions): no re-downloading after every launch
         if (android.net.http.HttpResponseCache.getInstalled() == null)
             runCatching { android.net.http.HttpResponseCache.install(java.io.File(cacheDir, "http"), 16L * 1024 * 1024) }

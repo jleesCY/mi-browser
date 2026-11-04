@@ -23,7 +23,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.logic.SEARCH_ENGINES
-import com.jlees.mibrowser.logic.faviconUrl
+import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.blockTouches
 
 /** M3 dialog container: surfaceContainerHigh, extra-large (28dp) corners, 24dp padding, headline title, end-aligned actions. */
@@ -88,7 +88,7 @@ fun EngineIcon(index: Int, size: Float, active: Boolean = true, modifier: Modifi
     val e = SEARCH_ENGINES.getOrElse(index) { SEARCH_ENGINES[0] }
     val grey = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
     androidx.compose.foundation.layout.Box(modifier.size(size.dp).clip(CircleShape), contentAlignment = Alignment.Center) {
-        NetImage(faviconUrl(e.url), Modifier.size(size.dp).alpha(if (active) 1f else 0.55f), colorFilter = if (active) null else grey) {
+        NetImage(Favicons.src(e.url), Modifier.size(size.dp).alpha(if (active) 1f else 0.55f), colorFilter = if (active) null else grey) {
             Sym("travel_explore", size, if (active) ui.cs.primary else ui.cs.onSurfaceVariant)
         }
     }

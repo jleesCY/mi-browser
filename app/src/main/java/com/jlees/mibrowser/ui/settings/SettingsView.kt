@@ -199,7 +199,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                     trailing = if (n == 0) null else { { Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) } })
             },
             SRow("Clear Browsing Data", "cookies cache storage delete") {
-                Item("delete", "Clear Browsing Data", "Cookies, site storage and cached files", danger = true, onClick = { vm.confirm = ConfirmData("clearData") })
+                Item("delete", "Clear Browsing Data", "Cookies, site data, cache, site icons and tab snapshots", danger = true, onClick = { vm.confirm = ConfirmData("clearData") })
             },
         )),
         SGroup("data", "Backup & Reset", "save", listOf(

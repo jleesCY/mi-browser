@@ -211,6 +211,9 @@ fun cacheImage(key: String, img: ImageBitmap) { imageCache.put(key, img) }
 
 fun cachedImage(src: String?) = src?.let { imageCache.get(it) }
 
+/** Clear Browsing Data: drop every decoded image held in memory (page snapshots, site icons). */
+fun clearImageCache() = imageCache.evictAll()
+
 
 /** Loads http(s) URLs or local file paths, downsampling big images (backgrounds). */
 @Composable
@@ -221,6 +224,7 @@ fun rememberImage(src: String?): State<ImageBitmap?> {
         if (src == null || state.value != null) return@LaunchedEffect
         val bmp = withContext(Dispatchers.IO) {
             try {
+                if (src.startsWith("favicon")) return@withContext com.jlees.mibrowser.data.Favicons.load(src)?.asImageBitmap()
                 val bytes = if (src.startsWith("http")) {
                     (URL(src).openConnection() as HttpURLConnection).run {
                         connectTimeout = 10000; readTimeout = 10000

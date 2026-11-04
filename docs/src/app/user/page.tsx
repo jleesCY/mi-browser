@@ -330,11 +330,12 @@ export default function UserDocs() {
                 <SettingsSection title="Privacy & Security" icon={<ShieldCheck size={20} />}>
                   <SettingItem title="Enable JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
+                  <SettingItem title="Not Secure Marker" desc="Pages without an encrypted connection (plain http, except your own device's localhost) and sites you allowed past a certificate warning show a red Not secure marker in the search pill. Tap it for details, and don't enter passwords or payment details there. Sign-in prompts on such sites warn that the password would be sent unencrypted." />
                   <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local addresses are excluded: localhost, IP addresses, and local network names such as nas:5000, myapp.local or dev.test." />
                   <SettingItem title="Block Ads & Trackers" desc="Blocks requests to known ad and tracking domains using a built-in list (StevenBlack hosts). On by default." />
                   <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. Off by default, as in Chrome, because payment and sign-in windows (such as PayPal) rely on them." />
                   <SettingItem title="Pop-ups" desc="Pop-up windows open when you tap something (sign-in and payment windows stay linked to the page that opened them). Pop-ups without a tap are blocked; choose Always allow when asked to allow a site, and review or reset the list here." />
-                  <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage and cached files. You will be signed out of websites." />
+                  <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage, cached files, saved site icons and tab snapshots, plus this session\'s sign-ins, permissions and certificate exceptions. You will be signed out of websites." />
                 </SettingsSection>
 
                 {/* App Data */}

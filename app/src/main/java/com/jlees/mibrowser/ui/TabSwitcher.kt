@@ -58,7 +58,7 @@ import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.TabItem
 import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.logic.faviconUrl
+import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -264,7 +264,7 @@ private fun TabCardView(
         Row(Modifier.fillMaxWidth().padding(bottom = 10.dp, start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(28.dp).clip(CircleShape).background(if (active) ui.cs.primaryContainer else ui.cs.surfaceContainerHigh), contentAlignment = Alignment.Center) {
                 val globe = @Composable { Sym("public", 18f, if (active) ui.cs.onPrimaryContainer else ui.cs.onSurfaceVariant) }
-                if (showLogo && tab.url != null) NetImage(faviconUrl(tab.url), Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)), fallback = globe) else globe()
+                if (showLogo && tab.url != null) NetImage(Favicons.src(tab.url), Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)), fallback = globe) else globe()
             }
             Column(Modifier.padding(start = 10.dp).weight(1f)) {
                 Txt(tab.title.ifEmpty { "New Tab" }, 15f, ui.cs.onSurface, ui.semibold, maxLines = 1)

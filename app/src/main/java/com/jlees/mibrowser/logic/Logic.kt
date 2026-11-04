@@ -121,7 +121,7 @@ fun smartDate(ts: Long, now: Long = System.currentTimeMillis()): String {
 private fun nextOrder(all: List<BookmarkNode>, parentId: String?) = (all.filter { it.parentId == parentId }.maxOfOrNull { it.order } ?: -1) + 1
 
 fun addBookmark(all: List<BookmarkNode>, title: String, url: String, parentId: String?) =
-    all + BookmarkNode(uniqueId(), "bookmark", title.ifEmpty { url }, url, parentId, nextOrder(all, parentId), faviconUrl(url))
+    all + BookmarkNode(uniqueId(), "bookmark", title.ifEmpty { url }, url, parentId, nextOrder(all, parentId))
 
 fun addFolder(all: List<BookmarkNode>, title: String, parentId: String?) =
     all + BookmarkNode(uniqueId(), "folder", title, "", parentId, nextOrder(all, parentId))
@@ -141,7 +141,7 @@ fun deleteBookmark(all: List<BookmarkNode>, id: String): List<BookmarkNode> {
 fun updateBookmark(all: List<BookmarkNode>, id: String, title: String, url: String?): List<BookmarkNode> = all.map { b ->
     if (b.id != id) b
     else if (b.isFolder || url == null) b.copy(title = title)
-    else b.copy(title = title, url = url, icon = if (url != b.url) faviconUrl(url) else b.icon)
+    else b.copy(title = title, url = url)
 }
 
 fun moveBookmark(all: List<BookmarkNode>, id: String, newParent: String?): List<BookmarkNode> {

@@ -61,7 +61,7 @@ import com.jlees.mibrowser.ConfirmData
 import com.jlees.mibrowser.UiEvent
 import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.logic.faviconUrl
+import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.web.WebError
 import kotlinx.coroutines.delay
@@ -72,7 +72,7 @@ import kotlin.math.roundToInt
 
 /** Pins a home-screen shortcut that opens [url] in mi (uses the site's favicon when cached). */
 fun pinShortcut(ctx: android.content.Context, title: String, url: String) {
-    val icon = cachedImage(faviconUrl(url))?.asAndroidBitmap()?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
+    val icon = Favicons.bitmapFor(url)?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
         ?: androidx.core.graphics.drawable.IconCompat.createWithResource(ctx, com.jlees.mibrowser.R.mipmap.ic_launcher)
     val info = androidx.core.content.pm.ShortcutInfoCompat.Builder(ctx, "site_" + url.hashCode())
         .setShortLabel(title.ifBlank { displayHost(url) }.take(25))
@@ -160,6 +160,13 @@ fun AuthDialog(vm: BrowserViewModel) {
             DialogAction("Sign in") { if (vm.authRequest === r) { vm.authRequest = null; r.onSubmit(user, pass) } }
         }) {
             Txt("${r.host} requires a username and password.", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 16.dp), lineHeight = 20f)
+            if (r.insecure) Row(
+                Modifier.fillMaxWidth().padding(bottom = 16.dp).clip(RoundedCornerShape(12.dp)).background(ui.cs.errorContainer).padding(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Sym("warning", 18f, ui.cs.onErrorContainer, Modifier.padding(end = 10.dp))
+                Txt("Your connection to this site isn't private. The username and password will be sent unencrypted.", 13f, ui.cs.onErrorContainer, ui.semibold, lineHeight = 18f)
+            }
             ClearableField(user, { user = it }, fr, placeholder = "Username", uri = true)
             Spacer(Modifier.height(8.dp))
             ClearableField(pass, { pass = it }, placeholder = "Password", password = true)
@@ -354,7 +361,7 @@ fun ConfirmDialog(vm: BrowserViewModel) {
         "history" -> "This will permanently delete history for: ${c.label}."
         "bgRefresh" -> "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data."
         "wipeData" -> "This will delete ALL data including history, bookmarks, tabs, and settings. The app will be reset to a fresh state."
-        "clearData" -> "This will delete cookies, site storage and cached files. You will be signed out of websites."
+        "clearData" -> "This will delete cookies, site storage, cached files, saved site icons and tab snapshots. You will be signed out of websites."
         else -> "This will restore all app settings to their default values. Your history and tabs will be preserved."
     }
     val action = when (c.type) { "resetSettings" -> "Reset"; "bgRefresh" -> "Enable"; "wipeData" -> "Wipe App"; "clearData" -> "Clear"; else -> "Delete" }

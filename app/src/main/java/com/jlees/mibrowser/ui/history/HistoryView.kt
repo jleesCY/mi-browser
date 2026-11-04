@@ -1,6 +1,7 @@
 // Port of legacy/src/components/History/{HistoryView,SwipeableHistoryRow}.tsx
 package com.jlees.mibrowser.ui.history
 
+import com.jlees.mibrowser.data.Favicons
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -76,7 +77,7 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                         Modifier.fillMaxWidth().touchable { collapsed = if (sec.title in collapsed) collapsed - sec.title else collapsed + sec.title }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (vm.settings.historyGrouping == "Site") NetImage(faviconUrl(sec.title), Modifier.padding(end = 8.dp).size(16.dp).clip(RoundedCornerShape(2.dp)))
+                        if (vm.settings.historyGrouping == "Site") NetImage(Favicons.src(sec.title), Modifier.padding(end = 8.dp).size(16.dp).clip(RoundedCornerShape(2.dp)))
                         Txt(sec.title, 14f, ui.cs.onSurfaceVariant, ui.bold, Modifier.weight(1f))
                         Sym(if (sec.title in collapsed && !searching) "keyboard_arrow_down" else "keyboard_arrow_up", 16f, ui.cs.onSurfaceVariant)
                     }

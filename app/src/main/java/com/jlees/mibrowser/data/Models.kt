@@ -109,10 +109,9 @@ data class BookmarkNode(
     val url: String = "",
     val parentId: String? = null,
     val order: Int = 0,
-    val icon: String? = null,
 ) {
     val isFolder get() = type == "folder"
 }
 
 @Serializable
-data class Favorite(val id: String, val url: String, val title: String, val icon: String? = null)
+data class Favorite(val id: String, val url: String, val title: String)

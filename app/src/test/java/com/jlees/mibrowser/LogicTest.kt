@@ -24,7 +24,6 @@ class LogicTest {
         assertEquals("Example", historyTitle("https://example.com", "Example"))
         assertEquals("example.com", historyTitle("https://example.com", "https://x"))
         assertEquals("www.example.com", displayHost("https://www.example.com/path"))
-        assertEquals("https://www.google.com/s2/favicons?domain=github.com&sz=128", faviconUrl("github.com"))
     }
 
     @Test fun deepLinks() {
@@ -110,6 +109,29 @@ class LogicTest {
         listOf("localhost", "a.localhost", "127.0.0.1", "10.0.2.2", "[::1]", "::1", "nas", "pi.local", "x.test", "box.lan", "r.home.arpa")
             .forEach { assertEquals(it, true, isLocalHost(it)) }
         listOf("example.com", "localhost.com", "test.example.org", "", null).forEach { assertEquals(it.toString(), false, isLocalHost(it)) }
+    }
+
+    @Test fun faviconHostIsTheSiteItself() {
+        assertEquals("en.wikipedia.org", faviconHost("https://en.wikipedia.org/wiki/Mars"))
+        assertEquals("github.com", faviconHost("github.com"))               // bare host (history site groups)
+        assertEquals("xn--pple-43d.com", faviconHost("https://\u0430pple.com/")) // punycode, like the address bar
+        assertEquals(null, faviconHost("about:blank"))
+        assertEquals(null, faviconHost(null))
+    }
+
+    @Test fun connectionSecurityMarker() {
+        val none = emptySet<String>()
+        assertEquals(true, isNotSecure("http://example.com/login", none))           // plain http over the network
+        assertEquals(true, isNotSecure("http://192.168.1.20:8080/", none))           // LAN http crosses Wi-Fi unencrypted
+        assertEquals(false, isNotSecure("https://example.com", none))
+        assertEquals(false, isNotSecure("http://localhost:3000", none))              // never leaves the device
+        assertEquals(false, isNotSecure("http://127.0.0.1:8000", none))
+        assertEquals(false, isNotSecure("http://[::1]:8080/", none))
+        assertEquals(false, isNotSecure("http://app.localhost/", none))
+        assertEquals(true, isNotSecure("https://self-signed.example/", setOf("self-signed.example"))) // allowed past a cert error
+        assertEquals(false, isNotSecure(null, none))
+        assertEquals(false, isNotSecure("about:blank", none))
+        assertEquals(false, isLoopback("127.example.com"))
     }
 
     @Test fun typedHttpsUpgradeIsDetected() {
