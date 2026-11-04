@@ -14,7 +14,6 @@ data class Settings(
     val fontScale: Float = 1f,
     val roundedFont: Boolean = false, // Google Sans Flex ROND axis
     val showStatusBar: Boolean = true,
-    val pillHeight: Int = 70,
     val progressBarMode: String = "ltr", // ltr | center | none
     val recallPosition: String = "center", // left | center | right — set by swiping the recall handle sideways
     val startupTabMode: String = "new", // new | last
@@ -28,7 +27,7 @@ data class Settings(
     val jsEnabled: Boolean = true,
     val httpsOnly: Boolean = false,
     val blockCookies: Boolean = false,
-    val blockThirdPartyCookies: Boolean = true,
+    val blockThirdPartyCookies: Boolean = false, // payment and sign-in iframes (PayPal, SSO) need them, as in Chrome
     val blockTrackers: Boolean = true,
     val searchSuggestions: Boolean = true,
     val historyLoadCount: Int = 10,
@@ -37,11 +36,21 @@ data class Settings(
     val homeClockType: String = "None", // None | 12h | 24h
     val homeDateType: String = "None", // None | Above | Below
     val homeLogoType: String = "Fidget", // None | Static | Fidget
-    val homeBackgroundImage: String? = null,
     val showHomeShortcuts: Boolean = false,
     val homeShortcutAction: String = "qr", // newTab | qr | bookmarks | history
-    val homeBackgroundOverlayOpacity: Float = 0.2f,
     val skippedUpdate: String? = null, // release version the user chose to skip
+    /** Sites allowed to open pop-ups without a tap (pop-ups opened by a tap are always allowed). */
+    val popupSites: List<String> = emptyList(),
+    /** Let desktop Chrome inspect pages (chrome://inspect) over USB debugging. Always on in dev builds. */
+    val remoteDebugging: Boolean = false,
+    /** Text size on web pages, in percent (WebSettings.textZoom). Separate from the app's own font size. */
+    val textZoom: Int = 100,
+    /** In dark theme, darken sites that have no dark mode of their own (algorithmic darkening). */
+    val darkenPages: Boolean = false,
+    /** When the automatic update check last reached GitHub (ms); it runs at most every 12 hours. */
+    val lastUpdateCheck: Long = 0,
+    /** Bumped when a default changes for existing installs; see BrowserViewModel.migrate. */
+    val settingsVersion: Int = 0,
 ) {
     /** Load-time sanitising. */
     fun sanitized() = copy(searchEngineIndex = if (searchEngineIndex in 0..5) searchEngineIndex else 0)
@@ -66,10 +75,15 @@ data class TabItem(
     @Transient val canGoBack: Boolean = false,
     @Transient val canGoForward: Boolean = false,
     @Transient val hasLoadedOnce: Boolean = false,
+    /** Set for a window a page opened (window.open / target=_blank): the tab that opened it. Its page talks to the
+     *  opener (window.opener, postMessage) and window.close() returns there. Not kept across restarts. */
+    @Transient val openerId: String? = null,
+    /** The address was typed without a scheme and opened over https; if https can't connect, retry over http. */
+    @Transient val httpFallback: Boolean = false,
     /** Bumped to force the WebView to load requestedUrl even if unchanged. */
     @Transient val loadNonce: Int = 0,
 ) {
-    val isHome get() = url == null || url == "about:blank"
+    val isHome get() = openerId == null && (url == null || url == "about:blank")
 }
 
 fun newTab(url: String? = null, title: String = "New Tab") = TabItem(

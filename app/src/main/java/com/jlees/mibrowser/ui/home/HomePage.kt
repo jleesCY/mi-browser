@@ -2,6 +2,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui.home
 
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CoroutineStart
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.toShape
@@ -41,17 +42,16 @@ fun HomePage(vm: BrowserViewModel, onAction: (String) -> Unit) {
 
     // clock
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(s.homeClockType, s.homeDateType) {
         if (s.homeClockType == "None" && s.homeDateType == "None") return@LaunchedEffect
-        while (true) { now = System.currentTimeMillis(); delay(1000) }
+        // the clock shows minutes: wake on each minute boundary, and only while mi is on screen
+        lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) { now = System.currentTimeMillis(); delay(60_000 - now % 60_000) }
+        }
     }
 
     Box(Modifier.fillMaxSize().background(ui.cs.surface).blockTouches { focusManager.clearFocus() }) {
-        s.homeBackgroundImage?.let { bg ->
-            NetImage(bg, Modifier.fillMaxSize(), ContentScale.Crop)
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = s.homeBackgroundOverlayOpacity)))
-        }
-
         // top widgets
         Column(Modifier.fillMaxWidth().padding(top = 60.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(15.dp)) {
             val dateText = @Composable { Txt(SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date(now)), 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(vertical = 2.dp)) }

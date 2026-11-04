@@ -38,7 +38,7 @@ import kotlin.math.roundToInt
 val HISTORY_RANGES = listOf("Last Hour" to 3_600_000L, "Last 24 Hours" to 86_400_000L, "Last 7 Days" to 604_800_000L, "Last 4 Weeks" to 2_419_200_000L, "All Time" to -1L)
 
 @Composable
-fun HistoryView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: () -> Unit) {
+fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     val ui = LocalUi.current
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
@@ -89,7 +89,7 @@ fun HistoryView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: (
             }
         }
 
-        SearchHeaderWithMenu(search, { vm.historySearch = it }, "Search History...", onFocusSearch) { close ->
+        SearchHeaderWithMenu(search, { vm.historySearch = it }, "Search History...") { close ->
             var open by remember { mutableStateOf(false) }
             Row(Modifier.fillMaxWidth().touchable { open = !open }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Sym("delete", 18f, ui.cs.onSurface, Modifier.padding(end = 10.dp))
@@ -107,7 +107,8 @@ fun HistoryView(vm: BrowserViewModel, onFocusSearch: () -> Unit, closeOverlay: (
         }
 
         val density = LocalDensity.current.density
-        val showTop = list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset / density > 100
+        // derived: recomposes only when crossing the threshold, not on every scroll frame
+        val showTop by remember { derivedStateOf { list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset / density > 100 } }
         if (showTop) Box(
             Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 40.dp).size(40.dp)
                 .background(ui.cs.surfaceContainerHighest, CircleShape).touchable { scope.launch { list.animateScrollToItem(0) } },
@@ -125,7 +126,7 @@ private fun HistoryRow(item: HistoryItem, modifier: Modifier, onPress: () -> Uni
     var tx by remember { mutableFloatStateOf(0f) }
     val collapse = remember { Animatable(1f) }
     var deleting by remember { mutableStateOf(false) }
-    BoxWithConstraints(modifier.fillMaxWidth().height(((height + margin) * collapse.value).dp).alpha(collapse.value)) {
+    BoxWithConstraints(modifier.fillMaxWidth().heightDp { (height + margin) * collapse.value }.graphicsLayer { alpha = collapse.value }) {
         val wPx = constraints.maxWidth.toFloat()
         val density = LocalDensity.current.density
         val iconScale = interp(tx / density, listOf(-100f, -50f, 0f), listOf(1.2f, 0.5f, 0f))

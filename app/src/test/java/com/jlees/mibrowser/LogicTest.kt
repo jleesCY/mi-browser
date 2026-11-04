@@ -75,6 +75,50 @@ class LogicTest {
         assertEquals(false, newer("v1.0.0-beta", "1.0.0"))
     }
 
+    @Test fun typedAddressesForDevelopmentAndLocalNetworks() {
+        fun go(t: String, httpsOnly: Boolean = false) = inputToUrl(t, false, httpsOnly, 0)!!
+        val search = "https://www.google.com/search?q="
+        // local development: http, never upgraded, ports and paths kept
+        assertEquals("http://localhost:3000", go("localhost:3000"))
+        assertEquals("http://localhost", go("localhost"))
+        assertEquals("http://localhost:3000/api?x=1", go("localhost:3000/api?x=1", httpsOnly = true))
+        assertEquals("http://localhost:3000", go("http://localhost:3000", httpsOnly = true))
+        assertEquals("http://app.localhost:8080", go("app.localhost:8080"))
+        assertEquals("http://10.0.2.2:3000", go("10.0.2.2:3000"))
+        assertEquals("http://192.168.1.5:8080/", go("192.168.1.5:8080/"))
+        assertEquals("http://[::1]:8080", go("[::1]:8080"))
+        assertEquals("http://myapp.local", go("myapp.local"))
+        assertEquals("http://dev.test:5173", go("dev.test:5173"))
+        assertEquals("http://router.home.arpa", go("router.home.arpa"))
+        assertEquals("http://nas:5000", go("nas:5000"))
+        // public sites: https, ports allowed, explicit http upgraded only in HTTPS-Only mode
+        assertEquals("https://example.com", go("example.com"))
+        assertEquals("https://example.com:8443/x", go("example.com:8443/x"))
+        assertEquals("https://münchen.de", go("münchen.de"))
+        assertEquals("http://example.com", go("http://example.com"))
+        assertEquals("https://example.com", go("http://example.com", httpsOnly = true))
+        // searches
+        assertEquals(search + "nas", go("nas"))
+        assertEquals(search + "hello%20world", go("hello world"))
+        assertEquals(search + "1.5", go("1.5"))
+        assertEquals(search + "999.1.1.1", go("999.1.1.1"))
+        assertEquals(search + "user%40example.com", go("user@example.com"))
+        assertEquals(search + "example.com%3A99999", go("example.com:99999"))
+    }
+
+    @Test fun localHostsAreRecognized() {
+        listOf("localhost", "a.localhost", "127.0.0.1", "10.0.2.2", "[::1]", "::1", "nas", "pi.local", "x.test", "box.lan", "r.home.arpa")
+            .forEach { assertEquals(it, true, isLocalHost(it)) }
+        listOf("example.com", "localhost.com", "test.example.org", "", null).forEach { assertEquals(it.toString(), false, isLocalHost(it)) }
+    }
+
+    @Test fun typedHttpsUpgradeIsDetected() {
+        assertEquals(true, isTypedHttpsUpgrade("example.com", "https://example.com"))
+        assertEquals(false, isTypedHttpsUpgrade("https://example.com", "https://example.com"))
+        assertEquals(false, isTypedHttpsUpgrade("localhost:3000", "http://localhost:3000"))
+        assertEquals(false, isTypedHttpsUpgrade("cats", "https://www.google.com/search?q=cats"))
+    }
+
     @Test fun historyTitleUpgradesFromHostPlaceholder() {
         val url = "https://en.wikipedia.org/wiki/Mars"
         val (h1, _) = addHistory(emptyList(), emptyList(), url, "en.wikipedia.org") // loaded before the title arrived

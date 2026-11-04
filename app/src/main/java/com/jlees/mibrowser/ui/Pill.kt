@@ -2,6 +2,11 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui
 
+import androidx.compose.ui.util.lerp
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Rect
 import kotlinx.coroutines.CoroutineStart
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -28,6 +33,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -59,6 +65,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+/** Height of the search pill, dp. */
+const val PILL_HEIGHT = 70f
 const val SWITCHER_DRAG = 220f // dp of upward drag that takes the page all the way into the tab switcher
 const val HIDDEN_TRANSLATE_Y = 110f
 
@@ -250,38 +258,46 @@ fun Modifier.panGesture(
 
 /** Bottom floating area: the search pill + recent searches drawer. Swipe up opens the tab switcher. */
 @Composable
-fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: Float, navInsetDp: Float, recent: @Composable () -> Unit) {
+fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navInsetDp: Float, recent: @Composable () -> Unit) {
     val ui = LocalUi.current
     val s = vm.settings
     val focusManager = LocalFocusManager.current
-    val k = imeDp * pill.focusAnim.value // effectiveKeyboardHeight
-    val pillRadius = if (s.cornerRadius >= 20) s.pillHeight / 2f else s.cornerRadius * 2f
-    val bottomRadius = interp(k, listOf(0f, 100f), listOf(pillRadius, 0f))
-    val elevation = interp(k, listOf(0f, 10f), listOf(10f, 0f))
-    val padH = interp(k, listOf(0f, 100f), listOf(10f, 0f))
-    val padB = interp(k, listOf(0f, 100f), listOf(max(navInsetDp + 10f, 10f), 0f))
-    val focusedAdd = pill.handleAnim.value * 25f
-    val totalPillHeight = s.pillHeight + focusedAdd
-    val sy = pill.scrollY.value
-    val containerScale = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.6f))
-    val containerOpacity = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y * 0.75f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.5f, 0f))
-    val shape = RoundedCornerShape(pillRadius.dp, pillRadius.dp, bottomRadius.dp, bottomRadius.dp)
+    // All animated values (keyboard focus, drag handle, hide/show, drawer height) are read inside layout/draw
+    // lambdas, so animating them never recomposes the pill, its text field or the recent-searches list.
+    val k = { imeDp() * pill.focusAnim.value } // effectiveKeyboardHeight
+    val pillRadius = if (s.cornerRadius >= 20) PILL_HEIGHT / 2f else s.cornerRadius * 2f
+    val padH = { interp(k(), listOf(0f, 100f), listOf(10f, 0f)) }
+    val padB = { interp(k(), listOf(0f, 100f), listOf(max(navInsetDp + 10f, 10f), 0f)) + k() }
+    val focusedAdd = { pill.handleAnim.value * 25f }
+    // Opening the tab switcher morphs the search pill into the switcher's centre pill: its sides draw in to that
+    // pill's size and position, the search content fades out early, + and ⋮ fade in late, and the edge buttons appear
+    // from behind it. Driven by the same progress as the page zoom, so it follows the finger and reverses on close.
+    val morph = { if (vm.switcherVisible) vm.switcherAnim.value.coerceIn(0f, 1f) else 0f }
+    val rootOrigin = remember { OriginHolder() }
+    val pillOrigin = remember { OriginHolder() }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().onGloballyPositioned { rootOrigin.at = it.positionInWindow() }) {
+        if (vm.switcherVisible) {
+            EdgeButtonGhost("library_books", { vm.switcherBarLeft }, rootOrigin, morph)
+            EdgeButtonGhost("settings", { vm.switcherBarRight }, rootOrigin, morph)
+        }
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .padding(start = padH.dp, end = padH.dp, bottom = (padB + k).dp)
-                .alpha(containerOpacity),
+                .paddingDp(start = padH, end = padH, bottom = padB)
+                .graphicsLayer {
+                    val sy = pill.scrollY.value
+                    alpha = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y * 0.75f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.5f, 0f))
+                    val sc = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.6f))
+                    translationY = sy * density; scaleX = sc; scaleY = sc; transformOrigin = TransformOrigin.Center
+                },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                Modifier.fillMaxWidth()
-                    .graphicsLayer { translationY = sy * density; scaleX = containerScale; scaleY = containerScale; transformOrigin = TransformOrigin.Center },
-            ) {
+            Box(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
                     // gesture area
                     Box(
-                        Modifier.fillMaxWidth().height(totalPillHeight.dp)
+                        Modifier.fillMaxWidth().heightDp { PILL_HEIGHT + focusedAdd() }
+                            .onGloballyPositioned { pillOrigin.at = it.positionInWindow() }
                             .panGesture(
                                 enabled = !vm.isInputFocused && !pill.isBarHidden,
                                 onMove = { dx, dy -> pill.onPanMove(dx, dy) },
@@ -291,14 +307,31 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: Float, navInsetDp: 
                     ) {
                         // SEARCH PILL
                         Box(
-                            Modifier.fillMaxWidth().height(totalPillHeight.dp).zIndex(2f)
-                                .shadow(elevation.dp, shape, clip = false).clip(shape).background(ui.cs.surfaceContainerHigh),
+                            Modifier.fillMaxSize().zIndex(2f)
+                                .morphInto(morph, { vm.switcherBarPill }, pillOrigin)
+                                .graphicsLayer {
+                                    val kk = k()
+                                    val m = morph()
+                                    val round = size.height / 2 // the switcher's pill is fully rounded
+                                    val top = lerp(pillRadius.dp.toPx(), round, m)
+                                    val bottom = lerp(interp(kk, listOf(0f, 100f), listOf(pillRadius, 0f)).dp.toPx(), round, m)
+                                    shape = RoundedCornerShape(top, top, bottom, bottom)
+                                    shadowElevation = lerp(interp(kk, listOf(0f, 10f), listOf(10f, 0f)), 6f, m).dp.toPx()
+                                    clip = true
+                                }
+                                .background(ui.cs.surfaceContainerHigh),
                         ) {
-                            SearchPillContent(vm, pill, focusedAdd, focusManager)
+                            Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - (morph() * 3f).coerceIn(0f, 1f) }) {
+                                SearchPillContent(vm, pill, focusedAdd, focusManager)
+                            }
+                            if (vm.switcherVisible) Box(
+                                Modifier.matchParentSize().graphicsLayer { alpha = ((morph() - 0.55f) / 0.45f).coerceIn(0f, 1f) },
+                                contentAlignment = Alignment.Center,
+                            ) { SwitcherPillButtons({}, {}) }
                         }
                     }
                     // recent searches drawer
-                    Box(Modifier.fillMaxWidth().height(pill.recentHeight.value.dp).zIndex(5f).clip(RoundedCornerShape(0.dp)).background(ui.cs.surfaceContainerLow)) {
+                    Box(Modifier.fillMaxWidth().heightDp { pill.recentHeight.value }.zIndex(5f).clipToBounds().background(ui.cs.surfaceContainerLow)) {
                         recent()
                     }
                 }
@@ -309,7 +342,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: Float, navInsetDp: 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd: Float, focusManager: androidx.compose.ui.focus.FocusManager) {
+private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd: () -> Float, focusManager: androidx.compose.ui.focus.FocusManager) {
     val ui = LocalUi.current
     val s = vm.settings
     val focusRequester = remember { FocusRequester() }
@@ -336,10 +369,10 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
         vm.ui.collect { if (it == com.jlees.mibrowser.UiEvent.FocusInput) { allowFocus = true; focusRequester.requestFocus() } }
     }
     val imeVisible = WindowInsets.isImeVisible
-    val hd = pill.horizontalDrag.value
-    val backOpacity = interp(hd, listOf(0f, 32f), listOf(0f, 1f))
-    val fwdOpacity = interp(hd, listOf(-32f, 0f), listOf(1f, 0f))
-    val contentOpacity = interp(hd, listOf(-32f, 0f, 32f), listOf(0f, 1f, 0f))
+    // back/forward swipe feedback, read at draw time (no recomposition while dragging)
+    val backOpacity = { interp(pill.horizontalDrag.value, listOf(0f, 32f), listOf(0f, 1f)) }
+    val fwdOpacity = { interp(pill.horizontalDrag.value, listOf(-32f, 0f), listOf(1f, 0f)) }
+    val contentOpacity = { interp(pill.horizontalDrag.value, listOf(-32f, 0f, 32f), listOf(0f, 1f, 0f)) }
     val tab = vm.currentTab
 
     Box(Modifier.fillMaxSize()) {
@@ -355,11 +388,11 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
             ) { Box(Modifier.size(40.dp, 4.dp).alpha(0.5f).background(ui.cs.onSurfaceVariant, RoundedCornerShape(2.dp))) }
         }
         Row(
-            Modifier.fillMaxSize().padding(top = focusedAdd.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxSize().paddingDp(top = focusedAdd).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.weight(1f).height((s.pillHeight * 0.7f).dp).alpha(contentOpacity)
+                Modifier.weight(1f).height((PILL_HEIGHT * 0.7f).dp).graphicsLayer { alpha = contentOpacity() }
                     .clip(RoundedCornerShape((s.cornerRadius * 1.5f).dp)).background(ui.cs.surfaceContainerHighest),
             ) {
                 // loading progress: a faint accent fill behind the text, growing left to right or from the center out
@@ -444,8 +477,42 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
             }
         }
         // nav arrows (pointerEvents none)
-        if (tab != null && vm.canGoBackUi) Box(Modifier.align(Alignment.CenterStart).padding(start = 20.dp, top = focusedAdd.dp).alpha(backOpacity)) { Sym("arrow_back", 28f, ui.cs.onSurface) }
-        if (tab != null && vm.canGoForwardUi) Box(Modifier.align(Alignment.CenterEnd).padding(end = 20.dp, top = focusedAdd.dp).alpha(fwdOpacity)) { Sym("arrow_forward", 28f, ui.cs.onSurface) }
+        if (tab != null && vm.canGoBackUi) Box(Modifier.align(Alignment.CenterStart).padding(start = 20.dp).paddingDp(top = focusedAdd).graphicsLayer { alpha = backOpacity() }) { Sym("arrow_back", 28f, ui.cs.onSurface) }
+        if (tab != null && vm.canGoForwardUi) Box(Modifier.align(Alignment.CenterEnd).padding(end = 20.dp).paddingDp(top = focusedAdd).graphicsLayer { alpha = fwdOpacity() }) { Sym("arrow_forward", 28f, ui.cs.onSurface) }
     }
 }
 
+/** A window position recorded at layout time and read in layout/draw lambdas (no recomposition when it changes). */
+private class OriginHolder { var at = Offset.Zero }
+
+/**
+ * Lays the pill out between its own place ([origin], progress 0) and [target] in the window (progress 1), without
+ * changing the space it takes in its parent.
+ */
+private fun Modifier.morphInto(progress: () -> Float, target: () -> Rect?, origin: OriginHolder) = layout { m, c ->
+    val p = progress()
+    val t = target()
+    if (p <= 0f || t == null || !c.hasBoundedWidth || !c.hasBoundedHeight) {
+        val pl = m.measure(c)
+        return@layout layout(pl.width, pl.height) { pl.place(0, 0) }
+    }
+    val w = lerp(c.maxWidth.toFloat(), t.width, p).roundToInt().coerceAtLeast(1)
+    val h = lerp(c.maxHeight.toFloat(), t.height, p).roundToInt().coerceAtLeast(1)
+    val pl = m.measure(Constraints.fixed(w, h))
+    layout(c.maxWidth, c.maxHeight) {
+        pl.place(lerp(0f, t.left - origin.at.x, p).roundToInt(), lerp(0f, t.top - origin.at.y, p).roundToInt())
+    }
+}
+
+/** The switcher's edge button, appearing at its final place from behind the shrinking pill. */
+@Composable
+private fun EdgeButtonGhost(icon: String, at: () -> Rect?, root: OriginHolder, progress: () -> Float) {
+    Box(
+        Modifier
+            .offset { at()?.let { IntOffset((it.left - root.at.x).roundToInt(), (it.top - root.at.y).roundToInt()) } ?: IntOffset(-100_000, 0) }
+            .graphicsLayer {
+                val a = ((progress() - 0.2f) / 0.45f).coerceIn(0f, 1f)
+                alpha = a; scaleX = 0.6f + 0.4f * a; scaleY = 0.6f + 0.4f * a
+            },
+    ) { SwitcherEdgeButton(icon, onClick = {}) }
+}

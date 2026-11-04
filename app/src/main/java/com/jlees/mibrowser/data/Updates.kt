@@ -28,7 +28,10 @@ object Updates {
     }
 
     /** The latest release if it is newer than [current] and ships an APK; null otherwise (or on any error). */
-    suspend fun check(current: String): Release? = withContext(Dispatchers.IO) {
+    suspend fun check(current: String): Release? = checkResult(current).getOrNull()
+
+    /** Like [check], but a failure (offline, GitHub unreachable) is reported instead of looking like "up to date". */
+    suspend fun checkResult(current: String): Result<Release?> = withContext(Dispatchers.IO) {
         runCatching {
             val conn = (URL(LATEST).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 10_000; readTimeout = 10_000
@@ -41,7 +44,7 @@ object Updates {
                 // only accept APKs served from GitHub itself
                 .firstOrNull { it.endsWith(".apk") && URL(it).host.equals("github.com", ignoreCase = true) }
             if (apk != null && isNewer(tag, current)) Release(tag.removePrefix("v"), apk) else null
-        }.getOrNull()
+        }
     }
 
     /**

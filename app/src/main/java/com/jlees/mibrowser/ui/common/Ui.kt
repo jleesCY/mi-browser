@@ -1,6 +1,10 @@
 // Shared UI primitives: Material 3 Expressive theme glue (color roles, Google Sans Flex, Material Symbols, motion).
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
+import androidx.compose.ui.unit.offset
+import androidx.compose.ui.layout.layout
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
@@ -147,3 +151,19 @@ fun rowHeight(kind: String, padding: String, fontScale: Float): Float = fontScal
 
 fun rowMargin(padding: String): Float = when (padding) { "compact" -> 8f; "airy" -> 25f; else -> 15f }
 
+// ---- animation without recomposition: these read their value during layout only, so an animating value re-lays-out
+// the element each frame instead of recomposing (re-running) everything inside it.
+
+/** Height in dp from an animated value. */
+fun Modifier.heightDp(dp: () -> Float) = layout { m, c ->
+    val h = dp().coerceAtLeast(0f).dp.roundToPx()
+    val p = m.measure(c.copy(minHeight = h, maxHeight = h))
+    layout(p.width, h) { p.place(0, 0) }
+}
+
+/** Padding in dp from animated values. */
+fun Modifier.paddingDp(start: () -> Float = { 0f }, top: () -> Float = { 0f }, end: () -> Float = { 0f }, bottom: () -> Float = { 0f }) = layout { m, c ->
+    val s = start().dp.roundToPx(); val t = top().dp.roundToPx(); val e = end().dp.roundToPx(); val b = bottom().dp.roundToPx()
+    val p = m.measure(c.offset(-(s + e), -(t + b)))
+    layout(c.constrainWidth(p.width + s + e), c.constrainHeight(p.height + t + b)) { p.place(s, t) }
+}

@@ -2,6 +2,7 @@
 package com.jlees.mibrowser.ui
 
 import com.jlees.mibrowser.ui.common.Motion
+import com.jlees.mibrowser.ui.common.paddingDp
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.ViewGroup
@@ -76,7 +77,10 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         val pill = remember { PillState(scope, vm) }
         val density = LocalDensity.current
         val d = density.density
-        val imeDp = WindowInsets.ime.getBottom(density) / d
+        // The keyboard height animates every frame while it opens/closes: it is read only inside layout lambdas
+        // (imeDp()), so the keyboard animation re-lays-out the affected elements instead of recomposing the whole app.
+        val imeInsets = WindowInsets.ime
+        val imeDp = { imeInsets.getBottom(density) / d }
         val imeTargetDp = WindowInsets.imeAnimationTarget.getBottom(density) / d
         val statusDp = WindowInsets.statusBars.getTop(density) / d
         val navDp = WindowInsets.navigationBars.getBottom(density) / d
@@ -113,6 +117,9 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             activity.requestedOrientation = if (fullscreen) ActivityInfo.SCREEN_ORIENTATION_FULL_USER else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
 
+        // ---- only the visible tab's page runs; the others pause their animations and location updates
+        LaunchedEffect(vm.activeTabId) { host.applyActivity() }
+
         // ---- pages read light/dark when their WebView is created: rebuild them when the theme flips
         var lastDark by remember { mutableStateOf(dark) }
         LaunchedEffect(dark) { if (dark != lastDark) { lastDark = dark; vm.reloadAllTabs() } }
@@ -126,12 +133,10 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             // node. Without this that is the address bar, which would pop the keyboard back up.
             Box(Modifier.size(1.dp).focusable())
             val screenH = maxHeight.value
-            val snapDefault = screenH * 0.6f
-            val snapFull = screenH * 0.95f
 
             // ---- recent searches drawer sizing
             pill.recentMin = if (s.showFavoritesDefault) 65f else 0f
-            pill.recentMax = screenH - (s.pillHeight + 24) - imeTargetDp - statusDp - navDp
+            pill.recentMax = screenH - (PILL_HEIGHT + 24) - imeTargetDp - statusDp - navDp
             LaunchedEffect(vm.isInputFocused, kbVisible) { if (!vm.isInputFocused || !kbVisible) pill.animateRecent(0f, spring = false) }
             LaunchedEffect(vm.isInputFocused, kbVisible, s.recentSearchesExpanded, s.showFavoritesDefault) {
                 if (vm.isInputFocused && kbVisible) {
@@ -141,24 +146,38 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             }
 
             // ---- overlay sheet
-            val sheetH = remember { Animatable(0f) }
+            // Sheets are full screen and slide in from the side of the button that opens them: Bookmarks/History from
+            // the left, Settings from the right. sheetX is the offset in screen widths (-1 left, 0 shown, 1 right).
+            // Closed, it rests off screen (|sheetX| = 1), so the sheet's first frame is already hidden when it opens;
+            // resting at 0 flashed it fully open for a frame before the slide began.
+            val sheetX = remember { Animatable(1f) }
+            var sheetShown by remember { mutableStateOf(false) }
+            fun sideOf(view: String) = if (view == "settings") 1f else -1f
             LaunchedEffect(vm.activeView) {
-                if (vm.activeView != "none") sheetH.animateTo(snapFull, Motion.fastSpatial()) // sheets open full screen
+                if (vm.activeView != "none" && !sheetShown) { // not when switching Bookmarks ⇄ History
+                    sheetShown = true
+                    sheetX.snapTo(sideOf(vm.activeView))
+                    sheetX.animateTo(0f, Motion.switcher)
+                }
             }
+            // ✕, Back or picking an item: slide back out to the side it came from
             val closeOverlay: () -> Unit = {
                 focusManager.clearFocus()
-                scope.launch { sheetH.animateTo(0f, timing(250)); vm.onOverlayClosed() }
+                scope.launch { sheetX.animateTo(sideOf(vm.activeView), timing(250)); vm.onOverlayClosed(); sheetShown = false }
             }
-            val focusSheetSearch: () -> Unit = { scope.launch { sheetH.animateTo(snapFull, Motion.fastSpatial()) } }
 
-            BackHandler(enabled = fullscreen || vm.activeView != "none" || vm.isInputFocused || (vm.currentTab?.currentIndex ?: 0) > 0) {
+            val popup = vm.currentTab?.openerId != null
+            BackHandler(enabled = fullscreen || vm.activeView != "none" || vm.isInputFocused || (vm.currentTab?.currentIndex ?: 0) > 0 || popup) {
                 when {
                     fullscreen -> host.exitFullscreen()
                     vm.activeView != "none" -> closeOverlay()
                     vm.isInputFocused -> focusManager.clearFocus()
-                    else -> vm.goBack()
+                    // a popup window with nothing to go back to closes and returns to the page that opened it
+                    !vm.goBack() && popup -> vm.closeWindow(vm.activeTabId)
                 }
             }
+            // remote debugging (chrome://inspect): always in dev builds, a setting in releases
+            LaunchedEffect(s.remoteDebugging) { android.webkit.WebView.setWebContentsDebuggingEnabled(com.jlees.mibrowser.BuildConfig.DEBUG || s.remoteDebugging) }
 
             // ---- background WebViews (Background Refresh / lazy-loaded tabs) and cleanup of home tabs
             LaunchedEffect(vm.tabs, vm.activeTabId, s) {
@@ -171,7 +190,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
             // ---- page content
             Box(
-                Modifier.fillMaxSize().padding(top = if (s.showStatusBar && !fullscreen) statusDp.dp else 0.dp).padding(bottom = if (fullscreen) 0.dp else imeDp.dp)
+                Modifier.fillMaxSize().padding(top = if (s.showStatusBar && !fullscreen) statusDp.dp else 0.dp).paddingDp(bottom = { if (fullscreen) 0f else imeDp() })
                     .onGloballyPositioned { vm.pageBounds = it.boundsInWindow() }
                     .graphicsLayer { switcherZoom(vm, this) }
                     .drawWithContent { switcherOverlay(vm, this, ui.cs.primary) }
@@ -213,7 +232,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
             if (!fullscreen) {
                 val screenW = maxWidth.value
-                Box(chromeFade.fillMaxSize()) {
+                Box(Modifier.fillMaxSize()) { // no fade here: the pill morphs into the switcher bar (BottomArea)
                     if (vm.activeView == "none") {
                         BottomArea(vm, pill, imeDp, navDp) {
                             RecentSearches(vm, pill, screenH)
@@ -227,11 +246,11 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     val header: (@Composable () -> Unit)? = if (library) { {
                         ConnectedChoice(listOf("bookmarks" to "Bookmarks", "history" to "History"), vm.activeView) { vm.activeView = it }
                     } } else null
-                    OverlaySheet(sheetH, snapDefault, snapFull, imeDp, closeOverlay, scope, header) {
+                    OverlaySheet(sheetX, statusDp, imeDp, closeOverlay, header) {
                         when (vm.activeView) {
-                            "history" -> HistoryView(vm, focusSheetSearch, closeOverlay)
-                            "bookmarks" -> BookmarksView(vm, sheetH.value, snapDefault, kbVisible, focusSheetSearch, closeOverlay)
-                            "settings" -> SettingsView(vm, focusSheetSearch, closeOverlay)
+                            "history" -> HistoryView(vm, closeOverlay)
+                            "bookmarks" -> BookmarksView(vm, kbVisible, closeOverlay)
+                            "settings" -> SettingsView(vm, closeOverlay)
                         }
                     }
                 }
@@ -247,6 +266,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             QrGenerator(vm)
             ConfirmDialog(vm)
             RenameDialog(vm)
+            AuthDialog(vm)
             ContextMenu(vm, onSaveImage = { url -> saveImageFromUrl(activity, vm, url) })
             CustomAlert(vm.alert, onButton = { vm.alert = null }, onCancel = { vm.alert?.onCancel?.invoke(); vm.alert = null })
 

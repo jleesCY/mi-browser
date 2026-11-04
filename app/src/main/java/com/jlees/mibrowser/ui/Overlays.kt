@@ -67,6 +67,7 @@ import com.jlees.mibrowser.web.WebError
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.roundToInt
 
 /** Pins a home-screen shortcut that opens [url] in mi (uses the site's favicon when cached). */
@@ -140,6 +141,32 @@ fun SubMenu(vm: BrowserViewModel, modifier: Modifier) {
     }
 }
 
+/** HTTP authentication: the site's username/password prompt. Dismissing it cancels the sign-in. */
+@Composable
+fun AuthDialog(vm: BrowserViewModel) {
+    val ui = LocalUi.current
+    val req = vm.authRequest
+    var last by remember { mutableStateOf(req) }
+    if (req != null) last = req
+    val r = last ?: return
+    var user by remember(r) { mutableStateOf("") }
+    var pass by remember(r) { mutableStateOf("") }
+    val fr = remember { FocusRequester() }
+    LaunchedEffect(req) { if (req != null) { delay(300); runCatching { fr.requestFocus() } } }
+    val cancel = { if (vm.authRequest === r) { vm.authRequest = null; r.onCancel() } }
+    ModalFrame(req != null, cancel) {
+        DialogCard("Sign in", actions = {
+            DialogAction("Cancel", onClick = cancel)
+            DialogAction("Sign in") { if (vm.authRequest === r) { vm.authRequest = null; r.onSubmit(user, pass) } }
+        }) {
+            Txt("${r.host} requires a username and password.", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 16.dp), lineHeight = 20f)
+            ClearableField(user, { user = it }, fr, placeholder = "Username", uri = true)
+            Spacer(Modifier.height(8.dp))
+            ClearableField(pass, { pass = it }, placeholder = "Password", password = true)
+        }
+    }
+}
+
 // ---------------------------------------------------------------- recall handle
 /**
  * Shown while the pill is hidden. Tap or swipe up → show the pill. Swipe left/right → the handle follows the finger
@@ -156,8 +183,10 @@ fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, scree
     LaunchedEffect(screenW) { x.snapTo(baseX(vm.settings.recallPosition)) }
     var horizontal by remember { mutableStateOf<Boolean?>(null) }
     var startX by remember { mutableFloatStateOf(0f) }
-    val opacity = interp(pill.scrollY.value, listOf(0f, HIDDEN_TRANSLATE_Y - 20, HIDDEN_TRANSLATE_Y), listOf(0f, 0f, 1f))
-    Box(modifier.offset { IntOffset((x.value * density).roundToInt(), 0) }.padding(bottom = maxOf(navInsetDp + 10f, 10f).dp).alpha(opacity)) {
+    Box(
+        modifier.offset { IntOffset((x.value * density).roundToInt(), 0) }.padding(bottom = maxOf(navInsetDp + 10f, 10f).dp)
+            .graphicsLayer { alpha = interp(pill.scrollY.value, listOf(0f, HIDDEN_TRANSLATE_Y - 20, HIDDEN_TRANSLATE_Y), listOf(0f, 0f, 1f)) },
+    ) {
         Box(
             Modifier.size(w.dp, 32.dp).shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(ui.cs.secondaryContainer)
                 .panGesture(
@@ -185,50 +214,30 @@ fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, scree
 }
 
 // ---------------------------------------------------------------- overlay sheet (OverlaySheet.tsx + sheetPanResponder)
+/**
+ * Full-screen sheet (Library, Settings). It slides in from the side of the button that opened it ([slide] is the
+ * horizontal offset in sheet widths) and has a fixed size: no handle, no partial height.
+ */
 @Composable
 fun OverlaySheet(
-    height: Animatable<Float, androidx.compose.animation.core.AnimationVector1D>, snapDefault: Float, snapFull: Float, imeDp: Float,
-    onClose: () -> Unit, scope: kotlinx.coroutines.CoroutineScope, header: (@Composable () -> Unit)? = null, content: @Composable () -> Unit,
+    slide: Animatable<Float, androidx.compose.animation.core.AnimationVector1D>,
+    topInsetDp: Float, imeDp: () -> Float, onClose: () -> Unit,
+    header: (@Composable () -> Unit)? = null, content: @Composable () -> Unit,
 ) {
     val ui = LocalUi.current
-    val shape = RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp)
-    val h = height
-    var start by remember { mutableFloatStateOf(0f) }
     Box(Modifier.fillMaxSize().zIndex(100f)) {
-        Box(Modifier.fillMaxSize().background(ui.cs.scrim.copy(alpha = 0.32f)).blockTouches(onClose))
+        // dims the page while the sheet slides; also keeps taps off the page during the slide
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - abs(slide.value).coerceIn(0f, 1f) }.background(ui.cs.scrim.copy(alpha = 0.32f)).blockTouches())
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(h.value.coerceAtLeast(0f).dp)
-                .shadow(6.dp, shape).clip(shape).background(ui.cs.surfaceContainerLow).blockTouches(),
+            Modifier.fillMaxSize().graphicsLayer { translationX = slide.value * size.width }
+                .background(ui.cs.surfaceContainerLow).blockTouches().padding(top = topInsetDp.dp),
         ) {
-            Column(
-                Modifier.fillMaxWidth().background(ui.cs.surfaceContainerLow)
-                    .panGesture(
-                        enabled = true,
-                        onStart = { start = h.value; scope.launch { h.stop() } },
-                        onMove = { _, dy -> scope.launch(start = CoroutineStart.UNDISPATCHED) { h.snapTo(minOf(start - dy, snapFull)) } },
-                        onRelease = { _, dy, _, vy ->
-                            val final = start - dy
-                            var target = when {
-                                final > (snapFull + snapDefault) / 2 -> snapFull
-                                final > snapDefault * 0.7f -> snapDefault
-                                else -> 0f
-                            }
-                            if (vy < -0.4f) target = snapFull
-                            if (vy > 0.4f) target = if (start > snapDefault + 1f && final > snapDefault * 0.6f) snapDefault else 0f
-                            if (target == 0f) onClose() else scope.launch { h.animateTo(target, Motion.spatial()) }
-                        },
-                    )
-                    .padding(bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(Modifier.padding(vertical = 16.dp).size(32.dp, 4.dp).background(ui.cs.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(2.dp)))
-                Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (header != null) Box(Modifier.weight(1f).padding(end = 12.dp)) { header() }
-                    else Txt("Settings", 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
-                    FilledTonalIconButton(onClick = onClose) { Sym("close", 24f, ui.cs.onSecondaryContainer) }
-                }
+            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (header != null) Box(Modifier.weight(1f).padding(end = 12.dp)) { header() }
+                else Txt("Settings", 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
+                FilledTonalIconButton(onClick = onClose) { Sym("close", 24f, ui.cs.onSecondaryContainer) }
             }
-            Box(Modifier.fillMaxWidth().weight(1f).padding(bottom = imeDp.dp)) { content() }
+            Box(Modifier.fillMaxWidth().weight(1f).paddingDp(bottom = imeDp)) { content() }
         }
     }
 }
@@ -236,7 +245,7 @@ fun OverlaySheet(
 
 // ---------------------------------------------------------------- find in page
 @Composable
-fun FindBar(imeDp: Float, onQuery: (String) -> Unit, onNext: (forward: Boolean) -> Unit, onClose: () -> Unit) {
+fun FindBar(imeDp: () -> Float, onQuery: (String) -> Unit, onNext: (forward: Boolean) -> Unit, onClose: () -> Unit) {
     val ui = LocalUi.current
     val slide = remember { Animatable(100f) }
     val fr = remember { FocusRequester() }
@@ -247,7 +256,7 @@ fun FindBar(imeDp: Float, onQuery: (String) -> Unit, onNext: (forward: Boolean) 
     }
     Box(Modifier.fillMaxSize().zIndex(100f)) {
         Row(
-            Modifier.align(Alignment.BottomCenter).padding(bottom = imeDp.dp).offset { IntOffset(0, (slide.value * density).roundToInt()) }
+            Modifier.align(Alignment.BottomCenter).paddingDp(bottom = imeDp).offset { IntOffset(0, (slide.value * density).roundToInt()) }
                 .fillMaxWidth().height(60.dp)
                 .shadow(3.dp, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp))
                 .background(ui.cs.surfaceContainer, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp)).blockTouches()
@@ -374,7 +383,10 @@ fun RenameDialog(vm: BrowserViewModel) {
 
 /** Bordered input with a clear (close-circle) button, used by modals. */
 @Composable
-fun ClearableField(value: String, onChange: (String) -> Unit, fr: FocusRequester = remember { FocusRequester() }, modifier: Modifier = Modifier, uri: Boolean = false) {
+fun ClearableField(
+    value: String, onChange: (String) -> Unit, fr: FocusRequester = remember { FocusRequester() }, modifier: Modifier = Modifier,
+    uri: Boolean = false, placeholder: String? = null, password: Boolean = false,
+) {
     val ui = LocalUi.current
     Row(
         modifier.fillMaxWidth().height(56.dp).background(ui.cs.surfaceContainerHighest, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp),
@@ -384,7 +396,18 @@ fun ClearableField(value: String, onChange: (String) -> Unit, fr: FocusRequester
             value, onChange, Modifier.weight(1f).focusRequester(fr), singleLine = true,
             textStyle = TextStyle(color = ui.cs.onSurface, fontFamily = ui.font, fontWeight = FontWeight.W600, fontSize = 16.sp),
             cursorBrush = SolidColor(ui.cs.primary),
-            keyboardOptions = if (uri) KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri) else KeyboardOptions.Default,
+            keyboardOptions = when {
+                password -> KeyboardOptions(autoCorrectEnabled = false, keyboardType = androidx.compose.ui.text.input.KeyboardType.Password)
+                uri -> KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri)
+                else -> KeyboardOptions.Default
+            },
+            visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            decorationBox = { inner ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (value.isEmpty() && placeholder != null) Txt(placeholder, 16f, ui.cs.onSurfaceVariant, ui.regular)
+                    inner()
+                }
+            },
         )
         if (value.isNotEmpty()) Box(Modifier.touchable { onChange(""); fr.requestFocus() }) { Sym("cancel", 20f, ui.cs.onSurfaceVariant) }
     }
@@ -393,7 +416,7 @@ fun ClearableField(value: String, onChange: (String) -> Unit, fr: FocusRequester
 /** Search field used at the top of the sheet views ("Search Tabs..." etc.). */
 @Composable
 fun SheetSearchField(
-    value: String, onChange: (String) -> Unit, placeholder: String, onFocus: () -> Unit, modifier: Modifier = Modifier,
+    value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val ui = LocalUi.current
@@ -404,7 +427,7 @@ fun SheetSearchField(
     ) {
         Sym("search", 24f, ui.cs.onSurfaceVariant, Modifier.padding(end = 12.dp))
         BasicTextField(
-            value, onChange, Modifier.weight(1f).focusRequester(fr).onFocusChanged { if (it.isFocused) onFocus() }, singleLine = true,
+            value, onChange, Modifier.weight(1f).focusRequester(fr), singleLine = true,
             textStyle = TextStyle(color = ui.cs.onSurface, fontFamily = ui.font, fontWeight = ui.semibold, fontSize = 16.sp),
             cursorBrush = SolidColor(ui.cs.primary),
             decorationBox = { inner -> Box { if (value.isEmpty()) Txt(placeholder, 16f, ui.cs.onSurfaceVariant, ui.semibold, scaled = false); inner() } },

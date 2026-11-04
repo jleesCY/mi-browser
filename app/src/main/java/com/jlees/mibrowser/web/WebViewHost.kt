@@ -47,14 +47,53 @@ import com.jlees.mibrowser.UiEvent
 import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.data.TabItem
 import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.logic.isIpOrLocalhost
+import com.jlees.mibrowser.logic.isLocalHost
+import com.jlees.mibrowser.logic.uniqueId
+import com.jlees.mibrowser.AuthRequest
+import com.jlees.mibrowser.ui.shareText
+import android.os.CancellationSignal
+import android.os.ParcelFileDescriptor
+import android.os.SystemClock
+import android.print.PageRange
+import android.print.PrintAttributes
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
+import android.security.KeyChain
+import androidx.webkit.UserAgentMetadata
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import org.json.JSONObject
 import java.io.File
 import java.net.URL
 
 data class WebError(val code: Int, val desc: String, val failingUrl: String?)
 
-private const val DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-private val MOBILE_UA = "Mozilla/5.0 (Linux; Android ${Build.VERSION.RELEASE}; ${Build.MODEL}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
+/**
+ * Gives pages what Chrome gives them, where WebView doesn't: window.print() (a no-op in WebView) and navigator.share
+ * (missing in WebView), both routed to the app through the "miBridge" message listener (main frame only).
+ * Share keeps the Web Share rule that it needs a user gesture.
+ */
+private const val BRIDGE_JS = """(() => {
+  const bridge = window.miBridge;
+  if (!bridge || window.__miBridgeShim) return;
+  window.__miBridgeShim = true;
+  const send = (m) => bridge.postMessage(JSON.stringify(m));
+  window.print = () => send({ type: 'print' });
+  if (!navigator.share) {
+    navigator.share = (d) => {
+      if (navigator.userActivation && !navigator.userActivation.isActive)
+        return Promise.reject(new DOMException('Sharing requires a user gesture', 'NotAllowedError'));
+      d = d || {};
+      if (d.files && d.files.length) return Promise.reject(new DOMException('Sharing files is not supported', 'NotAllowedError'));
+      let url = '';
+      try { url = d.url ? new URL(d.url, location.href).href : ''; } catch (e) { return Promise.reject(new TypeError('Invalid URL')); }
+      send({ type: 'share', title: String(d.title || ''), text: String(d.text || ''), url });
+      return Promise.resolve();
+    };
+    navigator.canShare = (d) => !!d && !(d.files && d.files.length) && !!(d.url || d.text || d.title);
+  }
+})();"""
 
 private const val READER_JS = """(function() {
   var style = document.createElement('style');
@@ -93,6 +132,98 @@ class WebViewHost(
 
     private val density get() = activity.resources.displayMetrics.density
 
+    // ---- identity: present as Chrome of the same version (what Chrome sends), not as an embedded WebView.
+    // WebView's own UA ends in "; wv) ... Version/4.0" and its client hints list an "Android WebView" brand; sites
+    // like PayPal and Google sign-in refuse embedded WebViews, so neither is sent.
+    private val chromeVersion: String by lazy {
+        runCatching { Regex("Chrome/([\\d.]+)").find(WebSettings.getDefaultUserAgent(activity))?.groupValues?.get(1) }.getOrNull() ?: "140.0.0.0"
+    }
+    private val chromeMajor get() = chromeVersion.substringBefore('.')
+    private val mobileUa by lazy { "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromeMajor.0.0.0 Mobile Safari/537.36" }
+    private val desktopUa by lazy { "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromeMajor.0.0.0 Safari/537.36" }
+
+    private fun uaMetadata(desktop: Boolean): UserAgentMetadata {
+        fun brand(name: String, major: String, full: String) =
+            UserAgentMetadata.BrandVersion.Builder().setBrand(name).setMajorVersion(major).setFullVersion(full).build()
+        return UserAgentMetadata.Builder()
+            .setBrandVersionList(listOf(brand("Chromium", chromeMajor, chromeVersion), brand("Not_A Brand", "24", "24.0.0.0")))
+            .setFullVersion(chromeVersion)
+            .setPlatform(if (desktop) "Linux" else "Android")
+            .setPlatformVersion(if (desktop) "" else Build.VERSION.RELEASE)
+            .setModel(if (desktop) "" else Build.MODEL)
+            .setMobile(!desktop)
+            .build()
+    }
+
+    /** Per-tab settings that can change (JS, desktop mode, cookies); applied before any load. */
+    private fun configure(wv: WebView, desktop: Boolean) {
+        val s = vm.settings
+        wv.settings.javaScriptEnabled = s.jsEnabled
+        val ua = if (desktop) desktopUa else mobileUa
+        if (wv.settings.userAgentString != ua) {
+            wv.settings.userAgentString = ua
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) WebSettingsCompat.setUserAgentMetadata(wv.settings, uaMetadata(desktop))
+        }
+        CookieManager.getInstance().setAcceptCookie(!s.blockCookies)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !s.blockCookies && !s.blockThirdPartyCookies)
+        if (wv.settings.textZoom != s.textZoom) wv.settings.textZoom = s.textZoom
+        // only has an effect while the WebView's theme is dark (it follows the app theme, see create)
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) WebSettingsCompat.setAlgorithmicDarkeningAllowed(wv.settings, s.darkenPages)
+    }
+
+    /** Last "pop-up blocked" notice (site|page), so a page that keeps trying doesn't stack dialogs. */
+    private var lastPopupNotice: String? = null
+
+    /** HTTP authentication typed this session ("host|realm" → user, password); never written to disk. */
+    private val httpAuth = HashMap<String, Pair<String, String>>()
+    /** Challenges already answered with remembered credentials: if the server asks again, they were wrong. */
+    private val authAnswered = HashSet<String>()
+
+    /** Tabs whose page is being printed: their WebView must outlive window.close() until the print job is done. */
+    private val printing = HashSet<String>()
+    private val closeAfterPrint = HashSet<String>()
+    private var lastBridgeAction = 0L
+    /** Last time the user touched mi (any screen); page-triggered print/share must follow a real touch. */
+    private var lastUserTouch = 0L
+    fun noteUserTouch() { lastUserTouch = SystemClock.uptimeMillis() }
+
+    // ---- battery: only the visible tab runs freely; everything pauses while mi is in the background
+    private var appVisible = true
+    private var timersPaused = false
+    private val pausedViews = HashSet<String>()
+
+    /** Pauses animations/geolocation in every WebView but the active one (and that one too while mi isn't visible). */
+    fun applyActivity() {
+        for ((id, wv) in views) {
+            val run = appVisible && id == vm.activeTabId
+            if (run && id in pausedViews) { wv.onResume(); pausedViews -= id }
+            else if (!run && id !in pausedViews) { wv.onPause(); pausedViews += id }
+        }
+    }
+
+    /** Activity started/stopped. Stopped: JS timers in all pages stop too (WebView.pauseTimers is process-wide). */
+    fun setAppVisible(visible: Boolean) {
+        if (visible == appVisible) return
+        appVisible = visible
+        // instance methods, but they act on every WebView in the process; with none alive, create() catches up
+        if (visible) { views.values.firstOrNull()?.let { it.resumeTimers(); timersPaused = false } }
+        else views.values.firstOrNull()?.let { it.pauseTimers(); timersPaused = true }
+        applyActivity()
+    }
+
+    /** Pages that opened 3 JS dialogs within 10 s: further dialogs are dismissed until the page navigates. */
+    private val dialogTimes = HashMap<String, ArrayDeque<Long>>()
+    private val dialogsBlocked = HashSet<String>()
+    private fun dialogAllowed(id: String): Boolean {
+        if (id in dialogsBlocked) return false
+        val now = SystemClock.uptimeMillis()
+        val times = dialogTimes.getOrPut(id) { ArrayDeque() }
+        while (times.isNotEmpty() && now - times.first() > 10_000) times.removeFirst()
+        if (times.size >= 3) { dialogsBlocked += id; return false }
+        times.addLast(now)
+        return true
+    }
+
     fun has(id: String) = views.containsKey(id)
 
     /** Get or create the tab's WebView, apply settings and perform any requested load. */
@@ -101,6 +232,7 @@ class WebViewHost(
         val wv = views.getOrPut(tab.id) { create(tab.id) }
         if (tab.id == vm.activeTabId) lastUsed[tab.id] = System.nanoTime()
         if (fresh) {
+            configure(wv, tab.desktopMode ?: vm.settings.desktopMode)
             // a new WebView for an existing tab (evicted, theme change, activity recreated): restore or reopen its page
             val restored = saved.remove(tab.id)?.let { wv.restoreState(it) != null } == true
             if (restored || tab.url != null) {
@@ -108,13 +240,9 @@ class WebViewHost(
                 if (!restored) wv.loadUrl(tab.url!!)
             }
             trimTo(MAX_LIVE_TABS)
+            applyActivity()
         }
-        val s = vm.settings
-        wv.settings.javaScriptEnabled = s.jsEnabled
-        val ua = if (tab.desktopMode ?: s.desktopMode) DESKTOP_UA else MOBILE_UA
-        if (wv.settings.userAgentString != ua) wv.settings.userAgentString = ua
-        CookieManager.getInstance().setAcceptCookie(!s.blockCookies)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !s.blockCookies && !s.blockThirdPartyCookies)
+        configure(wv, tab.desktopMode ?: vm.settings.desktopMode)
         val req = tab.requestedUrl
         if (req != null && loaded[tab.id] != (req to tab.loadNonce)) {
             loaded[tab.id] = req to tab.loadNonce
@@ -125,14 +253,18 @@ class WebViewHost(
     }
 
     fun destroy(id: String) {
+        if (id in printing) { closeAfterPrint += id; views[id]?.let { (it.parent as? ViewGroup)?.removeView(it) }; return }
         views.remove(id)?.let { (it.parent as? ViewGroup)?.removeView(it); it.destroy() }
         loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id)
+        pausedViews.remove(id); dialogTimes.remove(id); dialogsBlocked.remove(id)
     }
 
     /** Evicts least recently viewed WebViews (never the active one) until at most [max] are live. */
     fun trimTo(max: Int) {
         while (views.size > max) {
-            val id = views.keys.filter { it != vm.activeTabId }.minByOrNull { lastUsed[it] ?: 0L } ?: return
+            // never a popup or its opener: the page relies on window.opener / postMessage between the two
+            val linked = vm.tabs.filter { it.openerId != null }.flatMap { listOf(it.id, it.openerId!!) }.toSet()
+            val id = views.keys.filter { it != vm.activeTabId && it !in linked && it !in printing }.minByOrNull { lastUsed[it] ?: 0L } ?: return
             val state = Bundle().also { views[id]?.saveState(it) }
             destroy(id)
             saved[id] = state
@@ -148,7 +280,7 @@ class WebViewHost(
             is WebCmd.Stop -> views[cmd.tabId]?.stopLoading()
             is WebCmd.GoBack -> views[cmd.tabId]?.goBack()
             is WebCmd.GoForward -> views[cmd.tabId]?.goForward()
-            WebCmd.Print -> print()
+            WebCmd.Print -> views[vm.activeTabId]?.let { print(vm.activeTabId, it) }
             is WebCmd.CapturePreview -> capturePreview(cmd.tabId)
             is WebCmd.Destroy -> destroy(cmd.tabId)
             WebCmd.WipeWebData -> {
@@ -167,6 +299,8 @@ class WebViewHost(
         WebStorage.getInstance().deleteAllData()
         views.values.forEach { it.clearCache(true); it.clearFormData() }
         @Suppress("DEPRECATION") WebViewDatabase.getInstance(activity).apply { clearHttpAuthUsernamePassword(); clearFormData() }
+        // and what was granted this session: sign-ins, camera/mic/location, certificate exceptions
+        httpAuth.clear(); authAnswered.clear(); sitePermissions.clear(); vm.clearSessionGrants()
     }
 
     fun findNext(forward: Boolean) { views[vm.activeTabId]?.findNext(forward) }
@@ -204,12 +338,78 @@ class WebViewHost(
             loadWithOverviewMode = true
             safeBrowsingEnabled = true
         }
+        val ws = wv.settings
+        // No "X-Requested-With: <app id>" header where WebView allows turning it off (it marks requests as coming
+        // from an embedded WebView). WebView 155 doesn't offer this, so there the header is still sent.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) WebSettingsCompat.setRequestedWithHeaderOriginAllowList(ws, emptySet())
+        // Passkeys / security keys (WebAuthn) through Android's Credential Manager, as a browser.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION)) WebSettingsCompat.setWebAuthenticationSupport(ws, WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER)
+        // Payment Request API (e.g. Google Pay on checkout pages).
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.PAYMENT_REQUEST)) WebSettingsCompat.setPaymentRequestEnabled(ws, true)
+        // window.print() and navigator.share for pages (see BRIDGE_JS).
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            WebViewCompat.addWebMessageListener(wv, "miBridge", setOf("*"), bridge(id))
+            WebViewCompat.addDocumentStartJavaScript(wv, BRIDGE_JS, setOf("*"))
+        }
+        if (timersPaused && appVisible) { wv.resumeTimers(); timersPaused = false } // paused while every WebView was gone
         wv.webViewClient = Client(id)
         wv.webChromeClient = Chrome(id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.activeTabId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
         wv.setOnLongClickListener { onLongPress(wv) }
         wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> download(url, userAgent, contentDisposition, mimetype, length) }
         return wv
+    }
+
+    /** Messages from BRIDGE_JS. Only the main frame may print or share, at most once every 1.5 s. */
+    private fun bridge(id: String) = WebViewCompat.WebMessageListener { view, message, _, isMainFrame, _ ->
+        if (!isMainFrame) return@WebMessageListener
+        val now = SystemClock.uptimeMillis()
+        if (now - lastBridgeAction < 1500) return@WebMessageListener
+        // the page-side gesture check can be bypassed by calling miBridge directly; require a real touch in mi
+        if (now - lastUserTouch > 5000) return@WebMessageListener
+        val msg = runCatching { JSONObject(message.data ?: "") }.getOrNull() ?: return@WebMessageListener
+        lastBridgeAction = now
+        when (msg.optString("type")) {
+            "print" -> print(id, view)
+            "share" -> {
+                val text = listOf(msg.optString("text"), msg.optString("url")).filter { it.isNotBlank() }.joinToString("\n")
+                if (text.isNotEmpty()) shareText(activity, text, msg.optString("title").ifBlank { null })
+            }
+        }
+    }
+
+    private fun print(id: String, wv: WebView) {
+        if (id in printing) return
+        val title = wv.title?.takeIf { it.isNotBlank() } ?: "mi"
+        printing += id
+        val adapter = KeepAlivePrintAdapter(wv.createPrintDocumentAdapter(title)) {
+            printing -= id
+            if (closeAfterPrint.remove(id)) destroy(id) // the page closed its window while printing
+        }
+        runCatching { (activity.getSystemService(Context.PRINT_SERVICE) as PrintManager).print(title, adapter, null) }
+            .onFailure { printing -= id }
+    }
+
+    /** Delegates to WebView's adapter and reports when the print job no longer needs the WebView (onFinish). */
+    private class KeepAlivePrintAdapter(private val inner: PrintDocumentAdapter, private val done: () -> Unit) : PrintDocumentAdapter() {
+        override fun onStart() = inner.onStart()
+        override fun onLayout(old: PrintAttributes?, new: PrintAttributes, signal: CancellationSignal?, cb: LayoutResultCallback, extras: Bundle?) =
+            inner.onLayout(old, new, signal, cb, extras)
+        override fun onWrite(pages: Array<out PageRange>, dest: ParcelFileDescriptor, signal: CancellationSignal?, cb: WriteResultCallback) =
+            inner.onWrite(pages, dest, signal, cb)
+        override fun onFinish() { inner.onFinish(); done() }
+    }
+
+    /** A page tried to open a pop-up without a tap: blocked, with a way to allow the site (then the user retries). */
+    private fun popupBlocked(id: String, site: String, page: String?) {
+        if (site.isEmpty() || id != vm.activeTabId || "$site|$page" == lastPopupNotice) return
+        lastPopupNotice = "$site|$page"
+        vm.prompt(
+            "Pop-up blocked",
+            "$site tried to open a new window without a tap. If you were expecting one (a sign-in or payment window), allow pop-ups for this site and try again.",
+            listOf(AlertButton("Keep blocking", "cancel"), AlertButton("Always allow") { vm.allowPopups(site) }),
+            onCancel = {},
+        )
     }
 
     private fun isDark() = when (vm.settings.themeMode) {
@@ -233,7 +433,7 @@ class WebViewHost(
             val gesture = request.hasGesture()
             if (url.startsWith("blob:") || url.startsWith("data:")) return false
             if (url.startsWith("mibrowser:")) { if (gesture) vm.handleIncomingUrl(url); return true }
-            if (vm.settings.httpsOnly && url.startsWith("http://") && request.isForMainFrame && !isIpOrLocalhost(displayHost(url))) {
+            if (vm.settings.httpsOnly && url.startsWith("http://") && request.isForMainFrame && !isLocalHost(request.url.host)) {
                 vm.loadInTab(id, url.replaceFirst("http://", "https://"))
                 return true
             }
@@ -249,11 +449,14 @@ class WebViewHost(
 
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
             errors.remove(id)
+            dialogsBlocked.remove(id); dialogTimes.remove(id)
             nav(id, view, url, true)
             if (id == vm.activeTabId) vm.ui.tryEmit(UiEvent.LoadStart)
         }
 
         override fun onPageFinished(view: WebView, url: String?) {
+            authAnswered.removeAll { true }
+            if (errors[id] == null) vm.clearHttpFallback(id) // https worked: later failures in this tab are real errors
             val t = vm.tabs.firstOrNull { it.id == id }
             if (t != null && (t.readerMode ?: vm.settings.readerModeEnabled)) view.evaluateJavascript(READER_JS, null)
             nav(id, view, url, false)
@@ -266,6 +469,10 @@ class WebViewHost(
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
             if (!request.isForMainFrame) return
+            // like Chrome's HTTPS upgrades: any failure of the automatic https attempt retries over http, except when
+            // the name doesn't resolve (http would fail too) or Safe Browsing blocked the page (never routed around)
+            val httpMightWork = error.errorCode != ERROR_HOST_LOOKUP && error.errorCode != ERROR_UNSAFE_RESOURCE
+            if (httpMightWork && fallBackToHttp(request.url.toString())) return
             errors[id] = WebError(error.errorCode, error.description?.toString() ?: "Unknown error", request.url.toString())
             if (id == vm.activeTabId) vm.ui.tryEmit(UiEvent.LoadEnd)
         }
@@ -275,10 +482,47 @@ class WebViewHost(
             val host = displayHost(error.url)
             if (host in vm.ignoredHosts) { handler.proceed(); return }
             handler.cancel()
+            val mainFrame = view.url == null || view.url.equals(error.url, ignoreCase = true)
+            if (mainFrame && fallBackToHttp(error.url)) return
             if (view.url.equals(error.url, ignoreCase = true) || view.url == null) {
                 errors[id] = WebError(-1200, "ERR_SSL_PROTOCOL_ERROR", error.url)
                 if (id == vm.activeTabId) vm.ui.tryEmit(UiEvent.LoadEnd)
             }
+        }
+
+        /** A typed address (no scheme) failed over https: retry it over http, once, unless HTTPS-Only is on. */
+        private fun fallBackToHttp(url: String?): Boolean {
+            val t = vm.tabs.firstOrNull { it.id == id } ?: return false
+            if (!t.httpFallback || vm.settings.httpsOnly || url == null || !url.startsWith("https://")) return false
+            vm.fallBackToHttp(id, "http://" + url.removePrefix("https://"))
+            return true
+        }
+
+        /** HTTP authentication (Basic/Digest): ask for credentials; remembered for this session, re-asked if rejected. */
+        override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) {
+            val key = "$host|$realm"
+            val known = httpAuth[key]
+            if (known != null && key !in authAnswered) { authAnswered += key; handler.proceed(known.first, known.second); return }
+            httpAuth.remove(key)
+            vm.authRequest = AuthRequest(
+                host, realm,
+                onSubmit = { user, pass -> httpAuth[key] = user to pass; authAnswered += key; handler.proceed(user, pass) },
+                onCancel = { handler.cancel() },
+            )
+        }
+
+        /** A site asked for a client certificate (corporate / development servers): let the user pick one from the device. */
+        override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) {
+            KeyChain.choosePrivateKeyAlias(activity, { alias ->
+                if (alias == null) { request.cancel(); return@choosePrivateKeyAlias }
+                Thread {
+                    runCatching {
+                        val key = KeyChain.getPrivateKey(activity, alias)
+                        val chain = KeyChain.getCertificateChain(activity, alias)
+                        if (key != null && chain != null) request.proceed(key, chain) else request.cancel()
+                    }.onFailure { request.cancel() }
+                }.start()
+            }, request.keyTypes, request.principals, request.host, request.port, null)
         }
     }
 
@@ -291,23 +535,44 @@ class WebViewHost(
             nav(id, view, view.url, vm.tabs.firstOrNull { it.id == id }?.loading ?: false)
         }
 
-        /** target=_blank / window.open → new mi tab. */
+        /**
+         * window.open / target=_blank: a real window, shown as a new tab linked to this one. The page keeps
+         * window.opener and postMessage to it (sign-in and payment pop-ups such as PayPal depend on that).
+         * Pop-ups without a tap are blocked unless the user allowed the site.
+         */
         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
-            if (!isUserGesture) return false // pop-up blocking: only windows opened by a tap/click
-            val temp = WebView(activity)
-            temp.webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean {
-                    val url = r.url.toString()
-                    if (url.startsWith("http://") || url.startsWith("https://")) vm.addNewTab(url) else openExternal(url, gesture = true)
-                    v.destroy()
-                    return true
-                }
-            }
-            (resultMsg.obj as WebView.WebViewTransport).webView = temp
+            val site = displayHost(view.url)
+            if (!isUserGesture && site !in vm.settings.popupSites) { popupBlocked(id, site, view.url); return false }
+            val opener = vm.tabs.firstOrNull { it.id == id }
+            val desktop = opener?.desktopMode
+            val popupId = uniqueId()
+            val wv = create(popupId)
+            configure(wv, desktop ?: vm.settings.desktopMode)
+            views[popupId] = wv
+            lastUsed[popupId] = System.nanoTime()
+            (resultMsg.obj as WebView.WebViewTransport).webView = wv
             resultMsg.sendToTarget()
-            // a pop-up that never navigates (about:blank + script) would otherwise keep this WebView forever
-            temp.postDelayed({ runCatching { temp.destroy() } }, 10_000)
+            vm.addPopupTab(popupId, openerId = id, desktopMode = desktop)
             return true
+        }
+
+        /** The page called window.close() (only windows opened by script may): back to the opener. */
+        override fun onCloseWindow(window: WebView) { vm.closeWindow(id) }
+
+        // JS dialogs use WebView's own dialogs (return false) unless the page is spamming them (see dialogAllowed)
+        override fun onJsAlert(view: WebView, url: String?, message: String?, result: JsResult): Boolean {
+            if (dialogAllowed(id)) return false
+            result.confirm(); return true
+        }
+
+        override fun onJsConfirm(view: WebView, url: String?, message: String?, result: JsResult): Boolean {
+            if (dialogAllowed(id)) return false
+            result.cancel(); return true
+        }
+
+        override fun onJsPrompt(view: WebView, url: String?, message: String?, defaultValue: String?, result: JsPromptResult): Boolean {
+            if (dialogAllowed(id)) return false
+            result.cancel(); return true
         }
 
         override fun onShowCustomView(view: View, callback: CustomViewCallback) {
@@ -540,12 +805,6 @@ class WebViewHost(
     }
 
     // ---------------------------------------------------------------- print / previews
-    private fun print() {
-        val wv = views[vm.activeTabId] ?: return
-        val title = wv.title ?: "mi"
-        (activity.getSystemService(Context.PRINT_SERVICE) as PrintManager).print(title, wv.createPrintDocumentAdapter(title), null)
-    }
-
     fun capturePreview(id: String) {
         val wv = views[id]
         val tab = vm.tabs.firstOrNull { it.id == id }

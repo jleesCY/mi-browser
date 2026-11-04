@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen().setKeepOnScreenCondition { !vm.ready }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        preferHighestRefreshRate()
         // disk cache for HttpURLConnection (favicons, suggestions): no re-downloading after every launch
         if (android.net.http.HttpResponseCache.getInstalled() == null)
             runCatching { android.net.http.HttpResponseCache.install(java.io.File(cacheDir, "http"), 16L * 1024 * 1024) }
@@ -52,6 +53,48 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         android.webkit.CookieManager.getInstance().flush() // keep logins if Android kills the app in the background
+    }
+
+    /**
+     * The display mode with the highest refresh rate (e.g. 120 Hz) at the current resolution. Some phones (OnePlus/OPPO
+     * among them) keep apps at 60 Hz unless asked, so mi asks while you interact: every touch switches to this mode
+     * and it is released 2.5 s after the last touch (covering flings and the animations a touch starts). Pinning it all
+     * the time would keep the screen at 120 Hz while you read a still page, costing battery for nothing.
+     */
+    private var fastModeId = 0
+    private var fastActive = false
+    private val releaseFast = Runnable { setFastRefresh(false) }
+
+    private fun preferHighestRefreshRate() {
+        val display = (if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) display else @Suppress("DEPRECATION") windowManager.defaultDisplay) ?: return
+        val current = display.mode
+        fastModeId = display.supportedModes
+            .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+            .maxByOrNull { it.refreshRate }?.modeId ?: 0
+    }
+
+    private fun setFastRefresh(on: Boolean) {
+        fastActive = on
+        val id = if (on) fastModeId else 0 // 0: no preference, the system picks (and can drop when idle)
+        if (window.attributes.preferredDisplayModeId != id) window.attributes = window.attributes.apply { preferredDisplayModeId = id }
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+            host.noteUserTouch()
+            if (!fastActive && fastModeId != 0) setFastRefresh(true)
+        }
+        window.decorView.removeCallbacks(releaseFast)
+        window.decorView.postDelayed(releaseFast, 2500)
+        return super.dispatchTouchEvent(ev)
+    }
+
+    override fun onStart() { super.onStart(); host.setAppVisible(true) }
+    override fun onStop() { host.setAppVisible(false); super.onStop() }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        preferHighestRefreshRate() // the mode list can differ after a resolution or display change
     }
 
     /** Under memory pressure keep only the visible tab's WebView; the rest are rebuilt from saved state on demand. */

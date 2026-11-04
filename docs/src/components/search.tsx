@@ -45,7 +45,6 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Status Bar", type: "Settings", href: "/user#setting-status-bar", excerpt: "Toggle the visibility of the system status bar." },
 
   // Pill
-  { title: "Pill Size", type: "Settings", href: "/user#setting-size", excerpt: "Choose between Thin, Normal, or Tall pill height." },
   { title: "Loading Bar", type: "Settings", href: "/user#setting-loading-bar", excerpt: "Choose between Standard, Center Out, or Hidden progress bars." },
   { title: "Pin Favorites", type: "Settings", href: "/user#setting-pin-favorites", excerpt: "Keep the Favorites Bar visible when the Pill is focused." },
   { title: "Expand Searches", type: "Settings", href: "/user#setting-expand-searches", excerpt: "Auto-expand recent searches when opening the Pill." },
@@ -55,7 +54,6 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Clock", type: "Settings", href: "/user#setting-clock", excerpt: "Select the home page clock format: None, 12h, or 24h." },
   { title: "Date", type: "Settings", href: "/user#setting-date", excerpt: "Choose date placement: None, Above Clock, or Below Clock." },
   { title: "Shortcut", type: "Settings", href: "/user#setting-shortcut", excerpt: "Toggle the home page shortcut button and choose its action." },
-  { title: "Background Image", type: "Settings", href: "/user#setting-background-image", excerpt: "Set a custom home page background with a darkness overlay." },
 
   // Tabs
   { title: "Tab Site Logo", type: "Settings", href: "/user#tabs", excerpt: "Toggle favicons in the tab switcher list." },
@@ -78,9 +76,15 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Enable JavaScript", type: "Settings", href: "/user#setting-enable-javascript", excerpt: "Toggle JS execution for enhanced privacy or performance." },
   { title: "Enable Cookies", type: "Settings", href: "/user#setting-enable-cookies", excerpt: "Allow or block websites from storing cookies." },
   { title: "Block Ads & Trackers", type: "Settings", href: "/user#setting-block-ads-&-trackers", excerpt: "Built-in blocklist for ad and tracking domains." },
-  { title: "Block Third-Party Cookies", type: "Settings", href: "/user#setting-block-third-party-cookies", excerpt: "Stop cross-site tracking cookies." },
+  { title: "Block Third-Party Cookies", type: "Settings", href: "/user#setting-block-third-party-cookies", excerpt: "Stop cross-site tracking cookies (off by default for payment/sign-in compatibility)." },
+  { title: "Pop-ups", type: "Settings", href: "/user#setting-pop-ups", excerpt: "Pop-ups open on a tap; allow sites that open them automatically." },
+  { title: "Remote Debugging", type: "Settings", href: "/user#setting-remote-debugging", excerpt: "Inspect pages from desktop Chrome; open localhost dev servers." },
   { title: "Clear Browsing Data", type: "Settings", href: "/user#setting-clear-browsing-data", excerpt: "Delete cookies, site storage and cache." },
   { title: "Search Suggestions", type: "Settings", href: "/user#setting-search-suggestions", excerpt: "Suggestions from your search engine while typing." },
+  { title: "Darken Web Pages", type: "Settings", href: "/user#setting-darken-web-pages", excerpt: "Dark mode for sites without one." },
+  { title: "Page Text Size", type: "Settings", href: "/user#setting-page-text-size", excerpt: "Text size on websites." },
+  { title: "Desktop Site by Default", type: "Settings", href: "/user#setting-desktop-site-by-default", excerpt: "Request desktop websites in every tab." },
+  { title: "Check for Updates", type: "Settings", href: "/user#setting-check-for-updates", excerpt: "Look for a new mi release." },
   { title: "HTTPS Only", type: "Settings", href: "/user#setting-https-only", excerpt: "Force secure connections for all browsing sessions." },
 
   // App Data

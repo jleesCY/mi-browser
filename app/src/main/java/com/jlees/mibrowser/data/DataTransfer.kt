@@ -1,18 +1,13 @@
-// Settings backup: .midata = zip { data.json: {settings, backgroundImageName}, background.<ext> }
+// Settings backup: .midata = zip { data.json: {settings} }. Older backups may also hold a background image; it is ignored.
 package com.jlees.mibrowser.data
 
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -25,15 +20,7 @@ object DataTransfer {
     fun exportTo(ctx: Context, uri: Uri, settings: Settings) {
         ctx.contentResolver.openOutputStream(uri)?.use { out ->
             ZipOutputStream(out).use { zip ->
-                var bgName: String? = null
-                settings.homeBackgroundImage?.let { File(it.removePrefix("file://")) }?.takeIf { it.exists() }?.let { f ->
-                    bgName = "background.${f.extension.ifEmpty { "jpg" }}"
-                    zip.putNextEntry(ZipEntry(bgName)); f.inputStream().use { it.copyTo(zip) }; zip.closeEntry()
-                }
-                val data = JsonObject(mapOf(
-                    "settings" to json.encodeToJsonElement(settings),
-                    "backgroundImageName" to (bgName?.let { JsonPrimitive(it) } ?: JsonNull),
-                ))
+                val data = JsonObject(mapOf("settings" to json.encodeToJsonElement(settings)))
                 zip.putNextEntry(ZipEntry("data.json")); zip.write(data.toString().toByteArray()); zip.closeEntry()
             }
         } ?: error("Could not open file")
@@ -44,7 +31,7 @@ object DataTransfer {
             if (c.moveToFirst()) c.getString(0) else null
         } ?: uri.lastPathSegment ?: ""
 
-    /** Validates and parses a .midata file; the background image is copied into filesDir. */
+    /** Validates and parses a .midata file. */
     fun import(ctx: Context, uri: Uri): Settings {
         val name = displayName(ctx, uri)
         if (!name.endsWith(".midata") && !name.endsWith(".zip")) throw ImportError("Invalid File", "Please select a valid .midata file.")
@@ -60,13 +47,6 @@ object DataTransfer {
         val raw = files["data.json"] ?: throw ImportError("Invalid Data", "The selected file does not contain valid app data.")
         val obj = json.parseToJsonElement(String(raw)).jsonObject
         val settingsEl = obj["settings"]?.takeIf { it is JsonObject } ?: throw ImportError("Invalid Data", "Structure mismatch.")
-        var settings = json.decodeFromJsonElement<Settings>(settingsEl)
-        val bgName = (obj["backgroundImageName"] as? JsonPrimitive)?.takeIf { it.isString }?.content
-        settings = if (bgName != null && files[bgName] != null) {
-            val dest = File(ctx.filesDir, "bg_${System.currentTimeMillis()}_${File(bgName).name}")
-            dest.writeBytes(files.getValue(bgName))
-            settings.copy(homeBackgroundImage = dest.path)
-        } else settings.copy(homeBackgroundImage = null)
-        return settings
+        return json.decodeFromJsonElement<Settings>(settingsEl)
     }
 }

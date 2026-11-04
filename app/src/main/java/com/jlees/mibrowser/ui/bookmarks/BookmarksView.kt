@@ -44,7 +44,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVisible: Boolean, onFocusSearch: () -> Unit, closeOverlay: () -> Unit) {
+fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> Unit) {
     val ui = LocalUi.current
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
@@ -117,10 +117,12 @@ fun BookmarksView(vm: BrowserViewModel, sheetH: Float, snapDefault: Float, kbVis
                 if (folderStack.isNotEmpty()) Box(Modifier.padding(end = 10.dp).touchable { folderStack = folderStack.dropLast(1) }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
                 Txt(if (search.isNotEmpty()) "Search Results" else "/" + folderStack.joinToString("/") { it.title }, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
             }
-            SheetSearchField(search, { search = it }, "Search Bookmarks...", onFocusSearch)
+            SheetSearchField(search, { search = it }, "Search Bookmarks...")
         }
 
-        if (search.isEmpty()) ScrollTopAndFab(sheetH, snapDefault, kbVisible, scroll.value / density > 100, { scope.launch { scroll.animateScrollTo(0) } }) {
+        // derived: recomposes only when crossing the threshold, not on every scroll frame
+        val scrolledDown by remember { derivedStateOf { scroll.value / density > 100 } }
+        if (search.isEmpty()) ScrollTopAndFab(kbVisible, scrolledDown, { scope.launch { scroll.animateScrollTo(0) } }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SmallFloatingActionButton(onClick = { openFolder() }, modifier = Modifier.padding(end = 16.dp), containerColor = ui.cs.secondaryContainer) {
                     Sym("create_new_folder", 24f, ui.cs.onSecondaryContainer)
@@ -187,7 +189,7 @@ private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPre
     val ui = LocalUi.current
     val (anim, del) = rememberDeleteAnim()
     val shape = RoundedCornerShape(ui.radius.dp)
-    SwipeRevealRow(160.dp, { SwipeActions(height.dp, onRename) { del(onDelete) } }, Modifier.height(height.dp).deleteAnim(anim.value)) {
+    SwipeRevealRow(160.dp, { SwipeActions(height.dp, onRename) { del(onDelete) } }, Modifier.height(height.dp).deleteAnim { anim.value }) {
         Row(
             Modifier.fillMaxWidth().height(height.dp).clip(shape).background(ui.cs.surfaceContainerHighest).touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,

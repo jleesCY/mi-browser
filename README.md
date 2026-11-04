@@ -22,7 +22,8 @@ Features, screenshots and guides: **[jleescy.github.io/mi-browser](https://jlees
 - **Search**: suggestions from your search engine after your own past searches, plus a favorites bar.
 - **Bookmarks & history**: folders, drag to reorder, swipe actions, search, and grouping by time or site.
 - **Power tools** (in the tab menu): find in page, QR scan (camera or image) and generate, reader mode, desktop mode, share and print.
-- **Privacy & security**: built-in ad/tracker blocking, third-party cookies blocked, HTTPS-only mode, per-site camera/mic/location prompts, pop-up blocking, confirmation before downloads or opening other apps, punycode display for look-alike domains, Safe Browsing. No tracking; all data stays on your device.
+- **Works like a full browser**: sign-in and payment pop-ups (PayPal, Google), passkeys, Google Pay, HTTP sign-in prompts, client certificates, pages' own Print and Share buttons, and local development sites (`localhost:3000`, LAN IPs, `.local`/`.test`) with remote debugging from desktop Chrome.
+- **Privacy & security**: built-in ad/tracker blocking, optional third-party cookie blocking, HTTPS-only mode, per-site camera/mic/location prompts, pop-up blocking, confirmation before downloads or opening other apps, punycode display for look-alike domains, Safe Browsing. No tracking; all data stays on your device.
 
 ## 📥 Installation
 Download the latest APK from the **[Releases page](https://github.com/jleescy/mi-browser/releases)**. Requires Android 8.0+.

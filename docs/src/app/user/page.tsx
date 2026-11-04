@@ -278,11 +278,11 @@ export default function UserDocs() {
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
+                  <SettingItem title="Darken Web Pages" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
                 </SettingsSection>
 
                 {/* Pill */}
                 <SettingsSection title="Pill" icon={<Navigation size={20} />}>
-                  <SettingItem title="Size" desc="Choose between Thin (60px), Normal (70px), or Tall (80px) for optimal thumb reach." />
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
                   <SettingItem title="Expand Searches" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
@@ -294,7 +294,6 @@ export default function UserDocs() {
                   <SettingItem title="Clock" desc="Select the clock format on the home page: None, 12h, or 24h." />
                   <SettingItem title="Date" desc="Choose the date placement on the home page: None, Above Clock, or Below Clock." />
                   <SettingItem title="Shortcut" desc="Toggle the home page shortcut button on or off. When enabled, choose its action: New Tab, QR Scanner, Bookmarks, or History." />
-                  <SettingItem title="Background Image" desc="Set a custom background image for the home page from your photo library. Includes a Darkness slider to control the overlay opacity." />
                 </SettingsSection>
 
                 {/* Tabs */}
@@ -316,28 +315,34 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 {/* Browsing */}
-                <SettingsSection title="Browsing" icon={<Monitor size={20} />}>
+                <SettingsSection title="Search & Browsing" icon={<Monitor size={20} />}>
                   <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
                   <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
                   <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
+                  <SettingItem title="Remote Debugging" desc="Lets a computer connected with USB debugging inspect your pages in desktop Chrome (chrome://inspect), handy when developing a website. It turns off whenever mi restarts. Typing a local address such as localhost:3000 or 192.168.1.20:8080 opens it directly over http." />
+                  <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
+                  <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
+                  <SettingItem title="Reader Mode by Default" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
                 </SettingsSection>
 
                 {/* Security */}
-                <SettingsSection title="Security" icon={<ShieldCheck size={20} />}>
+                <SettingsSection title="Privacy & Security" icon={<ShieldCheck size={20} />}>
                   <SettingItem title="Enable JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
-                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local IP addresses and localhost are excluded." />
+                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local addresses are excluded: localhost, IP addresses, and local network names such as nas:5000, myapp.local or dev.test." />
                   <SettingItem title="Block Ads & Trackers" desc="Blocks requests to known ad and tracking domains using a built-in list (StevenBlack hosts). On by default." />
-                  <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. On by default." />
+                  <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. Off by default, as in Chrome, because payment and sign-in windows (such as PayPal) rely on them." />
+                  <SettingItem title="Pop-ups" desc="Pop-up windows open when you tap something (sign-in and payment windows stay linked to the page that opened them). Pop-ups without a tap are blocked; choose Always allow when asked to allow a site, and review or reset the list here." />
                   <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage and cached files. You will be signed out of websites." />
                 </SettingsSection>
 
                 {/* App Data */}
-                <SettingsSection title="App Data" icon={<RefreshCw size={20} />}>
-                  <SettingItem title="Export Settings" desc="Save all your settings and home page background to a shareable file for backup or device migration." />
+                <SettingsSection title="Backup & Reset" icon={<RefreshCw size={20} />}>
+                  <SettingItem title="Export Settings" desc="Save all your settings to a shareable file for backup or device migration." />
                   <SettingItem title="Import Settings" desc="Restore settings from a previously exported file. This replaces your current configuration." />
                   <SettingItem title="Reset All Settings" desc="Revert every setting to factory defaults without affecting your bookmarks, history, or tabs." />
+                  <SettingItem title="Check for Updates" desc="Look for a new release now (in About). mi also checks once each time it starts." />
                   <SettingItem title="Wipe All Data" desc="Permanently delete all app data including bookmarks, history, tabs, favorites, and settings." />
                 </SettingsSection>
               </div>

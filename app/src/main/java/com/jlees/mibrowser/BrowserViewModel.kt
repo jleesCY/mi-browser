@@ -29,6 +29,9 @@ data class AlertData(val title: String, val message: String, val buttons: List<A
 data class ContextMenuData(val url: String?, val imgUrl: String?, val text: String)
 data class ConfirmData(val type: String, val ms: Long = 0, val label: String = "")
 
+/** A site asked for a username and password (HTTP authentication). */
+data class AuthRequest(val host: String, val realm: String, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
+
 /** Commands for the WebView layer (MainActivity's WebViewHost collects these). */
 sealed interface WebCmd {
     data class Reload(val tabId: String) : WebCmd
@@ -86,6 +89,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var alert by mutableStateOf<AlertData?>(null)
     var confirm by mutableStateOf<ConfirmData?>(null)
     var renameTabId by mutableStateOf<String?>(null)
+    var authRequest by mutableStateOf<AuthRequest?>(null)
     var contextMenu by mutableStateOf<ContextMenuData?>(null)
     var settingsSearch by mutableStateOf("")
     var historySearch by mutableStateOf("")
@@ -105,7 +109,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         started = true
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                settings = (store.read("settings", Settings.serializer()) ?: Settings()).sanitized()
+                // remote debugging never outlives a session: a computer authorized for USB debugging could read pages
+                settings = migrate((store.read("settings", Settings.serializer()) ?: Settings()).sanitized()).copy(remoteDebugging = false)
                 history = (store.read("history", ListSerializer(HistoryItem.serializer())) ?: emptyList()).map { it.copy(id = uniqueId()) }
                 recents = (store.read("recent_searches", ListSerializer(HistoryItem.serializer())) ?: emptyList()).map { it.copy(id = uniqueId()) }
                 bookmarks = store.read("bookmarks", ListSerializer(BookmarkNode.serializer())) ?: emptyList()
@@ -145,9 +150,27 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Ask GitHub for a newer release once per launch and offer to install it. */
     private fun checkForUpdate() = viewModelScope.launch {
         if (BuildConfig.DEBUG) return@launch // dev builds are a separate app; releases can't update them
+        val now = System.currentTimeMillis()
+        if (now - settings.lastUpdateCheck < 12 * 3_600_000L) return@launch // at most twice a day, not every launch
         val current = BuildConfig.VERSION_NAME
-        val release = Updates.check(current) ?: return@launch
+        val result = Updates.checkResult(current)
+        if (result.isSuccess) updateSettings { copy(lastUpdateCheck = now) }
+        val release = result.getOrNull() ?: return@launch
         if (release.version == settings.skippedUpdate) return@launch
+        offerUpdate(release)
+    }
+
+    /** Settings → About: check now, including a version the user skipped, and say so when there's nothing new. */
+    fun checkForUpdatesNow() = viewModelScope.launch {
+        val current = BuildConfig.VERSION_NAME
+        if (BuildConfig.DEBUG) { showAlert("Development build", "mi dev ($current) is a separate app for development and doesn't update from GitHub releases."); return@launch }
+        Updates.checkResult(current)
+            .onSuccess { release -> if (release != null) offerUpdate(release) else showAlert("Up to date", "mi browser $current is the latest version.") }
+            .onFailure { showAlert("Couldn't check for updates", "GitHub couldn't be reached. Check your connection and try again.") }
+    }
+
+    private fun offerUpdate(release: Release) {
+        val current = BuildConfig.VERSION_NAME
         showAlert(
             "Update available",
             "mi browser ${release.version} is available (you have $current). Download and install it now?",
@@ -197,10 +220,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Startup cleanup of files that outlive their use: orphaned tab previews, camera captures for uploads, shared
-     *  QR images, a downloaded update APK, and home backgrounds that were replaced or reset. */
+     *  QR images, a downloaded update APK, and home background images (a feature that was removed). */
     private fun sweepFiles() {
         val previews = tabs.mapNotNull { it.previewImage }.toSet()
-        val background = settings.homeBackgroundImage
         viewModelScope.launch(Dispatchers.IO) {
             cacheDir.listFiles()?.forEach { f ->
                 val stale = (f.name.startsWith("preview_") && f.path !in previews) ||
@@ -208,7 +230,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 if (stale) f.deleteRecursively()
             }
             getApplication<Application>().filesDir.listFiles { f -> f.name.startsWith("home_bg_") || f.name.startsWith("bg_") }
-                ?.forEach { if (it.path != background) it.delete() }
+                ?.forEach { it.delete() }
         }
     }
 
@@ -232,7 +254,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- tabs
     fun updateTab(id: String, f: TabItem.() -> TabItem) { tabs = tabs.map { if (it.id == id) it.f() else it } }
 
-    private fun syncInputToActiveTab() { inputUrl = activeUrl?.let { displayHost(it) } ?: "" }
+    // a window a page opened and filled in itself has no URL: say so (like Chrome) instead of an empty bar it could pose behind
+    private fun syncInputToActiveTab() { inputUrl = activeUrl?.let { displayHost(it) } ?: if (currentTab?.openerId != null) "about:blank" else "" }
 
     /** Snapshots a tab's page for its switcher card (set by MainActivity while its WebViewHost exists). */
     var capturePreview: ((String) -> Unit)? = null
@@ -262,6 +285,47 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** useTabState.deleteTab (+ preview cleanup from onCloseTab) */
+    /** Defaults changed for existing installs. v1: third-party cookies allowed (payment/sign-in iframes need them). */
+    private fun migrate(s: Settings): Settings {
+        var m = s
+        if (m.settingsVersion < 1) m = m.copy(blockThirdPartyCookies = false, settingsVersion = 1)
+        return m
+    }
+
+    private fun activate(id: String) {
+        activeTabId = id
+        updateTab(id) { copy(hasLoadedOnce = true, lastUsed = System.currentTimeMillis()) }
+        syncInputToActiveTab()
+        isLoading = currentTab?.loading == true
+        ui.tryEmit(UiEvent.TabSwitched)
+    }
+
+    /** A page opened a window: a new tab, linked to its opener, whose WebView the host has already created. */
+    fun addPopupTab(id: String, openerId: String, desktopMode: Boolean?) {
+        val t = newTab(null).copy(id = id, openerId = openerId, desktopMode = desktopMode, hasLoadedOnce = true, lastUsed = System.currentTimeMillis())
+        captureOutgoing()
+        tabs = listOf(t) + tabs
+        switcherVisible = false
+        activate(id)
+    }
+
+    /** A page closed its window (window.close), or Back left a popup with no history: return to the page that opened it. */
+    fun closeWindow(id: String) {
+        val t = tabs.firstOrNull { it.id == id } ?: return
+        web.tryEmit(WebCmd.Destroy(id))
+        t.previewImage?.let { File(it).delete() }
+        val remaining = tabs.filter { it.id != id }
+        if (remaining.isEmpty()) { val n = newTab(); tabs = listOf(n); activeTabId = n.id; syncInputToActiveTab(); return }
+        tabs = remaining
+        if (activeTabId == id) activate(t.openerId?.takeIf { o -> remaining.any { it.id == o } } ?: remaining.maxBy { it.lastUsed }.id)
+    }
+
+    fun allowPopups(site: String) { if (site !in settings.popupSites) updateSettings { copy(popupSites = popupSites + site) } }
+
+    /** The typed address couldn't connect over https: open it over http instead (once). */
+    fun fallBackToHttp(id: String, url: String) = updateTab(id) { copy(url = url, requestedUrl = url, httpFallback = false, loading = true, loadNonce = loadNonce + 1) }
+    fun clearHttpFallback(id: String) { if (tabs.any { it.id == id && it.httpFallback }) updateTab(id) { copy(httpFallback = false) } }
+
     fun deleteTab(id: String) {
         val idx = tabs.indexOfFirst { it.id == id }
         if (idx < 0) return
@@ -314,6 +378,11 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Page area in the window (content below the status bar) and the active tab's card: the zoom's two ends. */
     var pageBounds by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
     var switcherTarget by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    /** Where the switcher's bottom bar sits in the window: the search pill morphs into the centre pill and the edge
+     *  buttons appear from behind it while the switcher opens (see BottomArea). */
+    var switcherBarLeft by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    var switcherBarPill by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    var switcherBarRight by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
 
     /** Pill drag started upward: snapshot the page (for its card) and show the switcher behind it. */
     fun beginSwitcher() {
@@ -349,15 +418,17 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         val t = currentTab ?: return
         switcherVisible = false // opened a bookmark/history entry from a sheet over the switcher: show the page
         val (stack, idx) = pushNavigation(t, url)
-        updateTab(t.id) { copy(url = url, requestedUrl = url, title = if (isCustomTitle) this.title else title ?: this.title, historyStack = stack, currentIndex = idx, loadNonce = loadNonce + 1, hasLoadedOnce = true) }
+        updateTab(t.id) { copy(url = url, requestedUrl = url, title = if (isCustomTitle) this.title else title ?: this.title, historyStack = stack, currentIndex = idx, loadNonce = loadNonce + 1, hasLoadedOnce = true, httpFallback = false) }
     }
 
     /** Load a URL in a tab without touching its history stack (manual back/forward, https upgrade, intent fallback). */
-    fun loadInTab(id: String, url: String) = updateTab(id) { copy(url = url, requestedUrl = url, loading = true, loadNonce = loadNonce + 1) }
+    fun loadInTab(id: String, url: String) = updateTab(id) { copy(url = url, requestedUrl = url, loading = true, loadNonce = loadNonce + 1, httpFallback = false) }
 
     fun submitInput(text: String = inputUrl) {
         val url = inputToUrl(text, settings.forceSearchMode, settings.httpsOnly, settings.searchEngineIndex) ?: return
         navigateTab(url, text.trim())
+        // like Chrome: a typed address tries https first and falls back to http if https can't connect
+        if (!settings.httpsOnly && isTypedHttpsUpgrade(text, url)) updateTab(activeTabId) { copy(httpFallback = true) }
     }
 
     fun goHome() {
@@ -495,4 +566,5 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun applyImport(newSettings: Settings) { settings = newSettings.sanitized() }
 
     fun trustHost(host: String) { ignoredHosts = ignoredHosts + host }
+    fun clearSessionGrants() { ignoredHosts = emptySet() }
 }

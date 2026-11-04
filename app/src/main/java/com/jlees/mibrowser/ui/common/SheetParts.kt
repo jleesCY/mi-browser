@@ -41,13 +41,13 @@ import kotlinx.coroutines.launch
 /** Search header with ⋮ overflow menu (SearchHeader in TabsView/HistoryView). */
 @Composable
 fun SearchHeaderWithMenu(
-    value: String, onChange: (String) -> Unit, placeholder: String, onFocus: () -> Unit,
+    value: String, onChange: (String) -> Unit, placeholder: String,
     menu: @Composable ColumnScope.(close: () -> Unit) -> Unit,
 ) {
     val ui = LocalUi.current
     var open by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth().zIndex(1000f).padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
-        SheetSearchField(value, onChange, placeholder, onFocus, trailing = {
+        SheetSearchField(value, onChange, placeholder, trailing = {
             IconButton(onClick = { open = !open }) { Sym("more_vert", 24f, ui.cs.onSurfaceVariant) }
         })
         if (open) {
@@ -60,12 +60,11 @@ fun SearchHeaderWithMenu(
 }
 
 @Composable
-fun ScrollTopAndFab(sheetH: Float, snapDefault: Float, kbVisible: Boolean, showScrollTop: Boolean, onScrollTop: () -> Unit, fabs: @Composable () -> Unit) {
+fun ScrollTopAndFab(kbVisible: Boolean, showScrollTop: Boolean, onScrollTop: () -> Unit, fabs: @Composable () -> Unit) {
     val ui = LocalUi.current
-    val bottom = interp(sheetH, listOf(0f, snapDefault), listOf(-100f, 20f))
     Box(Modifier.fillMaxSize()) {
         Column(
-            Modifier.align(Alignment.BottomEnd).padding(end = 20.dp).offset(y = (-bottom).dp).alpha(if (kbVisible) 0f else 1f),
+            Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 20.dp).alpha(if (kbVisible) 0f else 1f),
             horizontalAlignment = Alignment.End,
         ) {
             if (showScrollTop && !kbVisible) {
@@ -86,7 +85,7 @@ fun rememberDeleteAnim(): Pair<Animatable<Float, *>, (() -> Unit) -> Unit> {
     return anim to { done -> scope.launch { anim.animateTo(0f, timing(150)); done() } }
 }
 
-fun Modifier.deleteAnim(v: Float) = graphicsLayer { scaleX = v; scaleY = v; alpha = interp(v, listOf(0f, 0.3f, 1f), listOf(0f, 1f, 1f)) }
+fun Modifier.deleteAnim(value: () -> Float) = graphicsLayer { val v = value(); scaleX = v; scaleY = v; alpha = interp(v, listOf(0f, 0.3f, 1f), listOf(0f, 1f, 1f)) }
 
 /** Favicon in an expressive shape: a cookie for the active tab, a circle otherwise. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

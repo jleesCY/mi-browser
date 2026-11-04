@@ -188,23 +188,21 @@ fun TabSwitcher(vm: BrowserViewModel, navDp: Float, statusDp: Float) {
             }
             UndoBar(vm)
             // bottom bar: [Library] ( + · ⋮ ) [Settings]
+            // (positions are published so the search pill can morph into the centre pill as the switcher opens)
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalIconButton(onClick = { vm.openView("bookmarks") }, Modifier.size(52.dp)) { Sym("library_books", 24f, ui.cs.onSecondaryContainer) }
+                SwitcherEdgeButton("library_books", { vm.openView("bookmarks") }, Modifier.onGloballyPositioned { vm.switcherBarLeft = it.boundsInWindow() })
                 Spacer(Modifier.weight(1f))
-                Surface(shape = CircleShape, color = ui.cs.surfaceContainerHigh, shadowElevation = 6.dp) {
-                    Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        FilledIconButton(
-                            onClick = { vm.addNewTab(); close(null) }, modifier = Modifier.size(56.dp),
-                            colors = IconButtonDefaults.filledIconButtonColors(containerColor = ui.cs.primaryContainer),
-                        ) { Sym("add", 30f, ui.cs.onPrimaryContainer) }
-                        IconButton(onClick = {
-                            centered?.let { vm.setActiveTab(it.id) } // the tab menu acts on the centered tab
-                            vm.isSubMenuVisible = !vm.isSubMenuVisible
-                        }, Modifier.padding(horizontal = 4.dp).size(52.dp)) { Sym("more_vert", 24f, ui.cs.onSurface) }
-                    }
+                Surface(
+                    shape = CircleShape, color = ui.cs.surfaceContainerHigh, shadowElevation = 6.dp,
+                    modifier = Modifier.onGloballyPositioned { vm.switcherBarPill = it.boundsInWindow() },
+                ) {
+                    SwitcherPillButtons(onNew = { vm.addNewTab(); close(null) }, onMenu = {
+                        centered?.let { vm.setActiveTab(it.id) } // the tab menu acts on the centered tab
+                        vm.isSubMenuVisible = !vm.isSubMenuVisible
+                    })
                 }
                 Spacer(Modifier.weight(1f))
-                FilledTonalIconButton(onClick = { vm.openView("settings") }, Modifier.size(52.dp)) { Sym("settings", 24f, ui.cs.onSecondaryContainer) }
+                SwitcherEdgeButton("settings", { vm.openView("settings") }, Modifier.onGloballyPositioned { vm.switcherBarRight = it.boundsInWindow() })
             }
         }
         if (vm.isSubMenuVisible) {
@@ -306,3 +304,22 @@ private fun UndoBar(vm: BrowserViewModel) {
     }
 }
 
+/** Bookmarks / Settings buttons on either side of the switcher's bar. */
+@Composable
+fun SwitcherEdgeButton(icon: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val ui = LocalUi.current
+    FilledTonalIconButton(onClick = onClick, modifier.size(52.dp)) { Sym(icon, 24f, ui.cs.onSecondaryContainer) }
+}
+
+/** The contents of the switcher's centre pill: new tab and the tab menu. */
+@Composable
+fun SwitcherPillButtons(onNew: () -> Unit, onMenu: () -> Unit) {
+    val ui = LocalUi.current
+    Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        FilledIconButton(
+            onClick = onNew, modifier = Modifier.size(56.dp),
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = ui.cs.primaryContainer),
+        ) { Sym("add", 30f, ui.cs.onPrimaryContainer) }
+        IconButton(onClick = onMenu, Modifier.padding(horizontal = 4.dp).size(52.dp)) { Sym("more_vert", 24f, ui.cs.onSurface) }
+    }
+}
