@@ -404,7 +404,7 @@ class WebViewHost(
     private fun popupBlocked(id: String, site: String, page: String?) {
         if (site.isEmpty() || id != vm.activeTabId || "$site|$page" == lastPopupNotice) return
         lastPopupNotice = "$site|$page"
-        vm.prompt(
+        vm.showAlert(
             "Pop-up blocked",
             "$site tried to open a new window without a tap. If you were expecting one (a sign-in or payment window), allow pop-ups for this site and try again.",
             listOf(AlertButton("Keep blocking", "cancel"), AlertButton("Always allow") { vm.allowPopups(site) }),
@@ -593,7 +593,7 @@ class WebViewHost(
             if (wanted.isEmpty()) { request.deny(); return }
             if (wanted.all { "$host|$it" in sitePermissions }) { grantMedia(request); return }
             val what = wanted.joinToString(" and ") { if (it == PermissionRequest.RESOURCE_VIDEO_CAPTURE) "camera" else "microphone" }
-            vm.prompt(
+            vm.showAlert(
                 "Allow $what?", "$host wants to use your $what.",
                 listOf(
                     AlertButton("Block", "cancel") { runCatching { request.deny() } },
@@ -631,7 +631,7 @@ class WebViewHost(
                 else requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) { r -> callback.invoke(origin, r.values.any { it }, false) }
             }
             if ("$host|location" in sitePermissions) { grantLocation(); return }
-            vm.prompt(
+            vm.showAlert(
                 "Allow location?", "$host wants to know your location.",
                 listOf(
                     AlertButton("Block", "cancel") { callback.invoke(origin, false, false) },
@@ -708,7 +708,7 @@ class WebViewHost(
         }
         val target = if (isIntent) Regex("package=([^;]+)").find(url)?.groupValues?.get(1) ?: "another app"
         else Uri.parse(url).scheme?.let { "a $it: link" } ?: "another app"
-        vm.prompt(
+        vm.showAlert(
             "Open in another app?", "This page wants to open $target.",
             listOf(
                 AlertButton("Cancel", "cancel"),
@@ -797,7 +797,7 @@ class WebViewHost(
             else requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)) { if (it.values.all { g -> g }) go() }
         }
         val size = if (length > 0) " (" + android.text.format.Formatter.formatShortFileSize(activity, length) + ")" else ""
-        vm.prompt(
+        vm.showAlert(
             "Download file?", "$fileName$size\nfrom ${displayHost(url)}",
             listOf(AlertButton("Cancel", "cancel"), AlertButton("Download") { start() }),
             onCancel = {},

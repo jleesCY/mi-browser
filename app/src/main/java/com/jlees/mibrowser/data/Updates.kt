@@ -27,11 +27,9 @@ object Updates {
         return false
     }
 
-    /** The latest release if it is newer than [current] and ships an APK; null otherwise (or on any error). */
-    suspend fun check(current: String): Release? = checkResult(current).getOrNull()
-
-    /** Like [check], but a failure (offline, GitHub unreachable) is reported instead of looking like "up to date". */
-    suspend fun checkResult(current: String): Result<Release?> = withContext(Dispatchers.IO) {
+    /** The latest release if it is newer than [current] and ships an APK, else null; a failure (offline, GitHub
+     *  unreachable) is reported, not mistaken for "up to date". */
+    suspend fun check(current: String): Result<Release?> = withContext(Dispatchers.IO) {
         runCatching {
             val conn = (URL(LATEST).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 10_000; readTimeout = 10_000

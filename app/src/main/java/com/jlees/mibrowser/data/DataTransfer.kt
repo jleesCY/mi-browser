@@ -35,17 +35,14 @@ object DataTransfer {
     fun import(ctx: Context, uri: Uri): Settings {
         val name = displayName(ctx, uri)
         if (!name.endsWith(".midata") && !name.endsWith(".zip")) throw ImportError("Invalid File", "Please select a valid .midata file.")
-        val files = HashMap<String, ByteArray>()
+        var raw: ByteArray? = null
         ctx.contentResolver.openInputStream(uri)?.use { input ->
             ZipInputStream(input).use { zip ->
-                while (true) {
-                    val e = zip.nextEntry ?: break
-                    if (!e.isDirectory && !e.name.contains("..")) files[e.name] = zip.readBytes()
-                }
+                while (raw == null) { val e = zip.nextEntry ?: break; if (e.name == "data.json") raw = zip.readBytes() }
             }
         }
-        val raw = files["data.json"] ?: throw ImportError("Invalid Data", "The selected file does not contain valid app data.")
-        val obj = json.parseToJsonElement(String(raw)).jsonObject
+        raw ?: throw ImportError("Invalid Data", "The selected file does not contain valid app data.")
+        val obj = json.parseToJsonElement(String(raw!!)).jsonObject
         val settingsEl = obj["settings"]?.takeIf { it is JsonObject } ?: throw ImportError("Invalid Data", "Structure mismatch.")
         return json.decodeFromJsonElement<Settings>(settingsEl)
     }

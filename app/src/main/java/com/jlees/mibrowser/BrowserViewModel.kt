@@ -153,7 +153,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         val now = System.currentTimeMillis()
         if (now - settings.lastUpdateCheck < 12 * 3_600_000L) return@launch // at most twice a day, not every launch
         val current = BuildConfig.VERSION_NAME
-        val result = Updates.checkResult(current)
+        val result = Updates.check(current)
         if (result.isSuccess) updateSettings { copy(lastUpdateCheck = now) }
         val release = result.getOrNull() ?: return@launch
         if (release.version == settings.skippedUpdate) return@launch
@@ -164,7 +164,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun checkForUpdatesNow() = viewModelScope.launch {
         val current = BuildConfig.VERSION_NAME
         if (BuildConfig.DEBUG) { showAlert("Development build", "mi dev ($current) is a separate app for development and doesn't update from GitHub releases."); return@launch }
-        Updates.checkResult(current)
+        Updates.check(current)
             .onSuccess { release -> if (release != null) offerUpdate(release) else showAlert("Up to date", "mi browser $current is the latest version.") }
             .onFailure { showAlert("Couldn't check for updates", "GitHub couldn't be reached. Check your connection and try again.") }
     }
@@ -521,16 +521,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         settingsSearch = ""; historySearch = ""
     }
 
-    fun showAlert(title: String, message: String, buttons: List<AlertButton> = listOf(AlertButton("OK"))) {
+    /** [onCancel] runs if the dialog is dismissed without a button (Back, tapping outside, or replaced by another). */
+    fun showAlert(title: String, message: String, buttons: List<AlertButton> = listOf(AlertButton("OK")), onCancel: () -> Unit = {}) {
         alert?.onCancel?.invoke() // an unanswered prompt (e.g. a permission request) counts as declined
-        alert = AlertData(title, message, buttons)
-    }
-
-    /** Like [showAlert] but [onCancel] runs if the user dismisses it without choosing. */
-    fun prompt(title: String, message: String, buttons: List<AlertButton>, onCancel: () -> Unit) {
-        alert?.onCancel?.invoke()
         alert = AlertData(title, message, buttons, onCancel)
     }
+
 
     // ---------------------------------------------------------------- confirm actions
     fun confirmAction(c: ConfirmData) {

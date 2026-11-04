@@ -191,7 +191,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 Item("open_in_new", "Pop-ups",
                     if (n == 0) "Open when you tap; blocked otherwise" else "Also allowed without a tap on $n site${if (n == 1) "" else "s"}",
                     onClick = if (n == 0) null else { {
-                        vm.prompt("Pop-ups", "Allowed without a tap on:\n" + s.popupSites.joinToString("\n"), listOf(
+                        vm.showAlert("Pop-ups", "Allowed without a tap on:\n" + s.popupSites.joinToString("\n"), listOf(
                             AlertButton("Close", "cancel"),
                             AlertButton("Block all again", "destructive") { set { copy(popupSites = emptyList()) } },
                         ), onCancel = {})
@@ -517,7 +517,7 @@ private fun DefaultBrowserCard(onSet: () -> Unit) {
 }
 
 /** Expressive segmented list: large outer corners, small inner corners, 2dp gaps. */
-fun segmentShape(i: Int, count: Int, radius: Int): RoundedCornerShape {
+private fun segmentShape(i: Int, count: Int, radius: Int): RoundedCornerShape {
     val big = radius.coerceAtLeast(4).dp
     val small = 4.dp
     return RoundedCornerShape(
