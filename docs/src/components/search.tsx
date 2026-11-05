@@ -39,6 +39,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Power Tools", type: "User Guide", href: "/user#power-tools", excerpt: "Advanced features like QR Scanner, Reader Mode, and Desktop Site." },
   { title: "Quick Bookmark", type: "User Guide", href: "/user#quick-bookmark", excerpt: "Save pages to your library with a single tap from the menu." },
   { title: "QR Toolbox", type: "User Guide", href: "/user#qr-toolbox", excerpt: "Scan physical codes, upload images, or generate QR links." },
+  { title: "Privacy Policy", type: "User Guide", href: "/privacy", excerpt: "mi. collects no personal data. What stays on your device and every connection mi. makes." },
   { title: "Privacy Commitment", type: "User Guide", href: "/user#privacy", excerpt: "Our local-first, zero-tracking browsing philosophy." },
 
   // Settings (Granular - every setting, matching SettingItem IDs)

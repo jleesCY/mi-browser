@@ -1,74 +1,17 @@
-// port of legacy/src/utils.ts, legacy/src/constants.ts (SEARCH_ENGINES), input parsing from legacy/app/index.tsx handleGoPress
+// URLs: parsing what you type, local and secure hosts, display hosts, page titles and deep links.
 package com.jlees.mibrowser.logic
+
+import com.jlees.mibrowser.search.engineFor
+
+import com.jlees.mibrowser.search.SearchEngine
+import com.jlees.mibrowser.search.allBangs
+import com.jlees.mibrowser.search.bangUrl
+import com.jlees.mibrowser.search.searchQueryFromUrl
 
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-data class SearchEngine(val name: String, val url: String) {
-    /** The search page for [query]: [url] is a prefix, or a template with %s where the query goes (custom engines). */
-    fun urlFor(query: String) = if (url.contains("%s")) url.replace("%s", encodeComponent(query)) else url + encodeComponent(query)
-}
-
-/** The engine at [index]; one past the built-ins is the user's own (when it has a valid address). */
-fun searchEngine(index: Int, customName: String, customUrl: String): SearchEngine =
-    if (index == SEARCH_ENGINES.size && isValidSearchTemplate(customUrl)) SearchEngine(customName.ifBlank { "Custom" }, customUrl.trim())
-    else SEARCH_ENGINES.getOrElse(index) { SEARCH_ENGINES[0] }
-
-fun isValidSearchTemplate(url: String) = url.trim().let { (it.startsWith("https://") || it.startsWith("http://")) && it.length > 10 && !it.contains(' ') }
-
-/** A search shortcut's site and search address (%s = the query). */
-data class Bang(val name: String, val url: String)
-
-/**
- * Built-in search shortcuts: "!w mars" searches that site (like DuckDuckGo's bangs). Typed at the start only. Plus
- * [SEARCH_ENGINE_BANG] ("!se example.com"): your search engine, always searching (never opening it as an address).
- */
-val BANGS = linkedMapOf(
-    "w" to Bang("Wikipedia", "https://en.wikipedia.org/w/index.php?search=%s"),
-    "yt" to Bang("YouTube", "https://www.youtube.com/results?search_query=%s"),
-    "r" to Bang("Reddit", "https://www.reddit.com/search/?q=%s"),
-    "a" to Bang("Amazon", "https://www.amazon.com/s?k=%s"),
-    "m" to Bang("Google Maps", "https://www.google.com/maps/search/%s"),
-    "i" to Bang("Google Images", "https://www.google.com/search?tbm=isch&q=%s"),
-)
-const val SEARCH_ENGINE_BANG = "se"
-
-/** Every shortcut key → search address: !se ([engine]), the built-ins, then your own ([custom] wins on a clash). */
-fun allBangs(custom: Map<String, String>, engine: SearchEngine): Map<String, String> =
-    mapOf(SEARCH_ENGINE_BANG to engine.url) + BANGS.mapValues { it.value.url } + custom
-
-/** A shortcut key you can add: 1–12 lowercase letters or digits. */
-fun isValidBangKey(key: String) = Regex("^[a-z0-9]{1,12}$").matches(key)
-
-private val BANG_FIRST = Regex("^!(\\w+)\\s+(.+)$")
-/** "!w " at the start: the shortcut typed so far, highlighted in the Pill once a space follows a known key. */
-private val BANG_TYPED = Regex("^!(\\w+)\\s")
-
-/**
- * "!w mars" → that site's search page for "mars"; null when there's no known shortcut. Only one shortcut, and only at
- * the start: "!w !yt x" searches Wikipedia for "!yt x", and "mars !w" is an ordinary search.
- */
-fun bangUrl(text: String, bangs: Map<String, String>): String? {
-    val (key, query) = BANG_FIRST.find(text)?.destructured ?: return null
-    val template = bangs[key.lowercase()] ?: return null
-    return SearchEngine("", template).urlFor(query.trim())
-}
-
-/** Length of a known shortcut typed at the start ("!w " → 2: the "!w"), or 0. */
-fun typedBangLength(text: String, bangs: Map<String, String>): Int {
-    val m = BANG_TYPED.find(text) ?: return 0
-    return if (m.groupValues[1].lowercase() in bangs) m.groupValues[1].length + 1 else 0
-}
-
-val SEARCH_ENGINES = listOf(
-    SearchEngine("Google", "https://www.google.com/search?q="),
-    SearchEngine("Bing", "https://www.bing.com/search?q="),
-    SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q="),
-    SearchEngine("Brave", "https://search.brave.com/search?q="),
-    SearchEngine("Ecosia", "https://www.ecosia.org/search?q="),
-    SearchEngine("Yahoo", "https://search.yahoo.com/search?p="),
-)
 
 /** JS encodeURIComponent equivalent. */
 fun encodeComponent(s: String): String = URLEncoder.encode(s, "UTF-8")
@@ -186,7 +129,8 @@ fun faviconHost(url: String?): String? {
     return displayHost(target).lowercase().takeIf { it.isNotEmpty() && !it.contains('/') && !it.contains(':') }
 }
 
-private fun queryParam(url: String, name: String): String? {
+/** A query parameter of [url], decoded; null if absent. */
+fun queryParam(url: String, name: String): String? {
     val q = try { URI(url).rawQuery } catch (_: Exception) { null } ?: return null
     for (pair in q.split("&")) {
         val i = pair.indexOf('=')
@@ -196,16 +140,6 @@ private fun queryParam(url: String, name: String): String? {
         } catch (_: Exception) { null }
     }
     return null
-}
-
-private fun engineFor(url: String): SearchEngine? {
-    val host = try { URI(url).host?.lowercase() } catch (_: Exception) { null } ?: return null
-    return SEARCH_ENGINES.firstOrNull { host.contains(URI(it.url).host.replace("www.", "")) }
-}
-
-fun searchQueryFromUrl(url: String): String? {
-    engineFor(url) ?: return null
-    return (queryParam(url, "q") ?: queryParam(url, "p"))?.takeIf { it.isNotEmpty() }
 }
 
 fun historyTitle(url: String, pageTitle: String?): String {
@@ -239,20 +173,3 @@ fun normalizeUrl(u: String) = u.replace(Regex("^https?://"), "").replace(Regex("
     .replace(Regex("/$"), "").replace(Regex("/index\\.html$"), "").lowercase()
 
 fun uniqueId(): String = java.util.UUID.randomUUID().toString()
-
-/** Query parameters that only exist to track the click (ad, email and social campaign IDs). */
-private val TRACKING_PARAMS = setOf(
-    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id", "utm_name", "utm_reader", "utm_social", "utm_brand",
-    "fbclid", "gclid", "dclid", "gbraid", "wbraid", "gclsrc", "msclkid", "yclid", "twclid", "ttclid", "igshid", "igsh", "li_fat_id",
-    "mc_cid", "mc_eid", "_hsenc", "_hsmi", "mkt_tok", "oly_anon_id", "oly_enc_id", "vero_id", "vero_conv", "s_cid", "srsltid",
-)
-
-/** [url] without tracking parameters ([TRACKING_PARAMS]); everything else (order, encoding, fragment) is kept. */
-fun stripTracking(url: String): String {
-    val q = url.indexOf('?')
-    if (q < 0 || !(url.startsWith("https://") || url.startsWith("http://"))) return url
-    val hash = url.indexOf('#', q).let { if (it < 0) url.length else it }
-    val kept = url.substring(q + 1, hash).split('&').filter { p -> p.isNotEmpty() && p.substringBefore('=').lowercase() !in TRACKING_PARAMS }
-    val query = if (kept.isEmpty()) "" else "?" + kept.joinToString("&")
-    return url.substring(0, q) + query + url.substring(hash)
-}

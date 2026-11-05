@@ -1,78 +1,9 @@
-// port of legacy/src/types.ts, legacy/src/hooks/useBrowserSettings.ts (defaults), useFavorites.ts
+// The saved data types: tabs, history entries, bookmarks, favorites.
 package com.jlees.mibrowser.data
 
-import com.jlees.mibrowser.logic.SEARCH_ENGINES
-import com.jlees.mibrowser.logic.isValidSearchTemplate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
-@Serializable
-data class Settings(
-    val themeMode: String = "dark", // light | dark | system
-    /** Dark theme on true black (OLED screens): backgrounds black, cards a hair lighter. */
-    val pureBlack: Boolean = false,
-    val accentColor: String = "#007AFF",
-    val searchEngineIndex: Int = 0,
-    /** Your own search engine (index = number of built-ins): a name and an address with %s for the query. */
-    val customSearchName: String = "",
-    val customSearchUrl: String = "",
-    /** Pull down at the very top of a page to reload it. */
-    val pullToRefresh: Boolean = true,
-    /** Your own search shortcuts: key ("ebay") → search address with %s. Checked before the built-ins. */
-    val customBangs: Map<String, String> = emptyMap(),
-    val cornerRadius: Int = 28, // 0 | 12 | 28
-    val uiPadding: String = "normal", // compact | normal | airy
-    val fontScale: Float = 1f,
-    val roundedFont: Boolean = false, // Google Sans Flex ROND axis
-    val showStatusBar: Boolean = true,
-    val progressBarMode: String = "ltr", // ltr | center | none
-    val recallPosition: String = "center", // left | center | right — set by swiping the recall handle sideways
-    val startupTabMode: String = "new", // new | last
-    val showTabLogo: Boolean = true,
-    val showBookmarkIcons: Boolean = true,
-    val desktopMode: Boolean = false,
-    val readerModeEnabled: Boolean = false,
-    val recentSearchesExpanded: Boolean = false,
-    val showFavoritesDefault: Boolean = false,
-    val jsEnabled: Boolean = true,
-    val httpsOnly: Boolean = false,
-    val blockCookies: Boolean = false,
-    val blockThirdPartyCookies: Boolean = false, // payment and sign-in iframes (PayPal, SSO) need them, as in Chrome
-    /** Ad blocking (AdBlock.kt), each part on its own: ads (EasyList + hosts list), trackers (EasyPrivacy), cookie banners. */
-    val blockAds: Boolean = true,
-    val blockTrackers: Boolean = true,
-    val hideCookieBanners: Boolean = true,
-    /** Strip tracking parameters (utm_*, fbclid, gclid…) from links you open, copy or share. */
-    val stripTrackingParams: Boolean = true,
-    /** Sites (hosts) where ad, tracker and cookie-banner blocking is off. */
-    val adAllowlist: List<String> = emptyList(),
-    /** Videos wait for a tap instead of playing on their own. */
-    val blockAutoplay: Boolean = false,
-    val searchSuggestions: Boolean = true,
-    val incognitoSuggestions: Boolean = false,
-    val historyLoadCount: Int = 10,
-    val historyGrouping: String = "Time", // Time | Site
-    val backgroundRefresh: Boolean = false,
-    val homeClockType: String = "None", // None | 12h | 24h
-    val homeDateType: String = "None", // None | Above | Below
-    val homeLogoType: String = "Fidget", // None | Static | Fidget
-    val showHomeShortcuts: Boolean = false,
-    val homeShortcutAction: String = "qr", // newTab | qr | bookmarks | history
-    val skippedUpdate: String? = null, // release version the user chose to skip
-    /** Sites allowed to open pop-ups without a tap (pop-ups opened by a tap are always allowed). */
-    val popupSites: List<String> = emptyList(),
-    /** Text size on web pages, in percent (WebSettings.textZoom). Separate from the app's own font size. */
-    val textZoom: Int = 100,
-    /** In dark theme, darken sites that have no dark mode of their own (algorithmic darkening). */
-    val darkenPages: Boolean = false,
-    /** When the automatic update check last reached GitHub (ms); it runs at most every 12 hours. */
-    val lastUpdateCheck: Long = 0,
-    /** Bumped when a default changes for existing installs; see BrowserViewModel.migrate. */
-    val settingsVersion: Int = 0,
-) {
-    /** Load-time sanitising. */
-    fun sanitized() = copy(searchEngineIndex = if (searchEngineIndex in SEARCH_ENGINES.indices || (searchEngineIndex == SEARCH_ENGINES.size && isValidSearchTemplate(customSearchUrl))) searchEngineIndex else 0)
-}
 
 @Serializable
 data class TabItem(
@@ -108,6 +39,12 @@ data class TabItem(
 ) {
     val isHome get() = openerId == null && (url == null || url == "about:blank")
     val incognito get() = profile != null
+    /**
+     * Whether this tab may leave anything behind on the device: history and recent searches, a restored tab, Undo,
+     * its preview in the switcher, site icons, cached search suggestions. The one rule every such feature checks;
+     * false for incognito tabs.
+     */
+    val keepsTraces get() = !incognito
     /** Nothing loaded yet: the only state in which a tab can switch between normal and incognito. */
     val isFresh get() = url == null && historyStack.isEmpty() && openerId == null
 }
@@ -116,7 +53,7 @@ const val INCOGNITO_PROFILE_PREFIX = "incognito-"
 fun newIncognitoProfile() = INCOGNITO_PROFILE_PREFIX + java.util.UUID.randomUUID()
 
 fun newTab(url: String? = null, title: String = "New Tab") = TabItem(
-    id = System.currentTimeMillis().toString(),
+    id = com.jlees.mibrowser.logic.uniqueId(),
     url = url, requestedUrl = url, title = title, hasLoadedOnce = true,
     historyStack = if (url != null) listOf(url) else emptyList(),
     currentIndex = if (url != null) 0 else -1,

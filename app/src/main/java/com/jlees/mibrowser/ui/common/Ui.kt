@@ -1,6 +1,11 @@
 // Shared UI primitives: Material 3 Expressive theme glue (color roles, Google Sans Flex, Material Symbols, motion).
 package com.jlees.mibrowser.ui.common
 
+
+import androidx.compose.foundation.interaction.MutableInteractionSource
+
+import com.jlees.mibrowser.data.Spacing
+
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.offset
@@ -79,7 +84,7 @@ data class UiConfig(
     val isDark: Boolean = true,
     val radius: Int = 28,
     val fontScale: Float = 1f,
-    val padding: String = "normal",
+    val padding: Spacing = Spacing.NORMAL,
     val font: FontFamily = sansFlex(false),
 ) {
     // Type weights
@@ -144,12 +149,9 @@ fun MiSwitch(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
 }
 
 /** Spacing-mode helpers shared by tabs/history rows. */
-fun rowHeight(kind: String, padding: String, fontScale: Float): Float = fontScale * when (kind) {
-    "tab" -> when (padding) { "compact" -> 64f; "airy" -> 88f; else -> 74f }
-    else -> when (padding) { "compact" -> 48f; "airy" -> 72f; else -> 58f }
-}
+fun rowHeight(padding: Spacing, fontScale: Float): Float = fontScale * when (padding) { Spacing.COMPACT -> 48f; Spacing.AIRY -> 72f; Spacing.NORMAL -> 58f }
 
-fun rowMargin(padding: String): Float = when (padding) { "compact" -> 8f; "airy" -> 25f; else -> 15f }
+fun rowMargin(padding: Spacing): Float = when (padding) { Spacing.COMPACT -> 8f; Spacing.AIRY -> 25f; Spacing.NORMAL -> 15f }
 
 // ---- animation without recomposition: these read their value during layout only, so an animating value re-lays-out
 // the element each frame instead of recomposing (re-running) everything inside it.
@@ -167,3 +169,6 @@ fun Modifier.paddingDp(start: () -> Float = { 0f }, top: () -> Float = { 0f }, e
     val p = m.measure(c.offset(-(s + e), -(t + b)))
     layout(c.constrainWidth(p.width + s + e), c.constrainHeight(p.height + t + b)) { p.place(s, t) }
 }
+
+/** Full-screen catcher that swallows touches (TouchableWithoutFeedback backdrop). */
+fun Modifier.blockTouches(onTap: () -> Unit = {}) = this.clickable(MutableInteractionSource(), null, onClick = onTap)

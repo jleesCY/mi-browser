@@ -1,8 +1,24 @@
 package com.jlees.mibrowser
 
+import com.jlees.mibrowser.tabs.MAX_TAB_HISTORY
+
+import com.jlees.mibrowser.library.addHistory
+import com.jlees.mibrowser.library.pruneHistory
+import com.jlees.mibrowser.tabs.applyNavUpdate
+import com.jlees.mibrowser.tabs.capped
+import com.jlees.mibrowser.tabs.pushNavigation
+import com.jlees.mibrowser.update.Updates
+
+import com.jlees.mibrowser.adblock.stripTracking
 import com.jlees.mibrowser.data.HistoryItem
 import com.jlees.mibrowser.data.TabItem
 import com.jlees.mibrowser.logic.*
+import com.jlees.mibrowser.search.SEARCH_ENGINES
+import com.jlees.mibrowser.search.allBangs
+import com.jlees.mibrowser.search.isValidBangKey
+import com.jlees.mibrowser.search.searchEngine
+import com.jlees.mibrowser.search.searchQueryFromUrl
+import com.jlees.mibrowser.search.typedBangLength
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -20,6 +36,8 @@ class LogicTest {
 
     @Test fun searchAndTitles() {
         assertEquals("react native", searchQueryFromUrl("https://www.google.com/search?q=react+native"))
+        assertEquals("cats", searchQueryFromUrl("https://duckduckgo.com/?q=cats"))
+        assertEquals(null, searchQueryFromUrl("https://www.google.com/sorry/index?continue=x&q=Eg4token"))
         assertEquals("Google Search: test", historyTitle("https://google.com/search?q=test", null))
         assertEquals("Example", historyTitle("https://example.com", "Example"))
         assertEquals("example.com", historyTitle("https://example.com", "https://x"))
@@ -65,7 +83,7 @@ class LogicTest {
     }
 
     @Test fun updateVersions() {
-        val newer = com.jlees.mibrowser.data.Updates::isNewer
+        val newer = com.jlees.mibrowser.update.Updates::isNewer
         assertEquals(true, newer("v1.0.1", "1.0.0"))
         assertEquals(true, newer("v1.10.0", "1.9.9"))
         assertEquals(true, newer("2.0", "1.9.9"))
@@ -177,7 +195,7 @@ class LogicTest {
     }
 
     @Test fun adBlockFilterEngine() {
-        val e = com.jlees.mibrowser.data.FilterEngine()
+        val e = com.jlees.mibrowser.adblock.FilterEngine()
         listOf(
             "doubleclick.net",                      // hosts list entry
             "||ads.example.com^",                   // host rule
@@ -190,7 +208,7 @@ class LogicTest {
             "news.com##.sponsor", "~sport.news.com,news.com##.promo", "##.ad-banner", "sport.news.com#@#.ad-banner",
         ).forEach { if (it == "doubleclick.net") e.addHost(it) else e.addRule(it) }
         e.finish()
-        val js = com.jlees.mibrowser.data.FilterEngine.SCRIPT
+        val js = com.jlees.mibrowser.adblock.FilterEngine.SCRIPT
         fun b(url: String, page: String?, third: Boolean = true, type: Int = js) = e.blocks(url, java.net.URI(url).host, page, type, third)
         assertEquals(true, b("https://stats.g.doubleclick.net/x", "a.com"))
         assertEquals(true, b("https://ads.example.com/a.gif", "a.com"))
@@ -202,7 +220,7 @@ class LogicTest {
         assertEquals(true, b("https://cdn.site.com/ad.js", "www.news.com"))
         assertEquals(false, b("https://cdn.site.com/ad.js", "sport.news.com"))          // ~domain
         assertEquals(false, b("https://cdn.site.com/ad.js", "other.com"))               // domain= only
-        assertEquals(false, b("https://cdn.site.com/ad.js", "www.news.com", type = com.jlees.mibrowser.data.FilterEngine.IMAGE)) // \$script only
+        assertEquals(false, b("https://cdn.site.com/ad.js", "www.news.com", type = com.jlees.mibrowser.adblock.FilterEngine.IMAGE)) // \$script only
         assertEquals(false, b("https://ads.example.com/a.gif", "safe.org"))             // \$document allow
         assertEquals(false, b("https://evil.com/x", "a.com"))
         val css = StringBuilder(); val except = HashSet<String>()
@@ -212,15 +230,14 @@ class LogicTest {
         assertEquals(false, css.contains(".promo{"))                                     // ~sport.news.com
         assertEquals(true, ".ad-banner" in except)                                       // generic exception for that site
         assertEquals(listOf(".ad-banner"), e.genericSelectors)
-        assertEquals("example.co.uk", com.jlees.mibrowser.data.AdBlock.registrable("ads.example.co.uk"))
-        assertEquals("example.com", com.jlees.mibrowser.data.AdBlock.registrable("a.b.example.com"))
-        assertEquals("nos.nl", com.jlees.mibrowser.data.AdBlock.registrable("www.nos.nl"))           // not "www.nos.nl"
-        assertEquals("nos.nl", com.jlees.mibrowser.data.AdBlock.registrable("assets.nos.nl"))        // same site: first-party
-        assertEquals("alice.github.io", com.jlees.mibrowser.data.AdBlock.registrable("alice.github.io")) // shared host: own site
-        val one = com.jlees.mibrowser.data.FilterEngine().apply { addRule("/x/*"); finish() }        // keyword "x": 1 char
+        assertEquals("example.co.uk", com.jlees.mibrowser.adblock.AdBlock.registrable("ads.example.co.uk"))
+        assertEquals("example.com", com.jlees.mibrowser.adblock.AdBlock.registrable("a.b.example.com"))
+        assertEquals("nos.nl", com.jlees.mibrowser.adblock.AdBlock.registrable("www.nos.nl"))           // not "www.nos.nl"
+        assertEquals("nos.nl", com.jlees.mibrowser.adblock.AdBlock.registrable("assets.nos.nl"))        // same site: first-party
+        assertEquals("alice.github.io", com.jlees.mibrowser.adblock.AdBlock.registrable("alice.github.io")) // shared host: own site
+        val one = com.jlees.mibrowser.adblock.FilterEngine().apply { addRule("/x/*"); finish() }        // keyword "x": 1 char
         assertEquals(true, one.blocks("https://a.com/x/1.js", "a.com", "b.com", js, true))
-        assertEquals("[\"a\\\"b\",\"c\\\\d\"]", com.jlees.mibrowser.data.jsonArray(listOf("a\"b", "c\\d")))
-        assertEquals(com.jlees.mibrowser.data.FilterEngine.IMAGE, com.jlees.mibrowser.data.FilterEngine.typeOf("https://a.com/x.png?y=1", null))
+        assertEquals(com.jlees.mibrowser.adblock.FilterEngine.IMAGE, com.jlees.mibrowser.adblock.FilterEngine.typeOf("https://a.com/x.png?y=1", null))
     }
 
     @Test fun hex() {

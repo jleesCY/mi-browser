@@ -1,26 +1,29 @@
-// Port of the pill: legacy/app/index.tsx (animations 535-706, gestures 1167-1350, interpolations 1369-1472, render 1867-2656)
+// The Pill: the bottom search/address bar with back, forward and the tab menu, and the area around it.
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui
+
+import com.jlees.mibrowser.search.BangPillTransformation
+
+import com.jlees.mibrowser.incognito.incognitoSupported
+import com.jlees.mibrowser.incognito.toggleIncognito
+import com.jlees.mibrowser.web.connectionNotSecure
+import com.jlees.mibrowser.web.explainNotSecure
+
+import com.jlees.mibrowser.tabs.SwitcherEdgeButton
+import com.jlees.mibrowser.tabs.SwitcherPillButtons
+
+import com.jlees.mibrowser.data.LoadingBar
 
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawBehind
-import com.jlees.mibrowser.logic.typedBangLength
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.buildAnnotatedString
+import com.jlees.mibrowser.search.typedBangLength
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.geometry.Rect
-import kotlinx.coroutines.CoroutineStart
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -49,8 +52,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
@@ -68,205 +69,9 @@ import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.common.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** Height of the search pill, dp. */
-const val PILL_HEIGHT = 70f
-const val SWITCHER_DRAG = 220f // dp of upward drag that takes the page all the way into the tab switcher
-const val HIDDEN_TRANSLATE_Y = 110f
-
-fun <T> timing(ms: Int) = tween<T>(ms, easing = FastOutSlowInEasing)
-
-/** Clamped linear interpolation over piecewise ranges (Animated.interpolate with extrapolate: clamp). */
-fun interp(v: Float, input: List<Float>, output: List<Float>): Float {
-    if (v <= input.first()) return output.first()
-    if (v >= input.last()) return output.last()
-    for (i in 0 until input.size - 1) {
-        if (v <= input[i + 1]) {
-            val t = (v - input[i]) / (input[i + 1] - input[i])
-            return output[i] + (output[i + 1] - output[i]) * t
-        }
-    }
-    return output.last()
-}
-
-/** All the pill Animated.Values + the actions that drive them. */
-class PillState(private val scope: CoroutineScope, private val vm: BrowserViewModel) {
-    val scrollY = Animatable(0f)          // 0..110 hide offset
-    val horizontalDrag = Animatable(0f)
-    val focusAnim = Animatable(0f)        // isPillFocusedAnim
-    val handleAnim = Animatable(0f)       // handleVisibleAnim
-    val progress = Animatable(0f)
-    val recentHeight = Animatable(0f)
-    var isBarHidden by mutableStateOf(false)
-    var ignoreNextScroll = false
-    var lastScrollY = 0f
-
-    fun showBar() {
-        isBarHidden = false
-        scope.launch { scrollY.animateTo(0f, timing(100)) }
-    }
-
-    fun hideBar() {
-        isBarHidden = true
-        scope.launch { scrollY.animateTo(HIDDEN_TRANSLATE_Y, timing(100)) }
-    }
-
-    fun onScroll(y: Float) {
-        if (ignoreNextScroll) { lastScrollY = y; ignoreNextScroll = false; return }
-        if (vm.isInputFocused || vm.activeView != "none" || y < 0) return
-        val dy = y - lastScrollY
-        if (abs(dy) > 1) {
-            if (dy > 0 && !isBarHidden) hideBar() else if (dy < 0 && isBarHidden) showBar()
-        }
-        lastScrollY = y
-    }
-
-    fun loadStart() {
-        ignoreNextScroll = true
-        showBar()
-        scope.launch { progress.snapTo(0f); progress.animateTo(0.1f, timing(300)) }
-    }
-
-    fun loadProgress(p: Float) = scope.launch { progress.animateTo(p, timing(200)) }
-
-    fun loadEnd() = scope.launch {
-        progress.animateTo(1f, timing(200))
-        kotlinx.coroutines.delay(200)
-        progress.snapTo(0f)
-    }
-
-    fun tabSwitched() {
-        ignoreNextScroll = true
-        scope.launch { progress.snapTo(if (vm.currentTab?.loading == true) 0.2f else 0f) }
-    }
-
-    // ---- pill pan responder ----
-    // Gesture updates run undispatched (immediately), so a queued move can never land after — and cancel —
-    // the release animation, which used to leave the pill stuck half-way.
-    private fun now(block: suspend CoroutineScope.() -> Unit) = scope.launch(start = CoroutineStart.UNDISPATCHED, block = block)
-
-    private var toSwitcher = false // this drag went up first: it now drives the switcher transition
-
-    fun onPanMove(dx: Float, dy: Float) = now {
-        if (!toSwitcher && abs(dx) > abs(dy)) horizontalDrag.snapTo(dx)
-        else if (toSwitcher || dy < 0) {
-            if (!toSwitcher) { toSwitcher = true; vm.beginSwitcher() }
-            vm.switcherAnim.snapTo((-dy / SWITCHER_DRAG).coerceIn(0f, 1f))
-        } else scrollY.snapTo(dy.coerceIn(0f, HIDDEN_TRANSLATE_Y))
-    }
-
-    fun onPanRelease(dx: Float, dy: Float, vx: Float, vy: Float) {
-        scope.launch { horizontalDrag.animateTo(0f, Motion.spatial()) }
-        if (toSwitcher) {
-            toSwitcher = false
-            val open = vy < -0.3f || (vy < 0.3f && vm.switcherAnim.value > 0.15f)
-            scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                vm.switcherAnim.animateTo(if (open) 1f else 0f, Motion.switcher, initialVelocity = -vy * 1000f / SWITCHER_DRAG)
-                if (open) vm.switcherSettled = true else vm.switcherVisible = false
-            }
-            return
-        }
-        if (abs(dx) > abs(dy) && (abs(dx) > 32 || (abs(dx) > 12 && abs(vx) > 0.35f))) {
-            if (dx > 0) vm.goBack() else vm.goForward()
-            showBar()
-        } else if (vy > 0.3f || scrollY.value > HIDDEN_TRANSLATE_Y * 0.35f) hideBar() else showBar()
-    }
-
-    fun recallMove(dy: Float) = now { scrollY.snapTo((HIDDEN_TRANSLATE_Y + dy).coerceIn(0f, HIDDEN_TRANSLATE_Y)) }
-    fun recallRelease(dy: Float, vy: Float) {
-        if (dy < -10 || vy < -0.3f) showBar()
-        else scope.launch { scrollY.animateTo(HIDDEN_TRANSLATE_Y, Motion.spatial()) }
-    }
-
-    // recentSearchesPanResponder
-    var recentStart = 0f
-    var recentMin = 0f
-    var recentMax = 0f
-    /** The search drawer is open (past half height): only then are engine suggestions fetched and shown. */
-    val recentExpanded get() = recentMax > 0f && recentHeight.value > recentMax / 2
-
-    fun recentGrab() { recentStart = recentHeight.value; scope.launch { recentHeight.stop() } }
-
-    fun recentDrag(dy: Float) {
-        val h = max(recentMin, min(recentStart - dy, recentMax))
-        now { recentHeight.snapTo(h) }
-    }
-
-    fun recentRelease(dy: Float, vy: Float) {
-        val target = when {
-            dy < -32 || vy < -0.3f -> recentMax
-            dy > 32 || vy > 0.3f -> recentMin
-            else -> if (recentHeight.value > recentMax / 2) recentMax else recentMin
-        }
-        animateRecent(target)
-    }
-
-    fun animateRecent(target: Float, spring: Boolean = true) = scope.launch {
-        if (spring) recentHeight.animateTo(target, Motion.noBounce()) else recentHeight.animateTo(target, timing(200))
-    }
-}
-
-/**
- * PanResponder-like gesture: claims after [slop] dp of movement in any direction (Initial pass so it wins over
- * the text field), reports cumulative dx/dy in dp and release velocity in dp/ms.
- */
-fun Modifier.panGesture(
-    enabled: Boolean,
-    slopDp: Float? = null,
-    claimImmediately: Boolean = false,
-    onStart: () -> Unit = {},
-    onMove: (Float, Float) -> Unit,
-    onRelease: (Float, Float, Float, Float) -> Unit,
-    onTap: (() -> Unit)? = null,
-): Modifier = if (!enabled) this else pointerInput(enabled, claimImmediately) {
-    val dens = density
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        val tracker = VelocityTracker()
-        // Track the finger in raw screen coordinates. The dragged element (pill, sheet header, drawer handle,
-        // logo) moves under the finger, so local positions/deltas would feed its own movement back into the
-        // gesture: it lags at half speed and oscillates (jitter).
-        val first = currentEvent.motionEvent
-        val origin = if (first != null) Offset(first.rawX, first.rawY) else null
-        var total = Offset.Zero
-        tracker.addPosition(down.uptimeMillis, total)
-        var claimed = claimImmediately
-        var released = false
-        if (claimed) { down.consume(); onStart() }
-        try {
-            while (true) {
-                val e = awaitPointerEvent(PointerEventPass.Initial)
-                val c = e.changes.firstOrNull { it.id == down.id } ?: break
-                val me = e.motionEvent
-                total = if (me != null && origin != null) Offset(me.rawX, me.rawY) - origin else total + c.positionChangeIgnoreConsumed()
-                tracker.addPosition(c.uptimeMillis, total)
-                if (!c.pressed) {
-                    if (claimed) {
-                        c.consume()
-                        val v = tracker.calculateVelocity()
-                        released = true
-                        onRelease(total.x / dens, total.y / dens, v.x / dens / 1000f, v.y / dens / 1000f)
-                    } else if (onTap != null) onTap()
-                    break
-                }
-                val slop = slopDp?.let { it * dens } ?: viewConfiguration.touchSlop
-                if (!claimed && (abs(total.x) > slop || abs(total.y) > slop)) { claimed = true; onStart() }
-                if (claimed) { c.consume(); onMove(total.x / dens, total.y / dens) }
-            }
-        } finally {
-            // Interrupted (pointer lost, node removed/restarted, multi-touch): always settle so nothing is left half-way.
-            if (claimed && !released) onRelease(total.x / dens, total.y / dens, 0f, 0f)
-        }
-    }
-}
-
-/** Bottom floating area: the search pill + recent searches drawer. Swipe up opens the tab switcher. */
 @Composable
 fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navInsetDp: Float, recent: @Composable () -> Unit) {
     val ui = LocalUi.current
@@ -282,14 +87,14 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
     // Opening the tab switcher morphs the search pill into the switcher's centre pill: its sides draw in to that
     // pill's size and position, the search content fades out early, + and ⋮ fade in late, and the edge buttons appear
     // from behind it. Driven by the same progress as the page zoom, so it follows the finger and reverses on close.
-    val morph = { if (vm.switcherVisible) vm.switcherAnim.value.coerceIn(0f, 1f) else 0f }
+    val morph = { if (vm.switcherVisible) vm.switcher.anim.value.coerceIn(0f, 1f) else 0f }
     val rootOrigin = remember { OriginHolder() }
     val pillOrigin = remember { OriginHolder() }
 
     Box(Modifier.fillMaxSize().onGloballyPositioned { rootOrigin.at = it.positionInWindow() }) {
         if (vm.switcherVisible) {
-            EdgeButtonGhost("library_books", { vm.switcherBarLeft }, rootOrigin, morph)
-            EdgeButtonGhost("settings", { vm.switcherBarRight }, rootOrigin, morph)
+            EdgeButtonGhost("library_books", { vm.switcher.barLeft }, rootOrigin, morph)
+            EdgeButtonGhost("settings", { vm.switcher.barRight }, rootOrigin, morph)
         }
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
@@ -318,7 +123,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                         // SEARCH PILL
                         Box(
                             Modifier.fillMaxSize().zIndex(2f)
-                                .morphInto(morph, { vm.switcherBarPill }, pillOrigin)
+                                .morphInto(morph, { vm.switcher.barPill }, pillOrigin)
                                 .graphicsLayer {
                                     val kk = k()
                                     val m = morph()
@@ -383,7 +188,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
     val backOpacity = { interp(pill.horizontalDrag.value, listOf(0f, 32f), listOf(0f, 1f)) }
     val fwdOpacity = { interp(pill.horizontalDrag.value, listOf(-32f, 0f), listOf(1f, 0f)) }
     val contentOpacity = { interp(pill.horizontalDrag.value, listOf(-32f, 0f, 32f), listOf(0f, 1f, 0f)) }
-    val tab = vm.currentTab
+    val tab = vm.tabs.current
 
     Box(Modifier.fillMaxSize()) {
         if (vm.isInputFocused && imeVisible) {
@@ -402,7 +207,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // incognito: the field gets an outline, always, so the mode is clear at a glance
-            val incognitoRing by androidx.compose.animation.core.animateFloatAsState(if (vm.currentTab?.incognito == true) 1f else 0f, Motion.spatial(), label = "incognito ring")
+            val incognitoRing by androidx.compose.animation.core.animateFloatAsState(if (vm.tabs.current?.incognito == true) 1f else 0f, Motion.spatial(), label = "incognito ring")
             val fieldShape = RoundedCornerShape((s.cornerRadius * 1.5f).dp)
             Box(
                 Modifier.weight(1f).height((PILL_HEIGHT * 0.7f).dp).graphicsLayer { alpha = contentOpacity() }
@@ -410,8 +215,8 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                     .then(if (incognitoRing > 0.01f) Modifier.border((2f * incognitoRing).dp, ui.cs.onSurface.copy(alpha = 0.7f * incognitoRing), fieldShape) else Modifier),
             ) {
                 // loading progress: a faint accent fill behind the text, growing left to right or from the center out
-                if (s.progressBarMode != "none" && vm.isLoading) {
-                    val fromLeft = s.progressBarMode != "center"
+                if (s.progressBarMode != LoadingBar.HIDDEN && vm.isLoading) {
+                    val fromLeft = s.progressBarMode == LoadingBar.STANDARD
                     Box(
                         Modifier.fillMaxSize().graphicsLayer {
                             scaleX = pill.progress.value.coerceIn(0f, 1f)
@@ -422,7 +227,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                 }
                 Row(Modifier.fillMaxSize().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     // "Not secure": plain http off the device, or a site allowed past a certificate error. Tap to explain.
-                    val incognito = vm.currentTab?.incognito == true
+                    val incognito = vm.tabs.current?.incognito == true
                     val notSecure = !vm.isInputFocused && vm.connectionNotSecure
                     if (notSecure) Row(
                         Modifier.padding(start = 10.dp).clip(CircleShape).background(ui.cs.errorContainer)
@@ -437,7 +242,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         value = tfv,
                         onValueChange = { v ->
                             if (v.text == staleText && v.text != tfv.text) return@BasicTextField // stale pre-focus text (see staleText)
-                            if (v.text != tfv.text) vm.onTyping(v.text, pill.recentExpanded)
+                            if (v.text != tfv.text) vm.suggestions.onTyping(v.text, pill.recentExpanded)
                             tfv = v; vm.inputUrl = v.text
                         },
                         modifier = Modifier.weight(1f).padding(start = if (notSecure) 8.dp else 16.dp, end = 16.dp)
@@ -467,7 +272,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                                 } else if (!st.isFocused && vm.isInputFocused) {
                                     allowFocus = false
                                     vm.isInputFocused = false
-                                    vm.suggestions = emptyList()
+                                    vm.suggestions.clear()
                                     vm.inputUrl = displayHost(vm.activeUrl)
                                 }
                             },
@@ -511,7 +316,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         }
                         if (vm.isInputFocused) {
                             Box(Modifier.touchable { focusManager.clearFocus(); vm.submitInput(tfv.text) }) { Sym("search", 22f, ui.cs.primary) }
-                        } else if (vm.currentTab?.isFresh == true && vm.incognitoSupported) {
+                        } else if (vm.tabs.current?.isFresh == true && incognitoSupported) {
                             // a fresh tab has nothing to reload: here the button switches the tab between normal and incognito
                             Box(
                                 Modifier.size(32.dp).clip(CircleShape).background(if (incognito) ui.cs.inverseSurface else Color.Transparent)
@@ -521,7 +326,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         } else {
                             val hasUrl = vm.activeUrl != null
                             Box(Modifier.alpha(if (hasUrl) 1f else 0.3f).touchable(enabled = hasUrl) {
-                                if (vm.isLoading) vm.web.tryEmit(WebCmd.Stop(vm.activeTabId)) else vm.web.tryEmit(WebCmd.Reload(vm.activeTabId))
+                                if (vm.isLoading) vm.web.tryEmit(WebCmd.Stop(vm.tabs.activeId)) else vm.web.tryEmit(WebCmd.Reload(vm.tabs.activeId))
                             }) { Sym(if (vm.isLoading) "close" else "refresh", 22f, ui.cs.onSurface) }
                         }
                     }
@@ -567,24 +372,4 @@ private fun EdgeButtonGhost(icon: String, at: () -> Rect?, root: OriginHolder, p
                 alpha = a; scaleX = 0.6f + 0.4f * a; scaleY = 0.6f + 0.4f * a
             },
     ) { SwitcherEdgeButton(icon, onClick = {}) }
-}
-
-/**
- * Shows a search shortcut typed at the start ("!w mars") as a mini pill: a thin space before and an en space after "!w" pad the
- * pill (drawn behind by the Pill's text field) and the shortcut is bold in the accent colour. Edits map straight through.
- */
-private class BangPillTransformation(private val bangs: Map<String, String>, private val style: SpanStyle) : VisualTransformation {
-    override fun filter(text: androidx.compose.ui.text.AnnotatedString): TransformedText {
-        val n = typedBangLength(text.text, bangs)
-        if (n == 0) return TransformedText(text, OffsetMapping.Identity)
-        val out = buildAnnotatedString {
-            append(THIN); append(text.subSequence(0, n)); append(GAP); append(text.subSequence(n, text.length))
-            addStyle(style, 0, n + 2)
-        }
-        return TransformedText(out, object : OffsetMapping {
-            override fun originalToTransformed(offset: Int) = when { offset == 0 -> 0; offset <= n -> offset + 1; else -> offset + 2 }
-            override fun transformedToOriginal(offset: Int) = when { offset <= 1 -> 0; offset <= n + 1 -> offset - 1; else -> (offset - 2).coerceAtMost(text.length) }
-        })
-    }
-    private companion object { const val THIN = "\u2009"; const val GAP = "\u2002" } // en space: room between the pill and the search
 }

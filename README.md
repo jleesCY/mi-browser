@@ -9,6 +9,7 @@
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Material 3 Expressive" src="https://img.shields.io/badge/Material%203-Expressive-4285F4">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
 </p>
 
 <p align="center">
@@ -20,7 +21,7 @@
 
 **mi.** (pronounced "my") replaces the usual toolbar with one floating **Pill**: tap it to search, swipe up for your tabs, swipe sideways to go back and forward, swipe down to hide it. It's written natively in Kotlin with Jetpack Compose, weighs under 3 MB, and keeps all of your data on your device.
 
-**[Website](https://jleescy.github.io/mi-browser)** · **[User Guide](https://jleescy.github.io/mi-browser/user)** · **[Developer Guide](https://jleescy.github.io/mi-browser/developer)** · **[Download](https://github.com/jleescy/mi-browser/releases/latest)**
+**[Website](https://jleescy.github.io/mi-browser)** · **[User Guide](https://jleescy.github.io/mi-browser/user)** · **[Developer Guide](https://jleescy.github.io/mi-browser/developer)** · **[Privacy Policy](https://jleescy.github.io/mi-browser/privacy)** · **[Download](https://github.com/jleescy/mi-browser/releases/latest)**
 
 ## Features
 
@@ -82,15 +83,26 @@ To sign release builds, add a git-ignored `keystore.properties` in the project r
 ```
 app/src/main/java/com/jlees/mibrowser/
 ├── MainActivity.kt       # edge-to-edge host, intents, permissions
-├── BrowserViewModel.kt   # app state and actions
-├── data/                 # models, storage, settings import/export, site icons
-├── logic/                # URL parsing, tab history, bookmarks (unit tested)
-├── web/                  # WebViewHost: one WebView per tab, incognito profiles
-└── ui/                   # Compose UI: pill, tab switcher, sheets, history, bookmarks, settings, home, QR
+├── BrowserViewModel.kt   # holds the feature stores, coordinates actions across them
+├── tabs/                 # tab list & rules, tab switcher, previews
+├── library/              # history and bookmarks: stores, rules, screens
+├── search/               # engines, ! shortcuts, suggestions
+├── adblock/              # filter engine, content blocking, link cleaning
+├── incognito/            # WebView profiles, screen and keyboard protection
+├── home/  qr/  launcher/  update/
+├── data/  logic/         # shared models, storage, URL parsing
+├── web/                  # WebViewHost and one class per WebView job
+└── ui/                   # app shell: Pill, sheets, dialogs, Settings, shared widgets
 docs/                     # project website (Next.js, deployed to GitHub Pages)
 ```
+Each feature lives in its own package with its rules (unit tested), state store, Settings section and screens. The full standard is in [CLAUDE.md](CLAUDE.md).
 
 ### Versioning
 Releases follow `MAJOR.MINOR.PATCH`: major for ground-up changes (1.0 was the native rewrite), minor for significant new features, patch for fixes and smaller improvements.
 
 The 0.x releases were built with React Native; their source is on the [`legacy`](https://github.com/jleescy/mi-browser/tree/legacy) branch.
+
+## License
+mi. is released under the [MIT License](LICENSE). The bundled filter lists (EasyList, EasyPrivacy, EasyList Cookie List; GPL-3.0 / CC BY-SA 3.0), the StevenBlack hosts list (MIT), and the Google Sans Flex font and Material Symbols keep their own licenses.
+
+mi. collects no personal data; see the [Privacy Policy](https://jleescy.github.io/mi-browser/privacy).

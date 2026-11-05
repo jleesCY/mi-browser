@@ -23,7 +23,7 @@ export function Footer() {
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">GitHub</a>
           <Link href="/user" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">User Guide</Link>
           <Link href="/developer" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Dev Guide</Link>
-          <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy</a>
+          <Link href="/privacy" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy</Link>
         </div>
         <p className="text-sm text-black/30 dark:text-white/30 font-medium">© 2026 mi. Open Source Project</p>
       </div>

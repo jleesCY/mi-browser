@@ -1,4 +1,4 @@
-// Gallery saving: handleDownloadImage (legacy/app/index.tsx 1106-1149) and QR "Save" (QRGeneratorView.tsx).
+// Saving images to the gallery: from a page (long-press menu) and from the QR generator.
 package com.jlees.mibrowser.ui
 
 import android.Manifest

@@ -19,12 +19,16 @@ const PROJECT_STRUCTURE = `
 │   └── src/main/
 │       ├── java/com/jlees/mibrowser/
 │       │   ├── MainActivity.kt      # Edge-to-edge host, intents, permissions
-│       │   ├── BrowserViewModel.kt  # All app state + actions
-│       │   ├── data/                # Models, JSON storage, .midata, updates, blocklist
-│       │   ├── logic/               # Pure logic: URL parsing, tab history, bookmarks (unit tested)
-│       │   ├── web/                 # WebViewHost: one WebView per tab, clients, downloads
-│       │   └── ui/                  # Compose UI: pill, sheets, tabs, history, bookmarks,
-│       │                            #   settings, home, QR, shared M3 widgets
+│       │   ├── BrowserViewModel.kt  # Holds the feature stores, coordinates across them
+│       │   ├── tabs/                # Tab list & rules, tab switcher, previews
+│       │   ├── library/             # History & bookmarks: stores, rules, screens
+│       │   ├── search/              # Engines, ! shortcuts, suggestions
+│       │   ├── adblock/             # Filter engine, content blocking, link cleaning
+│       │   ├── incognito/           # WebView profiles, screen & keyboard protection
+│       │   ├── home/ qr/ launcher/ update/
+│       │   ├── data/ logic/         # Shared models, JSON storage, URL parsing
+│       │   ├── web/                 # WebViewHost + one class per WebView job
+│       │   └── ui/                  # App shell: Pill, sheets, dialogs, Settings, widgets
 │       └── res/                     # Fonts, Material Symbols, launcher icons
 ├── docs/                    # This website (Next.js)
 └── notes/                   # Port plan & project status
@@ -176,7 +180,7 @@ export default function DeveloperDocs() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
                       <h4 className="font-bold text-sm mb-2">State Management</h4>
-                      <p className="text-xs text-white/50 leading-relaxed">All state lives in BrowserViewModel as Compose state and is saved (debounced) as JSON files in app-private storage. WebViews live outside Compose in WebViewHost, one per tab.</p>
+                      <p className="text-xs text-white/50 leading-relaxed">Each feature keeps its state in its own store (TabsStore, HistoryStore, BookmarksStore), which saves itself as JSON in app-private storage; BrowserViewModel holds the stores and coordinates between them. Decisions are pure, unit-tested functions. WebViews live outside Compose in WebViewHost, one per tab.</p>
                     </div>
                     <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
                       <h4 className="font-bold text-sm mb-2">Gesture Logic</h4>

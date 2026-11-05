@@ -1,6 +1,8 @@
 // Material 3 Expressive building blocks shared across screens.
 package com.jlees.mibrowser.ui.common
 
+import com.jlees.mibrowser.search.SearchEngine
+
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -25,7 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.data.Favicons
-import com.jlees.mibrowser.ui.blockTouches
+import com.jlees.mibrowser.ui.common.blockTouches
 
 /** M3 dialog container: surfaceContainerHigh, extra-large (28dp) corners, 24dp padding, headline title, end-aligned actions. */
 @Composable
@@ -86,7 +88,7 @@ fun ConnectedChoice(options: List<Pair<String, String>>, value: String, modifier
 
 /** Search engine logo (its favicon). Greyed out unless [active]. */
 @Composable
-fun EngineIcon(e: com.jlees.mibrowser.logic.SearchEngine, size: Float, active: Boolean = true, modifier: Modifier = Modifier) {
+fun EngineIcon(e: SearchEngine, size: Float, active: Boolean = true, modifier: Modifier = Modifier) {
     val ui = LocalUi.current
     val grey = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
     androidx.compose.foundation.layout.Box(modifier.size(size.dp).clip(CircleShape), contentAlignment = Alignment.Center) {

@@ -1,5 +1,4 @@
-// Ports of legacy/src/components/Tabs/SortableGrid.tsx, BrowserSession/HorizontalSortableList.tsx,
-// RNGH Swipeable (tab/bookmark rows) and a minimal image loader (expo-image / RN Image).
+// Shared list widgets: drag-to-reorder lists, swipe-to-reveal rows, and a small cached image loader.
 package com.jlees.mibrowser.ui.common
 
 import androidx.compose.animation.core.animate
@@ -166,7 +165,7 @@ fun <T> SortableSlots(
 }
 
 /**
- * RNGH Swipeable with right actions: swipe left to reveal [actions] (fixed [actionsWidth]).
+ * Row with right actions: swipe left to reveal [actions] (fixed [actionsWidth]).
  */
 @Composable
 fun SwipeRevealRow(actionsWidth: Dp, actions: @Composable () -> Unit, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
@@ -241,7 +240,7 @@ fun rememberImage(src: String?): State<ImageBitmap?> {
     return state
 }
 
-/** Image with a fallback while loading/failed (RN Image onError → fallback icon). */
+/** Image with a fallback while it loads or if it fails. */
 @Composable
 fun NetImage(
     src: String?, modifier: Modifier, contentScale: ContentScale = ContentScale.Crop, alpha: Float = 1f,

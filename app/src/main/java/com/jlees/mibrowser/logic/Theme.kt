@@ -1,6 +1,7 @@
 // Accent seed colors. Color schemes are generated from the accent seed (Material 3).
 package com.jlees.mibrowser.logic
 
+
 /** accentColor value meaning "use wallpaper colors" (Material You dynamic color, Android 12+). */
 const val DYNAMIC_ACCENT = "dynamic"
 

@@ -1,5 +1,11 @@
 package com.jlees.mibrowser
 
+import com.jlees.mibrowser.incognito.closeIncognitoTabs
+
+import com.jlees.mibrowser.incognito.IncognitoNotice
+
+import com.jlees.mibrowser.launcher.LauncherShortcuts
+
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -45,9 +51,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { vm.web.collect { host.handle(it) } }
         vm.capturePreview = host::capturePreview
 
-        updateIncognitoNotice(this, 0) // left over if the process ended while incognito tabs were open
+        IncognitoNotice.update(this, 0) // left over if the process ended while incognito tabs were open
         vm.start(if (intent?.action == Intent.ACTION_VIEW) intent.dataString else null, shortcutOf(intent))
-        publishShortcuts()
+        LauncherShortcuts.publish(this)
         if (intent?.action == ACTION_SCAN_QR) vm.qrScannerVisible = true
 
         setContent { if (vm.ready) App(vm, host, this) }
@@ -109,7 +115,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         vm.capturePreview = null // the ViewModel outlives this Activity; don't keep its host alive
         host.destroyAll(finishing = isFinishing)
-        if (isFinishing) host.endProcessIfIncognitoUsed { vm.saveNow() }
+        if (isFinishing) host.incognito.endProcessIfUsed { vm.saveNow() }
         super.onDestroy()
     }
 
@@ -131,59 +137,7 @@ class MainActivity : ComponentActivity() {
         const val ACTION_SEARCH = "com.jlees.mibrowser.SEARCH"
     }
 
-    private fun shortcutOf(i: Intent?) = when (i?.action) { ACTION_NEW_TAB -> "newTab"; ACTION_NEW_INCOGNITO -> "incognito"; ACTION_SEARCH -> "search"; else -> null }
-
-    /**
-     * Long-press the launcher icon: New tab, New incognito tab (where WebView supports profiles) and Scan QR. Published
-     * at runtime so they target this build's own package (the debug build has a different one).
-     */
-    private fun publishShortcuts() {
-        val sm = getSystemService(android.content.pm.ShortcutManager::class.java) ?: return
-        fun shortcut(id: String, label: String, icon: Int, action: String) =
-            android.content.pm.ShortcutInfo.Builder(this, id).setShortLabel(label).setIcon(shortcutIcon(icon))
-                .setIntent(Intent(this, MainActivity::class.java).setAction(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)).build()
-        val list = listOfNotNull(
-            shortcut("new_tab", "New tab", R.drawable.sym_add, ACTION_NEW_TAB),
-            if (vm.incognitoSupported) shortcut("new_incognito", "New incognito tab", R.drawable.sym_incognito, ACTION_NEW_INCOGNITO) else null,
-            shortcut("scan_qr", "Scan QR code", R.drawable.sym_qr_code_scanner, ACTION_SCAN_QR), // same id as the old static one: pinned copies keep working
-        )
-        runCatching { sm.dynamicShortcuts = list }
-    }
-
-    /** A shortcut icon: the symbol on a tinted adaptive background, like the system's own shortcuts. */
-    private fun shortcutIcon(res: Int): android.graphics.drawable.Icon {
-        val d = resources.displayMetrics.density
-        val px = (108 * d).toInt()
-        val bmp = android.graphics.Bitmap.createBitmap(px, px, android.graphics.Bitmap.Config.ARGB_8888)
-        val canvas = android.graphics.Canvas(bmp)
-        canvas.drawColor(0xFFD3E3FD.toInt())
-        val glyph = (44 * d).toInt(); val o = (px - glyph) / 2
-        getDrawable(res)!!.mutate().apply { setTint(0xFF0B57D0.toInt()); setBounds(o, o, o + glyph, o + glyph); draw(canvas) }
-        return android.graphics.drawable.Icon.createWithAdaptiveBitmap(bmp)
+    private fun shortcutOf(i: Intent?) = when (i?.action) {
+        ACTION_NEW_TAB -> LaunchAction.NEW_TAB; ACTION_NEW_INCOGNITO -> LaunchAction.NEW_INCOGNITO_TAB; ACTION_SEARCH -> LaunchAction.SEARCH; else -> null
     }
 }
-
-/**
- * While incognito tabs are open: a silent notification that closes them all. Hidden on the lock screen, never
- * bridged to other devices. Cancelled at launch too, in case the process ended while it was showing.
- */
-fun updateIncognitoNotice(ctx: android.content.Context, count: Int) {
-    val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
-    if (count == 0 || !nm.areNotificationsEnabled()) { nm.cancel(INCOGNITO_NOTICE_ID); return }
-    nm.createNotificationChannel(android.app.NotificationChannel("incognito", "Incognito tabs", android.app.NotificationManager.IMPORTANCE_LOW).apply {
-        description = "Shown while incognito tabs are open"; setShowBadge(false)
-    })
-    val close = android.app.PendingIntent.getActivity(ctx, 0,
-        Intent(ctx, MainActivity::class.java).setAction(MainActivity.ACTION_CLOSE_INCOGNITO),
-        android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
-    nm.notify(INCOGNITO_NOTICE_ID, android.app.Notification.Builder(ctx, "incognito")
-        .setSmallIcon(R.drawable.sym_incognito)
-        .setContentTitle(if (count == 1) "1 incognito tab open" else "$count incognito tabs open")
-        .setContentText("Tap to close incognito tabs")
-        .setContentIntent(close)
-        .setVisibility(android.app.Notification.VISIBILITY_SECRET)
-        .setLocalOnly(true).setOngoing(true).setShowWhen(false).setOnlyAlertOnce(true)
-        .build())
-}
-
-private const val INCOGNITO_NOTICE_ID = 0x1c0

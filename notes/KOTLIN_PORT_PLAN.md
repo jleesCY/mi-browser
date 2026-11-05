@@ -124,16 +124,8 @@ Keep it small: one Gradle module, one Activity, one ViewModel, plain repositorie
 - **Built-ins replacing RN libraries**: `android.webkit.WebView` (react-native-webview), DownloadManager, PrintManager, `Intent.ACTION_SEND` (Share), `ShortcutManager`/`shortcuts.xml` (expo-quick-actions), `LocationManager` + `Geocoder` (expo-location), Photo Picker `PickVisualMedia` (expo-image-picker), `MediaStore` (expo-media-library), `CreateDocument`/`OpenDocument` (SAF), `java.util.zip` (jszip), Android Keystore AES-GCM (expo-secure-store), `HttpURLConnection` + `org.json` (fetch for Open-Meteo, image download).
 
 ### Code layout (`app/src/main/java/com/jlees/mibrowser/`)
-```
-MainActivity.kt          edge-to-edge, splash, intents (VIEW / shortcut), back dispatch, fullscreen host, orientation
-BrowserViewModel.kt      composes repos; UI state (activeView, isSearchActive, input text, find, dialogs…)
-data/  Models.kt  JsonStore.kt  SecureStore.kt  SettingsRepo.kt  TabsRepo.kt  HistoryRepo.kt  BookmarksRepo.kt  FavoritesRepo.kt  DataTransfer.kt
-logic/ Url.kt (input→URL, host, favicon, deep link, intent parse, search query, history title)  TabHistory.kt  Theme.kt  HistoryGrouping.kt
-web/   WebViewHost.kt (pool tabId→WebView, settings, clients)  ErrorPage.kt  Downloads.kt
-ui/    App.kt  Pill.kt  SubMenu.kt  RecentDrawer.kt  OverlaySheet.kt  FindBar.kt  ContextMenu.kt  Dialogs.kt (CustomAlert, Confirm, Rename)
-       tabs/ bookmarks/ history/ settings/ home/ qr/
-       common/ SortableSlots.kt  SwipeRevealRow.kt  Icons.kt  Tokens.kt
-```
+The package layout and the code standard (feature packages, stores, pure rules, Settings sections, WebView jobs) are in
+`CLAUDE.md` at the repo root. Keep that file current instead of repeating it here.
 No interfaces, DI framework, or navigation library. There is one screen with overlays (as in RN: `app/index.tsx` is the whole app).
 
 ### State model
