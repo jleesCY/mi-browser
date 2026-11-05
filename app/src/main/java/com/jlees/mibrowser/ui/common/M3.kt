@@ -24,7 +24,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.jlees.mibrowser.logic.SEARCH_ENGINES
 import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.blockTouches
 
@@ -87,9 +86,8 @@ fun ConnectedChoice(options: List<Pair<String, String>>, value: String, modifier
 
 /** Search engine logo (its favicon). Greyed out unless [active]. */
 @Composable
-fun EngineIcon(index: Int, size: Float, active: Boolean = true, modifier: Modifier = Modifier) {
+fun EngineIcon(e: com.jlees.mibrowser.logic.SearchEngine, size: Float, active: Boolean = true, modifier: Modifier = Modifier) {
     val ui = LocalUi.current
-    val e = SEARCH_ENGINES.getOrElse(index) { SEARCH_ENGINES[0] }
     val grey = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
     androidx.compose.foundation.layout.Box(modifier.size(size.dp).clip(CircleShape), contentAlignment = Alignment.Center) {
         NetImage(Favicons.src(e.url), Modifier.size(size.dp).alpha(if (active) 1f else 0.55f), colorFilter = if (active) null else grey) {

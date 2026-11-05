@@ -102,7 +102,7 @@ private fun onScan(vm: BrowserViewModel, data: String) {
     vm.inputUrl = data
     val text = data.trim()
     val s = vm.settings
-    val url = inputToUrl(text, s.forceSearchMode, s.httpsOnly, s.searchEngineIndex) ?: return
+    val url = inputToUrl(text, s.httpsOnly, vm.searchEngine, vm.bangs) ?: return
     vm.navigateTab(url, text)
 }
 

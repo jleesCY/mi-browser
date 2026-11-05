@@ -3,6 +3,7 @@
 // on top; every row has an icon, a title and a one-line explanation, and the whole row is the touch target.
 package com.jlees.mibrowser.ui.settings
 
+import androidx.compose.material3.IconButton
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +40,11 @@ import com.jlees.mibrowser.data.Settings
 import com.jlees.mibrowser.logic.ACCENTS
 import com.jlees.mibrowser.logic.DYNAMIC_ACCENT
 import com.jlees.mibrowser.logic.SEARCH_ENGINES
+import com.jlees.mibrowser.logic.displayHost
+import com.jlees.mibrowser.logic.isValidBangKey
+import com.jlees.mibrowser.logic.BANGS
+import com.jlees.mibrowser.logic.SEARCH_ENGINE_BANG
+import com.jlees.mibrowser.logic.isValidSearchTemplate
 import com.jlees.mibrowser.logic.hexColor
 import com.jlees.mibrowser.ui.SheetSearchField
 import com.jlees.mibrowser.ui.common.*
@@ -129,6 +135,9 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             SRow("Search Suggestions", "autocomplete") {
                 SwitchItem("search", "Search Suggestions", "Suggestions from your search engine while the search drawer is open", s.searchSuggestions) { set { copy(searchSuggestions = it) } }
             },
+            SRow("Pull to Refresh", "reload swipe down gesture") {
+                SwitchItem("refresh", "Pull to Refresh", "Pull down at the very top of a page to reload it", s.pullToRefresh) { set { copy(pullToRefresh = it) } }
+            },
             SRow("Suggestions in Incognito", "autocomplete private incognito") {
                 SwitchItem("incognito", "Suggestions in Incognito", "Off: what you type in an incognito tab isn't sent to your search engine until you search", s.incognitoSuggestions) { set { copy(incognitoSuggestions = it) } }
             },
@@ -149,6 +158,10 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                     onClick = if (isDefault) null else ::requestDefault,
                     trailing = { if (isDefault) Sym("check", 22f, ui.cs.primary) else Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) })
             },
+        )),
+        SGroup("shortcuts", "Search Shortcuts", "bolt", listOf(
+            SRow("Your Shortcuts", "bang custom add search shortcut") { CustomBangsItem(vm) },
+            SRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
         )),
         SGroup("pill", "Pill & Home", "toolbar", listOfNotNull(
             SRow("Loading Bar", "progress") {
@@ -215,11 +228,6 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             },
             SRow("Wipe All Data", "erase delete everything") {
                 Item("delete", "Wipe All Data", "Delete bookmarks, history, tabs, favorites and settings", danger = true, onClick = { vm.confirm = ConfirmData("wipeData") })
-            },
-        )),
-        SGroup("developer", "Developer", "code", listOf(
-            SRow("Remote Debugging", "chrome inspect devtools localhost") {
-                SwitchItem("code", "Remote Debugging", "Lets a computer connected with USB debugging inspect your pages (chrome://inspect). " + if (BuildConfig.DEBUG) "Always on in dev builds." else "Turns off when mi restarts.", s.remoteDebugging) { set { copy(remoteDebugging = it) } }
             },
         )),
         SGroup("about", "About", "info", listOf(
@@ -449,10 +457,118 @@ private fun AccentItem(vm: BrowserViewModel) {
 
 @Composable
 private fun SearchEngineItem(vm: BrowserViewModel) {
-    val cur = SEARCH_ENGINES.getOrElse(vm.settings.searchEngineIndex) { SEARCH_ENGINES[0] }
-    ExpandItem("search", "Search Engine", "Used for searches and suggestions", cur.name) { close ->
+    val s = vm.settings
+    var editing by remember { mutableStateOf(false) }
+    ExpandItem("search", "Search Engine", "Used for searches and suggestions", vm.searchEngine.name) { close ->
         SEARCH_ENGINES.forEachIndexed { i, e ->
-            OptionRow(e.name, vm.settings.searchEngineIndex == i, leading = { EngineIcon(i, 20f) }) { vm.updateSettings { copy(searchEngineIndex = i) }; close() }
+            OptionRow(e.name, s.searchEngineIndex == i, leading = { EngineIcon(e, 20f) }) { vm.updateSettings { copy(searchEngineIndex = i) }; close() }
+        }
+        // your own engine: picking it (or "Custom…") opens its editor
+        val custom = isValidSearchTemplate(s.customSearchUrl)
+        OptionRow(if (custom) s.customSearchName.ifBlank { "Custom" } else "Custom…", s.searchEngineIndex == SEARCH_ENGINES.size,
+            leading = { EngineIcon(vm.searchEngine.takeIf { s.searchEngineIndex == SEARCH_ENGINES.size } ?: com.jlees.mibrowser.logic.SearchEngine("Custom", s.customSearchUrl, "custom"), 20f) }) {
+            if (custom && s.searchEngineIndex != SEARCH_ENGINES.size) { vm.updateSettings { copy(searchEngineIndex = SEARCH_ENGINES.size) }; close() } else editing = true
+        }
+    }
+    CustomEngineDialog(vm, editing) { editing = false }
+}
+
+/** A search shortcut in a list: its "!key" chip, the site's name, and (for yours) a delete button. */
+@Composable
+private fun BangRow(key: String, name: String, onDelete: (() -> Unit)? = null) {
+    val ui = LocalUi.current
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.widthIn(min = 52.dp).clip(RoundedCornerShape(10.dp)).background(ui.cs.primaryContainer).padding(horizontal = 10.dp, vertical = 5.dp), contentAlignment = Alignment.Center) {
+            Txt("!$key", 14f, ui.cs.onPrimaryContainer, ui.bold, maxLines = 1)
+        }
+        Txt(name, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f).padding(start = 14.dp), maxLines = 1)
+        if (onDelete != null) IconButton(onClick = onDelete) { Sym("delete", 20f, ui.cs.onSurfaceVariant) }
+    }
+}
+
+/** Your own shortcuts, with a button to add one. */
+@Composable
+private fun CustomBangsItem(vm: BrowserViewModel) {
+    var adding by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Item("add", "Add a shortcut", "Type it at the start of a search, like !w mars. Yours take priority over the built-in ones.", onClick = { adding = true })
+        if (vm.settings.customBangs.isNotEmpty()) BangListLabel("Yours")
+        vm.settings.customBangs.forEach { (key, url) ->
+            BangRow(key, displayHost(url).ifEmpty { url }) { vm.updateSettings { copy(customBangs = customBangs - key) } }
+        }
+        if (vm.settings.customBangs.isNotEmpty()) Spacer(Modifier.height(8.dp))
+    }
+    AddBangDialog(vm, adding) { adding = false }
+}
+
+/** The built-in shortcuts, for reference. */
+@Composable
+private fun BuiltInBangsItem(vm: BrowserViewModel) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        BangListLabel("Built-in")
+        BangRow(SEARCH_ENGINE_BANG, "Search with ${vm.searchEngine.name}") // always searches, even for something like an address
+        BANGS.forEach { (key, bang) -> BangRow(key, bang.name) }
+    }
+}
+
+@Composable
+private fun BangListLabel(text: String) {
+    val ui = LocalUi.current
+    Txt(text, 13f, ui.cs.onSurfaceVariant, ui.bold, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp))
+}
+
+/** A new shortcut: its key and the site's search address (%s = the search). */
+@Composable
+private fun AddBangDialog(vm: BrowserViewModel, visible: Boolean, onClose: () -> Unit) {
+    val ui = LocalUi.current
+    var key by remember(visible) { mutableStateOf("") }
+    var url by remember(visible) { mutableStateOf("https://") }
+    val k = key.trim().removePrefix("!").lowercase()
+    val keyOk = isValidBangKey(k)
+    val urlOk = isValidSearchTemplate(url)
+    com.jlees.mibrowser.ui.ModalFrame(visible, onClose) {
+        DialogCard("Add search shortcut", actions = {
+            DialogAction("Cancel", onClick = onClose)
+            DialogAction("Add") { if (keyOk && urlOk) { vm.updateSettings { copy(customBangs = customBangs + (k to url.trim())) }; onClose() } }
+        }) {
+            Txt("Shortcut", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
+            com.jlees.mibrowser.ui.ClearableField(key, { key = it }, placeholder = "e.g. ebay", modifier = Modifier.padding(bottom = 4.dp))
+            Txt(
+                when { k.isNotEmpty() && !keyOk -> "Use up to 12 letters or numbers"; k in BANGS -> "Replaces the built-in !$k (${BANGS[k]!!.name})"; k == SEARCH_ENGINE_BANG -> "Replaces the built-in !se (your search engine)"; k.isNotEmpty() -> "You'll type !$k"; else -> " " },
+                12f, if (k.isNotEmpty() && !keyOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 12.dp),
+            )
+            Txt("Search address", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
+            com.jlees.mibrowser.ui.ClearableField(url, { url = it }, uri = true, placeholder = "https://www.ebay.com/sch/i.html?_nkw=%s")
+            Txt(
+                if (url.length > 8 && !urlOk) "Enter a web address starting with https://" else "Search the site for \"test\", copy the address of the results page, and put %s where \"test\" was.",
+                12f, if (url.length > 8 && !urlOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp), lineHeight = 16f,
+            )
+        }
+    }
+}
+
+/** Name and address (%s = the search) of your own search engine. Saving selects it; it gets no suggestions. */
+@Composable
+private fun CustomEngineDialog(vm: BrowserViewModel, visible: Boolean, onClose: () -> Unit) {
+    val ui = LocalUi.current
+    var name by remember(visible) { mutableStateOf(vm.settings.customSearchName) }
+    var url by remember(visible) { mutableStateOf(vm.settings.customSearchUrl.ifBlank { "https://" }) }
+    val valid = isValidSearchTemplate(url)
+    com.jlees.mibrowser.ui.ModalFrame(visible, onClose) {
+        DialogCard("Custom search engine", actions = {
+            DialogAction("Cancel", onClick = onClose)
+            DialogAction("Save") {
+                if (valid) { vm.updateSettings { copy(customSearchName = name.trim(), customSearchUrl = url.trim(), searchEngineIndex = SEARCH_ENGINES.size) }; onClose() }
+            }
+        }) {
+            Txt("Name", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
+            com.jlees.mibrowser.ui.ClearableField(name, { name = it }, placeholder = "e.g. Startpage", modifier = Modifier.padding(bottom = 15.dp))
+            Txt("Search address", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
+            com.jlees.mibrowser.ui.ClearableField(url, { url = it }, uri = true, placeholder = "https://example.com/search?q=%s")
+            Txt(
+                if (url.length > 8 && !valid) "Enter a web address starting with https://" else "Put %s where your search should go. Suggestions aren't available for custom engines.",
+                12f, if (url.length > 8 && !valid) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp), lineHeight = 16f,
+            )
         }
     }
 }

@@ -2,6 +2,15 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui
 
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import com.jlees.mibrowser.logic.typedBangLength
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.positionInWindow
@@ -423,6 +432,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         Sym("warning", 15f, ui.cs.onErrorContainer, Modifier.padding(end = 4.dp))
                         Txt("Not secure", 12f, ui.cs.onErrorContainer, ui.bold, maxLines = 1)
                     }
+                    var textLayout by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
                     BasicTextField(
                         value = tfv,
                         onValueChange = { v ->
@@ -463,22 +473,40 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                             },
                         singleLine = true,
                         textStyle = TextStyle(color = ui.cs.onSurface, fontFamily = ui.font, fontWeight = FontWeight.W600, fontSize = (16 * s.fontScale).sp),
+                        // a search shortcut ("!w ") becomes a mini pill once it's typed at the start with a space after it:
+                        // bold accent text, padded by a thin space on each side, with the pill drawn behind it (decorationBox)
+                        visualTransformation = run {
+                            val bangs = vm.bangs
+                            val hl = SpanStyle(color = ui.cs.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                            remember(bangs, hl) { BangPillTransformation(bangs, hl) }
+                        },
+                        onTextLayout = { textLayout = it },
                         cursorBrush = SolidColor(ui.cs.primary),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { focusManager.clearFocus(); vm.submitInput(tfv.text) }),
                         decorationBox = { inner ->
                             Box(contentAlignment = Alignment.CenterStart) {
                                 if (tfv.text.isEmpty()) Txt(if (incognito) "Search privately" else "Search", 16f, ui.cs.onSurfaceVariant, FontWeight.W600)
-                                inner()
+                                val pillColor = ui.cs.primaryContainer
+                                Box(Modifier.drawBehind {
+                                    val n = typedBangLength(tfv.text, vm.bangs)
+                                    val l = textLayout ?: return@drawBehind
+                                    // transformed text: thin space (0), "!key" (1..n), en space (n+1). The pill wraps "!key" with the
+                                    // same padding each side; skipped while the text is wider than the field and scrolled
+                                    if (n == 0 || l.layoutInput.text.length < n + 2 || l.size.width > size.width + 1) return@drawBehind
+                                    val thin = l.getBoundingBox(0)
+                                    val pad = thin.width + 3.dp.toPx()
+                                    val left = thin.right - pad
+                                    val right = l.getBoundingBox(n).right + pad
+                                    val top = l.getLineTop(0) + 1.dp.toPx(); val bottom = l.getLineBottom(0) - 1.dp.toPx()
+                                    drawRoundRect(pillColor, Offset(left, top), Size(right - left, bottom - top), CornerRadius((bottom - top) / 2))
+                                }) { inner() }
                             }
                         },
                     )
                     Row(Modifier.padding(start = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (vm.isInputFocused && tfv.text.isNotEmpty()) {
                             Box(Modifier.padding(end = 8.dp).touchable { vm.inputUrl = ""; tfv = TextFieldValue(""); focusRequester.requestFocus() }) { Sym("cancel", 20f, ui.cs.onSurfaceVariant) }
-                        }
-                        Box(Modifier.padding(end = 8.dp).touchable { vm.updateSettings { copy(forceSearchMode = !forceSearchMode) } }) {
-                            EngineIcon(s.searchEngineIndex, 22f, active = s.forceSearchMode)
                         }
                         if (vm.isInputFocused) {
                             Box(Modifier.touchable { focusManager.clearFocus(); vm.submitInput(tfv.text) }) { Sym("search", 22f, ui.cs.primary) }
@@ -538,4 +566,24 @@ private fun EdgeButtonGhost(icon: String, at: () -> Rect?, root: OriginHolder, p
                 alpha = a; scaleX = 0.6f + 0.4f * a; scaleY = 0.6f + 0.4f * a
             },
     ) { SwitcherEdgeButton(icon, onClick = {}) }
+}
+
+/**
+ * Shows a search shortcut typed at the start ("!w mars") as a mini pill: a thin space before and an en space after "!w" pad the
+ * pill (drawn behind by the Pill's text field) and the shortcut is bold in the accent colour. Edits map straight through.
+ */
+private class BangPillTransformation(private val bangs: Map<String, String>, private val style: SpanStyle) : VisualTransformation {
+    override fun filter(text: androidx.compose.ui.text.AnnotatedString): TransformedText {
+        val n = typedBangLength(text.text, bangs)
+        if (n == 0) return TransformedText(text, OffsetMapping.Identity)
+        val out = buildAnnotatedString {
+            append(THIN); append(text.subSequence(0, n)); append(GAP); append(text.subSequence(n, text.length))
+            addStyle(style, 0, n + 2)
+        }
+        return TransformedText(out, object : OffsetMapping {
+            override fun originalToTransformed(offset: Int) = when { offset == 0 -> 0; offset <= n -> offset + 1; else -> offset + 2 }
+            override fun transformedToOriginal(offset: Int) = when { offset <= 1 -> 0; offset <= n + 1 -> offset - 1; else -> (offset - 2).coerceAtMost(text.length) }
+        })
+    }
+    private companion object { const val THIN = "\u2009"; const val GAP = "\u2002" } // en space: room between the pill and the search
 }

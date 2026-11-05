@@ -26,6 +26,8 @@
 
 ### The Pill
 - One control for everything: search with suggestions (your past searches first), the tab switcher, back/forward and hiding the bar.
+- **Search shortcuts**: start a search with `!w`, `!yt`, `!r`, `!a`, `!m` or `!i` to search Wikipedia, YouTube, Reddit, Amazon, Maps or Images, or `!se` to always search your search engine. The shortcut turns into a small pill as you type. Add your own in Settings, or set a custom search engine.
+- **Pull down to refresh**, only ever from the very top of a page.
 - A loading-progress fill, a "Not secure" marker on unencrypted pages, and a favorites bar.
 - When hidden, a small recall button brings it back; you can pin it left, centre or right.
 
@@ -44,7 +46,7 @@
 ### A complete browser
 - Sign-in and payment pop-ups (PayPal, Google), passkeys, Google Pay, HTTP sign-in prompts and client certificates.
 - Bookmarks with folders, drag to reorder, swipe actions and search; history grouped by time or site.
-- Pages' own Print and Share buttons, downloads, and local development sites (`localhost:3000`, LAN IPs, `.local`) with remote debugging from desktop Chrome.
+- Pages' own Print and Share buttons, downloads, and local development sites (`localhost:3000`, LAN IPs, `.local`).
 
 ### Privacy & security
 - Built-in ad and tracker blocking, optional third-party cookie blocking, HTTPS-only mode and Safe Browsing.
@@ -57,6 +59,8 @@
 
 ## Installation
 Download the latest APK from the **[Releases page](https://github.com/jleescy/mi-browser/releases/latest)** and open it on your phone. Requires Android 8.0 or newer. mi checks for new releases itself and offers to install them.
+
+Long-press mi's icon for shortcuts to a new tab, a new incognito tab or the QR scanner.
 
 ## Building from source
 Requirements: Android Studio (latest stable), or JDK 17+ with the Android SDK (compile SDK 37).

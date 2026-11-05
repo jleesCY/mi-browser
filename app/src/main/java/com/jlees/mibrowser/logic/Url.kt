@@ -5,7 +5,61 @@ import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-data class SearchEngine(val name: String, val url: String, val icon: String)
+data class SearchEngine(val name: String, val url: String, val icon: String) {
+    /** The search page for [query]: [url] is a prefix, or a template with %s where the query goes (custom engines). */
+    fun urlFor(query: String) = if (url.contains("%s")) url.replace("%s", encodeComponent(query)) else url + encodeComponent(query)
+}
+
+/** The engine at [index]; one past the built-ins is the user's own (when it has a valid address). */
+fun searchEngine(index: Int, customName: String, customUrl: String): SearchEngine =
+    if (index == SEARCH_ENGINES.size && isValidSearchTemplate(customUrl)) SearchEngine(customName.ifBlank { "Custom" }, customUrl.trim(), "custom")
+    else SEARCH_ENGINES.getOrElse(index) { SEARCH_ENGINES[0] }
+
+fun isValidSearchTemplate(url: String) = url.trim().let { (it.startsWith("https://") || it.startsWith("http://")) && it.length > 10 && !it.contains(' ') }
+
+/** A search shortcut's site and search address (%s = the query). */
+data class Bang(val name: String, val url: String)
+
+/**
+ * Built-in search shortcuts: "!w mars" searches that site (like DuckDuckGo's bangs). Typed at the start only. Plus
+ * [SEARCH_ENGINE_BANG] ("!se example.com"): your search engine, always searching (never opening it as an address).
+ */
+val BANGS = linkedMapOf(
+    "w" to Bang("Wikipedia", "https://en.wikipedia.org/w/index.php?search=%s"),
+    "yt" to Bang("YouTube", "https://www.youtube.com/results?search_query=%s"),
+    "r" to Bang("Reddit", "https://www.reddit.com/search/?q=%s"),
+    "a" to Bang("Amazon", "https://www.amazon.com/s?k=%s"),
+    "m" to Bang("Google Maps", "https://www.google.com/maps/search/%s"),
+    "i" to Bang("Google Images", "https://www.google.com/search?tbm=isch&q=%s"),
+)
+const val SEARCH_ENGINE_BANG = "se"
+
+/** Every shortcut key → search address: !se ([engine]), the built-ins, then your own ([custom] wins on a clash). */
+fun allBangs(custom: Map<String, String>, engine: SearchEngine): Map<String, String> =
+    mapOf(SEARCH_ENGINE_BANG to engine.url) + BANGS.mapValues { it.value.url } + custom
+
+/** A shortcut key you can add: 1–12 lowercase letters or digits. */
+fun isValidBangKey(key: String) = Regex("^[a-z0-9]{1,12}$").matches(key)
+
+private val BANG_FIRST = Regex("^!(\\w+)\\s+(.+)$")
+/** "!w " at the start: the shortcut typed so far, highlighted in the Pill once a space follows a known key. */
+private val BANG_TYPED = Regex("^!(\\w+)\\s")
+
+/**
+ * "!w mars" → that site's search page for "mars"; null when there's no known shortcut. Only one shortcut, and only at
+ * the start: "!w !yt x" searches Wikipedia for "!yt x", and "mars !w" is an ordinary search.
+ */
+fun bangUrl(text: String, bangs: Map<String, String>): String? {
+    val (key, query) = BANG_FIRST.find(text)?.destructured ?: return null
+    val template = bangs[key.lowercase()] ?: return null
+    return SearchEngine("", template, "").urlFor(query.trim())
+}
+
+/** Length of a known shortcut typed at the start ("!w " → 2: the "!w"), or 0. */
+fun typedBangLength(text: String, bangs: Map<String, String>): Int {
+    val m = BANG_TYPED.find(text) ?: return 0
+    return if (m.groupValues[1].lowercase() in bangs) m.groupValues[1].length + 1 else 0
+}
 
 val SEARCH_ENGINES = listOf(
     SearchEngine("Google", "https://www.google.com/search?q=", "logo-google"),
@@ -96,11 +150,10 @@ private fun isNavigableHost(t: TypedHost): Boolean {
  * path or query) opens it: local hosts over http, everything else over https (see [isLocalHost]). An explicit
  * http:// is upgraded only when [httpsOnly] is on and the host isn't local. Anything else is searched.
  */
-fun inputToUrl(raw: String, forceSearch: Boolean, httpsOnly: Boolean, engineIndex: Int): String? {
+fun inputToUrl(raw: String, httpsOnly: Boolean, engine: SearchEngine, bangs: Map<String, String> = allBangs(emptyMap(), engine)): String? {
     val text = raw.trim()
     if (text.isEmpty()) return null
-    val engine = SEARCH_ENGINES.getOrElse(engineIndex) { SEARCH_ENGINES[0] }
-    if (forceSearch) return engine.url + encodeComponent(text)
+    bangUrl(text, bangs)?.let { return it }
     if (HTTP_PREFIX.containsMatchIn(text)) {
         val rest = text.replaceFirst(HTTP_PREFIX, "")
         val local = isLocalHost(typedHost(rest)?.host)
@@ -108,7 +161,7 @@ fun inputToUrl(raw: String, forceSearch: Boolean, httpsOnly: Boolean, engineInde
     }
     val host = typedHost(text)
     if (host != null && isNavigableHost(host)) return (if (isLocalHost(host.host)) "http://" else "https://") + text
-    return engine.url + encodeComponent(text)
+    return engine.urlFor(text)
 }
 
 /** True when [url] came from [inputToUrl] choosing https for a typed address (no scheme): it may fall back to http. */

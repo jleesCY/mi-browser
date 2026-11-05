@@ -91,7 +91,7 @@ export default function UserDocs() {
                         <GuideItem icon={<Search size={18} />} title="Incognito" desc="On a fresh tab, tap the mask in the Pill to make it incognito (a tab you've browsed in keeps its mode). Each incognito tab has its own private storage: nothing comes in from your other tabs and nothing leaves. Its pages aren't added to history, screenshots are blocked, the tab switcher shows it only as 'Incognito tab', and its cookies, logins and site data are erased when you close it. Long-press a link and choose 'Open in Incognito Tab' to send it there. While incognito tabs are open, a notification closes them all with one tap. In incognito the keyboard is asked not to learn what you type, passkeys can't be created (signing in with one works), and search suggestions are off unless you turn on Suggestions in Incognito. Downloads and bookmarks you choose to save are kept." />
                       </div>
                       <div id="search-engine-only">
-                        <GuideItem icon={<Search size={18} />} title="Search Engine Only" desc="Tap the search engine icon inside the address bar to force search mode. This bypasses URL parsing and sends your query directly to your search engine." />
+                        <GuideItem icon={<Search size={18} />} title="Search, Never Open" desc="Start with !se to always search your search engine, even for something that looks like an address: !se example.com searches for it instead of opening the site." />
                       </div>
                     </div>
 
@@ -321,9 +321,11 @@ export default function UserDocs() {
                 {/* Browsing */}
                 <SettingsSection title="Search & Browsing" icon={<Monitor size={20} />}>
                   <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
+                  <SettingItem title="Custom Search Engine" desc="Pick Custom… under Search Engine and enter a name and address, with %s where your search goes (for example https://www.startpage.com/sp/search?query=%s). Custom engines don't offer suggestions." />
+                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Settings → Search Shortcuts lists them all and lets you add your own (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority." />
+                  <SettingItem title="Pull to Refresh" desc="Pull down at the very top of a page to reload it. It never triggers while you're scrolled down, even if you scroll back to the top in the same pull." />
                   <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
                   <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
-                  <SettingItem title="Remote Debugging" desc="Lets a computer connected with USB debugging inspect your pages in desktop Chrome (chrome://inspect), handy when developing a website. It turns off whenever mi restarts. Typing a local address such as localhost:3000 or 192.168.1.20:8080 opens it directly over http." />
                   <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
                   <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
                   <SettingItem title="Reader Mode by Default" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />

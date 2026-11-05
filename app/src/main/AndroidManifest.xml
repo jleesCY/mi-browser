@@ -60,7 +60,6 @@
                 <action android:name="com.jlees.mibrowser.SCAN_QR" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
 
         <provider

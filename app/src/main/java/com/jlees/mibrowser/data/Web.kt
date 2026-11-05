@@ -49,7 +49,8 @@ object Suggest {
     /** [cache] false (incognito): the response isn't written to the app's HTTP disk cache, so the query leaves no trace. */
     suspend fun fetch(engineIndex: Int, query: String, cache: Boolean = true): List<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val conn = (URL(endpoints.getOrElse(engineIndex) { endpoints[0] } + encodeComponent(query)).openConnection() as HttpURLConnection)
+            val endpoint = endpoints.getOrNull(engineIndex) ?: return@withContext emptyList() // custom engine: none
+            val conn = (URL(endpoint + encodeComponent(query)).openConnection() as HttpURLConnection)
                 .apply { connectTimeout = 4000; readTimeout = 4000; useCaches = cache }
             val body = conn.inputStream.use { it.readBytes().decodeToString() }
             val arr = JSONArray(body).getJSONArray(1)

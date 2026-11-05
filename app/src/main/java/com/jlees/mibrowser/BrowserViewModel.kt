@@ -1,6 +1,9 @@
 // State + actions. Port of legacy/app/index.tsx handlers and the hooks in legacy/src/hooks/*
 package com.jlees.mibrowser
 
+import com.jlees.mibrowser.logic.allBangs
+import androidx.compose.runtime.mutableFloatStateOf
+import com.jlees.mibrowser.logic.searchEngine
 import com.jlees.mibrowser.ui.common.clearImageCache
 import com.jlees.mibrowser.data.Favicons
 import android.app.Application
@@ -106,13 +109,13 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- startup
     private var started = false
 
-    fun start(deepLink: String?) {
+    fun start(deepLink: String?, shortcut: String? = null) {
+        pendingShortcut = shortcut
         if (started) return
         started = true
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // remote debugging never outlives a session: a computer authorized for USB debugging could read pages
-                settings = migrate((store.read("settings", Settings.serializer()) ?: Settings()).sanitized()).copy(remoteDebugging = false)
+                settings = migrate((store.read("settings", Settings.serializer()) ?: Settings()).sanitized())
                 history = (store.read("history", ListSerializer(HistoryItem.serializer())) ?: emptyList()).map { it.copy(id = uniqueId()) }
                 recents = (store.read("recent_searches", ListSerializer(HistoryItem.serializer())) ?: emptyList()).map { it.copy(id = uniqueId()) }
                 bookmarks = store.read("bookmarks", ListSerializer(BookmarkNode.serializer())) ?: emptyList()
@@ -121,11 +124,25 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             }
             ready = true
             syncInputToActiveTab()
+            pendingShortcut?.let { openFromShortcut(it); pendingShortcut = null }
             launchSavers()
             checkForUpdate()
             Blocklist.load(getApplication())
         }
     }
+
+    val searchEngine get() = searchEngine(settings.searchEngineIndex, settings.customSearchName, settings.customSearchUrl)
+    val bangs get() = allBangs(settings.customBangs, searchEngine)
+
+    /** Pull to refresh on the current page: 0 = idle, 1 = released here reloads (WebViewHost reports it). */
+    var pullProgress by mutableFloatStateOf(0f)
+
+    /** Launcher shortcuts (MainActivity): "newTab" / "incognito". */
+    fun openFromShortcut(kind: String) {
+        switcherVisible = false; isSubMenuVisible = false; activeView = "none"
+        addNewTab(incognito = kind == "incognito" && incognitoSupported)
+    }
+    private var pendingShortcut: String? = null
 
     // ---------------------------------------------------------------- search suggestions
     var suggestions by mutableStateOf(listOf<String>())
@@ -446,7 +463,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun loadInTab(id: String, url: String) = updateTab(id) { copy(url = url, requestedUrl = url, loading = true, loadNonce = loadNonce + 1, httpFallback = false) }
 
     fun submitInput(text: String = inputUrl) {
-        val url = inputToUrl(text, settings.forceSearchMode, settings.httpsOnly, settings.searchEngineIndex) ?: return
+        val url = inputToUrl(text, settings.httpsOnly, searchEngine, bangs) ?: return
         navigateTab(url, text.trim())
         // like Chrome: a typed address tries https first and falls back to http if https can't connect
         if (!settings.httpsOnly && isTypedHttpsUpgrade(text, url)) updateTab(activeTabId) { copy(httpFallback = true) }

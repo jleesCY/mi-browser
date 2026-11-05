@@ -8,14 +8,14 @@ import org.junit.Test
 
 class LogicTest {
     @Test fun inputParsing() {
-        assertEquals(null, inputToUrl("  ", false, false, 0))
-        assertEquals("https://example.com", inputToUrl("example.com", false, false, 0))
-        assertEquals("http://192.168.1.1:8080/x", inputToUrl("192.168.1.1:8080/x", false, false, 0))
-        assertEquals("http://localhost:3000", inputToUrl("localhost:3000", false, false, 0))
-        assertEquals("https://a.com", inputToUrl("http://a.com", false, true, 0))
-        assertEquals("http://a.com", inputToUrl("http://a.com", false, false, 0))
-        assertEquals("https://www.google.com/search?q=hello%20world", inputToUrl("hello world", false, false, 0))
-        assertEquals("https://search.yahoo.com/search?p=example.com", inputToUrl("example.com", true, false, 5))
+        assertEquals(null, inputToUrl("  ", false, SEARCH_ENGINES[0]))
+        assertEquals("https://example.com", inputToUrl("example.com", false, SEARCH_ENGINES[0]))
+        assertEquals("http://192.168.1.1:8080/x", inputToUrl("192.168.1.1:8080/x", false, SEARCH_ENGINES[0]))
+        assertEquals("http://localhost:3000", inputToUrl("localhost:3000", false, SEARCH_ENGINES[0]))
+        assertEquals("https://a.com", inputToUrl("http://a.com", true, SEARCH_ENGINES[0]))
+        assertEquals("http://a.com", inputToUrl("http://a.com", false, SEARCH_ENGINES[0]))
+        assertEquals("https://www.google.com/search?q=hello%20world", inputToUrl("hello world", false, SEARCH_ENGINES[0]))
+        assertEquals("https://search.yahoo.com/search?p=example.com", inputToUrl("!se example.com", false, SEARCH_ENGINES[5]))
     }
 
     @Test fun searchAndTitles() {
@@ -75,7 +75,7 @@ class LogicTest {
     }
 
     @Test fun typedAddressesForDevelopmentAndLocalNetworks() {
-        fun go(t: String, httpsOnly: Boolean = false) = inputToUrl(t, false, httpsOnly, 0)!!
+        fun go(t: String, httpsOnly: Boolean = false) = inputToUrl(t, httpsOnly, SEARCH_ENGINES[0])!!
         val search = "https://www.google.com/search?q="
         // local development: http, never upgraded, ports and paths kept
         assertEquals("http://localhost:3000", go("localhost:3000"))
@@ -189,5 +189,33 @@ class LogicTest {
     @Test fun hex() {
         assertEquals(0xFF007AFF, hexColor("#007AFF"))
         assertEquals(0xFF007AFF, hexColor("bad"))
+    }
+
+    @Test
+    fun searchShortcutsAndCustomEngines() {
+        val g = SEARCH_ENGINES[0]
+        assertEquals("https://en.wikipedia.org/w/index.php?search=mars", inputToUrl("!w mars", false, g))
+        assertEquals("https://www.youtube.com/results?search_query=lofi%20beats", inputToUrl("!yt lofi beats", false, g))
+        assertEquals("https://www.youtube.com/results?search_query=cats", inputToUrl("!YT cats", false, g)) // case-insensitive
+        assertEquals("https://www.google.com/search?q=lofi%20!yt", inputToUrl("lofi !yt", false, g)) // only at the start
+        assertEquals("https://en.wikipedia.org/w/index.php?search=!yt%20x", inputToUrl("!w !yt x", false, g)) // one shortcut
+        assertEquals("https://www.google.com/search?q=!nope%20x", inputToUrl("!nope x", false, g)) // unknown: a plain search
+        assertEquals("https://www.google.com/search?q=hi!", inputToUrl("hi!", false, g))
+        assertEquals("https://www.google.com/search?q=example.com", inputToUrl("!se example.com", false, g)) // !se always searches
+        assertEquals("https://www.startpage.com/sp/search?query=x&cat=web",
+            inputToUrl("!se x", false, searchEngine(SEARCH_ENGINES.size, "Startpage", "https://www.startpage.com/sp/search?query=%s&cat=web")))
+        val custom = searchEngine(SEARCH_ENGINES.size, "Startpage", "https://www.startpage.com/sp/search?query=%s&cat=web")
+        assertEquals("Startpage", custom.name)
+        assertEquals("https://www.startpage.com/sp/search?query=a%20b&cat=web", inputToUrl("a b", false, custom))
+        assertEquals(SEARCH_ENGINES[0], searchEngine(SEARCH_ENGINES.size, "Bad", "not a url")) // invalid custom: falls back
+        assertEquals(SEARCH_ENGINES[0], searchEngine(99, "", ""))
+        val mine = allBangs(engine = g, custom = mapOf("ebay" to "https://www.ebay.com/sch/i.html?_nkw=%s", "w" to "https://de.wikipedia.org/w/index.php?search=%s"))
+        assertEquals("https://www.ebay.com/sch/i.html?_nkw=lamp", inputToUrl("!ebay lamp", false, g, mine))
+        assertEquals("https://de.wikipedia.org/w/index.php?search=mars", inputToUrl("!w mars", false, g, mine)) // yours win
+        assertEquals(2, typedBangLength("!w ", mine))    // highlighted once a space follows
+        assertEquals(0, typedBangLength("!w", mine))
+        assertEquals(5, typedBangLength("!ebay mars", mine))
+        assertEquals(0, typedBangLength("!nope x", mine))
+        assertEquals(false, isValidBangKey("Has Space"))
     }
 }

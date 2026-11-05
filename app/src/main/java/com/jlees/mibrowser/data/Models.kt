@@ -1,6 +1,8 @@
 // port of legacy/src/types.ts, legacy/src/hooks/useBrowserSettings.ts (defaults), useFavorites.ts
 package com.jlees.mibrowser.data
 
+import com.jlees.mibrowser.logic.SEARCH_ENGINES
+import com.jlees.mibrowser.logic.isValidSearchTemplate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -9,6 +11,13 @@ data class Settings(
     val themeMode: String = "dark", // light | dark | system
     val accentColor: String = "#007AFF",
     val searchEngineIndex: Int = 0,
+    /** Your own search engine (index = number of built-ins): a name and an address with %s for the query. */
+    val customSearchName: String = "",
+    val customSearchUrl: String = "",
+    /** Pull down at the very top of a page to reload it. */
+    val pullToRefresh: Boolean = true,
+    /** Your own search shortcuts: key ("ebay") → search address with %s. Checked before the built-ins. */
+    val customBangs: Map<String, String> = emptyMap(),
     val cornerRadius: Int = 28, // 0 | 12 | 28
     val uiPadding: String = "normal", // compact | normal | airy
     val fontScale: Float = 1f,
@@ -20,7 +29,6 @@ data class Settings(
     val showTabLogo: Boolean = true,
     val showBookmarkIcons: Boolean = true,
     val desktopMode: Boolean = false,
-    val forceSearchMode: Boolean = false,
     val readerModeEnabled: Boolean = false,
     val recentSearchesExpanded: Boolean = false,
     val showFavoritesDefault: Boolean = false,
@@ -42,8 +50,6 @@ data class Settings(
     val skippedUpdate: String? = null, // release version the user chose to skip
     /** Sites allowed to open pop-ups without a tap (pop-ups opened by a tap are always allowed). */
     val popupSites: List<String> = emptyList(),
-    /** Let desktop Chrome inspect pages (chrome://inspect) over USB debugging. Always on in dev builds. */
-    val remoteDebugging: Boolean = false,
     /** Text size on web pages, in percent (WebSettings.textZoom). Separate from the app's own font size. */
     val textZoom: Int = 100,
     /** In dark theme, darken sites that have no dark mode of their own (algorithmic darkening). */
@@ -54,7 +60,7 @@ data class Settings(
     val settingsVersion: Int = 0,
 ) {
     /** Load-time sanitising. */
-    fun sanitized() = copy(searchEngineIndex = if (searchEngineIndex in 0..5) searchEngineIndex else 0)
+    fun sanitized() = copy(searchEngineIndex = if (searchEngineIndex in SEARCH_ENGINES.indices || (searchEngineIndex == SEARCH_ENGINES.size && isValidSearchTemplate(customSearchUrl))) searchEngineIndex else 0)
 }
 
 @Serializable

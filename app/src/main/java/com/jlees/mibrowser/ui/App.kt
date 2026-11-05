@@ -1,6 +1,10 @@
 // Root screen. Port of legacy/app/index.tsx render tree + effects.
 package com.jlees.mibrowser.ui
 
+import androidx.compose.ui.draw.clip
+import com.jlees.mibrowser.ui.common.Sym
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.shadow
 import com.jlees.mibrowser.ui.common.Motion
 import com.jlees.mibrowser.ui.common.paddingDp
 import android.app.Activity
@@ -205,7 +209,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
             }
             // remote debugging (chrome://inspect): always in dev builds, a setting in releases
-            LaunchedEffect(s.remoteDebugging) { android.webkit.WebView.setWebContentsDebuggingEnabled(com.jlees.mibrowser.BuildConfig.DEBUG || s.remoteDebugging) }
+            // pages can be inspected from desktop Chrome (chrome://inspect) in dev builds only
+            LaunchedEffect(Unit) { android.webkit.WebView.setWebContentsDebuggingEnabled(com.jlees.mibrowser.BuildConfig.DEBUG) }
 
             // ---- background WebViews (Background Refresh / lazy-loaded tabs) and cleanup of home tabs
             LaunchedEffect(vm.tabs, vm.activeTabId, s) {
@@ -284,6 +289,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
             }
 
+            if (!fullscreen) PullIndicator(vm, statusDp)
             if (!fullscreen) ZoomingTabHeader(vm)
             if (!fullscreen) TabSwitcher(vm, navDp, statusDp)
 
@@ -308,5 +314,27 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         }
     }
     }
+    }
+}
+
+/** Pull to refresh: a round refresh badge that slides down with the pull and turns accent-filled once release reloads. */
+@Composable
+private fun PullIndicator(vm: BrowserViewModel, statusDp: Float) {
+    val ui = LocalUi.current
+    val target = vm.pullProgress
+    val p by androidx.compose.animation.core.animateFloatAsState(target, if (target == 0f) Motion.spatial() else androidx.compose.animation.core.snap(), label = "pull")
+    if (p <= 0.01f) return
+    val ready = target >= 1f
+    Box(Modifier.fillMaxWidth().padding(top = statusDp.dp), contentAlignment = Alignment.TopCenter) {
+        Box(
+            Modifier.graphicsLayer {
+                translationY = (p.coerceAtMost(1.4f) * 64f).dp.toPx() - 48.dp.toPx() + 12.dp.toPx()
+                alpha = (p * 1.6f).coerceIn(0f, 1f)
+                val sc = 0.6f + 0.4f * p.coerceAtMost(1f); scaleX = sc; scaleY = sc
+            }.size(44.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(if (ready) ui.cs.primaryContainer else ui.cs.surfaceContainerHigh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Sym("refresh", 24f, if (ready) ui.cs.onPrimaryContainer else ui.cs.onSurfaceVariant, Modifier.graphicsLayer { rotationZ = p * 300f })
+        }
     }
 }
