@@ -90,6 +90,9 @@ export default function UserDocs() {
                       <div id="incognito">
                         <GuideItem icon={<Search size={18} />} title="Incognito" desc="On a fresh tab, tap the mask in the Pill to make it incognito (a tab you've browsed in keeps its mode). Each incognito tab has its own private storage: nothing comes in from your other tabs and nothing leaves. Its pages aren't added to history, screenshots are blocked, the tab switcher shows it only as 'Incognito tab', and its cookies, logins and site data are erased when you close it. Long-press a link and choose 'Open in Incognito Tab' to send it there. While incognito tabs are open, a notification closes them all with one tap. In incognito the keyboard is asked not to learn what you type, passkeys can't be created (signing in with one works), and search suggestions are off unless you turn on Suggestions in Incognito. Downloads and bookmarks you choose to save are kept." />
                       </div>
+                      <div id="search-widget">
+                        <GuideItem icon={<Search size={18} />} title="Search Widget" desc="Add the mi widget to your home screen: tap the bar to open a new tab ready to type, or its buttons for a new incognito tab or the QR scanner. Long-press mi's icon for the same shortcuts." />
+                      </div>
                       <div id="search-engine-only">
                         <GuideItem icon={<Search size={18} />} title="Search, Never Open" desc="Start with !se to always search your search engine, even for something that looks like an address: !se example.com searches for it instead of opening the site." />
                       </div>
@@ -259,7 +262,7 @@ export default function UserDocs() {
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
                   <p className="text-lg text-white/60 leading-relaxed font-medium">
-                    Every aspect of mi. Browser can be customized. Here is a breakdown of every available setting:
+                    Every aspect of mi. Browser can be customized. Settings opens on a list of sections; tap one to open its page, or search to find any setting from any section. Here is a breakdown of every available setting:
                   </p>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
                     <p><strong>Pro Tip:</strong> Most settings apply in real-time. You can change your accent color or UI spacing and see the results instantly without restarting the app.</p>
@@ -272,6 +275,7 @@ export default function UserDocs() {
                 {/* Colors */}
                 <SettingsSection title="Colors" icon={<Palette size={20} />}>
                   <SettingItem title="Theme" desc="Choose Light, Dark, or System (follows your device's dark mode)." />
+                  <SettingItem title="Pure Black" desc="In dark mode, use true black backgrounds. Saves battery on OLED screens; cards and the Pill stay a shade lighter." />
                   <SettingItem title="Accent Color" desc="Adaptive (your wallpaper colors, Android 12+), Gray, Blue, Green, Red, Orange, Yellow, or Purple. The full Material 3 color scheme is generated from your choice." />
                 </SettingsSection>
 
@@ -325,6 +329,7 @@ export default function UserDocs() {
                   <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Settings → Search Shortcuts lists them all and lets you add your own (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority." />
                   <SettingItem title="Pull to Refresh" desc="Pull down at the very top of a page to reload it. It never triggers while you're scrolled down, even if you scroll back to the top in the same pull." />
                   <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
+                  <SettingItem title="Block Video Autoplay" desc="Videos wait for a tap instead of playing on their own." />
                   <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
                   <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
                   <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
@@ -338,7 +343,12 @@ export default function UserDocs() {
                   <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
                   <SettingItem title="Not Secure Marker" desc="Pages without an encrypted connection (plain http, except your own device's localhost) and sites you allowed past a certificate warning show a red Not secure marker in the search pill. Tap it for details, and don't enter passwords or payment details there. Sign-in prompts on such sites warn that the password would be sent unencrypted." />
                   <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local addresses are excluded: localhost, IP addresses, and local network names such as nas:5000, myapp.local or dev.test." />
-                  <SettingItem title="Block Ads & Trackers" desc="Blocks requests to known ad and tracking domains using a built-in list (StevenBlack hosts). On by default." />
+                  <SettingItem title="Block Ads" desc="Blocks ads and ad networks with EasyList and the StevenBlack malware and ad domain list: matching requests are dropped and leftover ad spaces are hidden. On by default." />
+                  <SettingItem title="Block Trackers" desc="Blocks analytics and tracking scripts that follow you across sites (EasyPrivacy). On by default." />
+                  <SettingItem title="Hide Cookie Banners" desc="Hides cookie-consent pop-ups with the EasyList Cookie List. Turn it off if a site won't let you continue without answering its banner." />
+                  <SettingItem title="Remove Tracking from Links" desc="Strips tracking tags such as utm_source, fbclid and gclid from links you open, copy or share. On by default." />
+                  <SettingItem title="Allowed Sites" desc="Sites where ad, tracker and cookie-banner blocking is off. Add one from the tab menu on that site (switch off Block ads here); remove it here." />
+                  <SettingItem title="Update Filter Lists" desc="The lists update themselves weekly on Wi-Fi; tap to update them now. Shows when they were last updated." />
                   <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. Off by default, as in Chrome, because payment and sign-in windows (such as PayPal) rely on them." />
                   <SettingItem title="Pop-ups" desc="Pop-up windows open when you tap something (sign-in and payment windows stay linked to the page that opened them). Pop-ups without a tap are blocked; choose Always allow when asked to allow a site, and review or reset the list here." />
                   <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage, cached files, saved site icons and tab snapshots, plus this session\'s sign-ins, permissions and certificate exceptions. You will be signed out of websites." />

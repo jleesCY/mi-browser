@@ -488,8 +488,9 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                             Box(contentAlignment = Alignment.CenterStart) {
                                 if (tfv.text.isEmpty()) Txt(if (incognito) "Search privately" else "Search", 16f, ui.cs.onSurfaceVariant, FontWeight.W600)
                                 val pillColor = ui.cs.primaryContainer
+                                val bangs = vm.bangs
+                                val n = remember(tfv.text, bangs) { typedBangLength(tfv.text, bangs) }
                                 Box(Modifier.drawBehind {
-                                    val n = typedBangLength(tfv.text, vm.bangs)
                                     val l = textLayout ?: return@drawBehind
                                     // transformed text: thin space (0), "!key" (1..n), en space (n+1). The pill wraps "!key" with the
                                     // same padding each side; skipped while the text is wider than the field and scrolled

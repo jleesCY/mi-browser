@@ -9,6 +9,8 @@ import kotlinx.serialization.Transient
 @Serializable
 data class Settings(
     val themeMode: String = "dark", // light | dark | system
+    /** Dark theme on true black (OLED screens): backgrounds black, cards a hair lighter. */
+    val pureBlack: Boolean = false,
     val accentColor: String = "#007AFF",
     val searchEngineIndex: Int = 0,
     /** Your own search engine (index = number of built-ins): a name and an address with %s for the query. */
@@ -36,7 +38,16 @@ data class Settings(
     val httpsOnly: Boolean = false,
     val blockCookies: Boolean = false,
     val blockThirdPartyCookies: Boolean = false, // payment and sign-in iframes (PayPal, SSO) need them, as in Chrome
+    /** Ad blocking (AdBlock.kt), each part on its own: ads (EasyList + hosts list), trackers (EasyPrivacy), cookie banners. */
+    val blockAds: Boolean = true,
     val blockTrackers: Boolean = true,
+    val hideCookieBanners: Boolean = true,
+    /** Strip tracking parameters (utm_*, fbclid, gclid…) from links you open, copy or share. */
+    val stripTrackingParams: Boolean = true,
+    /** Sites (hosts) where ad, tracker and cookie-banner blocking is off. */
+    val adAllowlist: List<String> = emptyList(),
+    /** Videos wait for a tap instead of playing on their own. */
+    val blockAutoplay: Boolean = false,
     val searchSuggestions: Boolean = true,
     val incognitoSuggestions: Boolean = false,
     val historyLoadCount: Int = 10,

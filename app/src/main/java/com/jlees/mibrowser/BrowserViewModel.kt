@@ -1,6 +1,7 @@
 // State + actions. Port of legacy/app/index.tsx handlers and the hooks in legacy/src/hooks/*
 package com.jlees.mibrowser
 
+import androidx.compose.runtime.derivedStateOf
 import com.jlees.mibrowser.logic.allBangs
 import androidx.compose.runtime.mutableFloatStateOf
 import com.jlees.mibrowser.logic.searchEngine
@@ -127,22 +128,42 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             pendingShortcut?.let { openFromShortcut(it); pendingShortcut = null }
             launchSavers()
             checkForUpdate()
-            Blocklist.load(getApplication())
+            AdBlock.load(getApplication())
+            AdBlock.updateIfStale(getApplication()) // weekly, on unmetered networks
         }
     }
 
-    val searchEngine get() = searchEngine(settings.searchEngineIndex, settings.customSearchName, settings.customSearchUrl)
-    val bangs get() = allBangs(settings.customBangs, searchEngine)
+    /** Cached until the settings change (read on every keystroke and redraw of the Pill). */
+    val searchEngine by derivedStateOf { searchEngine(settings.searchEngineIndex, settings.customSearchName, settings.customSearchUrl) }
+    val bangs by derivedStateOf { allBangs(settings.customBangs, searchEngine) }
 
     /** Pull to refresh on the current page: 0 = idle, 1 = released here reloads (WebViewHost reports it). */
     var pullProgress by mutableFloatStateOf(0f)
 
-    /** Launcher shortcuts (MainActivity): "newTab" / "incognito". */
+    /** Launcher shortcuts and the search widget (MainActivity): "newTab" / "incognito" / "search" (new tab, typing). */
     fun openFromShortcut(kind: String) {
         switcherVisible = false; isSubMenuVisible = false; activeView = "none"
         addNewTab(incognito = kind == "incognito" && incognitoSupported)
+        // the widget's search bar: focus the Pill once the new tab is on screen (the activity may still be starting)
+        if (kind == "search") viewModelScope.launch { kotlinx.coroutines.delay(400); ui.emit(UiEvent.FocusInput) }
     }
     private var pendingShortcut: String? = null
+
+    /** [url] without tracking parameters when that setting is on (links opened, copied or shared). */
+    fun cleanLink(url: String) = if (settings.stripTrackingParams) stripTracking(url) else url
+
+    /** The current page's site with ad blocking off ("Block ads here" in the tab menu), or null. */
+    fun adsAllowedHere(): String? {
+        val h = displayHost(activeUrl).takeIf { it.isNotEmpty() } ?: return null
+        return settings.adAllowlist.firstOrNull { h == it || h.endsWith(".$it") }
+    }
+    /** Turns ad blocking off / back on for the current page's site (by its registrable domain) and reloads it. */
+    fun toggleAdsHere() {
+        val host = displayHost(activeUrl).takeIf { it.isNotEmpty() } ?: return
+        val allowed = adsAllowedHere()
+        updateSettings { copy(adAllowlist = if (allowed != null) adAllowlist - allowed else adAllowlist + com.jlees.mibrowser.data.AdBlock.registrable(host)) }
+        web.tryEmit(WebCmd.Reload(activeTabId))
+    }
 
     // ---------------------------------------------------------------- search suggestions
     var suggestions by mutableStateOf(listOf<String>())
@@ -318,6 +339,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     private fun migrate(s: Settings): Settings {
         var m = s
         if (m.settingsVersion < 1) m = m.copy(blockThirdPartyCookies = false, settingsVersion = 1)
+        // 1.3: "Block Ads & Trackers" (blockTrackers) split into ads / trackers / cookie banners: whoever had it off keeps
+        // all three off (cookie banners only worked with it on)
+        if (m.settingsVersion < 2) m = m.copy(blockAds = m.blockTrackers, hideCookieBanners = m.hideCookieBanners && m.blockTrackers, settingsVersion = 2)
         return m
     }
 
@@ -463,16 +487,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun loadInTab(id: String, url: String) = updateTab(id) { copy(url = url, requestedUrl = url, loading = true, loadNonce = loadNonce + 1, httpFallback = false) }
 
     fun submitInput(text: String = inputUrl) {
-        val url = inputToUrl(text, settings.httpsOnly, searchEngine, bangs) ?: return
+        val url = inputToUrl(text, settings.httpsOnly, searchEngine, bangs)?.let(::cleanLink) ?: return
         navigateTab(url, text.trim())
         // like Chrome: a typed address tries https first and falls back to http if https can't connect
         if (!settings.httpsOnly && isTypedHttpsUpgrade(text, url)) updateTab(activeTabId) { copy(httpFallback = true) }
-    }
-
-    fun goHome() {
-        updateTab(activeTabId) { copy(url = null, requestedUrl = null, title = "New Tab", loading = false) }
-        inputUrl = ""
-        isLoading = false
     }
 
     /** Back/forward via WebView, falling back to the stored stack (restored sessions). */
@@ -518,7 +536,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Deep link / VIEW intent while running. */
     /** [incognito]: the link came from an incognito page, so its tab stays incognito. */
     fun handleIncomingUrl(raw: String?, incognito: Boolean = false) {
-        val url = parseDeepLink(raw) ?: return
+        val url = parseDeepLink(raw)?.let(::cleanLink) ?: return
         addNewTab(url, incognito)
         activeView = "none"
     }

@@ -69,14 +69,15 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
     val s = vm.settings
     val dark = when (s.themeMode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
     val ctx = LocalContext.current
-    val cs = if (s.accentColor == DYNAMIC_ACCENT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val baseScheme = if (s.accentColor == DYNAMIC_ACCENT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
     } else rememberDynamicColorScheme(
         seedColor = Color(hexColor(s.accentColor)), isDark = dark,
         style = if (s.accentColor == GRAY_ACCENT) PaletteStyle.Monochrome else PaletteStyle.Vibrant,
     )
-    val ui = UiConfig(cs, dark, s.cornerRadius, s.fontScale, s.uiPadding, sansFlex(s.roundedFont))
-    MaterialExpressiveTheme(colorScheme = cs, motionScheme = MotionScheme.expressive(), typography = sansFlexTypography(s.roundedFont)) {
+    val scheme = if (dark && s.pureBlack) remember(baseScheme) { pureBlack(baseScheme) } else baseScheme
+    val ui = UiConfig(scheme, dark, s.cornerRadius, s.fontScale, s.uiPadding, sansFlex(s.roundedFont))
+    MaterialExpressiveTheme(colorScheme = scheme, motionScheme = MotionScheme.expressive(), typography = sansFlexTypography(s.roundedFont)) {
     CompositionLocalProvider(LocalUi provides ui) {
     // incognito: the keyboard app is asked not to learn from anything typed in mi's own fields (pill, dialogs)
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
@@ -130,24 +131,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             activity.requestedOrientation = if (fullscreen) ActivityInfo.SCREEN_ORIENTATION_FULL_USER else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
 
-        // ---- incognito: no screenshots, screen recording or recent-apps thumbnail while an incognito tab is showing
-        val incognitoShown = vm.currentTab?.incognito == true
-        val incognitoCount = vm.tabs.count { it.incognito }
-        val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
-            updateIncognitoNotice(activity, vm.tabs.count { t -> t.incognito })
-        }
-        LaunchedEffect(incognitoCount) {
-            // off the main thread: the binder calls would hold up the incognito wave's first frames
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { updateIncognitoNotice(activity, incognitoCount) }
-            // asked when the first incognito tab opens (Android stops asking after two refusals)
-            if (incognitoCount > 0 && Build.VERSION.SDK_INT >= 33 &&
-                activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        }
-        LaunchedEffect(incognitoShown) {
-            if (incognitoShown) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-            else activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-        }
+        IncognitoEffects(vm, activity)
 
         // ---- only the visible tab's page runs; the others pause their animations and location updates
         LaunchedEffect(vm.activeTabId) { host.applyActivity() }
@@ -336,5 +320,46 @@ private fun PullIndicator(vm: BrowserViewModel, statusDp: Float) {
         ) {
             Sym("refresh", 24f, if (ready) ui.cs.onPrimaryContainer else ui.cs.onSurfaceVariant, Modifier.graphicsLayer { rotationZ = p * 300f })
         }
+    }
+}
+
+/**
+ * The OLED variant of a dark scheme: everything that fills the screen is true black (pixels off); cards, menus,
+ * dialogs and the pill stay a step above it, with a hint of the accent, so they still read as surfaces.
+ */
+private fun pureBlack(cs: androidx.compose.material3.ColorScheme): androidx.compose.material3.ColorScheme {
+    fun step(v: Int) = androidx.compose.ui.graphics.lerp(Color(0xFF000000.toInt() or (v shl 16) or (v shl 8) or v), cs.primary, 0.04f)
+    return cs.copy(
+        // full-screen backgrounds (pages, Settings, Library, the search drawer: surfaceContainerLow) are black
+        background = Color.Black, surface = Color.Black, surfaceDim = Color.Black, surfaceContainerLowest = Color.Black,
+        surfaceContainerLow = Color.Black, surfaceContainer = step(0x12), surfaceContainerHigh = step(0x1C),
+        surfaceContainerHighest = step(0x26), surfaceBright = step(0x2E), inverseOnSurface = Color.Black,
+    )
+}
+
+/**
+ * Incognito side effects: no screenshots / screen recording / recent-apps thumbnail while an incognito tab shows, and
+ * the "close incognito tabs" notification. Its own composable, so tab-list updates (titles, loading) recompose only
+ * this, not the whole app.
+ */
+@Composable
+private fun IncognitoEffects(vm: BrowserViewModel, activity: Activity) {
+    // ---- incognito: no screenshots, screen recording or recent-apps thumbnail while an incognito tab is showing
+    val incognitoShown = vm.currentTab?.incognito == true
+    val incognitoCount = vm.tabs.count { it.incognito }
+    val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
+        updateIncognitoNotice(activity, vm.tabs.count { t -> t.incognito })
+    }
+    LaunchedEffect(incognitoCount) {
+        // off the main thread: the binder calls would hold up the incognito wave's first frames
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { updateIncognitoNotice(activity, incognitoCount) }
+        // asked when the first incognito tab opens (Android stops asking after two refusals)
+        if (incognitoCount > 0 && Build.VERSION.SDK_INT >= 33 &&
+            activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+    LaunchedEffect(incognitoShown) {
+        if (incognitoShown) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        else activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
     }
 }

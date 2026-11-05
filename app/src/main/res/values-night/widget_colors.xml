@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search widget colours (Android 12+: from your wallpaper, like other widgets). -->
+<resources>
+    <color name="widget_surface">#FF2A2C33</color>
+    <color name="widget_text">#FFE3E3E8</color>
+    <color name="widget_accent">#FFA8C7FA</color>
+    <color name="widget_ripple">#1FFFFFFF</color>
+</resources>

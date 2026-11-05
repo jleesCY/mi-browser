@@ -1,8 +1,21 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-// Settings: one scrolling page of sections (no drill-down). A pinned search field and a row of section shortcuts sit
-// on top; every row has an icon, a title and a one-line explanation, and the whole row is the touch target.
+// Settings: a main page (search field + the list of sections) where search covers every setting, and one page per
+// section (back arrow, no search field). Every row has an icon, a title and a one-line explanation, and the whole row
+// is the touch target.
 package com.jlees.mibrowser.ui.settings
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.rememberCoroutineScope
+import com.jlees.mibrowser.data.AdBlock
 import androidx.compose.material3.IconButton
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,7 +34,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Slider
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +67,8 @@ import kotlinx.coroutines.withContext
 
 /** A setting row: [label] and [keywords] are what search matches; [content] draws it. */
 private class SRow(val label: String, val keywords: String = "", val content: @Composable () -> Unit)
-private class SGroup(val id: String, val title: String, val icon: String, val rows: List<SRow>)
+/** A section: its own page from the main list ([summary] says what's in it). */
+private class SGroup(val id: String, val title: String, val icon: String, val summary: String, val rows: List<SRow>)
 
 private const val GUIDE_URL = "https://jleescy.github.io/mi-browser/user"
 private const val SOURCE_URL = "https://github.com/jleescy/mi-browser"
@@ -110,9 +123,12 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     }
 
     val groups = listOf(
-        SGroup("appearance", "Appearance", "palette", listOf(
+        SGroup("appearance", "Appearance", "palette", "Theme, pure black, accent colour, fonts, corners", listOf(
             SRow("Theme", "light dark system mode") {
                 ChoiceItem("routine", "Theme", null, listOf("light" to "Light", "dark" to "Dark", "system" to "System"), s.themeMode) { set { copy(themeMode = it) } }
+            },
+            SRow("Pure Black", "oled amoled black dark battery") {
+                if (s.themeMode != "light") SwitchItem("contrast", "Pure Black (OLED)", "True black backgrounds in dark mode: saves battery on OLED screens", s.pureBlack) { set { copy(pureBlack = it) } }
             },
             SRow("Accent Color", "colour wallpaper material you dynamic") { AccentItem(vm) },
             SRow("Font Size", "text scale app") {
@@ -130,7 +146,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 SwitchItem("contrast", "Darken Web Pages", "In dark theme, darken sites that have no dark mode", s.darkenPages) { set { copy(darkenPages = it) } }
             },
         )),
-        SGroup("browsing", "Search & Browsing", "travel_explore", listOf(
+        SGroup("browsing", "Search & Browsing", "travel_explore", "Search engine, suggestions, autoplay, startup", listOf(
             SRow("Search Engine", "google bing duckduckgo brave ecosia yahoo") { SearchEngineItem(vm) },
             SRow("Search Suggestions", "autocomplete") {
                 SwitchItem("search", "Search Suggestions", "Suggestions from your search engine while the search drawer is open", s.searchSuggestions) { set { copy(searchSuggestions = it) } }
@@ -140,6 +156,9 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             },
             SRow("Suggestions in Incognito", "autocomplete private incognito") {
                 SwitchItem("incognito", "Suggestions in Incognito", "Off: what you type in an incognito tab isn't sent to your search engine until you search", s.incognitoSuggestions) { set { copy(incognitoSuggestions = it) } }
+            },
+            SRow("Block Video Autoplay", "autoplay video sound media") {
+                SwitchItem("block", "Block Video Autoplay", "Videos wait for a tap instead of playing on their own", s.blockAutoplay) { set { copy(blockAutoplay = it) } }
             },
             SRow("Page Text Size", "zoom font web websites") {
                 SliderItem("format_size", "Page Text Size", "Text size on websites", s.textZoom / 100f, 0.5f, 2f) { set { copy(textZoom = Math.round(it * 100)) } }
@@ -159,11 +178,11 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                     trailing = { if (isDefault) Sym("check", 22f, ui.cs.primary) else Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) })
             },
         )),
-        SGroup("shortcuts", "Search Shortcuts", "bolt", listOf(
+        SGroup("shortcuts", "Search Shortcuts", "bolt", "!w, !yt, !se and your own", listOf(
             SRow("Your Shortcuts", "bang custom add search shortcut") { CustomBangsItem(vm) },
             SRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
         )),
-        SGroup("pill", "Pill & Home", "toolbar", listOfNotNull(
+        SGroup("pill", "Pill & Home", "toolbar", "Loading bar, favorites, home page", listOfNotNull(
             SRow("Loading Bar", "progress") {
                 ChoiceItem("hourglass_empty", "Loading Bar", "Fill behind the address while a page loads", listOf("ltr" to "Standard", "center" to "Center Out", "none" to "Hidden"), s.progressBarMode) { set { copy(progressBarMode = it) } }
             },
@@ -178,7 +197,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             SRow("Home Date", "calendar") { ChoiceItem("calendar_today", "Home Date", null, listOf("None", "Above", "Below").map { it to it }, s.homeDateType) { set { copy(homeDateType = it) } } },
             SRow("Home Shortcut", "button action qr scan") { ShortcutItem(vm) },
         )),
-        SGroup("tabs", "Tabs & Library", "library_books", listOf(
+        SGroup("tabs", "Tabs & Library", "library_books", "Tab icons, background refresh, history", listOf(
             SRow("Site Icons on Tabs", "logo favicon switcher") { SwitchItem("tab", "Site Icons on Tabs", "Show each site's icon in the tab switcher", s.showTabLogo) { set { copy(showTabLogo = it) } } },
             SRow("Background Refresh", "preload tabs startup") {
                 SwitchItem("bolt", "Background Refresh", "Load open tabs when mi starts for instant switching (uses more battery)", s.backgroundRefresh) { on ->
@@ -194,8 +213,23 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             },
             SRow("Clear History", "delete history") { ClearHistoryItem(vm) },
         )),
-        SGroup("privacy", "Privacy & Security", "shield", listOf(
-            SRow("Block Ads & Trackers", "adblock") { SwitchItem("shield", "Block Ads & Trackers", "Built-in list of ad and tracking domains", s.blockTrackers) { set { copy(blockTrackers = it) } } },
+        SGroup("adblock", "Ad Blocking", "block", "Ads, trackers, cookie banners, allowed sites", listOf(
+            SRow("Block Ads", "adblock easylist banner ads malware") {
+                SwitchItem("block", "Block Ads", "Ads and ad networks (EasyList and a malware and ad domain list)", s.blockAds) { set { copy(blockAds = it) } }
+            },
+            SRow("Block Trackers", "tracking analytics easyprivacy fingerprint") {
+                SwitchItem("travel_explore", "Block Trackers", "Analytics and tracking scripts that follow you across sites (EasyPrivacy)", s.blockTrackers) { set { copy(blockTrackers = it) } }
+            },
+            SRow("Hide Cookie Banners", "consent gdpr popup cookie") {
+                SwitchItem("cookie", "Hide Cookie Banners", "Cookie-consent pop-ups (EasyList Cookie List). Turn off if a site won't let you continue", s.hideCookieBanners) { set { copy(hideCookieBanners = it) } }
+            },
+            SRow("Remove Tracking from Links", "utm fbclid gclid parameters clean url") {
+                SwitchItem("content_copy", "Remove Tracking from Links", "Strips utm_, fbclid, gclid and similar tags from links you open, copy or share", s.stripTrackingParams) { set { copy(stripTrackingParams = it) } }
+            },
+            SRow("Allowed Sites", "whitelist exception allow ads site") { AllowedSitesItem(vm) },
+            SRow("Update Filter Lists", "adblock update easylist") { FilterListsItem(vm) },
+        )),
+        SGroup("privacy", "Privacy & Security", "shield", "HTTPS, cookies, JavaScript, pop-ups, clearing data", listOf(
             SRow("HTTPS Only", "secure ssl tls") { SwitchItem("lock", "HTTPS Only", "Always use secure connections (local addresses excluded)", s.httpsOnly) { set { copy(httpsOnly = it) } } },
             SRow("Block Third-Party Cookies", "cross-site tracking") {
                 SwitchItem("cookie", "Block Third-Party Cookies", "Stops cross-site cookies; can break payment and sign-in windows", s.blockThirdPartyCookies) { set { copy(blockThirdPartyCookies = it) } }
@@ -218,7 +252,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 Item("delete", "Clear Browsing Data", "Cookies, site data, cache, site icons and tab snapshots", danger = true, onClick = { vm.confirm = ConfirmData("clearData") })
             },
         )),
-        SGroup("data", "Backup & Reset", "save", listOf(
+        SGroup("data", "Backup & Reset", "save", "Export, import, reset", listOf(
             SRow("Export Settings", "backup save") {
                 Item("upload", "Export Settings", "Save your settings to a file", onClick = { exporter.launch("settings_${System.currentTimeMillis()}.midata") })
             },
@@ -230,7 +264,10 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 Item("delete", "Wipe All Data", "Delete bookmarks, history, tabs, favorites and settings", danger = true, onClick = { vm.confirm = ConfirmData("wipeData") })
             },
         )),
-        SGroup("about", "About", "info", listOf(
+        SGroup("about", "About", "info", "Updates, guide, source code, credits", listOf(
+            SRow("Filter List Credits", "easylist license adblock") {
+                Item("info", "Filter lists", "EasyList, EasyPrivacy and the EasyList Cookie List by The EasyList authors (CC BY-SA 3.0). StevenBlack hosts (MIT).")
+            },
             SRow("Check for Updates", "version update") {
                 Item("restart_alt", "Check for Updates", "mi browser ${BuildConfig.VERSION_NAME}", onClick = { vm.checkForUpdatesNow() })
             },
@@ -244,74 +281,50 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         )),
     )
 
-    // ---- search: rows whose title, keywords or section match
+    // ---- the main page lists the sections (and searches every setting); a section opens as its own page, without the
+    // search bar. Back (or the arrow) returns to the list.
     val q = search.trim().lowercase()
-    val visible = groups.mapNotNull { g ->
-        if (q.isEmpty() || g.title.lowercase().contains(q)) g
-        else g.rows.filter { it.label.lowercase().contains(q) || it.keywords.contains(q) }.takeIf { it.isNotEmpty() }?.let { SGroup(g.id, g.title, g.icon, it) }
+    val visible = if (q.isEmpty()) emptyList() else groups.mapNotNull { g ->
+        if (g.title.lowercase().contains(q)) g
+        else g.rows.filter { it.label.lowercase().contains(q) || it.keywords.contains(q) }.takeIf { it.isNotEmpty() }?.let { SGroup(g.id, g.title, g.icon, g.summary, it) }
     }
-
-    // ---- the page is a lazy list: each section's header pins to the top while its rows scroll under it, and the
-    // next section's header pushes it away. Shortcut chips jump to a section; the pinned section's chip is highlighted.
-    val hasBanner = q.isEmpty() && !isDefault
-    val headerIndex = remember(visible, hasBanner) {
-        var i = if (hasBanner) 1 else 0
-        visible.associate { g -> (g.id to i).also { i += 1 + g.rows.size } }
-    }
-    val inView by remember(headerIndex) {
-        derivedStateOf {
-            if (!list.canScrollForward && list.canScrollBackward) return@derivedStateOf visible.lastOrNull()?.id ?: groups.first().id // at the bottom
-            // the pinned header (or the next one once it's in the top third); the first item in view can be a row of the
-            // previous section still hidden under the pinned header, so it can't decide this
-            val info = list.layoutInfo
-            info.visibleItemsInfo.filter { (it.key as? String)?.startsWith("h:") == true && it.offset <= info.viewportSize.height / 3 }
-                .maxByOrNull { it.offset }?.let { (it.key as String).removePrefix("h:") } ?: visible.firstOrNull()?.id ?: groups.first().id
-        }
-    }
-    // A long animated jump would build and lay out every row in between (dropped frames); instead, snap to a few rows
-    // short of the section and animate just those, so it still glides in from the direction of travel.
-    suspend fun jumpTo(target: Int) {
-        val from = list.firstVisibleItemIndex
-        if (kotlin.math.abs(target - from) > 4) list.scrollToItem(if (target > from) target - 3 else target + 3)
-        list.animateScrollToItem(target)
-    }
-    val chips = rememberLazyListState()
-    LaunchedEffect(inView) { groups.indexOfFirst { it.id == inView }.takeIf { it >= 0 }?.let { chips.animateScrollToItem(it) } } // keep the active chip in view
+    var openId by rememberSaveable { mutableStateOf<String?>(null) }
+    BackHandler(enabled = openId != null) { openId = null }
     val sheetBg = ui.cs.surfaceContainerLow
 
-    Column(Modifier.fillMaxSize()) {
-        SheetSearchField(search, { vm.settingsSearch = it }, "Search Settings...", Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp))
-        if (q.isEmpty()) {
-            LazyRow(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 10.dp), state = chips, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(groups, key = { it.id }) { g ->
-                    val active = g.id == inView
-                    Row(
-                        Modifier.height(40.dp).clip(CircleShape).background(if (active) ui.cs.secondaryContainer else ui.cs.surfaceContainerHigh)
-                            .touchable { headerIndex[g.id]?.let { i -> scope.launch { jumpTo(i) } } }.padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Sym(g.icon, 18f, if (active) ui.cs.onSecondaryContainer else ui.cs.onSurfaceVariant, Modifier.padding(end = 6.dp))
-                        Txt(g.title, 14f, if (active) ui.cs.onSecondaryContainer else ui.cs.onSurface, ui.semibold)
+    // keyed on the section's id: the section objects are rebuilt with every settings change, and keying on them made
+    // each switch replay the page transition. A plain slide, no spring.
+    AnimatedContent(
+        openId, Modifier.fillMaxSize(), label = "settings page",
+        transitionSpec = {
+            val forward = targetState != null
+            (slideInHorizontally(tween(220)) { if (forward) it / 3 else -it / 3 } + fadeIn(tween(160))) togetherWith
+                (slideOutHorizontally(tween(220)) { if (forward) -it / 4 else it / 4 } + fadeOut(tween(120)))
+        },
+    ) { pageId ->
+        val page = groups.firstOrNull { it.id == pageId }
+        if (page == null) TopBarOver(sheetBg, bar = {
+            SheetSearchField(search, { vm.settingsSearch = it }, "Search Settings...", Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp))
+        }) { top ->
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = 48.dp)) {
+                if (q.isEmpty()) {
+                    if (!isDefault) item(key = "banner") { DefaultBrowserCard(::requestDefault) }
+                    itemsIndexed(groups, key = { _, g -> "s:${g.id}" }) { i, g ->
+                        Box(Modifier.segment(i, groups.size)) { Item(g.icon, g.title, g.summary, onClick = { openId = g.id }, trailing = { Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) }) }
                     }
-                }
-            }
-        }
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 48.dp)) {
-                if (hasBanner) item(key = "banner") { DefaultBrowserCard(::requestDefault) }
-                if (visible.isEmpty()) item(key = "empty") {
-                    Column(Modifier.fillMaxWidth().padding(top = 60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Sym("search", 44f, ui.cs.onSurfaceVariant)
-                        Txt("No settings match \"$search\"", 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 10.dp))
+                } else {
+                    if (visible.isEmpty()) item(key = "empty") {
+                        Column(Modifier.fillMaxWidth().padding(top = 60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Sym("search", 44f, ui.cs.onSurfaceVariant)
+                            Txt("No settings match \"$search\"", 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 10.dp))
+                        }
                     }
-                }
-                visible.forEach { g ->
-                    stickyHeader(key = "h:${g.id}") { SectionHeader(g.icon, g.title, sheetBg) }
-                    itemsIndexed(g.rows, key = { _, r -> "${g.id}:${r.label}" }) { i, r ->
-                        Box(
-                            Modifier.animateItem().fillMaxWidth().padding(bottom = if (i < g.rows.size - 1) 2.dp else 0.dp)
-                                .clip(segmentShape(i, g.rows.size, ui.radius)).background(ui.cs.surfaceContainerHighest),
-                        ) { r.content() }
+                    // results grouped by section (headers scroll with them, under the search bar)
+                    visible.forEach { g ->
+                        item(key = "h:${g.id}") { SectionHeader(g.icon, g.title) }
+                        itemsIndexed(g.rows, key = { _, r -> "${g.id}:${r.label}" }) { i, r ->
+                            Box(Modifier.animateItem().segment(i, g.rows.size)) { r.content() }
+                        }
                     }
                 }
                 item(key = "footer") {
@@ -320,26 +333,50 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                     }
                 }
             }
-            // softens the top edge for anything scrolling under the shortcut bar before a header is pinned
-            Box(Modifier.fillMaxWidth().height(16.dp).background(Brush.verticalGradient(listOf(sheetBg, sheetBg.copy(alpha = 0f)))))
+        } else TopBarOver(sheetBg, bar = {
+            // a section's page: back arrow and title instead of the search bar
+            Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 20.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { openId = null }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
+                Sym(page.icon, 22f, ui.cs.primary, Modifier.padding(start = 4.dp, end = 10.dp))
+                Txt(page.title, 22f, ui.cs.onSurface, ui.bold, maxLines = 1)
+            }
+        }) { top ->
+            val pageList = rememberLazyListState()
+            LazyColumn(Modifier.fillMaxSize(), state = pageList, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = 48.dp)) {
+                itemsIndexed(page.rows, key = { _, r -> "${page.id}:${r.label}" }) { i, r ->
+                    Box(Modifier.segment(i, page.rows.size)) { r.content() }
+                }
+            }
         }
     }
 }
 
 /**
- * A pinned section header. Its background is the sheet's color so rows scrolling under it are hidden, and the
- * gradient tail below it makes them fade out instead of being cut off at a hard edge (when the header isn't pinned,
- * the tail is just the space above the section's first row).
+ * A top bar (search field, or a section's back arrow and title) that the list scrolls under: the bar sits on the sheet's
+ * colour with a soft fade below it, so rows slide behind it and fade out instead of being cut off. [content] gets the
+ * top padding that keeps its first row clear of the bar at rest.
  */
 @Composable
-private fun SectionHeader(icon: String, title: String, bg: Color) {
-    val ui = LocalUi.current
-    Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().background(bg).padding(start = 8.dp, top = 20.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Sym(icon, 18f, ui.cs.primary, Modifier.padding(end = 8.dp))
-            Txt(title, 15f, ui.cs.primary, ui.bold)
+private fun TopBarOver(bg: Color, bar: @Composable () -> Unit, content: @Composable (top: androidx.compose.ui.unit.Dp) -> Unit) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    var barPx by remember { mutableIntStateOf(0) }
+    val fade = 20.dp
+    Box(Modifier.fillMaxSize()) {
+        content(with(density) { barPx.toDp() } + fade)
+        Column(Modifier.fillMaxWidth()) {
+            Box(Modifier.fillMaxWidth().background(bg).padding(bottom = 6.dp).onSizeChanged { barPx = it.height }) { bar() }
+            Box(Modifier.fillMaxWidth().height(fade).background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0f)))))
         }
-        Box(Modifier.fillMaxWidth().height(14.dp).background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0f)))))
+    }
+}
+
+/** A section's title above its rows in search results. */
+@Composable
+private fun SectionHeader(icon: String, title: String) {
+    val ui = LocalUi.current
+    Row(Modifier.fillMaxWidth().padding(start = 8.dp, top = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Sym(icon, 18f, ui.cs.primary, Modifier.padding(end = 8.dp))
+        Txt(title, 15f, ui.cs.primary, ui.bold)
     }
 }
 
@@ -466,11 +503,48 @@ private fun SearchEngineItem(vm: BrowserViewModel) {
         // your own engine: picking it (or "Custom…") opens its editor
         val custom = isValidSearchTemplate(s.customSearchUrl)
         OptionRow(if (custom) s.customSearchName.ifBlank { "Custom" } else "Custom…", s.searchEngineIndex == SEARCH_ENGINES.size,
-            leading = { EngineIcon(vm.searchEngine.takeIf { s.searchEngineIndex == SEARCH_ENGINES.size } ?: com.jlees.mibrowser.logic.SearchEngine("Custom", s.customSearchUrl, "custom"), 20f) }) {
+            leading = { EngineIcon(vm.searchEngine.takeIf { s.searchEngineIndex == SEARCH_ENGINES.size } ?: com.jlees.mibrowser.logic.SearchEngine("Custom", s.customSearchUrl), 20f) }) {
             if (custom && s.searchEngineIndex != SEARCH_ENGINES.size) { vm.updateSettings { copy(searchEngineIndex = SEARCH_ENGINES.size) }; close() } else editing = true
         }
     }
     CustomEngineDialog(vm, editing) { editing = false }
+}
+
+/** Sites where blocking is off (added from the tab menu's "Block ads here"), each with a button to block again. */
+@Composable
+private fun AllowedSitesItem(vm: BrowserViewModel) {
+    val sites = vm.settings.adAllowlist
+    Column(Modifier.fillMaxWidth()) {
+        Item("public", "Allowed Sites", if (sites.isEmpty()) "None. To turn blocking off on a site, open the tab menu there and switch off Block ads here"
+            else "Blocking is off on ${sites.size} site${if (sites.size == 1) "" else "s"}")
+        sites.forEach { site ->
+            val ui = LocalUi.current
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 72.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Txt(site, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 1)
+                IconButton(onClick = { vm.updateSettings { copy(adAllowlist = adAllowlist - site) } }) { Sym("delete", 20f, ui.cs.onSurfaceVariant) }
+            }
+        }
+        if (sites.isNotEmpty()) Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** When the ad-blocking lists were last updated, with a button to update them now (they also update weekly on Wi-Fi). */
+@Composable
+private fun FilterListsItem(vm: BrowserViewModel) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var updating by remember { mutableStateOf(false) }
+    val updated = AdBlock.listsUpdated
+    val ago = if (updated == 0L) "Loading…" else android.text.format.DateUtils.getRelativeTimeSpanString(updated, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString()
+    Item("refresh", "Update Filter Lists", if (updating) "Updating…" else "Updated $ago. They also update weekly on Wi-Fi", onClick = {
+        if (updating) return@Item
+        updating = true
+        scope.launch {
+            val ok = AdBlock.updateIfStale(ctx.applicationContext, force = true)
+            updating = false
+            android.widget.Toast.makeText(ctx, if (ok) "Filter lists updated" else "Couldn't download the filter lists", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    })
 }
 
 /** A search shortcut in a list: its "!key" chip, the site's name, and (for yours) a delete button. */
@@ -531,14 +605,12 @@ private fun AddBangDialog(vm: BrowserViewModel, visible: Boolean, onClose: () ->
             DialogAction("Cancel", onClick = onClose)
             DialogAction("Add") { if (keyOk && urlOk) { vm.updateSettings { copy(customBangs = customBangs + (k to url.trim())) }; onClose() } }
         }) {
-            Txt("Shortcut", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
-            com.jlees.mibrowser.ui.ClearableField(key, { key = it }, placeholder = "e.g. ebay", modifier = Modifier.padding(bottom = 4.dp))
+            com.jlees.mibrowser.ui.LabeledField("Shortcut", key, { key = it }, Modifier.padding(bottom = 4.dp), placeholder = "e.g. ebay")
             Txt(
                 when { k.isNotEmpty() && !keyOk -> "Use up to 12 letters or numbers"; k in BANGS -> "Replaces the built-in !$k (${BANGS[k]!!.name})"; k == SEARCH_ENGINE_BANG -> "Replaces the built-in !se (your search engine)"; k.isNotEmpty() -> "You'll type !$k"; else -> " " },
                 12f, if (k.isNotEmpty() && !keyOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 12.dp),
             )
-            Txt("Search address", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
-            com.jlees.mibrowser.ui.ClearableField(url, { url = it }, uri = true, placeholder = "https://www.ebay.com/sch/i.html?_nkw=%s")
+            com.jlees.mibrowser.ui.LabeledField("Search address", url, { url = it }, uri = true, placeholder = "https://www.ebay.com/sch/i.html?_nkw=%s")
             Txt(
                 if (url.length > 8 && !urlOk) "Enter a web address starting with https://" else "Search the site for \"test\", copy the address of the results page, and put %s where \"test\" was.",
                 12f, if (url.length > 8 && !urlOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp), lineHeight = 16f,
@@ -561,10 +633,8 @@ private fun CustomEngineDialog(vm: BrowserViewModel, visible: Boolean, onClose: 
                 if (valid) { vm.updateSettings { copy(customSearchName = name.trim(), customSearchUrl = url.trim(), searchEngineIndex = SEARCH_ENGINES.size) }; onClose() }
             }
         }) {
-            Txt("Name", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
-            com.jlees.mibrowser.ui.ClearableField(name, { name = it }, placeholder = "e.g. Startpage", modifier = Modifier.padding(bottom = 15.dp))
-            Txt("Search address", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
-            com.jlees.mibrowser.ui.ClearableField(url, { url = it }, uri = true, placeholder = "https://example.com/search?q=%s")
+            com.jlees.mibrowser.ui.LabeledField("Name", name, { name = it }, Modifier.padding(bottom = 15.dp), placeholder = "e.g. Startpage")
+            com.jlees.mibrowser.ui.LabeledField("Search address", url, { url = it }, uri = true, placeholder = "https://example.com/search?q=%s")
             Txt(
                 if (url.length > 8 && !valid) "Enter a web address starting with https://" else "Put %s where your search should go. Suggestions aren't available for custom engines.",
                 12f, if (url.length > 8 && !valid) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp), lineHeight = 16f,
@@ -623,7 +693,7 @@ private fun CreditsItem() {
 private fun DefaultBrowserCard(onSet: () -> Unit) {
     val ui = LocalUi.current
     Row(
-        Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(ui.radius.coerceAtLeast(12).dp)).background(ui.cs.primaryContainer).padding(16.dp),
+        Modifier.fillMaxWidth().padding(bottom = 20.dp).clip(RoundedCornerShape(ui.radius.coerceAtLeast(12).dp)).background(ui.cs.primaryContainer).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Sym("public", 28f, ui.cs.onPrimaryContainer, Modifier.padding(end = 14.dp))
@@ -636,6 +706,13 @@ private fun DefaultBrowserCard(onSet: () -> Unit) {
 }
 
 /** Expressive segmented list: large outer corners, small inner corners, 2dp gaps. */
+/** Row [i] of [count] in a segmented card: full width, a 2dp gap below, rounded outer corners. */
+@Composable
+private fun Modifier.segment(i: Int, count: Int): Modifier {
+    val ui = LocalUi.current
+    return fillMaxWidth().padding(bottom = if (i < count - 1) 2.dp else 0.dp).clip(segmentShape(i, count, ui.radius)).background(ui.cs.surfaceContainerHighest)
+}
+
 private fun segmentShape(i: Int, count: Int, radius: Int): RoundedCornerShape {
     val big = radius.coerceAtLeast(4).dp
     val small = 4.dp

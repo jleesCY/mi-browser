@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.BookmarkNode
 import com.jlees.mibrowser.logic.*
-import com.jlees.mibrowser.ui.ClearableField
+import com.jlees.mibrowser.ui.LabeledField
 import com.jlees.mibrowser.ui.ModalFrame
 import com.jlees.mibrowser.ui.SheetSearchField
 import com.jlees.mibrowser.ui.common.*
@@ -142,11 +142,9 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
             } },
         ) {
             if (!picker) {
-                Txt("Title", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
-                ClearableField(title, { title = it }, titleFr, Modifier.padding(bottom = 15.dp))
+                LabeledField("Title", title, { title = it }, Modifier.padding(bottom = 15.dp), titleFr)
                 if (modalMode == "add_bookmark" || (modalMode == "edit" && editing?.isFolder == false)) {
-                    Txt("URL", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
-                    ClearableField(url, { url = it }, modifier = Modifier.padding(bottom = 15.dp), uri = true)
+                    LabeledField("URL", url, { url = it }, Modifier.padding(bottom = 15.dp), uri = true)
                 }
                 Txt("Location", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
                 Row(

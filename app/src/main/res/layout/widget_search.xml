@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search widget: tapping the bar opens a new tab ready to type; the icons open an incognito tab or the QR scanner. -->
+<!-- The cell can be taller than the bar: the pill keeps its own height, centred in it. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:layout_gravity="center_vertical"
+    android:background="@drawable/widget_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp">
+
+    <LinearLayout
+        android:id="@+id/widget_search"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/widget_touch"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/sym_search"
+            android:tint="@color/widget_accent" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/widget_search_hint"
+            android:textColor="@color/widget_text"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/widget_incognito"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/widget_touch"
+        android:contentDescription="@string/widget_incognito"
+        android:padding="11dp"
+        android:src="@drawable/sym_incognito"
+        android:tint="@color/widget_text" />
+
+    <ImageView
+        android:id="@+id/widget_qr"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/widget_touch"
+        android:contentDescription="@string/widget_qr"
+        android:padding="11dp"
+        android:src="@drawable/sym_qr_code_scanner"
+        android:tint="@color/widget_text" />
+</LinearLayout>
+</FrameLayout>

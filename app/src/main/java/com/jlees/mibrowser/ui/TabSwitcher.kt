@@ -49,8 +49,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.lerp
@@ -301,11 +300,13 @@ private fun TabCardView(
 @Composable
 private fun BlankPageMini(incognito: Boolean, showLogo: Boolean) {
     val windowW = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width.coerceAtLeast(1)
-    BoxWithConstraints(Modifier.fillMaxSize().background(com.jlees.mibrowser.ui.home.homeBackground(incognito)), contentAlignment = Alignment.Center) {
-        val sc = constraints.maxWidth.toFloat() / windowW
-        if (showLogo) Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }) {
-            if (incognito) com.jlees.mibrowser.ui.home.IncognitoMark() else com.jlees.mibrowser.ui.home.MiLogo()
-        }
+    // the whole page-sized box scales about its centre by card width / screen width (read at draw time, no extra pass)
+    Box(
+        Modifier.fillMaxSize().background(com.jlees.mibrowser.ui.home.homeBackground(incognito))
+            .graphicsLayer { val sc = size.width / windowW; scaleX = sc; scaleY = sc },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (showLogo) { if (incognito) com.jlees.mibrowser.ui.home.IncognitoMark() else com.jlees.mibrowser.ui.home.MiLogo() }
     }
 }
 
@@ -336,14 +337,14 @@ fun ZoomingTabHeader(vm: BrowserViewModel) {
     val tab = vm.currentTab ?: return
     val src = vm.pageBounds
     if (!vm.switcherVisible || vm.switcherSettled || src == null || src.width <= 0f) return
-    var h by remember { mutableIntStateOf(0) }
-    val gap = with(LocalDensity.current) { 10.dp.toPx() }
-    val r = zoomRect(src, vm.switcherTarget ?: with(LocalDensity.current) { estimatedCard(src) }, vm.switcherAnim.value.coerceIn(0f, 1f))
+    // the animation value is read only in layout and drawing (not composition), so frames don't recompose this
     TabHeader(
         tab, true, vm.settings.showTabLogo,
-        Modifier.width(with(LocalDensity.current) { r.width.toDp() }).offset { IntOffset(r.left.roundToInt(), (r.top - gap - h).roundToInt()) }
-            .onSizeChanged { h = it.height }
-            .graphicsLayer { alpha = vm.switcherAnim.value.coerceIn(0f, 1f) },
+        Modifier.layout { m, _ ->
+            val r = zoomRect(src, vm.switcherTarget ?: estimatedCard(src), vm.switcherAnim.value.coerceIn(0f, 1f))
+            val p = m.measure(androidx.compose.ui.unit.Constraints.fixedWidth(r.width.roundToInt().coerceAtLeast(1)))
+            layout(p.width, p.height) { p.place(r.left.roundToInt(), (r.top - 10.dp.toPx() - p.height).roundToInt()) }
+        }.graphicsLayer { alpha = vm.switcherAnim.value.coerceIn(0f, 1f) },
     )
 }
 

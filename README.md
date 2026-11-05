@@ -49,18 +49,21 @@
 - Pages' own Print and Share buttons, downloads, and local development sites (`localhost:3000`, LAN IPs, `.local`).
 
 ### Privacy & security
-- Built-in ad and tracker blocking, optional third-party cookie blocking, HTTPS-only mode and Safe Browsing.
+- **Ad, tracker and cookie-banner blocking**, each switchable on its own, with EasyList, EasyPrivacy and the EasyList Cookie List (the lists most ad blockers use) plus a malware and ad domain list. It blocks requests, hides leftover ad spaces and consent pop-ups, and updates itself weekly. Turn it off for a single site from the tab menu.
+- **Clean links**: tracking tags (`utm_*`, `fbclid`, `gclid`…) are removed from links you open, copy or share.
+- Optional third-party cookie blocking, HTTPS-only mode and Safe Browsing.
 - Per-site camera, microphone and location prompts; pop-up blocking; confirmation before downloads or opening other apps; punycode display for look-alike domains.
 - No tracking and no accounts. Site icons come from the sites themselves, never a third-party service.
 
 ### Material 3 Expressive
-- Colours from your accent or your wallpaper (Material You) in light, dark or system theme.
+- Colours from your accent or your wallpaper (Material You) in light, dark or system theme, with a **pure black (OLED)** option.
 - Google Sans Flex with an optional rounded style, Material Symbols, and spring-based motion that uses your display's full refresh rate.
+- Settings grouped into sections, each on its own page, with search across all of them.
 
 ## Installation
 Download the latest APK from the **[Releases page](https://github.com/jleescy/mi-browser/releases/latest)** and open it on your phone. Requires Android 8.0 or newer. mi checks for new releases itself and offers to install them.
 
-Long-press mi's icon for shortcuts to a new tab, a new incognito tab or the QR scanner.
+Long-press mi's icon for shortcuts to a new tab, a new incognito tab or the QR scanner, and add the **mi search widget** to your home screen.
 
 ## Building from source
 Requirements: Android Studio (latest stable), or JDK 17+ with the Android SDK (compile SDK 37).

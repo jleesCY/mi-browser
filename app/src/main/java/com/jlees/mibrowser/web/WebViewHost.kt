@@ -2,6 +2,7 @@
 // react-native-webview 13.15 Android defaults the app relied on (downloads, uploads, permissions, fullscreen).
 package com.jlees.mibrowser.web
 
+import com.jlees.mibrowser.logic.stripTracking
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -16,7 +17,7 @@ import android.os.Bundle
 import androidx.compose.ui.graphics.asImageBitmap
 import com.jlees.mibrowser.ui.common.cacheImage
 import android.view.ContextThemeWrapper
-import com.jlees.mibrowser.data.Blocklist
+import com.jlees.mibrowser.data.AdBlock
 import java.io.ByteArrayInputStream
 import android.graphics.Canvas
 import android.graphics.Color
@@ -258,6 +259,7 @@ class WebViewHost(
         if (wv.settings.textZoom != s.textZoom) wv.settings.textZoom = s.textZoom
         // only has an effect while the WebView's theme is dark (it follows the app theme, see create)
         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) WebSettingsCompat.setAlgorithmicDarkeningAllowed(wv.settings, s.darkenPages)
+        wv.settings.mediaPlaybackRequiresUserGesture = s.blockAutoplay
     }
 
     /** Last "pop-up blocked" notice (site|page), so a page that keeps trying doesn't stack dialogs. */
@@ -347,6 +349,7 @@ class WebViewHost(
 
     fun destroy(id: String) {
         if (id in printing) { closeAfterPrint += id; views[id]?.let { (it.parent as? ViewGroup)?.removeView(it) }; return }
+        pageHosts.remove(id)
         views.remove(id)?.let { wv ->
             (wv.parent as? ViewGroup)?.removeView(wv)
             // an incognito profile's HTTP cache is cleared with its last WebView (clearCache needs a live one)
@@ -428,8 +431,10 @@ class WebViewHost(
         if (profile != null) {
             // before anything else touches the WebView; never fall back to the shared profile
             check(WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) { "incognito needs WebView profiles" }
-            ProfileStore.getInstance().getOrCreateProfile(profile)
+            val p = ProfileStore.getInstance().getOrCreateProfile(profile)
             WebViewCompat.setProfile(wv, profile)
+            // incognito tabs' service workers live in their own profile: filter those too
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_SHOULD_INTERCEPT_REQUEST)) runCatching { p.serviceWorkerController.setServiceWorkerClient(profileServiceWorkerFilter) }
             loadedProfiles += profile
             viewProfile[id] = profile
             // no autofill service (password managers): nothing typed in incognito is saved or filled from outside
@@ -444,7 +449,6 @@ class WebViewHost(
             cacheMode = WebSettings.LOAD_DEFAULT
             @Suppress("DEPRECATION") saveFormData = true
             setGeolocationEnabled(true)
-            mediaPlaybackRequiresUserGesture = false
             javaScriptCanOpenWindowsAutomatically = true
             setSupportMultipleWindows(true)
             builtInZoomControls = true
@@ -473,6 +477,9 @@ class WebViewHost(
         // window.print() and navigator.share for pages (see BRIDGE_JS).
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             WebViewCompat.addWebMessageListener(wv, "miBridge", setOf("*"), bridge(id))
+            // element hiding: the page script asks what to hide on its host (see AdBlock.cosmeticScript)
+            WebViewCompat.addWebMessageListener(wv, "miAdBlock", setOf("*"), cosmetics)
+            WebViewCompat.addDocumentStartJavaScript(wv, AdBlock.COSMETIC_SCRIPT, setOf("*"))
             WebViewCompat.addDocumentStartJavaScript(wv, BRIDGE_JS, setOf("*"))
         }
         if (timersPaused && appVisible) { wv.resumeTimers(); timersPaused = false } // paused while every WebView was gone
@@ -550,9 +557,13 @@ class WebViewHost(
         vm.onWebNav(id, url, view.title, view.canGoBack(), view.canGoForward(), loading)
 
     private inner class Client(val id: String) : WebViewClient() {
-        /** Ad/tracker blocking: drop sub-resource requests to blocklisted hosts (runs on a WebView thread). */
-        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-            if (vm.settings.blockTrackers && !request.isForMainFrame && Blocklist.isBlocked(request.url.host)) emptyResponse else null
+        /** Ad, tracker and cookie-banner blocking of sub-resources (runs on a WebView thread). See [AdBlock]. */
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+            if (request.isForMainFrame) { request.url.host?.let { pageHosts[id] = it }; return null }
+            val s = vm.settings
+            val host = request.url.host ?: return null
+            return if (AdBlock.shouldBlock(request.url.toString(), host, pageHosts[id], request.requestHeaders["Accept"], s)) emptyResponse else null
+        }
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url.toString()
@@ -560,6 +571,11 @@ class WebViewHost(
             val gesture = request.hasGesture()
             if (url.startsWith("blob:") || url.startsWith("data:")) return false
             if (url.startsWith("mibrowser:")) { if (gesture) vm.handleIncomingUrl(url, incognito = isIncognito(id)); return true }
+            // a link carrying tracking parameters (utm_*, fbclid…) is opened without them
+            if (request.isForMainFrame && vm.settings.stripTrackingParams && request.method == "GET") {
+                val clean = stripTracking(url)
+                if (clean != url) { view.loadUrl(clean); return true }
+            }
             if (vm.settings.httpsOnly && url.startsWith("http://") && request.isForMainFrame && !isLocalHost(request.url.host)) {
                 vm.loadInTab(id, url.replaceFirst("http://", "https://"))
                 return true
@@ -575,6 +591,7 @@ class WebViewHost(
         }
 
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+            url?.let { Uri.parse(it).host }?.let { pageHosts[id] = it } // also for pages restored from history/cache
             errors.remove(id)
             dialogsBlocked.remove(id); dialogTimes.remove(id)
             nav(id, view, url, true)
@@ -994,7 +1011,38 @@ class WebViewHost(
 
     // last, so every property it touches is initialized: anything left from a previous run (e.g. the app was
     // killed with incognito tabs open) is deleted
-    init { releaseProfiles() }
+    /** Page host per tab, read by [Client.shouldInterceptRequest] on WebView threads (first-/third-party, $domain=). */
+    private val pageHosts = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val cosmetics = WebViewCompat.WebMessageListener { _, message, origin, isMainFrame, reply ->
+        val s = vm.settings
+        val host = origin.host ?: return@WebMessageListener
+        val data = message.data.orEmpty()
+        when {
+            data.startsWith("bad:") -> if (isMainFrame) AdBlock.dropInvalid(data.removePrefix("bad:"))
+            else -> reply.postMessage(AdBlock.cosmetics(host, isMainFrame, s))
+        }
+    }
+
+    /** Service workers fetch outside any tab's WebViewClient: their requests are filtered here (page unknown). */
+    private fun serviceWorkerRequest(request: WebResourceRequest): WebResourceResponse? {
+        val s = vm.settings
+        val host = request.url.host ?: return null
+        return if (!request.isForMainFrame && AdBlock.shouldBlock(request.url.toString(), host, null, request.requestHeaders["Accept"], s)) emptyResponse else null
+    }
+    private val serviceWorkerFilter = object : androidx.webkit.ServiceWorkerClientCompat() {
+        override fun shouldInterceptRequest(request: WebResourceRequest) = serviceWorkerRequest(request)
+    }
+    /** The same, for incognito profiles (their controller takes the platform client type). */
+    private val profileServiceWorkerFilter = object : android.webkit.ServiceWorkerClient() {
+        override fun shouldInterceptRequest(request: WebResourceRequest) = serviceWorkerRequest(request)
+    }
+
+    init {
+        releaseProfiles()
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_SHOULD_INTERCEPT_REQUEST)) {
+            androidx.webkit.ServiceWorkerControllerCompat.getInstance().setServiceWorkerClient(serviceWorkerFilter)
+        }
+    }
 }
 
 /**

@@ -5,14 +5,14 @@ import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-data class SearchEngine(val name: String, val url: String, val icon: String) {
+data class SearchEngine(val name: String, val url: String) {
     /** The search page for [query]: [url] is a prefix, or a template with %s where the query goes (custom engines). */
     fun urlFor(query: String) = if (url.contains("%s")) url.replace("%s", encodeComponent(query)) else url + encodeComponent(query)
 }
 
 /** The engine at [index]; one past the built-ins is the user's own (when it has a valid address). */
 fun searchEngine(index: Int, customName: String, customUrl: String): SearchEngine =
-    if (index == SEARCH_ENGINES.size && isValidSearchTemplate(customUrl)) SearchEngine(customName.ifBlank { "Custom" }, customUrl.trim(), "custom")
+    if (index == SEARCH_ENGINES.size && isValidSearchTemplate(customUrl)) SearchEngine(customName.ifBlank { "Custom" }, customUrl.trim())
     else SEARCH_ENGINES.getOrElse(index) { SEARCH_ENGINES[0] }
 
 fun isValidSearchTemplate(url: String) = url.trim().let { (it.startsWith("https://") || it.startsWith("http://")) && it.length > 10 && !it.contains(' ') }
@@ -52,7 +52,7 @@ private val BANG_TYPED = Regex("^!(\\w+)\\s")
 fun bangUrl(text: String, bangs: Map<String, String>): String? {
     val (key, query) = BANG_FIRST.find(text)?.destructured ?: return null
     val template = bangs[key.lowercase()] ?: return null
-    return SearchEngine("", template, "").urlFor(query.trim())
+    return SearchEngine("", template).urlFor(query.trim())
 }
 
 /** Length of a known shortcut typed at the start ("!w " → 2: the "!w"), or 0. */
@@ -62,12 +62,12 @@ fun typedBangLength(text: String, bangs: Map<String, String>): Int {
 }
 
 val SEARCH_ENGINES = listOf(
-    SearchEngine("Google", "https://www.google.com/search?q=", "logo-google"),
-    SearchEngine("Bing", "https://www.bing.com/search?q=", "grid-sharp"),
-    SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q=", "logo-tux"),
-    SearchEngine("Brave", "https://search.brave.com/search?q=", "shield-half-outline"),
-    SearchEngine("Ecosia", "https://www.ecosia.org/search?q=", "leaf"),
-    SearchEngine("Yahoo", "https://search.yahoo.com/search?p=", "logo-yahoo"),
+    SearchEngine("Google", "https://www.google.com/search?q="),
+    SearchEngine("Bing", "https://www.bing.com/search?q="),
+    SearchEngine("DuckDuckGo", "https://duckduckgo.com/?q="),
+    SearchEngine("Brave", "https://search.brave.com/search?q="),
+    SearchEngine("Ecosia", "https://www.ecosia.org/search?q="),
+    SearchEngine("Yahoo", "https://search.yahoo.com/search?p="),
 )
 
 /** JS encodeURIComponent equivalent. */
@@ -239,3 +239,20 @@ fun normalizeUrl(u: String) = u.replace(Regex("^https?://"), "").replace(Regex("
     .replace(Regex("/$"), "").replace(Regex("/index\\.html$"), "").lowercase()
 
 fun uniqueId(): String = java.util.UUID.randomUUID().toString()
+
+/** Query parameters that only exist to track the click (ad, email and social campaign IDs). */
+private val TRACKING_PARAMS = setOf(
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id", "utm_name", "utm_reader", "utm_social", "utm_brand",
+    "fbclid", "gclid", "dclid", "gbraid", "wbraid", "gclsrc", "msclkid", "yclid", "twclid", "ttclid", "igshid", "igsh", "li_fat_id",
+    "mc_cid", "mc_eid", "_hsenc", "_hsmi", "mkt_tok", "oly_anon_id", "oly_enc_id", "vero_id", "vero_conv", "s_cid", "srsltid",
+)
+
+/** [url] without tracking parameters ([TRACKING_PARAMS]); everything else (order, encoding, fragment) is kept. */
+fun stripTracking(url: String): String {
+    val q = url.indexOf('?')
+    if (q < 0 || !(url.startsWith("https://") || url.startsWith("http://"))) return url
+    val hash = url.indexOf('#', q).let { if (it < 0) url.length else it }
+    val kept = url.substring(q + 1, hash).split('&').filter { p -> p.isNotEmpty() && p.substringBefore('=').lowercase() !in TRACKING_PARAMS }
+    val query = if (kept.isEmpty()) "" else "?" + kept.joinToString("&")
+    return url.substring(0, q) + query + url.substring(hash)
+}

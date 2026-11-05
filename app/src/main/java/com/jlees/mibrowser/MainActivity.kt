@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> vm.handleIncomingUrl(intent.dataString)
             ACTION_SCAN_QR -> vm.qrScannerVisible = true
             ACTION_CLOSE_INCOGNITO -> vm.closeIncognitoTabs()
-            ACTION_NEW_TAB, ACTION_NEW_INCOGNITO -> shortcutOf(intent)?.let(vm::openFromShortcut)
+            ACTION_NEW_TAB, ACTION_NEW_INCOGNITO, ACTION_SEARCH -> shortcutOf(intent)?.let(vm::openFromShortcut)
         }
     }
 
@@ -128,9 +128,10 @@ class MainActivity : ComponentActivity() {
         const val ACTION_CLOSE_INCOGNITO = "com.jlees.mibrowser.CLOSE_INCOGNITO"
         const val ACTION_NEW_TAB = "com.jlees.mibrowser.NEW_TAB"
         const val ACTION_NEW_INCOGNITO = "com.jlees.mibrowser.NEW_INCOGNITO"
+        const val ACTION_SEARCH = "com.jlees.mibrowser.SEARCH"
     }
 
-    private fun shortcutOf(i: Intent?) = when (i?.action) { ACTION_NEW_TAB -> "newTab"; ACTION_NEW_INCOGNITO -> "incognito"; else -> null }
+    private fun shortcutOf(i: Intent?) = when (i?.action) { ACTION_NEW_TAB -> "newTab"; ACTION_NEW_INCOGNITO -> "incognito"; ACTION_SEARCH -> "search"; else -> null }
 
     /**
      * Long-press the launcher icon: New tab, New incognito tab (where WebView supports profiles) and Scan QR. Published

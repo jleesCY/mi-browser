@@ -1,39 +1,12 @@
-// Network helpers for browsing: the ad/tracker host blocklist and search-engine suggestions.
+// Network helpers for browsing: search-engine suggestions (ad blocking lives in AdBlock.kt).
 package com.jlees.mibrowser.data
 
-import android.content.Context
 import com.jlees.mibrowser.logic.encodeComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
-
-/** Host blocklist (assets/blocklist.txt). A host is blocked if it or any parent domain is listed. */
-object Blocklist {
-    @Volatile private var hosts: Set<String> = emptySet()
-
-    suspend fun load(ctx: Context) = withContext(Dispatchers.IO) {
-        if (hosts.isNotEmpty()) return@withContext
-        hosts = ctx.assets.open("blocklist.txt").bufferedReader().useLines { lines ->
-            lines.filter { it.isNotEmpty() && !it.startsWith("#") }.toHashSet()
-        }
-    }
-
-    fun isBlocked(host: String?): Boolean = isBlocked(host, hosts)
-
-    /** Suffix match: "a.b.ads.example.com" is blocked by "ads.example.com". */
-    fun isBlocked(host: String?, list: Set<String>): Boolean {
-        if (host.isNullOrEmpty() || list.isEmpty()) return false
-        var h = host.lowercase()
-        while (true) {
-            if (h in list) return true
-            val dot = h.indexOf('.')
-            if (dot < 0 || h.indexOf('.', dot + 1) < 0) return false // stop at the registrable "example.com"
-            h = h.substring(dot + 1)
-        }
-    }
-}
 
 /** Search suggestions from the selected engine (OpenSearch-style JSON: ["query", ["s1", "s2", …]]). */
 object Suggest {

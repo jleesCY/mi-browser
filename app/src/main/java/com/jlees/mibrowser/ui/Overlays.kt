@@ -191,8 +191,8 @@ fun SubMenu(vm: BrowserViewModel, modifier: Modifier) {
                 Txt(if (incognito) "Not saved to history" else displayHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
             }
             if (hasUrl) {
-                MenuIcon("content_copy") { copyText(ctx, url!!); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
-                MenuIcon("share") { dismiss(); shareText(ctx, url!!, "Share Link") }
+                MenuIcon("content_copy") { copyText(ctx, vm.cleanLink(url!!)); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
+                MenuIcon("share") { dismiss(); shareText(ctx, vm.cleanLink(url!!), "Share Link") }
             }
         }
 
@@ -217,7 +217,11 @@ fun SubMenu(vm: BrowserViewModel, modifier: Modifier) {
                     Tile("desktop_windows", "Desktop site", if (desktop) "On" else "Off", desktop) { vm.setDesktopMode(!desktop) }
                     Tile("chrome_reader_mode", "Reader mode", if (reader) "On" else "Off", reader) { vm.setReaderMode(!reader) }
                 }
-                Row { Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.findVisible = true } }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.findVisible = true }
+                    val blocking = vm.adsAllowedHere() == null
+                    Tile("shield", "Block ads here", if (!hasUrl) null else if (blocking) "On" else "Off for this site", hasUrl && blocking, hasUrl) { vm.toggleAdsHere() }
+                }
             }
 
             Section("Tools")
@@ -480,6 +484,21 @@ fun RenameDialog(vm: BrowserViewModel) {
 }
 
 /** Bordered input with a clear (close-circle) button, used by modals. */
+
+/** A field with its label above it (dialogs: bookmarks, search engine, search shortcuts). */
+@Composable
+fun LabeledField(
+    label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier,
+    fr: FocusRequester = remember { FocusRequester() }, uri: Boolean = false, placeholder: String? = null,
+) {
+    val ui = LocalUi.current
+    Column(modifier) {
+        Txt(label, 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
+        ClearableField(value, onChange, fr, uri = uri, placeholder = placeholder)
+    }
+}
+
+/** A text field with a clear (×) button. */
 @Composable
 fun ClearableField(
     value: String, onChange: (String) -> Unit, fr: FocusRequester = remember { FocusRequester() }, modifier: Modifier = Modifier,
@@ -568,14 +587,14 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
                 close()
             }
             if (target != null) Action("content_copy", if (d.url != null) "Copy Link" else "Copy Image Link") {
-                copyText(ctx, target)
+                copyText(ctx, vm.cleanLink(target))
                 close()
             }
             Action("edit", "Edit in Address Bar") {
                 if (target != null) { vm.activeView = "none"; vm.ui.tryEmit(UiEvent.FocusInput); vm.inputUrl = target }
                 close()
             }
-            Action("share", "Share") { target?.let { shareText(ctx, it) }; close() }
+            Action("share", "Share") { target?.let { shareText(ctx, vm.cleanLink(it)) }; close() }
             if (d.imgUrl != null) Action("download", "Save Image") { onSaveImage(d.imgUrl) }
         }
     }
