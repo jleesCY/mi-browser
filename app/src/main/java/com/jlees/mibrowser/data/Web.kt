@@ -46,10 +46,11 @@ object Suggest {
         "https://search.yahoo.com/sugg/os?output=fxjson&command=",
     )
 
-    suspend fun fetch(engineIndex: Int, query: String): List<String> = withContext(Dispatchers.IO) {
+    /** [cache] false (incognito): the response isn't written to the app's HTTP disk cache, so the query leaves no trace. */
+    suspend fun fetch(engineIndex: Int, query: String, cache: Boolean = true): List<String> = withContext(Dispatchers.IO) {
         runCatching {
             val conn = (URL(endpoints.getOrElse(engineIndex) { endpoints[0] } + encodeComponent(query)).openConnection() as HttpURLConnection)
-                .apply { connectTimeout = 4000; readTimeout = 4000 }
+                .apply { connectTimeout = 4000; readTimeout = 4000; useCaches = cache }
             val body = conn.inputStream.use { it.readBytes().decodeToString() }
             val arr = JSONArray(body).getJSONArray(1)
             List(arr.length()) { arr.getString(it) }.filter { it.isNotBlank() }.take(6)

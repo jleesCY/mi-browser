@@ -128,7 +128,7 @@ export default function Home() {
           tag="Utility"
           tagColor="text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20"
           title="Power in your pocket."
-          description="The Power Tools menu provides instant access to the utilities you use most. From built-in QR code generation and scanning to desktop mode toggles and a clean Reader View, everything is just a tap away in the Tab Switcher's ⋮ menu."
+          description="The tab menu puts the tools you use most a tap away: favorite, bookmark or pin the tab, switch desktop site or Reader mode, find in page, and scan or create QR codes. It's the ⋮ in the Tab Switcher."
           bullets={[
             "Integrated QR Toolbox",
             "One-tap Reader Mode",

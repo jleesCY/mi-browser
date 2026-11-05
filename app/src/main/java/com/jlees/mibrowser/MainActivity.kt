@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { vm.web.collect { host.handle(it) } }
         vm.capturePreview = host::capturePreview
 
+        updateIncognitoNotice(this, 0) // left over if the process ended while incognito tabs were open
         vm.start(if (intent?.action == Intent.ACTION_VIEW) intent.dataString else null)
         if (intent?.action == ACTION_SCAN_QR) vm.qrScannerVisible = true
 
@@ -106,7 +107,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         vm.capturePreview = null // the ViewModel outlives this Activity; don't keep its host alive
-        host.destroyAll()
+        host.destroyAll(finishing = isFinishing)
+        if (isFinishing) host.endProcessIfIncognitoUsed { vm.saveNow() }
         super.onDestroy()
     }
 
@@ -115,10 +117,37 @@ class MainActivity : ComponentActivity() {
         when (intent.action) {
             Intent.ACTION_VIEW -> vm.handleIncomingUrl(intent.dataString)
             ACTION_SCAN_QR -> vm.qrScannerVisible = true
+            ACTION_CLOSE_INCOGNITO -> vm.closeIncognitoTabs()
         }
     }
 
     companion object {
         const val ACTION_SCAN_QR = "com.jlees.mibrowser.SCAN_QR"
+        const val ACTION_CLOSE_INCOGNITO = "com.jlees.mibrowser.CLOSE_INCOGNITO"
     }
 }
+
+/**
+ * While incognito tabs are open: a silent notification that closes them all. Hidden on the lock screen, never
+ * bridged to other devices. Cancelled at launch too, in case the process ended while it was showing.
+ */
+fun updateIncognitoNotice(ctx: android.content.Context, count: Int) {
+    val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
+    if (count == 0 || !nm.areNotificationsEnabled()) { nm.cancel(INCOGNITO_NOTICE_ID); return }
+    nm.createNotificationChannel(android.app.NotificationChannel("incognito", "Incognito tabs", android.app.NotificationManager.IMPORTANCE_LOW).apply {
+        description = "Shown while incognito tabs are open"; setShowBadge(false)
+    })
+    val close = android.app.PendingIntent.getActivity(ctx, 0,
+        Intent(ctx, MainActivity::class.java).setAction(MainActivity.ACTION_CLOSE_INCOGNITO),
+        android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+    nm.notify(INCOGNITO_NOTICE_ID, android.app.Notification.Builder(ctx, "incognito")
+        .setSmallIcon(R.drawable.sym_incognito)
+        .setContentTitle(if (count == 1) "1 incognito tab open" else "$count incognito tabs open")
+        .setContentText("Tap to close incognito tabs")
+        .setContentIntent(close)
+        .setVisibility(android.app.Notification.VISIBILITY_SECRET)
+        .setLocalOnly(true).setOngoing(true).setShowWhen(false).setOnlyAlertOnce(true)
+        .build())
+}
+
+private const val INCOGNITO_NOTICE_ID = 0x1c0

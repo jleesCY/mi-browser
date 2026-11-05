@@ -31,7 +31,9 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
     val density = LocalDensity.current.density
     val filter = vm.inputUrl
     val activeUrl = vm.activeUrl
-    val items = vm.recents.filter { item ->
+    val incognito = vm.currentTab?.incognito == true
+    // incognito doesn't show (or add to) your normal recent searches
+    val items = if (incognito) emptyList() else vm.recents.filter { item ->
         if (filter.isEmpty()) true
         else if (activeUrl != null && (filter == activeUrl || filter == displayHost(activeUrl))) true
         else item.title.lowercase().contains(filter.lowercase())
@@ -46,7 +48,7 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
             val suggestions = vm.suggestions.filter { it.lowercase() !in searched }
             if (items.isEmpty() && suggestions.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.TopCenter) {
-                    Txt(if (vm.recents.isEmpty()) "No recent history" else "No matches found", 16f, ui.cs.onSurfaceVariant, ui.semibold)
+                    Txt(if (incognito) "Incognito: searches aren't saved" else if (vm.recents.isEmpty()) "No recent history" else "No matches found", 16f, ui.cs.onSurfaceVariant, ui.semibold)
                 }
             } else {
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)) {

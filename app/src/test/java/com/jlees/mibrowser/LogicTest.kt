@@ -111,6 +111,20 @@ class LogicTest {
         listOf("example.com", "localhost.com", "test.example.org", "", null).forEach { assertEquals(it.toString(), false, isLocalHost(it)) }
     }
 
+    @Test fun incognitoModeOnlySwitchesOnAFreshTab() {
+        val fresh = com.jlees.mibrowser.data.newTab()
+        assertEquals(true, fresh.isFresh)
+        assertEquals(false, com.jlees.mibrowser.data.newTab("https://example.com").isFresh)               // has history
+        assertEquals(false, fresh.copy(historyStack = listOf("https://a.com"), currentIndex = 0).isFresh)  // went home after browsing
+        assertEquals(false, fresh.copy(openerId = "x").isFresh)                                             // a pop-up keeps its opener's mode
+        val inc = fresh.copy(profile = com.jlees.mibrowser.data.newIncognitoProfile())
+        assertEquals(true, inc.incognito)
+        assertEquals(true, inc.profile!!.startsWith(com.jlees.mibrowser.data.INCOGNITO_PROFILE_PREFIX))
+        // incognito state is never serialized: a restored tab is always normal
+        val json = com.jlees.mibrowser.data.json.encodeToString(com.jlees.mibrowser.data.TabItem.serializer(), inc)
+        assertEquals(false, json.contains("incognito"))
+    }
+
     @Test fun faviconHostIsTheSiteItself() {
         assertEquals("en.wikipedia.org", faviconHost("https://en.wikipedia.org/wiki/Mars"))
         assertEquals("github.com", faviconHost("github.com"))               // bare host (history site groups)

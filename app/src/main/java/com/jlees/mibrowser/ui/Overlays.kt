@@ -2,6 +2,9 @@
 // CustomAlert.tsx, renderError (BrowserWebView.tsx).
 package com.jlees.mibrowser.ui
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import kotlinx.coroutines.CoroutineStart
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
@@ -22,7 +25,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -38,14 +40,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -91,53 +90,151 @@ fun shareText(ctx: android.content.Context, text: String, title: String? = null)
 /** Full-screen catcher that swallows touches (TouchableWithoutFeedback backdrop). */
 fun Modifier.blockTouches(onTap: () -> Unit = {}) = this.clickable(MutableInteractionSource(), null, onClick = onTap)
 
-// ---------------------------------------------------------------- submenu (index.tsx 1942-2290)
+// ---------------------------------------------------------------- tab menu
+fun copyText(ctx: android.content.Context, text: String) =
+    (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+        .setPrimaryClip(android.content.ClipData.newPlainText("link", text))
+
+/**
+ * Tab menu (⋮ in the tab switcher), acting on the centred tab. A tall card: the tab at the top, quick tiles for its
+ * modes and common actions, round shortcut buttons, then plain rows, with the tab-closing rows kept at the bottom.
+ * Actions that leave the switcher close it.
+ */
 @Composable
-/** Tab menu (opened from ⋮ in the tab switcher); acts on the active tab. Actions that leave the switcher close it. */
 fun SubMenu(vm: BrowserViewModel, modifier: Modifier) {
     val ui = LocalUi.current
     val ctx = LocalContext.current
-    val hasUrl = vm.activeUrl != null
     val tab = vm.currentTab
-    val shape = RoundedCornerShape(minOf(ui.radius, 24).dp)
+    val url = vm.activeUrl
+    val hasUrl = url != null
+    val incognito = tab?.incognito == true
+    val dismiss = { vm.isSubMenuVisible = false }
+    val leave = { vm.isSubMenuVisible = false; vm.switcherVisible = false }
+    val shape = RoundedCornerShape(minOf(ui.radius, 28).dp)
+
+    /** A quick-settings-style tile: filled with the accent when [on]. [on] null = an action tile. */
+    /** The tiles' shared look: accent-filled and rounder when [on], dimmed when disabled. Returns it and the content colour. */
     @Composable
-    fun Item(icon: String, label: String, needsUrl: Boolean, onPress: () -> Unit) {
-        val enabled = !needsUrl || hasUrl
+    fun tileStyle(on: Boolean, enabled: Boolean, onPress: () -> Unit): Pair<Modifier, androidx.compose.ui.graphics.Color> {
+        val radius by androidx.compose.animation.core.animateDpAsState(if (on) 28.dp else 18.dp, Motion.spatial(), label = "tile")
+        val bg by androidx.compose.animation.animateColorAsState(if (on) ui.cs.primaryContainer else ui.cs.surfaceContainerHighest, label = "tile bg")
+        return Modifier.clip(RoundedCornerShape(radius)).background(bg).alpha(if (enabled) 1f else 0.38f).touchable(enabled, onClick = onPress) to
+            (if (on) ui.cs.onPrimaryContainer else ui.cs.onSurface)
+    }
+    @Composable
+    fun RowScope.Tile(icon: String, label: String, sub: String?, on: Boolean?, enabled: Boolean = true, onPress: () -> Unit) {
+        val (style, fg) = tileStyle(on == true, enabled, onPress)
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp).clip(RoundedCornerShape(12.dp)).alpha(if (enabled) 1f else 0.38f)
-                .touchable(enabled, onClick = onPress).heightIn(min = 48.dp).padding(horizontal = 12.dp),
+            Modifier.weight(1f).height(68.dp).then(style).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Sym(icon, 22f, ui.cs.onSurfaceVariant, Modifier.padding(end = 14.dp))
-            Txt(label, 15f, ui.cs.onSurface, ui.semibold)
+            Sym(icon, 22f, fg, Modifier.padding(end = 12.dp))
+            Column(Modifier.weight(1f)) {
+                Txt(label, 14f, fg, ui.semibold, maxLines = 1)
+                if (sub != null) Txt(sub, 12f, fg.copy(alpha = 0.75f), ui.regular, maxLines = 1)
+            }
+        }
+    }
+    /** A round shortcut button with its label underneath. */
+    @Composable
+    fun RowScope.Round(icon: String, label: String, enabled: Boolean = true, onPress: () -> Unit) {
+        Column(
+            Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f).clip(RoundedCornerShape(16.dp)).touchable(enabled, onClick = onPress).padding(vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(Modifier.size(52.dp).clip(CircleShape).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) { Sym(icon, 22f, ui.cs.onSecondaryContainer) }
+            Txt(label, 12f, ui.cs.onSurface, ui.semibold, Modifier.padding(top = 6.dp), maxLines = 1)
         }
     }
     @Composable
-    fun Toggle(icon: String, label: String, value: Boolean, onPress: () -> Unit) {
+    fun MenuRow(icon: String, label: String, color: androidx.compose.ui.graphics.Color = ui.cs.onSurface, enabled: Boolean = true, onPress: () -> Unit) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp).clip(RoundedCornerShape(12.dp)).touchable(onClick = onPress).heightIn(min = 52.dp).padding(horizontal = 12.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).alpha(if (enabled) 1f else 0.38f).touchable(enabled, onClick = onPress)
+                .heightIn(min = 52.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Sym(icon, 22f, ui.cs.onSurfaceVariant, Modifier.padding(end = 14.dp))
-            Txt(label, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
-            MiSwitch(value, null)
+            Sym(icon, 22f, if (color == ui.cs.onSurface) ui.cs.onSurfaceVariant else color, Modifier.padding(end = 16.dp))
+            Txt(label, 15f, color, ui.semibold)
         }
     }
-    Column(modifier.width(256.dp).zIndex(10f).shadow(8.dp, shape).clip(shape).background(ui.cs.surfaceContainer).blockTouches().padding(vertical = 8.dp)) {
-        val leave = { vm.isSubMenuVisible = false; vm.switcherVisible = false }
-        Item("home", "Home", false) { leave(); vm.goHome() }
-        Item("share", "Share", true) { vm.isSubMenuVisible = false; vm.activeUrl?.let { shareText(ctx, it, "Share Link") } }
-        Item("bookmark_add", "Bookmark in folder…", true) { vm.bookmarksAutoAdd = true; vm.openView("bookmarks") }
-        Item("search", "Find in Page", true) { leave(); vm.findVisible = true }
-        Item("qr_code_scanner", "Scan QR Code", false) { leave(); vm.qrScannerVisible = true }
-        Item("qr_code_2", "Generate QR Code", true) { leave(); vm.qrGeneratorVisible = true }
-        Item("print", "Print", true) { leave(); vm.web.tryEmit(WebCmd.Print) }
-        Item("add_to_home_screen", "Add to Home screen", true) { vm.isSubMenuVisible = false; tab?.let { pinShortcut(ctx, it.title, it.url ?: return@let) } }
-        Box(Modifier.padding(vertical = 4.dp, horizontal = 16.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
-        Toggle("desktop_windows", "Desktop Mode", tab?.desktopMode ?: vm.settings.desktopMode) { vm.setDesktopMode(!(tab?.desktopMode ?: vm.settings.desktopMode)) }
-        Toggle("chrome_reader_mode", "Reader Mode", tab?.readerMode ?: vm.settings.readerModeEnabled) { vm.setReaderMode(!(tab?.readerMode ?: vm.settings.readerModeEnabled)) }
-        Box(Modifier.padding(vertical = 4.dp, horizontal = 16.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
-        Item("delete", "Close all tabs", false) { vm.isSubMenuVisible = false; vm.clearAllTabs() }
+    /** One of the favorite / bookmark / pin buttons: icon over label, filled with the accent when [on]. */
+    @Composable
+    fun RowScope.TopAction(icon: String, label: String, on: Boolean, enabled: Boolean, onPress: () -> Unit) {
+        val (style, fg) = tileStyle(on, enabled, onPress)
+        Column(
+            Modifier.weight(1f).height(72.dp).then(style),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+        ) {
+            Sym(icon, 22f, fg)
+            Txt(label, 13f, fg, ui.semibold, Modifier.padding(top = 4.dp), maxLines = 1)
+        }
+    }
+    /** A header action (copy, share): a round icon button. */
+    @Composable
+    fun MenuIcon(icon: String, onPress: () -> Unit) {
+        Box(Modifier.padding(start = 4.dp).size(44.dp).clip(CircleShape).touchable(onClick = onPress), contentAlignment = Alignment.Center) {
+            Sym(icon, 22f, ui.cs.onSurfaceVariant)
+        }
+    }
+    @Composable
+    fun Section(title: String) = Txt(title, 13f, ui.cs.primary, ui.bold, Modifier.padding(start = 6.dp, top = 18.dp, bottom = 8.dp))
+
+    Column(modifier.zIndex(10f).shadow(10.dp, shape).clip(shape).background(ui.cs.surfaceContainer).blockTouches().padding(16.dp)) {
+        // the tab this menu acts on
+        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(CircleShape).background(ui.cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+                val globe = @Composable { Sym(if (incognito) "incognito" else "public", 22f, ui.cs.onSurfaceVariant) }
+                if (!incognito && url != null && vm.settings.showTabLogo) NetImage(Favicons.src(url), Modifier.size(24.dp).clip(RoundedCornerShape(6.dp)), fallback = globe) else globe()
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Txt(if (incognito) "Incognito tab" else tab?.title?.ifEmpty { null } ?: "New Tab", 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
+                Txt(if (incognito) "Not saved to history" else displayHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+            }
+            if (hasUrl) {
+                MenuIcon("content_copy") { copyText(ctx, url!!); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
+                MenuIcon("share") { dismiss(); shareText(ctx, url!!, "Share Link") }
+            }
+        }
+
+        // favorite · bookmark · pin: their own row, right under the tab's name
+        val fav = url != null && vm.favorites.any { it.url == url }
+        val pinned = tab?.pinned == true
+        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TopAction("star", if (fav) "Favorited" else "Favorite", fav, hasUrl && (fav || vm.favorites.size < 5)) {
+                vm.toggleFavorite()
+                android.widget.Toast.makeText(ctx, if (fav) "Removed from favorites" else "Added to favorites", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            TopAction("bookmark_add", "Bookmark", false, hasUrl) { vm.bookmarksAutoAdd = true; vm.openView("bookmarks") }
+            TopAction("keep", if (pinned) "Pinned" else "Pin", pinned, tab != null) { vm.togglePinned() }
+        }
+
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            Section("This tab")
+            val desktop = tab?.desktopMode ?: vm.settings.desktopMode
+            val reader = tab?.readerMode ?: vm.settings.readerModeEnabled
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Tile("desktop_windows", "Desktop site", if (desktop) "On" else "Off", desktop) { vm.setDesktopMode(!desktop) }
+                    Tile("chrome_reader_mode", "Reader mode", if (reader) "On" else "Off", reader) { vm.setReaderMode(!reader) }
+                }
+                Row { Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.findVisible = true } }
+            }
+
+            Section("Tools")
+            Row(Modifier.fillMaxWidth()) {
+                Round("qr_code_scanner", "Scan QR") { leave(); vm.qrScannerVisible = true }
+                Round("qr_code_2", "QR code", hasUrl) { leave(); vm.qrGeneratorVisible = true }
+                Round("print", "Print", hasUrl) { leave(); vm.web.tryEmit(WebCmd.Print) }
+                // not from incognito: a shortcut would write the page's address into the launcher, outside mi
+                if (!incognito) Round("add_to_home_screen", "Home screen", hasUrl) { dismiss(); tab?.let { pinShortcut(ctx, it.title, it.url ?: return@let) } }
+            }
+
+        }
+
+        // closing tabs: kept apart at the bottom
+        Box(Modifier.padding(vertical = 8.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
+        if (vm.tabs.any { it.incognito }) MenuRow("incognito", "Close incognito tabs") { dismiss(); vm.closeIncognitoTabs() }
+        MenuRow("delete", "Close all tabs", ui.cs.error) { dismiss(); vm.clearAllTabs() }
     }
 }
 
@@ -309,7 +406,9 @@ fun ModalFrame(visible: Boolean, onDismiss: () -> Unit, dismissOnScrim: Boolean 
         }
         AnimatedVisibility(state, enter = fadeIn(), exit = fadeOut()) {
             Box(
-                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).blockTouches { if (dismissOnScrim) onDismiss() }.imePadding(),
+                // the dialog stays clear of the status bar, navigation bar, cutouts and keyboard (DialogCard scrolls to fit)
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).blockTouches { if (dismissOnScrim) onDismiss() }
+                    .windowInsetsPadding(WindowInsets.safeDrawing).padding(vertical = 16.dp),
                 contentAlignment = Alignment.Center, content = content,
             )
         }
@@ -326,24 +425,16 @@ fun CustomAlert(data: AlertData?, onButton: () -> Unit, onCancel: () -> Unit) {
     // 3+ buttons don't fit in one row: the last (main) action becomes a large full-width button, the rest go below it
     val stacked = d.buttons.size > 2
     ModalFrame(data != null, onCancel, dismissOnScrim = true) {
-        DialogCard(d.title, actions = if (stacked) null else { {
-            d.buttons.forEach { b -> DialogAction(b.text, destructive = b.style == "destructive") { onButton(); b.onPress() } }
-        } }) {
+        // stacked: the main action is a full-width button in the body; the others sit in the actions row, side by side
+        DialogCard(d.title, actions = {
+            if (!stacked) d.buttons.forEach { b -> DialogAction(b.text, destructive = b.style == "destructive") { onButton(); b.onPress() } }
+            else d.buttons.dropLast(1).forEach { b -> DialogAction(b.text, b.style == "destructive", Modifier.weight(1f)) { onButton(); b.onPress() } }
+        }) {
             Txt(d.message, 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f)
             if (stacked) {
                 val main = d.buttons.last()
                 Button({ onButton(); main.onPress() }, Modifier.fillMaxWidth().padding(top = 24.dp).heightIn(min = 52.dp)) {
                     Text(main.text, style = MaterialTheme.typography.labelLarge)
-                }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    d.buttons.dropLast(1).forEach { b ->
-                        TextButton({ onButton(); b.onPress() }, Modifier.weight(1f)) {
-                            Text(
-                                b.text, color = if (b.style == "destructive") ui.cs.error else ui.cs.primary,
-                                style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -469,15 +560,15 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
                 }
             }
             val web = target != null && (target.startsWith("http://") || target.startsWith("https://"))
-            if (web) Action("open_in_new", "Open in New Tab") { vm.addNewTab(target!!); close() }
+            if (web) Action("open_in_new", "Open in New Tab") { vm.addNewTab(target!!, incognito = vm.currentTab?.incognito == true); close() }
+            if (web && vm.currentTab?.incognito != true && vm.incognitoSupported) Action("incognito", "Open in Incognito Tab") { vm.addNewTab(target!!, incognito = true); close() }
             if (web && d.url != null) Action("tab", "Open in Background Tab") {
                 vm.addBackgroundTab(d.url)
                 android.widget.Toast.makeText(ctx, "Opened in background", android.widget.Toast.LENGTH_SHORT).show()
                 close()
             }
             if (target != null) Action("content_copy", if (d.url != null) "Copy Link" else "Copy Image Link") {
-                (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-                    .setPrimaryClip(android.content.ClipData.newPlainText("link", target))
+                copyText(ctx, target)
                 close()
             }
             Action("edit", "Edit in Address Bar") {

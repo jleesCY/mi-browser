@@ -56,6 +56,7 @@ import com.jlees.mibrowser.ui.qr.QrScanner
 import com.jlees.mibrowser.ui.settings.SettingsView
 import com.jlees.mibrowser.web.MAX_LIVE_TABS
 import com.jlees.mibrowser.web.WebViewHost
+import com.jlees.mibrowser.updateIncognitoNotice
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -73,6 +74,14 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
     val ui = UiConfig(cs, dark, s.cornerRadius, s.fontScale, s.uiPadding, sansFlex(s.roundedFont))
     MaterialExpressiveTheme(colorScheme = cs, motionScheme = MotionScheme.expressive(), typography = sansFlexTypography(s.roundedFont)) {
     CompositionLocalProvider(LocalUi provides ui) {
+    // incognito: the keyboard app is asked not to learn from anything typed in mi's own fields (pill, dialogs)
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+    androidx.compose.ui.platform.InterceptPlatformTextInput({ request, next ->
+        if (vm.currentTab?.incognito != true) next.startInputMethod(request)
+        else next.startInputMethod(androidx.compose.ui.platform.PlatformTextInputMethodRequest { attrs ->
+            request.createInputConnection(attrs).also { attrs.imeOptions = attrs.imeOptions or android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING }
+        })
+    }) {
         val scope = rememberCoroutineScope()
         val pill = remember { PillState(scope, vm) }
         val density = LocalDensity.current
@@ -115,6 +124,25 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 if (s.showStatusBar) ctl.show(WindowInsetsCompat.Type.statusBars()) else ctl.hide(WindowInsetsCompat.Type.statusBars())
             }
             activity.requestedOrientation = if (fullscreen) ActivityInfo.SCREEN_ORIENTATION_FULL_USER else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+
+        // ---- incognito: no screenshots, screen recording or recent-apps thumbnail while an incognito tab is showing
+        val incognitoShown = vm.currentTab?.incognito == true
+        val incognitoCount = vm.tabs.count { it.incognito }
+        val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
+            updateIncognitoNotice(activity, vm.tabs.count { t -> t.incognito })
+        }
+        LaunchedEffect(incognitoCount) {
+            // off the main thread: the binder calls would hold up the incognito wave's first frames
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { updateIncognitoNotice(activity, incognitoCount) }
+            // asked when the first incognito tab opens (Android stops asking after two refusals)
+            if (incognitoCount > 0 && Build.VERSION.SDK_INT >= 33 &&
+                activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        LaunchedEffect(incognitoShown) {
+            if (incognitoShown) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            else activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         }
 
         // ---- only the visible tab's page runs; the others pause their animations and location updates
@@ -256,6 +284,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
             }
 
+            if (!fullscreen) ZoomingTabHeader(vm)
             if (!fullscreen) TabSwitcher(vm, navDp, statusDp)
 
             if (vm.findVisible) FindBar(imeDp, onQuery = { host.findAll(it) }, onNext = { host.findNext(it) }, onClose = {
@@ -277,6 +306,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 )
             }
         }
+    }
     }
     }
 }

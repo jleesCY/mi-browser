@@ -22,9 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +33,6 @@ import com.jlees.mibrowser.logic.*
 import com.jlees.mibrowser.ui.ClearableField
 import com.jlees.mibrowser.ui.ModalFrame
 import com.jlees.mibrowser.ui.SheetSearchField
-import com.jlees.mibrowser.ui.blockTouches
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.common.ScrollTopAndFab
 import com.jlees.mibrowser.ui.common.SwipeActions
@@ -137,9 +134,14 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
     val titleFr = remember { FocusRequester() }
     LaunchedEffect(modalMode, picker) { if (modalMode != null && !picker) { delay(150); runCatching { titleFr.requestFocus() } } }
     ModalFrame(modalMode != null, { if (picker) picker = false else modalMode = null }) {
-        DialogCard(null) {
+        DialogCard(
+            if (picker) null else when (modalMode) { "add_bookmark" -> "Add Bookmark"; "add_folder" -> "New Folder"; else -> "Edit Item" },
+            actions = if (picker) null else { {
+                DialogAction("Cancel") { modalMode = null }
+                DialogAction("Save") { save() }
+            } },
+        ) {
             if (!picker) {
-                Txt(when (modalMode) { "add_bookmark" -> "Add Bookmark"; "add_folder" -> "New Folder"; else -> "Edit Item" }, 24f, ui.cs.onSurface, ui.regular, Modifier.padding(bottom = 16.dp), scaled = false)
                 Txt("Title", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 5.dp))
                 ClearableField(title, { title = it }, titleFr, Modifier.padding(bottom = 15.dp))
                 if (modalMode == "add_bookmark" || (modalMode == "edit" && editing?.isFolder == false)) {
@@ -153,10 +155,6 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
                 ) {
                     Txt(modalFolder?.let { id -> vm.bookmarks.firstOrNull { it.id == id }?.title ?: "Unknown" } ?: "Bookmarks", 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
                     Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
-                }
-                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                    DialogAction("Cancel") { modalMode = null }
-                    DialogAction("Save") { save() }
                 }
             } else {
                 Row(Modifier.padding(bottom = 15.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -30,6 +30,7 @@ data class Settings(
     val blockThirdPartyCookies: Boolean = false, // payment and sign-in iframes (PayPal, SSO) need them, as in Chrome
     val blockTrackers: Boolean = true,
     val searchSuggestions: Boolean = true,
+    val incognitoSuggestions: Boolean = false,
     val historyLoadCount: Int = 10,
     val historyGrouping: String = "Time", // Time | Site
     val backgroundRefresh: Boolean = false,
@@ -68,6 +69,8 @@ data class TabItem(
     val isCustomTitle: Boolean = false,
     /** When the tab was last made active (ms): the switcher orders tabs by it, most recent on the right. */
     val lastUsed: Long = 0,
+    /** Pinned: can't be swiped away in the tab switcher; its card shows a pin. */
+    val pinned: Boolean = false,
     // runtime only
     @Transient val url: String? = null,
     @Transient val requestedUrl: String? = null,
@@ -82,9 +85,18 @@ data class TabItem(
     @Transient val httpFallback: Boolean = false,
     /** Bumped to force the WebView to load requestedUrl even if unchanged. */
     @Transient val loadNonce: Int = 0,
+    /** Incognito: the tab's own WebView profile ("incognito-<id>", its own cookies, storage, cache and permissions),
+     *  deleted once no tab uses it. Pop-ups share their opener's. Never saved, so incognito tabs end with the app. */
+    @Transient val profile: String? = null,
 ) {
     val isHome get() = openerId == null && (url == null || url == "about:blank")
+    val incognito get() = profile != null
+    /** Nothing loaded yet: the only state in which a tab can switch between normal and incognito. */
+    val isFresh get() = url == null && historyStack.isEmpty() && openerId == null
 }
+
+const val INCOGNITO_PROFILE_PREFIX = "incognito-"
+fun newIncognitoProfile() = INCOGNITO_PROFILE_PREFIX + java.util.UUID.randomUUID()
 
 fun newTab(url: String? = null, title: String = "New Tab") = TabItem(
     id = System.currentTimeMillis().toString(),

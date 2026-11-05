@@ -73,7 +73,8 @@ export default function DeveloperDocs() {
                             { name: "Tab Zoom", src: "/images/tab_zoom.jpg" },
                             { name: "Bookmarks", src: "/images/bookmarks.jpg" },
                             { name: "History", src: "/images/history.jpg" },
-                            { name: "Power Tools", src: "/images/power_tools.jpg" },
+                            { name: "Tab Menu", src: "/images/power_tools.jpg" },
+                            { name: "Incognito", src: "/images/incognito.jpg" },
                             { name: "Settings", src: "/images/settings.jpg" },
                           ].map((img) => (
                             <div key={img.name} className="space-y-2 group">

@@ -129,6 +129,9 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             SRow("Search Suggestions", "autocomplete") {
                 SwitchItem("search", "Search Suggestions", "Suggestions from your search engine while the search drawer is open", s.searchSuggestions) { set { copy(searchSuggestions = it) } }
             },
+            SRow("Suggestions in Incognito", "autocomplete private incognito") {
+                SwitchItem("incognito", "Suggestions in Incognito", "Off: what you type in an incognito tab isn't sent to your search engine until you search", s.incognitoSuggestions) { set { copy(incognitoSuggestions = it) } }
+            },
             SRow("Page Text Size", "zoom font web websites") {
                 SliderItem("format_size", "Page Text Size", "Text size on websites", s.textZoom / 100f, 0.5f, 2f) { set { copy(textZoom = Math.round(it * 100)) } }
             },

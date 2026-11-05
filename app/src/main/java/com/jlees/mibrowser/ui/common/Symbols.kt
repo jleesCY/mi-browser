@@ -73,4 +73,6 @@ val SymbolRes: Map<String, Int> = mapOf(
     "add_to_home_screen" to R.drawable.sym_add_to_home_screen,
     "library_books" to R.drawable.sym_library_books,
     "shield" to R.drawable.sym_shield,
+    "incognito" to R.drawable.sym_incognito,
+    "keep" to R.drawable.sym_keep,
 )

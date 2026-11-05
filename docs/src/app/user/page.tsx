@@ -29,7 +29,8 @@ import {
   Share2,
   ShieldCheck,
   Trash2,
-  Zap
+  Zap,
+  Pin,
 } from "lucide-react";
 
 const getAssetPath = (path: string) => {
@@ -86,6 +87,9 @@ export default function UserDocs() {
                       <div id="recall-button">
                         <GuideItem icon={<GripHorizontal size={18} />} title="Move the Recall Button" desc="While the Pill is hidden, swipe the recall button left or right. It follows your finger and pins to the left, center, or right of the screen, wherever you let go." />
                       </div>
+                      <div id="incognito">
+                        <GuideItem icon={<Search size={18} />} title="Incognito" desc="On a fresh tab, tap the mask in the Pill to make it incognito (a tab you've browsed in keeps its mode). Each incognito tab has its own private storage: nothing comes in from your other tabs and nothing leaves. Its pages aren't added to history, screenshots are blocked, the tab switcher shows it only as 'Incognito tab', and its cookies, logins and site data are erased when you close it. Long-press a link and choose 'Open in Incognito Tab' to send it there. While incognito tabs are open, a notification closes them all with one tap. In incognito the keyboard is asked not to learn what you type, passkeys can't be created (signing in with one works), and search suggestions are off unless you turn on Suggestions in Incognito. Downloads and bookmarks you choose to save are kept." />
+                      </div>
                       <div id="search-engine-only">
                         <GuideItem icon={<Search size={18} />} title="Search Engine Only" desc="Tap the search engine icon inside the address bar to force search mode. This bypasses URL parsing and sends your query directly to your search engine." />
                       </div>
@@ -120,16 +124,16 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right.
+                    Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The card's title and icon appear as soon as you start swiping. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to zoom back into it. Most recently used on the right." />
+                    <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to zoom back into it. Swipe a card up to close it (with undo). Pinned tabs show a pin and can't be swiped away." />
                     <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button opens Bookmarks and History on top of the switcher; closing it takes you back." />
                     <GuideItem icon={<History size={18} />} title="New Tab" desc="The + button opens a fresh tab and zooms into it." />
                     <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button opens Settings on top of the switcher." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Tab Menu:</strong> Tap ⋮ for actions on the centered tab: Share, Bookmark in folder, Find in Page, QR tools, Print, Add to Home screen, Desktop and Reader Mode, and Close all tabs.</p>
+                    <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; QR tools, Print and Add to Home screen; copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
                   </div>
                 </div>
               </div>
@@ -205,7 +209,7 @@ export default function UserDocs() {
                     Keep your favorite corners of the web organized. mi. Browser provides a flexible bookmarking system with folder support.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
-                    <GuideItem icon={<MousePointer2 size={18} />} title="Quick Save" desc="Open the Tab Switcher's ⋮ menu and choose 'Bookmark in folder…' to save the centered tab to your library." />
+                    <GuideItem icon={<MousePointer2 size={18} />} title="Quick Save" desc="Open the Tab Switcher's ⋮ menu and tap Bookmark to save the centered tab to a folder of your choice." />
                     <div id="bookmark-swiping">
                       <GuideItem icon={<RefreshCw size={18} />} title="Swipe to Edit" desc="Swipe left on any bookmark or folder to reveal Edit and Delete actions. You can change names, URLs, or move items between folders." />
                     </div>
@@ -363,14 +367,14 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Tap ⋮ in the Tab Switcher to access utility tools for the centered tab.
+                    Tap ⋮ in the Tab Switcher for the centered tab's actions, modes and tools.
                   </p>
                   <div className="grid grid-cols-1 gap-4 inline-block text-left w-full">
-                    <div id="home-button">
-                      <GuideItem icon={<Home size={18} />} title="Home Button" desc="Instantly return to the minimalist home screen and reset your current session." />
+                    <div id="pin-tabs">
+                      <GuideItem icon={<Pin size={18} />} title="Favorite, Bookmark &amp; Pin" desc="The row at the top: add the page to your favorites bar, save it to a bookmark folder, or pin the tab so it can't be swiped away or closed by Close all tabs." />
                     </div>
                     <div id="quick-bookmark">
-                      <GuideItem icon={<Bookmark size={18} />} title="Quick Bookmark" desc="Save the current page to your bookmarks with one tap from the Power Tools menu." />
+                      <GuideItem icon={<Bookmark size={18} />} title="Copy &amp; Share" desc="Next to the tab's name: copy its link, or send it with your device's share sheet." />
                     </div>
                     <div id="find-in-page">
                       <GuideItem icon={<Search size={18} />} title="Find in Page" desc="Search for specific text within the current webpage. Highlighting and navigation between matches included." />

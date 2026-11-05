@@ -136,10 +136,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun onTyping(text: String, drawerOpen: Boolean) {
         suggestJob?.cancel()
         val q = text.trim()
-        if (!drawerOpen || !settings.searchSuggestions || q.isEmpty() || q == activeUrl || q.contains("://")) { suggestions = emptyList(); return }
+        if (!drawerOpen || !settings.searchSuggestions || (currentTab?.incognito == true && !settings.incognitoSuggestions) || q.isEmpty() || q == activeUrl || q.contains("://")) { suggestions = emptyList(); return }
         suggestJob = viewModelScope.launch {
             delay(200)
-            suggestions = Suggest.fetch(settings.searchEngineIndex, q)
+            suggestions = Suggest.fetch(settings.searchEngineIndex, q, cache = currentTab?.incognito != true)
         }
     }
 
@@ -236,19 +236,29 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun launchSavers() {
-        fun <T> save(delayMs: Long, read: () -> T, write: (T) -> Unit) = viewModelScope.launch {
-            snapshotFlow(read).drop(1).collectLatest { v -> delay(delayMs); withContext(Dispatchers.IO) { write(v) } }
-        }
-        save(0, { settings }) { store.write("settings", Settings.serializer(), it) }
-        save(500, { tabs to activeTabId }) {
+    /** One stored file: written [delayMs] after its state changes (debounced), or right away by [saveNow]. */
+    private class Saver<T>(val delayMs: Long, val read: () -> T, val write: (T) -> Unit)
+
+    // incognito tabs are never written: they don't survive the app
+    private val savers = listOf(
+        Saver(0, { settings }) { store.write("settings", Settings.serializer(), it) },
+        Saver(500, { tabs.filterNot { it.incognito }.let { saved -> saved to (activeTabId.takeIf { id -> saved.any { it.id == id } } ?: saved.maxByOrNull { it.lastUsed }?.id ?: "") } }) {
             store.write("tabs", ListSerializer(TabItem.serializer()), it.first)
             store.write("activeTabId", String.serializer(), it.second)
-        }
-        save(1000, { history }) { store.write("history", ListSerializer(HistoryItem.serializer()), it) }
-        save(1000, { recents }) { store.write("recent_searches", ListSerializer(HistoryItem.serializer()), it) }
-        save(500, { bookmarks }) { store.write("bookmarks", ListSerializer(BookmarkNode.serializer()), it) }
-        save(500, { favorites }) { store.write("favorites", ListSerializer(Favorite.serializer()), it) }
+        },
+        Saver(1000, { history }) { store.write("history", ListSerializer(HistoryItem.serializer()), it) },
+        Saver(1000, { recents }) { store.write("recent_searches", ListSerializer(HistoryItem.serializer()), it) },
+        Saver(500, { bookmarks }) { store.write("bookmarks", ListSerializer(BookmarkNode.serializer()), it) },
+        Saver(500, { favorites }) { store.write("favorites", ListSerializer(Favorite.serializer()), it) },
+    )
+
+    /** Writes everything now (before mi ends its process after incognito use). */
+    fun saveNow() = savers.forEach { it.writeNow() }
+    private fun <T> Saver<T>.writeNow() = write(read())
+
+    private fun launchSavers() = savers.forEach { it.launch() }
+    private fun <T> Saver<T>.launch() = viewModelScope.launch {
+        snapshotFlow(read).drop(1).collectLatest { v -> delay(delayMs); withContext(Dispatchers.IO) { write(v) } }
     }
 
     fun updateSettings(f: Settings.() -> Settings) { settings = settings.f() }
@@ -276,8 +286,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         ui.tryEmit(UiEvent.TabSwitched)
     }
 
-    fun addNewTab(url: String? = null) {
-        val t = newTab(url).copy(lastUsed = System.currentTimeMillis())
+    fun addNewTab(url: String? = null, incognito: Boolean = false) {
+        val t = newTab(url).copy(lastUsed = System.currentTimeMillis(), profile = if (incognito) newIncognitoProfile() else null)
         captureOutgoing()
         tabs = listOf(t) + tabs
         activeTabId = t.id
@@ -304,7 +314,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     /** A page opened a window: a new tab, linked to its opener, whose WebView the host has already created. */
     fun addPopupTab(id: String, openerId: String, desktopMode: Boolean?) {
-        val t = newTab(null).copy(id = id, openerId = openerId, desktopMode = desktopMode, hasLoadedOnce = true, lastUsed = System.currentTimeMillis())
+        val t = newTab(null).copy(
+            id = id, openerId = openerId, desktopMode = desktopMode, hasLoadedOnce = true, lastUsed = System.currentTimeMillis(),
+            profile = tabs.firstOrNull { it.id == openerId }?.profile, // same profile as the opener (window.opener needs it)
+        )
         captureOutgoing()
         tabs = listOf(t) + tabs
         switcherVisible = false
@@ -326,23 +339,23 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearHttpFallback(id: String) { if (tabs.any { it.id == id && it.httpFallback }) updateTab(id) { copy(httpFallback = false) } }
 
+    /** The "Close incognito tabs" notification: every incognito tab (and its pop-ups) is closed and erased. */
+    fun closeIncognitoTabs() = tabs.filter { it.incognito }.forEach { deleteTab(it.id) }
+
     fun deleteTab(id: String) {
         val idx = tabs.indexOfFirst { it.id == id }
         if (idx < 0) return
-        closedTab?.first?.previewImage?.let { File(it).delete() } // only the latest closed tab can be restored
-        closedTab = tabs[idx] to idx
+        if (!tabs[idx].incognito) { // a closed incognito tab is gone for good: no undo, nothing kept
+            closedTab?.first?.previewImage?.let { File(it).delete() } // only the latest closed tab can be restored
+            closedTab = tabs[idx] to idx
+        }
         web.tryEmit(WebCmd.Destroy(id))
         val remaining = tabs.filter { it.id != id }
         if (remaining.isEmpty()) {
             val t = newTab(); tabs = listOf(t); activeTabId = t.id; syncInputToActiveTab(); return
         }
         tabs = remaining
-        if (activeTabId == id) {
-            activeTabId = remaining.maxBy { it.lastUsed }.id // like an app switcher: back to the previously used tab
-            updateTab(activeTabId) { copy(hasLoadedOnce = true, lastUsed = System.currentTimeMillis()) }
-            syncInputToActiveTab()
-            ui.tryEmit(UiEvent.TabSwitched)
-        }
+        if (activeTabId == id) activate(remaining.maxBy { it.lastUsed }.id) // like an app switcher: back to the previously used tab
     }
 
     fun dismissUndo() {
@@ -362,7 +375,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Opens [url] in a new tab next to the current one without switching to it. */
     fun addBackgroundTab(url: String) {
         // just behind the current tab in recency, so it sits next to it in the switcher
-        val t = newTab(url).copy(id = uniqueId(), hasLoadedOnce = false, lastUsed = (currentTab?.lastUsed ?: System.currentTimeMillis()) - 1)
+        val t = newTab(url).copy(
+            id = uniqueId(), hasLoadedOnce = false, lastUsed = (currentTab?.lastUsed ?: System.currentTimeMillis()) - 1,
+            profile = if (currentTab?.incognito == true) newIncognitoProfile() else null, // links from incognito stay incognito
+        )
         val at = tabs.indexOfFirst { it.id == activeTabId } + 1
         tabs = tabs.toMutableList().apply { add(at.coerceIn(0, size), t) }
     }
@@ -395,15 +411,20 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun clearAllTabs() {
-        alert = AlertData("Clear All Tabs", "Are you sure you want to close all tabs?", listOf(
+        val anyPinned = tabs.any { it.pinned }
+        alert = AlertData("Clear All Tabs", if (anyPinned) "Close all tabs except pinned ones?" else "Are you sure you want to close all tabs?", listOf(
             AlertButton("Cancel", "cancel"),
-            AlertButton("Clear All", "destructive") { resetTabs() },
+            AlertButton("Clear All", "destructive") { resetTabs(keepPinned = true) },
         ))
     }
 
-    private fun resetTabs() {
-        tabs.forEach { t -> t.previewImage?.let { File(it).delete() }; web.tryEmit(WebCmd.Destroy(t.id)) }
-        val t = newTab(); tabs = listOf(t); activeTabId = t.id; inputUrl = ""; isLoading = false
+    /** Closes every tab ([keepPinned]: except pinned ones); with none left, starts over with one new tab. */
+    private fun resetTabs(keepPinned: Boolean) {
+        val (kept, closing) = tabs.partition { keepPinned && it.pinned }
+        closing.forEach { t -> t.previewImage?.let { File(it).delete() }; web.tryEmit(WebCmd.Destroy(t.id)) }
+        if (kept.isEmpty()) { val t = newTab(); tabs = listOf(t); activeTabId = t.id; inputUrl = ""; isLoading = false; return }
+        tabs = kept
+        if (kept.none { it.id == activeTabId }) activate(kept.maxBy { it.lastUsed }.id)
     }
 
     fun renameTab(id: String, text: String) {
@@ -469,7 +490,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (id == activeTabId) {
             isLoading = loading
-            if (url != null && !loading) addToHistory(url, tabTitle(title, url))
+            if (url != null && !loading && !t.incognito) addToHistory(url, tabTitle(title, url))
             if (!isInputFocused && url != null) inputUrl = displayHost(url)
         }
     }
@@ -478,9 +499,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun setReaderMode(on: Boolean) { updateTab(activeTabId) { copy(readerMode = on) }; web.tryEmit(WebCmd.Reload(activeTabId)) }
 
     /** Deep link / VIEW intent while running. */
-    fun handleIncomingUrl(raw: String?) {
+    /** [incognito]: the link came from an incognito page, so its tab stays incognito. */
+    fun handleIncomingUrl(raw: String?, incognito: Boolean = false) {
         val url = parseDeepLink(raw) ?: return
-        addNewTab(url)
+        addNewTab(url, incognito)
         activeView = "none"
     }
 
@@ -506,6 +528,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun removeFavorite(id: String) { favorites = favorites.filter { it.id != id } }
+    /** The tab menu's star: adds the current page to favorites, or removes it. */
+    fun toggleFavorite() {
+        val url = activeUrl ?: return
+        favorites.firstOrNull { it.url == url }?.let { removeFavorite(it.id) } ?: addFavorite(currentTab?.title.orEmpty(), url)
+    }
+    fun togglePinned() { val t = currentTab ?: return; updateTab(t.id) { copy(pinned = !pinned) } }
     fun reorderFavorites(from: Int, to: Int) { favorites = favorites.moved(from, to) }
 
     // ---------------------------------------------------------------- overlays
@@ -548,7 +576,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     private fun wipeData() {
         resetSettings()
         history = emptyList(); recents = emptyList(); bookmarks = emptyList(); favorites = emptyList()
-        resetTabs()
+        resetTabs(keepPinned = false) // erasing everything: pinned tabs go too
         viewModelScope.launch(Dispatchers.IO) {
             delay(1200) // let the debounced savers flush the empty state first, then remove the files
             store.clear()
@@ -561,7 +589,23 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Applies an imported .midata. */
     fun applyImport(newSettings: Settings) { settings = newSettings.sanitized() }
 
-    fun trustHost(host: String) { ignoredHosts = ignoredHosts + host }
+    // certificate exceptions are kept per profile ("<profile>|<host>"), so none cross between normal and incognito
+    fun trustHost(profile: String?, host: String) { ignoredHosts = ignoredHosts + "${profile.orEmpty()}|$host" }
+    fun isCertException(profile: String?, host: String) = "${profile.orEmpty()}|$host" in ignoredHosts
+    /** An incognito profile was deleted: forget its certificate exceptions too. */
+    fun forgetProfile(profile: String) { ignoredHosts = ignoredHosts.filterNot { it.startsWith("$profile|") }.toSet() }
+    private fun certExceptions(profile: String?) =
+        ignoredHosts.filter { it.substringBefore('|') == profile.orEmpty() }.map { it.substringAfter('|') }.toSet()
+
+    /** Incognito needs WebView profiles (WebView 110+); without them the toggle isn't offered (never a shared profile). */
+    val incognitoSupported by lazy { androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.MULTI_PROFILE) }
+
+    /** Search pill toggle. Only a fresh tab can switch; a tab with history keeps its mode. */
+    fun toggleIncognito() {
+        val t = currentTab ?: return
+        if (!t.isFresh || !incognitoSupported) return
+        updateTab(t.id) { copy(profile = if (incognito) null else newIncognitoProfile()) }
+    }
 
     /**
      * Clear Browsing Data, beyond what WebView holds: tab snapshots (screenshots of pages), stored site icons and mi's
@@ -585,7 +629,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** The visible page's connection isn't secure (see [isNotSecure]); the pill shows a "Not secure" marker. */
-    val connectionNotSecure get() = isNotSecure(activeUrl, ignoredHosts)
+    val connectionNotSecure get() = isNotSecure(activeUrl, certExceptions(currentTab?.profile))
 
     fun explainNotSecure() {
         val certError = activeUrl?.startsWith("https://", ignoreCase = true) == true

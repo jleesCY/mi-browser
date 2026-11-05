@@ -1,6 +1,8 @@
 // Material 3 Expressive building blocks shared across screens.
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonGroupDefaults
@@ -41,20 +43,22 @@ fun DialogCard(
         color = ui.cs.surfaceContainerHigh,
         tonalElevation = 6.dp,
     ) {
-        Column(Modifier.padding(24.dp)) {
+        // title and actions stay put; the content between them shrinks and scrolls when space is short (keyboard open)
+        // text buttons carry their own 48dp touch height, so the actions row sits close and the card's bottom padding is small
+        Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = if (actions != null) 12.dp else 24.dp)) {
             if (title != null) Txt(title, 24f, ui.cs.onSurface, ui.regular, Modifier.padding(bottom = 16.dp), scaled = false)
-            content()
-            if (actions != null) Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), content = actions)
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), content = content)
+            if (actions != null) Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), content = actions)
         }
     }
 }
 
 /** Dialog text action (M3 dialogs use text buttons); [destructive] uses the error color. */
 @Composable
-fun DialogAction(text: String, destructive: Boolean = false, onClick: () -> Unit) {
+fun DialogAction(text: String, destructive: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val cs = LocalUi.current.cs
-    TextButton(onClick) {
-        Text(text, color = if (destructive) cs.error else cs.primary, style = MaterialTheme.typography.labelLarge)
+    TextButton(onClick, modifier) {
+        Text(text, color = if (destructive) cs.error else cs.primary, style = MaterialTheme.typography.labelLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2)
     }
 }
 

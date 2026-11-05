@@ -3,6 +3,8 @@
 // vm.switcherAnim: the live page shrinks into its card under the finger (switcherZoom); tapping a card zooms it back.
 package com.jlees.mibrowser.ui
 
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -25,7 +27,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Surface
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.CornerRadius
@@ -47,6 +49,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.lerp
@@ -158,7 +162,16 @@ fun TabSwitcher(vm: BrowserViewModel, navDp: Float, statusDp: Float) {
     BackHandler(enabled = vm.activeView == "none") { if (vm.isSubMenuVisible) vm.isSubMenuVisible = false else close(centered?.id) }
 
     // While zooming the switcher sits behind the page; once settled it moves on top and takes touches.
-    Box(Modifier.fillMaxSize().zIndex(if (vm.switcherSettled) 150f else -1f).graphicsLayer { alpha = anim.value }.background(ui.cs.surfaceContainerLowest).blockTouches()) {
+    // background: the accent colour from darker (top-left) to lighter (bottom-right), so the cards stand out
+    val cs = ui.cs
+    val gradient = remember(cs, ui.isDark) {
+        val dark = if (ui.isDark) lerp(lerp(cs.surfaceContainerLowest, Color.Black, 0.2f), cs.primary, 0.05f)
+            else lerp(cs.primaryContainer, cs.primary, 0.28f) // light: a real mid-tone of the accent, not the pastel
+        val light = if (ui.isDark) lerp(cs.surfaceContainer, cs.primaryContainer, 0.38f)
+            else lerp(cs.surfaceContainerLowest, cs.primaryContainer, 0.6f)
+        androidx.compose.ui.graphics.Brush.linearGradient(listOf(dark, light), start = Offset.Zero, end = Offset.Infinite) // top-left → bottom-right
+    }
+    Box(Modifier.fillMaxSize().zIndex(if (vm.switcherSettled) 150f else -1f).graphicsLayer { alpha = anim.value }.background(gradient).blockTouches()) {
         Column(Modifier.fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 12.dp)) {
             Txt("${tabs.size} ${if (tabs.size == 1) "tab" else "tabs"}", 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.align(Alignment.CenterHorizontally))
             HorizontalPager(
@@ -172,6 +185,7 @@ fun TabSwitcher(vm: BrowserViewModel, navDp: Float, statusDp: Float) {
                 TabCardView(
                     tab, tab.id == vm.activeTabId, vm.settings.showTabLogo, pageAspect,
                     hidden = !vm.switcherSettled && tab.id == vm.activeTabId, // the zooming page stands in for it
+                    logoShown = vm.settings.homeLogoType != "None",
                     // cover-flow: neighbours shrink and fade
                     Modifier.graphicsLayer {
                         val off = abs(pager.currentPage - page + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
@@ -205,16 +219,21 @@ fun TabSwitcher(vm: BrowserViewModel, navDp: Float, statusDp: Float) {
                 SwitcherEdgeButton("settings", { vm.openView("settings") }, Modifier.onGloballyPositioned { vm.switcherBarRight = it.boundsInWindow() })
             }
         }
-        if (vm.isSubMenuVisible) {
-            Box(Modifier.fillMaxSize().blockTouches { vm.isSubMenuVisible = false })
-            SubMenu(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = navDp.dp + 88.dp))
+        // tab menu: a tall card above the bottom bar, growing out of the ⋮ button
+        if (vm.isSubMenuVisible) Box(Modifier.fillMaxSize().blockTouches { vm.isSubMenuVisible = false })
+        androidx.compose.animation.AnimatedVisibility(
+            vm.isSubMenuVisible, Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn(tween(120)) + scaleIn(Motion.fastSpatial(), initialScale = 0.85f, transformOrigin = TransformOrigin(0.5f, 1f)),
+            exit = fadeOut(tween(120)) + scaleOut(tween(150), targetScale = 0.9f, transformOrigin = TransformOrigin(0.5f, 1f)),
+        ) {
+            SubMenu(vm, Modifier.fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 88.dp, start = 12.dp, end = 12.dp))
         }
     }
 }
 
 @Composable
 private fun TabCardView(
-    tab: TabItem, active: Boolean, showLogo: Boolean, aspect: Float, hidden: Boolean, modifier: Modifier,
+    tab: TabItem, active: Boolean, showLogo: Boolean, aspect: Float, hidden: Boolean, logoShown: Boolean, modifier: Modifier,
     onRect: (Rect) -> Unit, onOpen: () -> Unit, onRename: () -> Unit, onClosed: () -> Unit,
 ) {
     val ui = LocalUi.current
@@ -233,7 +252,7 @@ private fun TabCardView(
     val drag = Modifier.draggable(
         rememberDraggableState { d ->
             rawY += d
-            val nowArmed = rawY < -threshold()
+            val nowArmed = !tab.pinned && rawY < -threshold() // a pinned tab gives a little, then springs back
             if (nowArmed != armed) {
                 armed = nowArmed
                 haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
@@ -242,7 +261,7 @@ private fun TabCardView(
         },
         Orientation.Vertical,
         onDragStopped = { v ->
-            val dismiss = armed || (v < -2000f && rawY < -threshold() * 0.4f)
+            val dismiss = !tab.pinned && (armed || (v < -2000f && rawY < -threshold() * 0.4f))
             if (dismiss) {
                 follow.snapTo(1f)
                 animate(rawY, -heightPx * 1.2f, animationSpec = tween(140, easing = FastOutLinearInEasing)) { value, _ -> rawY = value }
@@ -261,29 +280,71 @@ private fun TabCardView(
             .then(drag),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp, start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(28.dp).clip(CircleShape).background(if (active) ui.cs.primaryContainer else ui.cs.surfaceContainerHigh), contentAlignment = Alignment.Center) {
-                val globe = @Composable { Sym("public", 18f, if (active) ui.cs.onPrimaryContainer else ui.cs.onSurfaceVariant) }
-                if (showLogo && tab.url != null) NetImage(Favicons.src(tab.url), Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)), fallback = globe) else globe()
-            }
-            Column(Modifier.padding(start = 10.dp).weight(1f)) {
-                Txt(tab.title.ifEmpty { "New Tab" }, 15f, ui.cs.onSurface, ui.semibold, maxLines = 1)
-                Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
-            }
-        }
+        TabHeader(tab, active, showLogo, Modifier.padding(bottom = 10.dp))
         Box(
             Modifier.weight(1f)
                 .aspectRatio(aspect, matchHeightConstraintsFirst = true) // same shape as the page, so the zoom lands exactly
                 .onGloballyPositioned { heightPx = it.size.height.coerceAtLeast(1); if (rawY == 0f) onRect(it.boundsInWindow()) }
                 .clip(shape).background(ui.cs.surfaceContainer)
                 .then(if (active) Modifier.border(3.dp, ui.cs.primary, shape) else Modifier)
-                .combinedClickable(onClick = onOpen, onLongClick = onRename),
+                .combinedClickable(onClick = onOpen, onLongClick = if (tab.incognito) null else onRename),
             contentAlignment = Alignment.Center,
         ) {
-            if (tab.previewImage != null && tab.url != null) NetImage(tab.previewImage, Modifier.fillMaxSize(), ContentScale.Crop, alignmentTop = true)
+            if (tab.incognito || tab.url == null) BlankPageMini(tab.incognito, showLogo = tab.incognito || logoShown)
+            else if (tab.previewImage != null && tab.url != null) NetImage(tab.previewImage, Modifier.fillMaxSize(), ContentScale.Crop, alignmentTop = true)
             else Txt(if (tab.url == null) "mi." else displayHost(tab.url), if (tab.url == null) 40f else 16f, ui.cs.onSurfaceVariant, ui.extrabold, align = TextAlign.Center, font = if (tab.url == null) sansFlex(true) else null)
         }
     }
+}
+
+/** A blank page (or an incognito tab's mask) drawn exactly as on screen, scaled down to the card. */
+@Composable
+private fun BlankPageMini(incognito: Boolean, showLogo: Boolean) {
+    val windowW = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width.coerceAtLeast(1)
+    BoxWithConstraints(Modifier.fillMaxSize().background(com.jlees.mibrowser.ui.home.homeBackground(incognito)), contentAlignment = Alignment.Center) {
+        val sc = constraints.maxWidth.toFloat() / windowW
+        if (showLogo) Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }) {
+            if (incognito) com.jlees.mibrowser.ui.home.IncognitoMark() else com.jlees.mibrowser.ui.home.MiLogo()
+        }
+    }
+}
+
+/** A card's icon and title row. An incognito tab gives nothing away: no title, site or icon. */
+@Composable
+private fun TabHeader(tab: TabItem, active: Boolean, showLogo: Boolean, modifier: Modifier = Modifier) {
+    val ui = LocalUi.current
+    Row(modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(28.dp).clip(CircleShape).background(if (active) ui.cs.primaryContainer else ui.cs.surfaceContainerHigh), contentAlignment = Alignment.Center) {
+            val globe = @Composable { Sym(if (tab.incognito) "incognito" else "public", 18f, if (active) ui.cs.onPrimaryContainer else ui.cs.onSurfaceVariant) }
+            if (showLogo && tab.url != null && !tab.incognito) NetImage(Favicons.src(tab.url), Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)), fallback = globe) else globe()
+        }
+        Column(Modifier.padding(start = 10.dp).weight(1f)) {
+            // an incognito tab gives nothing away: no title, site, icon or preview
+            Txt(if (tab.incognito) "Incognito tab" else tab.title.ifEmpty { "New Tab" }, 15f, ui.cs.onSurface, ui.semibold, maxLines = 1)
+            if (!tab.incognito) Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+        }
+        if (tab.pinned) Sym("keep", 18f, ui.cs.primary, Modifier.padding(start = 8.dp))
+    }
+}
+
+/**
+ * The active tab's icon and title while its live page zooms into (or out of) its card: drawn above the page, riding
+ * just over its top edge, so they're there from the first moment of the gesture. Once settled, the card's own take over.
+ */
+@Composable
+fun ZoomingTabHeader(vm: BrowserViewModel) {
+    val tab = vm.currentTab ?: return
+    val src = vm.pageBounds
+    if (!vm.switcherVisible || vm.switcherSettled || src == null || src.width <= 0f) return
+    var h by remember { mutableIntStateOf(0) }
+    val gap = with(LocalDensity.current) { 10.dp.toPx() }
+    val r = zoomRect(src, vm.switcherTarget ?: with(LocalDensity.current) { estimatedCard(src) }, vm.switcherAnim.value.coerceIn(0f, 1f))
+    TabHeader(
+        tab, true, vm.settings.showTabLogo,
+        Modifier.width(with(LocalDensity.current) { r.width.toDp() }).offset { IntOffset(r.left.roundToInt(), (r.top - gap - h).roundToInt()) }
+            .onSizeChanged { h = it.height }
+            .graphicsLayer { alpha = vm.switcherAnim.value.coerceIn(0f, 1f) },
+    )
 }
 
 /** "Tab closed · Undo" for a few seconds after closing a tab. */
@@ -308,7 +369,7 @@ private fun UndoBar(vm: BrowserViewModel) {
 @Composable
 fun SwitcherEdgeButton(icon: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val ui = LocalUi.current
-    FilledTonalIconButton(onClick = onClick, modifier.size(52.dp)) { Sym(icon, 24f, ui.cs.onSecondaryContainer) }
+    IconButton(onClick = onClick, modifier.size(52.dp)) { Sym(icon, 26f, ui.cs.onSurface) } // icon only, on the gradient
 }
 
 /** The contents of the switcher's centre pill: new tab and the tab menu. */

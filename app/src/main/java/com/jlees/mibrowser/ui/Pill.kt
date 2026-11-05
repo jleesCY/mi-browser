@@ -13,6 +13,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
@@ -26,13 +27,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
@@ -42,7 +43,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -320,7 +320,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                                     shadowElevation = lerp(interp(kk, listOf(0f, 10f), listOf(10f, 0f)), 6f, m).dp.toPx()
                                     clip = true
                                 }
-                                .background(ui.cs.surfaceContainerHigh),
+                                .background(if (ui.isDark) ui.cs.surfaceContainerHigh else lerp(ui.cs.surfaceContainerHighest, ui.cs.primaryContainer, 0.45f)),
                         ) {
                             Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - (morph() * 3f).coerceIn(0f, 1f) }) {
                                 SearchPillContent(vm, pill, focusedAdd, focusManager)
@@ -392,9 +392,13 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
             Modifier.fillMaxSize().paddingDp(top = focusedAdd).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // incognito: the field gets an outline, always, so the mode is clear at a glance
+            val incognitoRing by androidx.compose.animation.core.animateFloatAsState(if (vm.currentTab?.incognito == true) 1f else 0f, Motion.spatial(), label = "incognito ring")
+            val fieldShape = RoundedCornerShape((s.cornerRadius * 1.5f).dp)
             Box(
                 Modifier.weight(1f).height((PILL_HEIGHT * 0.7f).dp).graphicsLayer { alpha = contentOpacity() }
-                    .clip(RoundedCornerShape((s.cornerRadius * 1.5f).dp)).background(ui.cs.surfaceContainerHighest),
+                    .clip(fieldShape).background(if (ui.isDark) ui.cs.surfaceContainerHighest else lerp(ui.cs.surfaceDim, ui.cs.primaryContainer, 0.4f))
+                    .then(if (incognitoRing > 0.01f) Modifier.border((2f * incognitoRing).dp, ui.cs.onSurface.copy(alpha = 0.7f * incognitoRing), fieldShape) else Modifier),
             ) {
                 // loading progress: a faint accent fill behind the text, growing left to right or from the center out
                 if (s.progressBarMode != "none" && vm.isLoading) {
@@ -409,6 +413,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                 }
                 Row(Modifier.fillMaxSize().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     // "Not secure": plain http off the device, or a site allowed past a certificate error. Tap to explain.
+                    val incognito = vm.currentTab?.incognito == true
                     val notSecure = !vm.isInputFocused && vm.connectionNotSecure
                     if (notSecure) Row(
                         Modifier.padding(start = 10.dp).clip(CircleShape).background(ui.cs.errorContainer)
@@ -463,7 +468,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         keyboardActions = KeyboardActions(onGo = { focusManager.clearFocus(); vm.submitInput(tfv.text) }),
                         decorationBox = { inner ->
                             Box(contentAlignment = Alignment.CenterStart) {
-                                if (tfv.text.isEmpty()) Txt("Search", 16f, ui.cs.onSurfaceVariant, FontWeight.W600)
+                                if (tfv.text.isEmpty()) Txt(if (incognito) "Search privately" else "Search", 16f, ui.cs.onSurfaceVariant, FontWeight.W600)
                                 inner()
                             }
                         },
@@ -477,6 +482,13 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         }
                         if (vm.isInputFocused) {
                             Box(Modifier.touchable { focusManager.clearFocus(); vm.submitInput(tfv.text) }) { Sym("search", 22f, ui.cs.primary) }
+                        } else if (vm.currentTab?.isFresh == true && vm.incognitoSupported) {
+                            // a fresh tab has nothing to reload: here the button switches the tab between normal and incognito
+                            Box(
+                                Modifier.size(32.dp).clip(CircleShape).background(if (incognito) ui.cs.inverseSurface else Color.Transparent)
+                                    .touchable { vm.toggleIncognito() },
+                                contentAlignment = Alignment.Center,
+                            ) { Sym("incognito", 20f, if (incognito) ui.cs.inverseOnSurface else ui.cs.onSurface) }
                         } else {
                             val hasUrl = vm.activeUrl != null
                             Box(Modifier.alpha(if (hasUrl) 1f else 0.3f).touchable(enabled = hasUrl) {

@@ -60,8 +60,9 @@ import android.os.SystemClock
 import android.print.PageRange
 import android.print.PrintAttributes
 import android.print.PrintDocumentAdapter
-import android.print.PrintDocumentInfo
 import android.security.KeyChain
+import androidx.webkit.ProfileStore
+import com.jlees.mibrowser.data.INCOGNITO_PROFILE_PREFIX
 import androidx.webkit.UserAgentMetadata
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
@@ -77,6 +78,25 @@ data class WebError(val code: Int, val desc: String, val failingUrl: String?)
  * (missing in WebView), both routed to the app through the "miBridge" message listener (main frame only).
  * Share keeps the Web Share rule that it needs a user gesture.
  */
+/**
+ * Incognito: navigator.credentials.create({publicKey}) is refused, so no passkey is saved from an incognito tab.
+ * ponytail: a page could reach an unpatched create() through a fresh about:blank iframe; Android still shows its own
+ * "Create passkey?" sheet then, so nothing is saved without the user confirming.
+ */
+private const val NO_PASSKEY_CREATION_JS = """(() => {
+  const proto = window.CredentialsContainer && CredentialsContainer.prototype;
+  if (!proto || !proto.create || proto.__miNoCreate) return;
+  const create = proto.create;
+  Object.defineProperty(proto, '__miNoCreate', { value: true });
+  Object.defineProperty(proto, 'create', { configurable: false, writable: false, value: function (options) {
+    if (options && options.publicKey) {
+      try { window.miBridge && window.miBridge.postMessage(JSON.stringify({ type: 'passkeyBlocked' })); } catch (e) {}
+      return Promise.reject(new DOMException("Passkeys can't be created in incognito", 'NotAllowedError'));
+    }
+    return create.apply(this, arguments);
+  } });
+})();"""
+
 private const val BRIDGE_JS = """(() => {
   const bridge = window.miBridge;
   if (!bridge || window.__miBridgeShim) return;
@@ -145,6 +165,62 @@ class WebViewHost(
 
     private val density get() = activity.resources.displayMetrics.density
 
+    // ---- incognito: every incognito tab (with its pop-ups) has its own WebView profile, so cookies, storage, cache,
+    // service workers and permissions never cross between it and normal tabs or other incognito tabs. A profile is
+    // deleted from disk as soon as nothing uses it, and leftovers (after a crash) are deleted at startup.
+    private val viewProfile = HashMap<String, String>()
+    private fun profileOf(id: String) = vm.tabs.firstOrNull { it.id == id }?.profile ?: viewProfile[id]
+    private fun isIncognito(id: String) = profileOf(id) != null
+    /** Prefix for session state (permissions, sign-ins, pop-up allowances) so it stays inside one profile. */
+    private fun scope(id: String) = profileOf(id).orEmpty()
+    /** The tab's cookie store: its profile's (an incognito tab never reads or writes the normal cookie jar). */
+    private fun cookies(wv: WebView): CookieManager =
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) WebViewCompat.getProfile(wv).cookieManager else CookieManager.getInstance()
+    /** Pop-ups allowed in an incognito tab ("<profile>|<site>"); session only, never added to the saved list. */
+    private val incognitoPopupSites = HashSet<String>()
+
+    /**
+     * Ends every incognito profile no tab uses (all of them when [all]). WebView can only delete a profile that wasn't
+     * loaded in this process, so a profile used this session is wiped through its own APIs instead (cookies, all site
+     * storage incl. service workers and IndexedDB, location permissions; its HTTP cache was cleared with its last
+     * WebView) and its folder is deleted at the next launch (see [endProcessIfIncognitoUsed]).
+     */
+    fun releaseProfiles(all: Boolean = false) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) return
+        val inUse = if (all) emptySet() else vm.tabs.mapNotNull { it.profile }.toSet() + viewProfile.values
+        val store = ProfileStore.getInstance()
+        store.allProfileNames.filter { it.startsWith(INCOGNITO_PROFILE_PREFIX) && it !in inUse && it !in wipedProfiles }.forEach { name ->
+            if (name in loadedProfiles) {
+                store.getProfile(name)?.run {
+                    cookieManager.removeAllCookies(null); cookieManager.flush()
+                    webStorage.deleteAllData()
+                    geolocationPermissions.clearAll()
+                }
+                wipedProfiles += name
+            } else runCatching { store.deleteProfile(name) }
+            incognitoPopupSites.removeAll { it.startsWith("$name|") }
+            httpAuth.keys.removeAll { it.startsWith("$name|") }
+            sitePermissions.removeAll { it.startsWith("$name|") }
+            vm.forgetProfile(name)
+            lastPopupNotice = null
+        }
+    }
+
+    /** Incognito profiles loaded in this process (they can't be deleted until it ends) and those already wiped. */
+    private val loadedProfiles = HashSet<String>()
+    private val wipedProfiles = HashSet<String>()
+
+    /**
+     * Leaving the app after using incognito: end the process, so the next launch starts fresh and deletes the wiped
+     * profile folders (WebView keeps a profile loaded for the life of the process). [flush] saves normal data first.
+     */
+    fun endProcessIfIncognitoUsed(flush: () -> Unit) {
+        if (loadedProfiles.isEmpty()) return
+        flush()
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+
     // ---- identity: present as Chrome of the same version (what Chrome sends), not as an embedded WebView.
     // WebView's own UA ends in "; wv) ... Version/4.0" and its client hints list an "Android WebView" brand; sites
     // like PayPal and Google sign-in refuse embedded WebViews, so neither is sent.
@@ -177,8 +253,8 @@ class WebViewHost(
             wv.settings.userAgentString = ua
             if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) WebSettingsCompat.setUserAgentMetadata(wv.settings, uaMetadata(desktop))
         }
-        CookieManager.getInstance().setAcceptCookie(!s.blockCookies)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !s.blockCookies && !s.blockThirdPartyCookies)
+        cookies(wv).setAcceptCookie(!s.blockCookies)
+        cookies(wv).setAcceptThirdPartyCookies(wv, !s.blockCookies && !s.blockThirdPartyCookies)
         if (wv.settings.textZoom != s.textZoom) wv.settings.textZoom = s.textZoom
         // only has an effect while the WebView's theme is dark (it follows the app theme, see create)
         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) WebSettingsCompat.setAlgorithmicDarkeningAllowed(wv.settings, s.darkenPages)
@@ -245,7 +321,7 @@ class WebViewHost(
     /** Get or create the tab's WebView, apply settings and perform any requested load. */
     fun sync(tab: TabItem): WebView {
         val fresh = !views.containsKey(tab.id)
-        val wv = views.getOrPut(tab.id) { create(tab.id) }
+        val wv = views.getOrPut(tab.id) { create(tab.id, tab.profile) }
         if (tab.id == vm.activeTabId) lastUsed[tab.id] = System.nanoTime()
         if (fresh) {
             configure(wv, tab.desktopMode ?: vm.settings.desktopMode)
@@ -271,9 +347,17 @@ class WebViewHost(
 
     fun destroy(id: String) {
         if (id in printing) { closeAfterPrint += id; views[id]?.let { (it.parent as? ViewGroup)?.removeView(it) }; return }
-        views.remove(id)?.let { (it.parent as? ViewGroup)?.removeView(it); it.destroy() }
+        views.remove(id)?.let { wv ->
+            (wv.parent as? ViewGroup)?.removeView(wv)
+            // an incognito profile's HTTP cache is cleared with its last WebView (clearCache needs a live one)
+            val p = viewProfile[id]
+            if (p != null && viewProfile.count { it.value == p } == 1) wv.clearCache(true)
+            wv.destroy()
+        }
         loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id)
         pausedViews.remove(id); dialogTimes.remove(id); dialogsBlocked.remove(id); mainNav.remove(id)
+        // posted: callers destroy a tab's WebView before (or while) removing the tab, and the tab list must be final
+        if (viewProfile.remove(id) != null || vm.tabs.none { it.id == id }) Handler(Looper.getMainLooper()).post { releaseProfiles() }
     }
 
     /** Evicts least recently viewed WebViews (never the active one) until at most [max] are live. */
@@ -288,8 +372,11 @@ class WebViewHost(
         }
     }
 
-    /** Activity teardown: release every WebView (they hold the Activity). */
-    fun destroyAll() = views.keys.toList().forEach { destroy(it) }
+    /** Activity teardown: release every WebView (they hold the Activity). [finishing]: incognito ends with the app. */
+    fun destroyAll(finishing: Boolean) {
+        views.keys.toList().forEach { destroy(it) }
+        if (finishing) releaseProfiles(all = true) // wipe now; folders go at the next launch
+    }
 
     fun handle(cmd: WebCmd) {
         when (cmd) {
@@ -332,9 +419,24 @@ class WebViewHost(
     fun exitFullscreen() { customViewCallback?.onCustomViewHidden() }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun create(id: String): WebView {
+    private fun create(id: String, profile: String?): WebView {
         // Pages see prefers-color-scheme from the creating context's theme, so match the app's light/dark setting.
-        val wv = WebView(ContextThemeWrapper(activity, if (isDark()) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar))
+        val themed = ContextThemeWrapper(activity, if (isDark()) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)
+        // incognito: page text fields ask the keyboard app not to learn from what's typed (like Chrome's incognito)
+        val wv = if (profile == null) WebView(themed) else object : WebView(themed) {
+            override fun onCreateInputConnection(outAttrs: android.view.inputmethod.EditorInfo): android.view.inputmethod.InputConnection? =
+                super.onCreateInputConnection(outAttrs).also { outAttrs.imeOptions = outAttrs.imeOptions or android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING }
+        }
+        if (profile != null) {
+            // before anything else touches the WebView; never fall back to the shared profile
+            check(WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) { "incognito needs WebView profiles" }
+            ProfileStore.getInstance().getOrCreateProfile(profile)
+            WebViewCompat.setProfile(wv, profile)
+            loadedProfiles += profile
+            viewProfile[id] = profile
+            // no autofill service (password managers): nothing typed in incognito is saved or filled from outside
+            wv.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+        }
         wv.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         wv.setBackgroundColor(Color.WHITE)
         wv.overScrollMode = View.OVER_SCROLL_NEVER
@@ -361,7 +463,13 @@ class WebViewHost(
         // from an embedded WebView). WebView 155 doesn't offer this, so there the header is still sent.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) WebSettingsCompat.setRequestedWithHeaderOriginAllowList(ws, emptySet())
         // Passkeys / security keys (WebAuthn) through Android's Credential Manager, as a browser.
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION)) WebSettingsCompat.setWebAuthenticationSupport(ws, WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER)
+        // Incognito: signing in with a passkey works, creating one doesn't (it would be saved to the password manager
+        // for good). Without document-start scripts that can't be enforced, so passkeys stay off there.
+        val incognito = isIncognito(id)
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION) && (!incognito || WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))) {
+            WebSettingsCompat.setWebAuthenticationSupport(ws, WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER)
+            if (incognito) WebViewCompat.addDocumentStartJavaScript(wv, NO_PASSKEY_CREATION_JS, setOf("*"))
+        }
         // Payment Request API (e.g. Google Pay on checkout pages).
         if (WebViewFeature.isFeatureSupported(WebViewFeature.PAYMENT_REQUEST)) WebSettingsCompat.setPaymentRequestEnabled(ws, true)
         // window.print() and navigator.share for pages (see BRIDGE_JS).
@@ -374,7 +482,7 @@ class WebViewHost(
         wv.webChromeClient = Chrome(id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.activeTabId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
         wv.setOnLongClickListener { onLongPress(wv) }
-        wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> download(url, userAgent, contentDisposition, mimetype, length) }
+        wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> download(wv, id, url, userAgent, contentDisposition, mimetype, length) }
         return wv
     }
 
@@ -389,6 +497,7 @@ class WebViewHost(
         lastBridgeAction = now
         when (msg.optString("type")) {
             "print" -> print(id, view)
+            "passkeyBlocked" -> Toast.makeText(activity, "Passkeys can't be created in incognito", Toast.LENGTH_LONG).show()
             "share" -> {
                 val text = listOf(msg.optString("text"), msg.optString("url")).filter { it.isNotBlank() }.joinToString("\n")
                 if (text.isNotEmpty()) shareText(activity, text, msg.optString("title").ifBlank { null })
@@ -425,7 +534,8 @@ class WebViewHost(
         vm.showAlert(
             "Pop-up blocked",
             "$site tried to open a new window without a tap. If you were expecting one (a sign-in or payment window), allow pop-ups for this site and try again.",
-            listOf(AlertButton("Keep blocking", "cancel"), AlertButton("Always allow") { vm.allowPopups(site) }),
+            if (isIncognito(id)) listOf(AlertButton("Keep blocking", "cancel"), AlertButton("Allow in this tab") { incognitoPopupSites += "${scope(id)}|$site" })
+            else listOf(AlertButton("Keep blocking", "cancel"), AlertButton("Always allow") { vm.allowPopups(site) }),
             onCancel = {},
         )
     }
@@ -451,7 +561,7 @@ class WebViewHost(
             if (request.isForMainFrame) mainNav[id] = url
             val gesture = request.hasGesture()
             if (url.startsWith("blob:") || url.startsWith("data:")) return false
-            if (url.startsWith("mibrowser:")) { if (gesture) vm.handleIncomingUrl(url); return true }
+            if (url.startsWith("mibrowser:")) { if (gesture) vm.handleIncomingUrl(url, incognito = isIncognito(id)); return true }
             if (vm.settings.httpsOnly && url.startsWith("http://") && request.isForMainFrame && !isLocalHost(request.url.host)) {
                 vm.loadInTab(id, url.replaceFirst("http://", "https://"))
                 return true
@@ -500,7 +610,7 @@ class WebViewHost(
         @SuppressLint("WebViewClientOnReceivedSslError")
         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
             val host = displayHost(error.url)
-            if (host in vm.ignoredHosts) { handler.proceed(); return }
+            if (vm.isCertException(profileOf(id), host)) { handler.proceed(); return }
             handler.cancel()
             val mainFrame = view.url == null || view.url.equals(error.url, ignoreCase = true)
             if (mainFrame && fallBackToHttp(error.url)) return
@@ -516,6 +626,7 @@ class WebViewHost(
          * dropped if the tab has navigated away meanwhile, so a page can only ever set its own icon.
          */
         private fun fetchTouchIcon(view: WebView, url: String?) {
+            if (isIncognito(id)) return // nothing from incognito is stored
             val host = faviconHost(url) ?: return
             if (view.url != url) return
             if (!vm.settings.jsEnabled) { Favicons.upgrade(host); return }
@@ -536,7 +647,7 @@ class WebViewHost(
 
         /** HTTP authentication (Basic/Digest): ask for credentials; remembered for this session, re-asked if rejected. */
         override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) {
-            val key = "$host|$realm"
+            val key = "${scope(id)}|$host|$realm"
             val known = httpAuth[key]
             if (known != null && key !in authAnswered) { authAnswered += key; handler.proceed(known.first, known.second); return }
             httpAuth.remove(key)
@@ -576,6 +687,7 @@ class WebViewHost(
          * after the address has already changed.
          */
         override fun onReceivedIcon(view: WebView, icon: Bitmap?) {
+            if (isIncognito(id)) return // nothing from incognito is stored
             val item = view.copyBackForwardList().currentItem ?: return
             val host = faviconHost(item.url) ?: return
             item.favicon?.let { Favicons.save(host, it) }
@@ -592,11 +704,13 @@ class WebViewHost(
          */
         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
             val site = displayHost(view.url)
-            if (!isUserGesture && site !in vm.settings.popupSites) { popupBlocked(id, site, view.url); return false }
+            // the saved allow-list is normal-mode data: incognito tabs only use what was allowed in them
+            val allowed = if (isIncognito(id)) "${scope(id)}|$site" in incognitoPopupSites else site in vm.settings.popupSites
+            if (!isUserGesture && !allowed) { popupBlocked(id, site, view.url); return false }
             val opener = vm.tabs.firstOrNull { it.id == id }
             val desktop = opener?.desktopMode
             val popupId = uniqueId()
-            val wv = create(popupId)
+            val wv = create(popupId, opener?.profile) // same profile as the opener
             configure(wv, desktop ?: vm.settings.desktopMode)
             views[popupId] = wv
             lastUsed[popupId] = System.nanoTime()
@@ -641,13 +755,13 @@ class WebViewHost(
             val host = request.origin?.host ?: run { request.deny(); return }
             val wanted = request.resources.filter { it == PermissionRequest.RESOURCE_AUDIO_CAPTURE || it == PermissionRequest.RESOURCE_VIDEO_CAPTURE }
             if (wanted.isEmpty()) { request.deny(); return }
-            if (wanted.all { "$host|$it" in sitePermissions }) { grantMedia(request); return }
+            if (wanted.all { "${scope(id)}|$host|$it" in sitePermissions }) { grantMedia(request); return }
             val what = wanted.joinToString(" and ") { if (it == PermissionRequest.RESOURCE_VIDEO_CAPTURE) "camera" else "microphone" }
             vm.showAlert(
                 "Allow $what?", "$host wants to use your $what.",
                 listOf(
                     AlertButton("Block", "cancel") { runCatching { request.deny() } },
-                    AlertButton("Allow") { wanted.forEach { sitePermissions += "$host|$it" }; grantMedia(request) },
+                    AlertButton("Allow") { wanted.forEach { sitePermissions += "${scope(id)}|$host|$it" }; grantMedia(request) },
                 ),
                 onCancel = { runCatching { request.deny() } },
             )
@@ -680,12 +794,12 @@ class WebViewHost(
                 ) callback.invoke(origin, true, false)
                 else requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) { r -> callback.invoke(origin, r.values.any { it }, false) }
             }
-            if ("$host|location" in sitePermissions) { grantLocation(); return }
+            if ("${scope(id)}|$host|location" in sitePermissions) { grantLocation(); return }
             vm.showAlert(
                 "Allow location?", "$host wants to know your location.",
                 listOf(
                     AlertButton("Block", "cancel") { callback.invoke(origin, false, false) },
-                    AlertButton("Allow") { sitePermissions += "$host|location"; grantLocation() },
+                    AlertButton("Allow") { sitePermissions += "${scope(id)}|$host|location"; grantLocation() },
                 ),
                 onCancel = { callback.invoke(origin, false, false) },
             )
@@ -817,18 +931,18 @@ class WebViewHost(
     fun proceedUnsafe(id: String) {
         val target = errors[id]?.failingUrl ?: vm.tabs.firstOrNull { it.id == id }?.url
         val host = displayHost(target)
-        if (host.isNotEmpty()) vm.trustHost(host)
+        if (host.isNotEmpty()) vm.trustHost(profileOf(id), host)
         errors.remove(id)
         views[id]?.reload()
     }
 
     // ---------------------------------------------------------------- downloads (RNWV DownloadListener)
-    private fun download(url: String, userAgent: String, contentDisposition: String?, mimetype: String?, length: Long) {
+    private fun download(wv: WebView, id: String, url: String, userAgent: String, contentDisposition: String?, mimetype: String?, length: Long) {
         val req = try { DownloadManager.Request(Uri.parse(url)) } catch (_: IllegalArgumentException) { return }
         val fileName = URLUtil.guessFileName(url, contentDisposition, mimetype).replace(Regex("[/\\\\?%*:|\"<>]"), "_")
         try {
             val u = URL(url)
-            CookieManager.getInstance().getCookie("${u.protocol}://${u.host}")?.let { req.addRequestHeader("Cookie", it) }
+            cookies(wv).getCookie("${u.protocol}://${u.host}")?.let { req.addRequestHeader("Cookie", it) }
         } catch (_: Exception) {}
         req.addRequestHeader("User-Agent", userAgent)
         req.setTitle(fileName)
@@ -848,7 +962,8 @@ class WebViewHost(
         }
         val size = if (length > 0) " (" + android.text.format.Formatter.formatShortFileSize(activity, length) + ")" else ""
         vm.showAlert(
-            "Download file?", "$fileName$size\nfrom ${displayHost(url)}",
+            "Download file?", "$fileName$size\nfrom ${displayHost(url)}" +
+                if (isIncognito(id)) "\n\nThe file is saved to your Downloads folder and stays after you close this incognito tab." else "",
             listOf(AlertButton("Cancel", "cancel"), AlertButton("Download") { start() }),
             onCancel = {},
         )
@@ -858,6 +973,7 @@ class WebViewHost(
     fun capturePreview(id: String) {
         val wv = views[id]
         val tab = vm.tabs.firstOrNull { it.id == id }
+        if (tab == null || tab.incognito) return // incognito tabs are never photographed: no snapshot in memory or on disk
         if (wv != null && tab != null && wv.width > 0 && wv.height > 0 && wv.isAttachedToWindow) {
             try {
                 val bmp = Bitmap.createBitmap(wv.width / 2, wv.height / 2, Bitmap.Config.ARGB_8888)
@@ -877,4 +993,8 @@ class WebViewHost(
             activity.cacheDir.listFiles { f -> f.name.startsWith("preview_") }?.forEach { it.delete() }
         }
     }
+
+    // last, so every property it touches is initialized: anything left from a previous run (e.g. the app was
+    // killed with incognito tabs open) is deleted
+    init { releaseProfiles() }
 }
