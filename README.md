@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/public/images/browsing.jpg" width="200" alt="Browsing a page with the Pill at the bottom" />
+  <img src="docs/public/images/homepage.jpg" width="200" alt="A new tab: the mi. logo with the Pill at the bottom" />
   <img src="docs/public/images/tab_switcher.jpg" width="200" alt="Tab switcher with a pinned tab" />
   <img src="docs/public/images/power_tools.jpg" width="200" alt="Tab menu: favorite, bookmark, pin, quick tiles and tools" />
   <img src="docs/public/images/incognito.jpg" width="200" alt="A new incognito tab" />
