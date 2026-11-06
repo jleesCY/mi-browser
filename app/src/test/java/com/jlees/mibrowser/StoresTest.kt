@@ -1,6 +1,11 @@
 package com.jlees.mibrowser
 
+import com.jlees.mibrowser.data.BookmarkNode
+import com.jlees.mibrowser.data.BookmarkType
 import com.jlees.mibrowser.data.JsonStore
+import com.jlees.mibrowser.data.json
+import kotlinx.serialization.builtins.ListSerializer
+import com.jlees.mibrowser.find.FindInPage
 import com.jlees.mibrowser.data.StartupTabs
 import com.jlees.mibrowser.data.newIncognitoProfile
 import com.jlees.mibrowser.data.newTab
@@ -75,5 +80,30 @@ class StoresTest {
         val b2 = BookmarksStore(store).apply { load() }
         assertEquals(listOf("Site"), b2.nodes.map { it.title })
         assertEquals(4, b2.favorites.size)
+    }
+
+    @Test fun findInPageCountsAndSearchesAgain() {
+        val sent = mutableListOf<WebCmd>()
+        val find = FindInPage { sent += it }
+        find.open(); find.search("mars")
+        find.next(true) // nothing found yet: search again rather than step
+        assertEquals(listOf(WebCmd.Find("mars"), WebCmd.Find("mars")), sent)
+        find.onResult(ordinal = 1, matches = 7)
+        assertEquals(2, find.current); assertEquals(7, find.total)
+        find.next(false)
+        assertEquals(WebCmd.FindNext(false), sent.last())
+        find.refresh() // another tab now shows
+        assertEquals(WebCmd.Find("mars"), sent.last())
+        find.close()
+        assertEquals(WebCmd.Find(""), sent.last()); assertEquals(0, find.total)
+        find.refresh(); assertEquals(5, sent.size) // closed: nothing more is searched
+    }
+
+    @Test fun bookmarksSavedAsTextStillLoad() {
+        // bookmarks.json from before BookmarkType: "type" is plain text
+        val old = """[{"id":"1","type":"folder","title":"Work"},{"id":"2","type":"bookmark","title":"A","url":"https://a.com","parentId":"1"},{"id":"3","type":"mystery","title":"B","url":"https://b.com"}]"""
+        val nodes = json.decodeFromString(ListSerializer(BookmarkNode.serializer()), old)
+        assertEquals(listOf(BookmarkType.FOLDER, BookmarkType.BOOKMARK, BookmarkType.BOOKMARK), nodes.map { it.type })
+        assertTrue(json.encodeToString(ListSerializer(BookmarkNode.serializer()), nodes).contains("\"type\":\"folder\""))
     }
 }

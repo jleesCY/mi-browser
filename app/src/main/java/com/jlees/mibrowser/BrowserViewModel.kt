@@ -2,6 +2,11 @@
 // app-wide UI state (open sheet, dialogs, Pill text). Feature-specific actions live in their packages.
 package com.jlees.mibrowser
 
+import com.jlees.mibrowser.downloads.Downloader
+import com.jlees.mibrowser.downloads.DownloadsStore
+
+import com.jlees.mibrowser.find.FindInPage
+
 import com.jlees.mibrowser.adblock.cleanLink
 import com.jlees.mibrowser.incognito.incognitoSupported
 
@@ -57,7 +62,7 @@ data class ConfirmData(val action: ConfirmAction, val ms: Long = 0, val label: S
 enum class LaunchAction { NEW_TAB, NEW_INCOGNITO_TAB, SEARCH }
 
 /** The full-screen sheet over the browser, if any. */
-enum class Sheet { NONE, BOOKMARKS, HISTORY, SETTINGS }
+enum class Sheet { NONE, BOOKMARKS, HISTORY, DOWNLOADS, SETTINGS }
 
 /** A site asked for a username and password (HTTP authentication). */
 data class AuthRequest(val host: String, val realm: String, val insecure: Boolean, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
@@ -74,6 +79,9 @@ sealed interface WebCmd {
     data object WipeWebData : WebCmd
     data object ClearBrowsingData : WebCmd
     data object RecreateAll : WebCmd
+    /** Find in page on the visible tab: highlight [query] (empty clears). */
+    data class Find(val query: String) : WebCmd
+    data class FindNext(val forward: Boolean) : WebCmd
 }
 
 /** Events for the pill animations (UI collects these). */
@@ -100,6 +108,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     val tabs = TabsStore(store) { web.tryEmit(WebCmd.Destroy(it)) }
     val history = HistoryStore(store)
     val bookmarks = BookmarksStore(store)
+    val downloads = DownloadsStore(store)
+    val downloader = Downloader(app, downloads)
     var ready by mutableStateOf(false)
 
     // ---- UI state ----
@@ -109,7 +119,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var isLoading by mutableStateOf(false)
     var isSubMenuVisible by mutableStateOf(false)
     var switcherVisible by mutableStateOf(false)
-    var findVisible by mutableStateOf(false)
     var qrScannerVisible by mutableStateOf(false)
     var qrGeneratorVisible by mutableStateOf(false)
     var bookmarksAutoAdd by mutableStateOf(false)
@@ -124,6 +133,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     val updater = Updater(this)
     val suggestions = SearchSuggestions(this)
     val switcher = SwitcherTransition()
+    val find = FindInPage { web.tryEmit(it) }
 
     val activeUrl get() = tabs.current?.url
 
@@ -139,6 +149,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 settings = (store.read("settings", Settings.serializer()) ?: Settings()).sanitized().migrated()
                 history.load()
                 bookmarks.load()
+                downloads.load()
                 tabs.load(parseDeepLink(deepLink), settings.startupTabMode, settings.backgroundRefresh)
                 sweepFiles()
             }
@@ -191,7 +202,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Every stored file; each store owns its own (incognito tabs are never written: they don't survive the app). */
     private val savers = listOf(Saver(0, { settings }) { store.write("settings", Settings.serializer(), it) }, tabs.saver) +
-        history.savers + bookmarks.savers
+        history.savers + bookmarks.savers + downloads.savers
 
     /** Writes everything now (before mi ends its process after incognito use). */
     fun saveNow() = savers.forEach { it.writeNow() }
@@ -214,6 +225,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         syncInputToActiveTab()
         isLoading = tabs.current?.loading == true
         ui.tryEmit(UiEvent.TabSwitched)
+        find.refresh()
     }
 
     fun setActiveTab(id: String) {
@@ -244,6 +256,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun closeTabs(ids: Set<String>, undoable: Boolean = false) {
         val before = tabs.activeId
         if (tabs.close(ids, undoable) != before) onTabShown()
+        if (tabs.list.none { it.incognito }) downloads.forgetIncognito() // incognito ended: its downloads leave the list
     }
 
     /** A page closed its window (window.close), or Back left a popup with no history: return to the page that opened it. */
@@ -400,7 +413,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun wipeData() {
         resetSettings()
-        history.clear(); bookmarks.clear()
+        history.clear(); bookmarks.clear(); downloads.clear()
         resetTabs(keepPinned = false) // erasing everything: pinned tabs go too
         tabs.dismissUndo()
         viewModelScope.launch(Dispatchers.IO) {

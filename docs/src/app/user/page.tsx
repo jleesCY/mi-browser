@@ -214,9 +214,10 @@ export default function UserDocs() {
                   <div className="space-y-4 inline-block text-left w-full">
                     <GuideItem icon={<MousePointer2 size={18} />} title="Quick Save" desc="Open the Tab Switcher's ⋮ menu and tap Bookmark to save the centered tab to a folder of your choice." />
                     <div id="bookmark-swiping">
-                      <GuideItem icon={<RefreshCw size={18} />} title="Swipe to Edit" desc="Swipe left on any bookmark or folder to reveal Edit and Delete actions. You can change names, URLs, or move items between folders." />
+                      <GuideItem icon={<RefreshCw size={18} />} title="Swipe to Edit or Delete" desc="Swipe right on a bookmark or folder to edit it (name, address, folder), or left to delete it; mi asks before deleting, and says what's inside a folder. To move a bookmark, open Location and browse into the folder you want, or make a new one there." />
                     </div>
                     <GuideItem icon={<FolderHeart size={18} />} title="Nested Folders" desc="Create and manage folders to group related bookmarks together for easier access." />
+                    <GuideItem icon={<RefreshCw size={18} />} title="Import &amp; Export" desc="Settings → Library → Import Bookmarks brings bookmarks from Chrome, Firefox, Edge or Safari: choose their exported bookmarks file, or paste its contents. Export Bookmarks saves yours to a file any browser can import." />
                     <GuideItem icon={<Search size={18} />} title="Instant Search" desc="Quickly find any saved bookmark by typing in the search bar at the top of the Bookmarks view." />
                   </div>
                 </div>
@@ -245,6 +246,9 @@ export default function UserDocs() {
                     <GuideItem icon={<Trash2 size={18} />} title="Partial Deletion" desc="Swipe left on any history item to remove it individually without affecting the rest of your data." />
                     <GuideItem icon={<RefreshCw size={18} />} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, four weeks, or all time via the ⋮ menu in History." />
                     <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored only in the app's private storage on your device." />
+                    <div id="downloads">
+                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="The third tab beside Bookmarks and History. Downloads in progress show their progress, with pause and cancel (they keep going when you leave mi, with a notification); finished ones open with a tap, and can be shared or deleted. Swipe left to cancel or remove one from the list." />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -272,95 +276,93 @@ export default function UserDocs() {
               </div>
 
               <div className="grid gap-12">
-                {/* Colors */}
-                <SettingsSection title="Colors" icon={<Palette size={20} />}>
+                <SettingsSection title="Look & Feel" icon={<Palette size={20} />}>
                   <SettingItem title="Theme" desc="Choose Light, Dark, or System (follows your device's dark mode)." />
                   <SettingItem title="Pure Black" desc="In dark mode, use true black backgrounds. Saves battery on OLED screens; cards and the Pill stay a shade lighter." />
                   <SettingItem title="Accent Color" desc="Adaptive (your wallpaper colors, Android 12+), Gray, Blue, Green, Red, Orange, Yellow, or Purple. The full Material 3 color scheme is generated from your choice." />
-                </SettingsSection>
-
-                {/* Interface */}
-                <SettingsSection title="Interface" icon={<Maximize size={20} />}>
                   <SettingItem title="Font Size" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
                   <SettingItem title="Rounded Font" desc="Rounds the stroke ends of Google Sans Flex across the whole interface. The mi. logo is always rounded." />
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
-                  <SettingItem title="Darken Web Pages" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
+                  <SettingItem title="Haptic Feedback" desc="A light tap when a gesture is about to act: a swipe on a list row, the Pill opening the tab switcher or going back and forward, pull to refresh, closing a tab card, and long presses. On by default." />
                 </SettingsSection>
 
-                {/* Pill */}
                 <SettingsSection title="Pill" icon={<Navigation size={20} />}>
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
-                  <SettingItem title="Expand Searches" desc="Toggles whether your most recent searches are automatically expanded when opening the Pill." />
+                  <SettingItem title="Expand Searches" desc="Opens the search drawer fully when you tap the Pill." />
                 </SettingsSection>
 
-                {/* Home Page */}
                 <SettingsSection title="Home Page" icon={<Home size={20} />}>
-                  <SettingItem title="Center Logo" desc="Choose the logo style displayed at the top of the home page: None, Static, or Fidget (interactive)." />
+                  <SettingItem title="Logo" desc="Choose the logo style displayed at the top of the home page: None, Static, or Fidget (interactive)." />
                   <SettingItem title="Clock" desc="Select the clock format on the home page: None, 12h, or 24h." />
                   <SettingItem title="Date" desc="Choose the date placement on the home page: None, Above Clock, or Below Clock." />
-                  <SettingItem title="Shortcut" desc="Toggle the home page shortcut button on or off. When enabled, choose its action: New Tab, QR Scanner, Bookmarks, or History." />
+                  <SettingItem title="Shortcut Button" desc="Toggle the home page shortcut button on or off. When enabled, choose its action: New Tab, QR Scanner, Bookmarks, or History." />
                 </SettingsSection>
 
-                {/* Tabs */}
+                <SettingsSection title="Search" icon={<Search size={20} />}>
+                  <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo. Pick Custom… to use any other search site: enter a name and an address with %s where your search goes (for example https://www.startpage.com/do/search?q=%s)." />
+                  <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
+                  <SettingItem title="Suggestions in Incognito" desc="Off by default: in an incognito tab, nothing you type is sent to your search engine until you search." />
+                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Settings → Search Shortcuts lists them all and lets you add your own (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority." />
+                </SettingsSection>
+
+                <SettingsSection title="Web Pages" icon={<Monitor size={20} />}>
+                  <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
+                  <SettingItem title="Darken Web Pages" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
+                  <SettingItem title="Block Video Autoplay" desc="Videos wait for a tap instead of playing on their own." />
+                  <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
+                  <SettingItem title="Reader Mode by Default" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
+                  <SettingItem title="Pull to Refresh" desc="Pull down at the very top of a page to reload it. It never triggers while you're scrolled down, even if you scroll back to the top in the same pull." />
+                </SettingsSection>
+
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
-                  <SettingItem title="Site Logo" desc="Toggles the visibility of website icons (favicons) in the tab switcher. When disabled, a globe icon is shown." />
+                  <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
+                  <SettingItem title="Site Icons on Tabs" desc="Toggles the visibility of website icons (favicons) in the bookmarks list. When disabled, a letter avatar is shown." />
                   <SettingItem title="Background Refresh" desc="When enabled, all tabs render on app startup instead of when opened. This allows for instant switching but uses more battery." />
                 </SettingsSection>
 
-                {/* History */}
-                <SettingsSection title="History" icon={<History size={20} />}>
-                  <SettingItem title="Group By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
-                  <SettingItem title="Load Count" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
+                <SettingsSection title="Library" icon={<Bookmark size={20} />}>
+                  <SettingItem title="Site Icons on Bookmarks" desc="Shows each website's icon in your bookmarks. When off, a letter avatar is shown." />
+                  <SettingItem title="Import Bookmarks" desc="Bring bookmarks from Chrome, Firefox, Edge, Safari or a mi export: choose the browser's exported bookmarks file (.html), or paste its contents. Folders are kept, pages you already have are skipped, and another browser's bookmarks go into a dated Imported folder. Chrome's file can also come from Google Takeout." />
+                  <SettingItem title="Export Bookmarks" desc="Save all your bookmarks to a standard bookmarks file that mi and any other browser can import." />
+                  <SettingItem title="Group History By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
+                  <SettingItem title="History Page Size" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
                   <SettingItem title="Clear History" desc="Wipe your browsing data for the last hour, 24 hours, 7 days, 4 weeks, or all time." />
                 </SettingsSection>
 
-                {/* Bookmarks */}
-                <SettingsSection title="Bookmarks" icon={<Bookmark size={20} />}>
-                  <SettingItem title="Site Logo" desc="Toggles the visibility of website icons (favicons) in the bookmarks list. When disabled, a letter avatar is shown." />
-                </SettingsSection>
-
-                {/* Browsing */}
-                <SettingsSection title="Search & Browsing" icon={<Monitor size={20} />}>
-                  <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo." />
-                  <SettingItem title="Custom Search Engine" desc="Pick Custom… under Search Engine and enter a name and address, with %s where your search goes (for example https://www.startpage.com/sp/search?query=%s). Custom engines don't offer suggestions." />
-                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Settings → Search Shortcuts lists them all and lets you add your own (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority." />
-                  <SettingItem title="Pull to Refresh" desc="Pull down at the very top of a page to reload it. It never triggers while you're scrolled down, even if you scroll back to the top in the same pull." />
-                  <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
-                  <SettingItem title="Block Video Autoplay" desc="Videos wait for a tap instead of playing on their own." />
-                  <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
-                  <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
-                  <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
-                  <SettingItem title="Reader Mode by Default" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
-                  <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
-                </SettingsSection>
-
-                {/* Security */}
-                <SettingsSection title="Privacy & Security" icon={<ShieldCheck size={20} />}>
-                  <SettingItem title="Enable JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
-                  <SettingItem title="Enable Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
-                  <SettingItem title="Not Secure Marker" desc="Pages without an encrypted connection (plain http, except your own device's localhost) and sites you allowed past a certificate warning show a red Not secure marker in the search pill. Tap it for details, and don't enter passwords or payment details there. Sign-in prompts on such sites warn that the password would be sent unencrypted." />
-                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local addresses are excluded: localhost, IP addresses, and local network names such as nas:5000, myapp.local or dev.test." />
+                <SettingsSection title="Ad Blocking" icon={<ShieldCheck size={20} />}>
                   <SettingItem title="Block Ads" desc="Blocks ads and ad networks with EasyList and the StevenBlack malware and ad domain list: matching requests are dropped and leftover ad spaces are hidden. On by default." />
                   <SettingItem title="Block Trackers" desc="Blocks analytics and tracking scripts that follow you across sites (EasyPrivacy). On by default." />
                   <SettingItem title="Hide Cookie Banners" desc="Hides cookie-consent pop-ups with the EasyList Cookie List. Turn it off if a site won't let you continue without answering its banner." />
                   <SettingItem title="Remove Tracking from Links" desc="Strips tracking tags such as utm_source, fbclid and gclid from links you open, copy or share. On by default." />
                   <SettingItem title="Allowed Sites" desc="Sites where ad, tracker and cookie-banner blocking is off. Add one from the tab menu on that site (switch off Block ads here); remove it here." />
                   <SettingItem title="Update Filter Lists" desc="The lists update themselves weekly on Wi-Fi; tap to update them now. Shows when they were last updated." />
+                </SettingsSection>
+
+                <SettingsSection title="Privacy & Security" icon={<Lock size={20} />}>
+                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local addresses are excluded: localhost, IP addresses, and local network names such as nas:5000, myapp.local or dev.test." />
+                  <SettingItem title="Allow Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
                   <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. Off by default, as in Chrome, because payment and sign-in windows (such as PayPal) rely on them." />
+                  <SettingItem title="JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Pop-ups" desc="Pop-up windows open when you tap something (sign-in and payment windows stay linked to the page that opened them). Pop-ups without a tap are blocked; choose Always allow when asked to allow a site, and review or reset the list here." />
+                  <SettingItem title="Not Secure Marker" desc="Pages without an encrypted connection (plain http, except your own device's localhost) and sites you allowed past a certificate warning show a red Not secure marker in the search pill. Tap it for details, and don't enter passwords or payment details there. Sign-in prompts on such sites warn that the password would be sent unencrypted." />
                   <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage, cached files, saved site icons and tab snapshots, plus this session\'s sign-ins, permissions and certificate exceptions. You will be signed out of websites." />
                 </SettingsSection>
 
-                {/* App Data */}
                 <SettingsSection title="Backup & Reset" icon={<RefreshCw size={20} />}>
                   <SettingItem title="Export Settings" desc="Save all your settings to a shareable file for backup or device migration." />
                   <SettingItem title="Import Settings" desc="Restore settings from a previously exported file. This replaces your current configuration." />
                   <SettingItem title="Reset All Settings" desc="Revert every setting to factory defaults without affecting your bookmarks, history, or tabs." />
-                  <SettingItem title="Check for Updates" desc="Look for a new release now (in About). mi also checks once each time it starts." />
                   <SettingItem title="Wipe All Data" desc="Permanently delete all app data including bookmarks, history, tabs, favorites, and settings." />
+                </SettingsSection>
+
+                <SettingsSection title="About" icon={<BookOpen size={20} />}>
+                  <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
+                  <SettingItem title="Check for Updates" desc="Look for a new release now. mi also checks on its own, at most twice a day." />
+                  <SettingItem title="Privacy Policy" desc="mi collects no personal data. The full policy is on this site." />
+                  <SettingItem title="Credits" desc="The open-source projects and filter lists mi is built with, and their licenses." />
                 </SettingsSection>
               </div>
             </motion.div>
@@ -386,10 +388,10 @@ export default function UserDocs() {
                       <GuideItem icon={<Pin size={18} />} title="Favorite, Bookmark &amp; Pin" desc="The row at the top: add the page to your favorites bar, save it to a bookmark folder, or pin the tab so it can't be swiped away or closed by Close all tabs." />
                     </div>
                     <div id="quick-bookmark">
-                      <GuideItem icon={<Bookmark size={18} />} title="Copy &amp; Share" desc="Next to the tab's name: copy its link, or send it with your device's share sheet." />
+                      <GuideItem icon={<Bookmark size={18} />} title="Share &amp; Copy" desc="Share sends the page with your device's share sheet; the copy icon next to the tab's name copies its link." />
                     </div>
                     <div id="find-in-page">
-                      <GuideItem icon={<Search size={18} />} title="Find in Page" desc="Search for specific text within the current webpage. Highlighting and navigation between matches included." />
+                      <GuideItem icon={<Search size={18} />} title="Find in Page" desc="The Pill turns into a find bar: type to highlight every match, and step through them with the arrows while the count (2/14) follows along. Back or ✕ turns it back into the Pill." />
                     </div>
                     <div id="qr-toolbox">
                       <GuideItem icon={<QrCode size={18} />} title="QR Toolbox" desc="Scan physical codes, upload images from your gallery to scan, or generate a code for the current URL." />

@@ -1,6 +1,10 @@
 // The one screen: the page, the Pill, the tab switcher, and the sheets and dialogs over them.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.ui.common.LocalHaptics
+
+import com.jlees.mibrowser.downloads.DownloadsView
+
 import com.jlees.mibrowser.tabs.TabSwitcher
 import com.jlees.mibrowser.tabs.ZoomingTabHeader
 import com.jlees.mibrowser.tabs.switcherOverlay
@@ -94,7 +98,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
     CompositionLocalProvider(LocalUi provides ui) {
     IncognitoTextInput(incognito = { vm.tabs.current?.incognito == true }) {
         val scope = rememberCoroutineScope()
-        val pill = remember { PillState(scope, vm) }
+        val haptics = LocalHaptics.current
+        val pill = remember { PillState(scope, vm, haptics) }
         val density = LocalDensity.current
         val d = density.density
         // The keyboard height animates every frame while it opens/closes: it is read only inside layout lambdas
@@ -266,14 +271,15 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
                 // above the tab switcher (zIndex 150) when opened from it; closing returns to the switcher
                 if (vm.activeView != Sheet.NONE) Box(Modifier.fillMaxSize().zIndex(160f)) {
-                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.HISTORY
+                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.HISTORY || vm.activeView == Sheet.DOWNLOADS
                     val header: (@Composable () -> Unit)? = if (library) { {
-                        ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.HISTORY.name to "History"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) }
+                        ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.HISTORY.name to "History", Sheet.DOWNLOADS.name to "Downloads"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) }
                     } } else null
                     OverlaySheet(sheetX, statusDp, imeDp, closeOverlay, header) {
                         when (vm.activeView) {
                             Sheet.HISTORY -> HistoryView(vm, closeOverlay)
                             Sheet.BOOKMARKS -> BookmarksView(vm, kbVisible, closeOverlay)
+                            Sheet.DOWNLOADS -> DownloadsView(vm)
                             Sheet.SETTINGS -> SettingsView(vm, closeOverlay)
                             Sheet.NONE -> {}
                         }
@@ -285,9 +291,6 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             if (!fullscreen) ZoomingTabHeader(vm)
             if (!fullscreen) TabSwitcher(vm, navDp, statusDp)
 
-            if (vm.findVisible) FindBar(imeDp, onQuery = { host.findAll(it) }, onNext = { host.findNext(it) }, onClose = {
-                focusManager.clearFocus(); vm.findVisible = false; host.findAll("")
-            })
 
             QrScanner(vm)
             QrGenerator(vm)

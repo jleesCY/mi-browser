@@ -1,6 +1,14 @@
 // Shared UI primitives: Material 3 Expressive theme glue (color roles, Google Sans Flex, Material Symbols, motion).
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.foundation.background
+
+import androidx.compose.ui.Alignment
+
+import androidx.compose.ui.draw.clip
+
+import androidx.compose.foundation.layout.padding
+
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 
@@ -152,6 +160,20 @@ fun MiSwitch(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
 fun rowHeight(padding: Spacing, fontScale: Float): Float = fontScale * when (padding) { Spacing.COMPACT -> 48f; Spacing.AIRY -> 72f; Spacing.NORMAL -> 58f }
 
 fun rowMargin(padding: Spacing): Float = when (padding) { Spacing.COMPACT -> 8f; Spacing.AIRY -> 25f; Spacing.NORMAL -> 15f }
+
+/** The shape of a row in the Library lists (bookmarks, history, downloads), so all three look alike. */
+@androidx.compose.runtime.Composable
+fun libraryRowShape() = androidx.compose.foundation.shape.RoundedCornerShape(LocalUi.current.radius.dp)
+
+/** A Library row's leading tile: a 44dp circle (a folder passes its own [shape] and colour) holding an icon. */
+@androidx.compose.runtime.Composable
+fun RowIconTile(
+    modifier: Modifier = Modifier, shape: androidx.compose.ui.graphics.Shape = androidx.compose.foundation.shape.CircleShape,
+    color: Color = LocalUi.current.cs.surfaceContainerLow, content: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+) = androidx.compose.foundation.layout.Box(
+    modifier.padding(end = 15.dp).size(44.dp).clip(shape).background(color),
+    contentAlignment = Alignment.Center, content = content,
+)
 
 // ---- animation without recomposition: these read their value during layout only, so an animating value re-lays-out
 // the element each frame instead of recomposing (re-running) everything inside it.

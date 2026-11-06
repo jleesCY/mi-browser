@@ -47,10 +47,12 @@ fun interp(v: Float, input: List<Float>, output: List<Float>): Float {
 }
 
 /** All the pill Animated.Values + the actions that drive them. */
-class PillState(private val scope: CoroutineScope, private val vm: BrowserViewModel) {
+class PillState(private val scope: CoroutineScope, private val vm: BrowserViewModel, private val haptics: Haptics?) {
     val scrollY = Animatable(0f)          // 0..110 hide offset
     val horizontalDrag = Animatable(0f)
     val focusAnim = Animatable(0f)        // isPillFocusedAnim
+    /** 0 = the Pill shows the address, 1 = it has turned into the find bar. */
+    val findAnim = Animatable(0f)
     val handleAnim = Animatable(0f)       // handleVisibleAnim
     val progress = Animatable(0f)
     val recentHeight = Animatable(0f)
@@ -104,15 +106,26 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
 
     private var toSwitcher = false // this drag went up first: it now drives the switcher transition
 
+    // a tick when a drag crosses the point where releasing would act (open the switcher, go back/forward)
+    private var switcherArmed = false
+    private var navArmed = false
+
     fun onPanMove(dx: Float, dy: Float) = now {
-        if (!toSwitcher && abs(dx) > abs(dy)) horizontalDrag.snapTo(dx)
-        else if (toSwitcher || dy < 0) {
+        if (!toSwitcher && abs(dx) > abs(dy)) {
+            horizontalDrag.snapTo(dx)
+            val canGo = if (dx > 0) vm.canGoBackUi else vm.canGoForwardUi
+            val armed = canGo && abs(dx) > 32
+            if (armed != navArmed) { navArmed = armed; haptics?.tick() }
+        } else if (toSwitcher || dy < 0) {
             if (!toSwitcher) { toSwitcher = true; vm.beginSwitcher() }
             vm.switcher.anim.snapTo((-dy / SWITCHER_DRAG).coerceIn(0f, 1f))
+            val armed = vm.switcher.anim.value > 0.15f
+            if (armed != switcherArmed) { switcherArmed = armed; haptics?.tick() }
         } else scrollY.snapTo(dy.coerceIn(0f, HIDDEN_TRANSLATE_Y))
     }
 
     fun onPanRelease(dx: Float, dy: Float, vx: Float, vy: Float) {
+        switcherArmed = false; navArmed = false
         scope.launch { horizontalDrag.animateTo(0f, Motion.spatial()) }
         if (toSwitcher) {
             toSwitcher = false

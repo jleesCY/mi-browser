@@ -20,6 +20,13 @@ class SettingsRow(val label: String, val keywords: String = "", val content: @Co
 /** A section: its own page from the main list ([summary] says what's in it). */
 class SettingsSection(val id: String, val title: String, val icon: String, val summary: String, val rows: List<SettingsRow>)
 
+/** A full page opened from a row (it slides in over its section, like a section over the list); [content] fills it. */
+class SettingsSubPage(val id: String, val title: String, val icon: String, val content: @Composable () -> Unit)
+
+/** Opens and closes [SettingsSubPage]s; provided by SettingsView to the rows it shows. */
+class SettingsNav(val open: (SettingsSubPage) -> Unit, val close: () -> Unit)
+val LocalSettingsNav = androidx.compose.runtime.staticCompositionLocalOf { SettingsNav({}, {}) }
+
 // ---------------------------------------------------------------- row building blocks
 
 /**

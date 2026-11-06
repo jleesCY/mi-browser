@@ -18,8 +18,6 @@ import androidx.compose.animation.scaleOut
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
@@ -248,7 +246,7 @@ private fun TabCardView(
     val ui = LocalUi.current
     var heightPx by remember { mutableIntStateOf(1) }
     val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
+    val haptic = LocalHaptics.current
     val shape = RoundedCornerShape(28.dp)
     // Swipe up to close, with a threshold: until the finger passes 30% of the card's height the card moves at a
     // third of the finger's speed (resistance); past it, a haptic tick and the card catches up to follow 1:1.
@@ -264,7 +262,7 @@ private fun TabCardView(
             val nowArmed = !tab.pinned && rawY < -threshold() // a pinned tab gives a little, then springs back
             if (nowArmed != armed) {
                 armed = nowArmed
-                haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                haptic?.tick()
                 scope.launch { follow.animateTo(if (nowArmed) 1f else 0f, Motion.switcher) }
             }
         },

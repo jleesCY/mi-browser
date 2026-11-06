@@ -1,24 +1,15 @@
 // Shared list widgets: drag-to-reorder lists, swipe-to-reveal rows, and a small cached image loader.
 package com.jlees.mibrowser.ui.common
 
-import androidx.compose.animation.core.animate
-import kotlinx.coroutines.Job
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
@@ -49,7 +40,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.roundToInt
 
-
 /**
  * Fixed-slot drag-to-reorder container (grid when columns > 1, horizontal row when [horizontal]).
  * Long-press [longPressMs] starts dragging; [onDragEnd] receives the pointer position in window px.
@@ -78,6 +68,7 @@ fun <T> SortableSlots(
     val keys = items.map(key)
     val order = remember(keys) { mutableStateMapOf<String, Int>().apply { keys.forEachIndexed { i, k -> put(k, i) } } }
     var dragging by remember { mutableStateOf<String?>(null) }
+    val haptics = LocalHaptics.current
     val count = items.size
     fun slot(i: Int) = if (horizontal) Offset(i * wPx, 0f) else Offset((i % columns) * wPx, (i / columns) * hPx)
     val rows = if (horizontal) 1 else (count + columns - 1) / columns
@@ -122,6 +113,7 @@ fun <T> SortableSlots(
                                 if (held != null) return@awaitEachGesture
                                 val startOrder = order[k] ?: index
                                 dragging = k
+                                haptics?.longPress() // picked up
                                 onDragStart()
                                 var total = Offset.Zero
                                 var last = down.position
@@ -164,36 +156,6 @@ fun <T> SortableSlots(
     }
 }
 
-/**
- * Row with right actions: swipe left to reveal [actions] (fixed [actionsWidth]).
- */
-@Composable
-fun SwipeRevealRow(actionsWidth: Dp, actions: @Composable () -> Unit, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    val maxPx = with(LocalDensity.current) { actionsWidth.toPx() }
-    // Plain state updated synchronously while dragging (no per-delta coroutines that could land after — and
-    // cancel — the settle animation, which left rows stuck half-open). The settle animates the same state.
-    var offset by remember { mutableFloatStateOf(0f) }
-    var settleJob by remember { mutableStateOf<Job?>(null) }
-    Box(modifier) {
-        Row(Modifier.align(Alignment.CenterEnd).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) { actions() }
-        Box(
-            Modifier.fillMaxWidth()
-                .offset { IntOffset(offset.roundToInt(), 0) }
-                .draggable(
-                    rememberDraggableState { delta -> offset = (offset + delta).coerceIn(-maxPx * 1.2f, 0f) },
-                    Orientation.Horizontal,
-                    onDragStarted = { settleJob?.cancel() },
-                    onDragStopped = { v ->
-                        settleJob = coroutineContext[Job]
-                        val open = (offset < -maxPx / 3 || v < -400f) && v < 400f
-                        animate(offset, if (open) -maxPx else 0f, v, Motion.spatial()) { value, _ -> offset = value }
-                    },
-                ),
-            content = content,
-        )
-    }
-}
-
 // ---------------------------------------------------------------- images
 
 private val imageCache = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024) {
@@ -210,7 +172,6 @@ fun cachedImage(src: String?) = src?.let { imageCache.get(it) }
 
 /** Clear Browsing Data: drop every decoded image held in memory (page snapshots, site icons). */
 fun clearImageCache() = imageCache.evictAll()
-
 
 /** Loads http(s) URLs or local file paths, downsampling big images (backgrounds). */
 @Composable

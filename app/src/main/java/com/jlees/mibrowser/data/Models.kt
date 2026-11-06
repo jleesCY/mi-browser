@@ -1,6 +1,7 @@
 // The saved data types: tabs, history entries, bookmarks, favorites.
 package com.jlees.mibrowser.data
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -70,14 +71,17 @@ data class HistoryItem(
 @Serializable
 data class BookmarkNode(
     val id: String,
-    val type: String, // bookmark | folder
+    val type: BookmarkType = BookmarkType.BOOKMARK, // an unknown value loads as a bookmark (coerceInputValues)
     val title: String,
     val url: String = "",
     val parentId: String? = null,
     val order: Int = 0,
 ) {
-    val isFolder get() = type == "folder"
+    val isFolder get() = type == BookmarkType.FOLDER
 }
+
+/** Saved by their original names, so bookmarks saved before this was an enum load unchanged. */
+@Serializable enum class BookmarkType { @SerialName("bookmark") BOOKMARK, @SerialName("folder") FOLDER }
 
 @Serializable
 data class Favorite(val id: String, val url: String, val title: String)

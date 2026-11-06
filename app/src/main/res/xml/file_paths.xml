@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="cache" path="." />
+    <!-- finished downloads before Android 10 (later ones are MediaStore items) -->
+    <external-path name="downloads" path="Download/" />
 </paths>

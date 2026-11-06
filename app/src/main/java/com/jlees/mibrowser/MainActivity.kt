@@ -1,5 +1,9 @@
 package com.jlees.mibrowser
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.jlees.mibrowser.ui.common.Haptics
+import com.jlees.mibrowser.ui.common.LocalHaptics
+
 import com.jlees.mibrowser.incognito.closeIncognitoTabs
 
 import com.jlees.mibrowser.incognito.IncognitoNotice
@@ -55,8 +59,11 @@ class MainActivity : ComponentActivity() {
         vm.start(if (intent?.action == Intent.ACTION_VIEW) intent.dataString else null, shortcutOf(intent))
         LauncherShortcuts.publish(this)
         if (intent?.action == ACTION_SCAN_QR) vm.qrScannerVisible = true
+        if (intent?.action == ACTION_OPEN_DOWNLOADS) vm.openView(Sheet.DOWNLOADS)
 
-        setContent { if (vm.ready) App(vm, host, this) }
+        // one Haptics for the whole UI, following the Haptic Feedback setting
+        val haptics = Haptics(window.decorView) { vm.settings.hapticFeedback }
+        setContent { if (vm.ready) CompositionLocalProvider(LocalHaptics provides haptics) { App(vm, host, this) } }
     }
 
     override fun onPause() {
@@ -125,6 +132,7 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> vm.handleIncomingUrl(intent.dataString)
             ACTION_SCAN_QR -> vm.qrScannerVisible = true
             ACTION_CLOSE_INCOGNITO -> vm.closeIncognitoTabs()
+            ACTION_OPEN_DOWNLOADS -> vm.openView(Sheet.DOWNLOADS)
             ACTION_NEW_TAB, ACTION_NEW_INCOGNITO, ACTION_SEARCH -> shortcutOf(intent)?.let(vm::openFromShortcut)
         }
     }
@@ -132,6 +140,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_SCAN_QR = "com.jlees.mibrowser.SCAN_QR"
         const val ACTION_CLOSE_INCOGNITO = "com.jlees.mibrowser.CLOSE_INCOGNITO"
+        const val ACTION_OPEN_DOWNLOADS = "com.jlees.mibrowser.OPEN_DOWNLOADS"
         const val ACTION_NEW_TAB = "com.jlees.mibrowser.NEW_TAB"
         const val ACTION_NEW_INCOGNITO = "com.jlees.mibrowser.NEW_INCOGNITO"
         const val ACTION_SEARCH = "com.jlees.mibrowser.SEARCH"

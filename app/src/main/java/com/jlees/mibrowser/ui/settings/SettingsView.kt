@@ -3,13 +3,13 @@
 // is the touch target.
 package com.jlees.mibrowser.ui.settings
 
+import com.jlees.mibrowser.search.searchSection
+
 import com.jlees.mibrowser.home.homeSection
 import com.jlees.mibrowser.library.librarySection
 import com.jlees.mibrowser.tabs.tabsSection
 
 import com.jlees.mibrowser.adblock.adBlockSection
-import com.jlees.mibrowser.search.SearchEngineSetting
-import com.jlees.mibrowser.search.searchShortcutsSection
 
 import com.jlees.mibrowser.ButtonStyle
 import com.jlees.mibrowser.ConfirmAction
@@ -122,7 +122,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     }
 
     val groups = listOf(
-        SettingsSection("appearance", "Appearance", "palette", "Theme, pure black, accent colour, fonts, corners", listOf(
+        SettingsSection("look", "Look & Feel", "palette", "Theme, colours, fonts, spacing, haptics", listOf(
             SettingsRow("Theme", "light dark system mode") {
                 ChoiceItem("routine", "Theme", null, s.themeMode) { set { copy(themeMode = it) } }
             },
@@ -141,43 +141,10 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 ChoiceItem("density_medium", "Spacing", null, s.uiPadding) { set { copy(uiPadding = it) } }
             },
             SettingsRow("Status Bar", "clock battery immersive") { SwitchItem("battery_charging_full", "Status Bar", "Show the clock and battery at the top", s.showStatusBar) { set { copy(showStatusBar = it) } } },
-            SettingsRow("Darken Web Pages", "dark mode force night websites") {
-                SwitchItem("contrast", "Darken Web Pages", "In dark theme, darken sites that have no dark mode", s.darkenPages) { set { copy(darkenPages = it) } }
+            SettingsRow("Haptic Feedback", "vibration vibrate haptics touch feel") {
+                SwitchItem("vibration", "Haptic Feedback", "A light tap when a swipe or gesture is about to act", s.hapticFeedback) { set { copy(hapticFeedback = it) } }
             },
         )),
-        SettingsSection("browsing", "Search & Browsing", "travel_explore", "Search engine, suggestions, autoplay, startup", listOf(
-            SettingsRow("Search Engine", "google bing duckduckgo brave ecosia yahoo") { SearchEngineSetting(vm) },
-            SettingsRow("Search Suggestions", "autocomplete") {
-                SwitchItem("search", "Search Suggestions", "Suggestions from your search engine while the search drawer is open", s.searchSuggestions) { set { copy(searchSuggestions = it) } }
-            },
-            SettingsRow("Pull to Refresh", "reload swipe down gesture") {
-                SwitchItem("refresh", "Pull to Refresh", "Pull down at the very top of a page to reload it", s.pullToRefresh) { set { copy(pullToRefresh = it) } }
-            },
-            SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
-                SwitchItem("incognito", "Suggestions in Incognito", "Off: what you type in an incognito tab isn't sent to your search engine until you search", s.incognitoSuggestions) { set { copy(incognitoSuggestions = it) } }
-            },
-            SettingsRow("Block Video Autoplay", "autoplay video sound media") {
-                SwitchItem("block", "Block Video Autoplay", "Videos wait for a tap instead of playing on their own", s.blockAutoplay) { set { copy(blockAutoplay = it) } }
-            },
-            SettingsRow("Page Text Size", "zoom font web websites") {
-                SliderItem("format_size", "Page Text Size", "Text size on websites", s.textZoom / 100f, 0.5f, 2f) { set { copy(textZoom = Math.round(it * 100)) } }
-            },
-            SettingsRow("Desktop Site by Default", "desktop mode user agent") {
-                SwitchItem("desktop_windows", "Desktop Site by Default", "Request desktop versions of websites (each tab can still change it)", s.desktopMode) { set { copy(desktopMode = it) } }
-            },
-            SettingsRow("Reader Mode by Default", "reader readability") {
-                SwitchItem("chrome_reader_mode", "Reader Mode by Default", "Simplify pages for reading (each tab can still change it)", s.readerModeEnabled) { set { copy(readerModeEnabled = it) } }
-            },
-            SettingsRow("On Startup", "session restore continue") {
-                ChoiceItem("power_settings_new", "On Startup", null, s.startupTabMode) { set { copy(startupTabMode = it) } }
-            },
-            SettingsRow("Default Browser", "links open") {
-                Item("public", "Default Browser", if (isDefault) "mi opens links from other apps" else "Tap to make mi open links from other apps",
-                    onClick = if (isDefault) null else ::requestDefault,
-                    trailing = { if (isDefault) Sym("check", 22f, ui.cs.primary) else Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) })
-            },
-        )),
-        searchShortcutsSection(vm),
         SettingsSection("pill", "Pill", "toolbar", "Loading bar, favorites, search drawer", listOfNotNull(
             SettingsRow("Loading Bar", "progress") {
                 ChoiceItem("hourglass_empty", "Loading Bar", "Fill behind the address while a page loads", s.progressBarMode) { set { copy(progressBarMode = it) } }
@@ -188,15 +155,36 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             },
         )),
         homeSection(vm),
+        searchSection(vm),
+        SettingsSection("pages", "Web Pages", "public", "Text size, dark pages, autoplay, desktop and reader mode", listOf(
+            SettingsRow("Page Text Size", "zoom font web websites") {
+                SliderItem("format_size", "Page Text Size", "Text size on websites", s.textZoom / 100f, 0.5f, 2f) { set { copy(textZoom = Math.round(it * 100)) } }
+            },
+            SettingsRow("Darken Web Pages", "dark mode force night websites") {
+                SwitchItem("contrast", "Darken Web Pages", "In dark theme, darken sites that have no dark mode", s.darkenPages) { set { copy(darkenPages = it) } }
+            },
+            SettingsRow("Block Video Autoplay", "autoplay video sound media") {
+                SwitchItem("block", "Block Video Autoplay", "Videos wait for a tap instead of playing on their own", s.blockAutoplay) { set { copy(blockAutoplay = it) } }
+            },
+            SettingsRow("Desktop Site by Default", "desktop mode user agent") {
+                SwitchItem("desktop_windows", "Desktop Site by Default", "Request desktop versions of websites (each tab can still change it)", s.desktopMode) { set { copy(desktopMode = it) } }
+            },
+            SettingsRow("Reader Mode by Default", "reader readability") {
+                SwitchItem("chrome_reader_mode", "Reader Mode by Default", "Simplify pages for reading (each tab can still change it)", s.readerModeEnabled) { set { copy(readerModeEnabled = it) } }
+            },
+            SettingsRow("Pull to Refresh", "reload swipe down gesture") {
+                SwitchItem("refresh", "Pull to Refresh", "Pull down at the very top of a page to reload it", s.pullToRefresh) { set { copy(pullToRefresh = it) } }
+            },
+        )),
         tabsSection(vm),
         librarySection(vm),
         adBlockSection(vm),
         SettingsSection("privacy", "Privacy & Security", "shield", "HTTPS, cookies, JavaScript, pop-ups, clearing data", listOf(
             SettingsRow("HTTPS Only", "secure ssl tls") { SwitchItem("lock", "HTTPS Only", "Always use secure connections (local addresses excluded)", s.httpsOnly) { set { copy(httpsOnly = it) } } },
+            SettingsRow("Allow Cookies", "cookies") { SwitchItem("cookie", "Allow Cookies", "Turning this off signs you out of most sites", !s.blockCookies) { set { copy(blockCookies = !it) } } },
             SettingsRow("Block Third-Party Cookies", "cross-site tracking") {
                 SwitchItem("cookie", "Block Third-Party Cookies", "Stops cross-site cookies; can break payment and sign-in windows", s.blockThirdPartyCookies) { set { copy(blockThirdPartyCookies = it) } }
             },
-            SettingsRow("Allow Cookies", "cookies") { SwitchItem("cookie", "Allow Cookies", "Turning this off signs you out of most sites", !s.blockCookies) { set { copy(blockCookies = !it) } } },
             SettingsRow("JavaScript", "js scripts") { SwitchItem("code", "JavaScript", "Most sites need it to work", s.jsEnabled) { set { copy(jsEnabled = it) } } },
             SettingsRow("Pop-ups", "popups windows") {
                 val n = s.popupSites.size
@@ -226,9 +214,11 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 Item("delete", "Wipe All Data", "Delete bookmarks, history, tabs, favorites and settings", danger = true, onClick = { vm.confirm = ConfirmData(ConfirmAction.WIPE_DATA) })
             },
         )),
-        SettingsSection("about", "About", "info", "Updates, guide, privacy policy, credits", listOf(
-            SettingsRow("Filter List Credits", "easylist license adblock") {
-                Item("info", "Filter lists", "EasyList, EasyPrivacy and the EasyList Cookie List by The EasyList authors (CC BY-SA 3.0). StevenBlack hosts (MIT).")
+        SettingsSection("about", "About", "info", "Default browser, updates, guide, credits", listOf(
+            SettingsRow("Default Browser", "links open") {
+                Item("public", "Default Browser", if (isDefault) "mi opens links from other apps" else "Tap to make mi open links from other apps",
+                    onClick = if (isDefault) null else ::requestDefault,
+                    trailing = { if (isDefault) Sym("check", 22f, ui.cs.primary) else Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) })
             },
             SettingsRow("Check for Updates", "version update") {
                 Item("restart_alt", "Check for Updates", "mi browser ${BuildConfig.VERSION_NAME}", onClick = { vm.updater.checkNow() })
@@ -243,6 +233,9 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 Item("code", "Source Code", "github.com/jleescy/mi-browser", onClick = { openPage(SOURCE_URL) }, trailing = { Sym("open_in_new", 20f, ui.cs.onSurfaceVariant) })
             },
             SettingsRow("Credits", "licenses open source attribution") { CreditsItem() },
+            SettingsRow("Filter List Credits", "easylist license adblock") {
+                Item("info", "Filter lists", "EasyList, EasyPrivacy and the EasyList Cookie List by The EasyList authors (CC BY-SA 3.0). StevenBlack hosts (MIT).")
+            },
         )),
     )
 
@@ -254,21 +247,37 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         else g.rows.filter { it.label.lowercase().contains(q) || it.keywords.contains(q) }.takeIf { it.isNotEmpty() }?.let { SettingsSection(g.id, g.title, g.icon, g.summary, it) }
     }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
-    BackHandler(enabled = openId != null) { openId = null }
+    var subPage by remember { mutableStateOf<SettingsSubPage?>(null) } // a full page opened from a row of the section
+    // pages opened so far, by id: a page sliding out after Back is still drawn as itself (not its section)
+    val subPages = remember { mutableMapOf<String, SettingsSubPage>() }
+    BackHandler(enabled = openId != null || subPage != null) { if (subPage != null) subPage = null else openId = null }
+    val nav = remember { SettingsNav(open = { subPages[it.id] = it; subPage = it }, close = { subPage = null }) }
     val sheetBg = ui.cs.surfaceContainerLow
 
     // keyed on the section's id: the section objects are rebuilt with every settings change, and keying on them made
     // each switch replay the page transition. A plain slide, no spring.
     AnimatedContent(
-        openId, Modifier.fillMaxSize(), label = "settings page",
+        openId to subPage?.id, Modifier.fillMaxSize(), label = "settings page",
         transitionSpec = {
-            val forward = targetState != null
+            fun depth(p: Pair<String?, String?>) = (if (p.first != null) 1 else 0) + (if (p.second != null) 1 else 0)
+            val forward = depth(targetState) > depth(initialState)
             (slideInHorizontally(tween(220)) { if (forward) it / 3 else -it / 3 } + fadeIn(tween(160))) togetherWith
                 (slideOutHorizontally(tween(220)) { if (forward) -it / 4 else it / 4 } + fadeOut(tween(120)))
         },
-    ) { pageId ->
+    ) { (pageId, subId) ->
         val page = groups.firstOrNull { it.id == pageId }
-        if (page == null) TopBarOver(sheetBg, bar = {
+        val sub = subId?.let { subPages[it] }
+        if (sub != null) TopBarOver(sheetBg, bar = {
+            Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 20.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { subPage = null }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
+                Sym(sub.icon, 22f, ui.cs.primary, Modifier.padding(start = 4.dp, end = 10.dp))
+                Txt(sub.title, 22f, ui.cs.onSurface, ui.bold, maxLines = 1)
+            }
+        }) { top ->
+            CompositionLocalProvider(LocalSettingsNav provides nav) {
+                Box(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = top, bottom = 24.dp)) { sub.content() }
+            }
+        } else if (page == null) TopBarOver(sheetBg, bar = {
             SheetSearchField(search, { vm.settingsSearch = it }, "Search Settings...", Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp))
         }) { top ->
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = 48.dp)) {
@@ -288,7 +297,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                     visible.forEach { g ->
                         item(key = "h:${g.id}") { SectionHeader(g.icon, g.title) }
                         itemsIndexed(g.rows, key = { _, r -> "${g.id}:${r.label}" }) { i, r ->
-                            Box(Modifier.animateItem().segment(i, g.rows.size)) { r.content() }
+                            CompositionLocalProvider(LocalSettingsNav provides nav) { Box(Modifier.animateItem().segment(i, g.rows.size)) { r.content() } }
                         }
                     }
                 }
@@ -309,7 +318,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             val pageList = rememberLazyListState()
             LazyColumn(Modifier.fillMaxSize(), state = pageList, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = 48.dp)) {
                 itemsIndexed(page.rows, key = { _, r -> "${page.id}:${r.label}" }) { i, r ->
-                    Box(Modifier.segment(i, page.rows.size)) { r.content() }
+                    CompositionLocalProvider(LocalSettingsNav provides nav) { Box(Modifier.segment(i, page.rows.size)) { r.content() } }
                 }
             }
         }

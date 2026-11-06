@@ -2,6 +2,10 @@
 // callbacks. Each job behind a callback is its own class (SitePermissions, Downloads, ContentBlocker…).
 package com.jlees.mibrowser.web
 
+import com.jlees.mibrowser.ui.common.Haptics
+
+import com.jlees.mibrowser.downloads.DownloadPrompt
+
 import com.jlees.mibrowser.tabs.TabPreviews
 
 import com.jlees.mibrowser.adblock.ContentBlocker
@@ -60,11 +64,12 @@ class WebViewHost(
     private val launchForResult: (Intent, (ActivityResult) -> Unit) -> Unit,
 ) {
     private val scripts = PageScripts(activity)
+    private val haptics = Haptics(activity.window.decorView) { vm.settings.hapticFeedback }
     private val blocker = ContentBlocker { vm.settings }
     private val userAgents = UserAgents(activity)
     private val permissions = SitePermissions(activity, vm, requestPermissions)
     private val popups = PopupPolicy(vm)
-    private val downloads = Downloads(activity, vm, requestPermissions)
+    private val downloads = DownloadPrompt(activity, vm, requestPermissions)
     private val printer = Printer(activity) { id -> destroy(id) }
     private val externalApps = ExternalApps(activity, vm)
     private val signIn = SignInChallenges(activity, vm)
@@ -223,6 +228,8 @@ class WebViewHost(
             }
             WebCmd.ClearBrowsingData -> clearBrowsingData()
             WebCmd.RecreateAll -> { views.keys.toList().forEach { destroy(it) }; generation++ }
+            is WebCmd.Find -> views[vm.tabs.activeId]?.let { if (cmd.query.isEmpty()) it.clearMatches() else it.findAllAsync(cmd.query) }
+            is WebCmd.FindNext -> views[vm.tabs.activeId]?.findNext(cmd.forward)
         }
     }
 
@@ -238,14 +245,6 @@ class WebViewHost(
         vm.clearBrowsingTraces() // tab snapshots, site icons, mi's own HTTP cache
     }
 
-    fun findNext(forward: Boolean) { views[vm.tabs.activeId]?.findNext(forward) }
-
-    /** New search text: highlight all matches and jump to the first (findAllAsync); empty clears. */
-    fun findAll(query: String) {
-        val wv = views[vm.tabs.activeId] ?: return
-        if (query.isEmpty()) wv.clearMatches() else wv.findAllAsync(query)
-    }
-
     fun exitFullscreen() { customViewCallback?.onCustomViewHidden() }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -254,7 +253,8 @@ class WebViewHost(
         val themed = ContextThemeWrapper(activity, if (isDark()) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)
         val wv = MiWebView(themed, incognito = profile != null, pullEnabled = { vm.settings.pullToRefresh },
             onPull = { if (id == vm.tabs.activeId) vm.pullProgress = it },
-            onRefresh = { errors.remove(id); views[id]?.reload() })
+            onRefresh = { errors.remove(id); views[id]?.reload() },
+            onThreshold = { haptics.tick() })
         if (profile != null) incognito.attach(id, wv, profile)
         wv.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         wv.setBackgroundColor(Color.WHITE)
@@ -301,6 +301,8 @@ class WebViewHost(
         wv.webChromeClient = Chrome(id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
         wv.setOnLongClickListener { onLongPress(wv) }
+        // match count and position for the find bar (only the visible tab's search is shown)
+        wv.setFindListener { ordinal, matches, done -> if (done && id == vm.tabs.activeId) vm.find.onResult(ordinal, matches) }
         wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> downloads.start(incognito.cookies(wv), isIncognito(id), url, userAgent, contentDisposition, mimetype, length) }
         return wv
     }
@@ -354,6 +356,7 @@ class WebViewHost(
         override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) = signIn.clientCertificate(request)
 
         override fun onPageFinished(view: WebView, url: String?) {
+            if (id == vm.tabs.activeId) vm.find.refresh() // the page searched while loading may have more now
             fetchTouchIcon(view, url)
             signIn.pageFinished()
             if (errors[id] == null) vm.clearHttpFallback(id) // https worked: later failures in this tab are real errors
@@ -509,6 +512,7 @@ class WebViewHost(
         val hit = wv.hitTestResult
         val type = hit.type
         if (type != WebView.HitTestResult.SRC_ANCHOR_TYPE && type != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE && type != WebView.HitTestResult.IMAGE_TYPE) return false
+        haptics.longPress()
         val msg = Handler(Looper.getMainLooper()) { m ->
             val d = m.data
             val link = when (type) {

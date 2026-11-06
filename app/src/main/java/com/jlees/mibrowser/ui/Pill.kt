@@ -2,6 +2,8 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.find.FindPillContent
+
 import com.jlees.mibrowser.search.BangPillTransformation
 
 import com.jlees.mibrowser.incognito.incognitoSupported
@@ -79,7 +81,15 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
     val focusManager = LocalFocusManager.current
     // All animated values (keyboard focus, drag handle, hide/show, drawer height) are read inside layout/draw
     // lambdas, so animating them never recomposes the pill, its text field or the recent-searches list.
-    val k = { imeDp() * pill.focusAnim.value } // effectiveKeyboardHeight
+    // effective keyboard height: the Pill rides above the keyboard while its field or the find field has focus
+    val k = { imeDp() * max(pill.focusAnim.value, pill.findAnim.value) }
+    // Find in page turns the Pill into the find bar: the address content slides left and fades as the find field,
+    // count and buttons slide in from the right, on an expressive spring (reverses on close).
+    LaunchedEffect(vm.find.visible) {
+        if (vm.find.visible) pill.showBar()
+        pill.findAnim.animateTo(if (vm.find.visible) 1f else 0f, Motion.spatial())
+    }
+    val findShown = vm.find.visible || pill.findAnim.value > 0.01f
     val pillRadius = if (s.cornerRadius >= 20) PILL_HEIGHT / 2f else s.cornerRadius * 2f
     val padH = { interp(k(), listOf(0f, 100f), listOf(10f, 0f)) }
     val padB = { interp(k(), listOf(0f, 100f), listOf(max(navInsetDp + 10f, 10f), 0f)) + k() }
@@ -114,7 +124,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                         Modifier.fillMaxWidth().heightDp { PILL_HEIGHT + focusedAdd() }
                             .onGloballyPositioned { pillOrigin.at = it.positionInWindow() }
                             .panGesture(
-                                enabled = !vm.isInputFocused && !pill.isBarHidden,
+                                enabled = !vm.isInputFocused && !pill.isBarHidden && !vm.find.visible,
                                 onMove = { dx, dy -> pill.onPanMove(dx, dy) },
                                 onRelease = { dx, dy, vx, vy -> pill.onPanRelease(dx, dy, vx, vy) },
                             ),
@@ -136,8 +146,19 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                                 }
                                 .background(if (ui.isDark) ui.cs.surfaceContainerHigh else lerp(ui.cs.surfaceContainerHighest, ui.cs.primaryContainer, 0.45f)),
                         ) {
-                            Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - (morph() * 3f).coerceIn(0f, 1f) }) {
+                            Box(Modifier.fillMaxSize().graphicsLayer {
+                                val f = pill.findAnim.value
+                                alpha = (1f - (morph() * 3f).coerceIn(0f, 1f)) * (1f - f * 1.6f).coerceIn(0f, 1f)
+                                translationX = -40.dp.toPx() * f
+                            }) {
                                 SearchPillContent(vm, pill, focusedAdd, focusManager)
+                            }
+                            if (findShown) Box(Modifier.fillMaxSize().graphicsLayer {
+                                val f = pill.findAnim.value
+                                alpha = ((f - 0.25f) / 0.75f).coerceIn(0f, 1f)
+                                translationX = 60.dp.toPx() * (1f - f)
+                            }) {
+                                if (vm.find.visible) FindPillContent(vm.find, s.cornerRadius)
                             }
                             if (vm.switcherVisible) Box(
                                 Modifier.matchParentSize().graphicsLayer { alpha = ((morph() - 0.55f) / 0.45f).coerceIn(0f, 1f) },

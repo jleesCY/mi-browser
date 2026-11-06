@@ -1,5 +1,7 @@
-// Settings for search: choosing the search engine (or your own), and the Search Shortcuts section.
+// Settings → Search: the search engine (or your own), suggestions, and search shortcuts.
 package com.jlees.mibrowser.search
+
+import com.jlees.mibrowser.ui.settings.SwitchItem
 
 import com.jlees.mibrowser.ui.settings.ExpandItem
 import com.jlees.mibrowser.ui.settings.Item
@@ -28,14 +30,21 @@ import com.jlees.mibrowser.search.SEARCH_ENGINE_BANG
 import com.jlees.mibrowser.search.isValidSearchTemplate
 import com.jlees.mibrowser.ui.common.*
 
-/** The Search Shortcuts section of Settings: yours (add, delete) and the built-ins. */
-fun searchShortcutsSection(vm: BrowserViewModel) =
-    SettingsSection("shortcuts", "Search Shortcuts", "bolt", "!w, !yt, !se and your own", listOf(
+/** Settings → Search: the engine, suggestions, and search shortcuts (yours and the built-ins). */
+fun searchSection(vm: BrowserViewModel) =
+    SettingsSection("search", "Search", "search", "Search engine, suggestions, !shortcuts", listOf(
+        SettingsRow("Search Engine", "google bing duckduckgo brave ecosia yahoo") { SearchEngineSetting(vm) },
+        SettingsRow("Search Suggestions", "autocomplete") {
+                SwitchItem("search", "Search Suggestions", "Suggestions from your search engine while the search drawer is open", vm.settings.searchSuggestions) { vm.updateSettings { copy(searchSuggestions = it) } }
+            },
+        SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
+                SwitchItem("incognito", "Suggestions in Incognito", "Off: what you type in an incognito tab isn't sent to your search engine until you search", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
+            },
         SettingsRow("Your Shortcuts", "bang custom add search shortcut") { CustomBangsItem(vm) },
         SettingsRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
     ))
 
-/** The search engine row in Settings → Search & Browsing, with the custom engine dialog. */
+/** The search engine row in Settings → Search, with the custom engine dialog. */
 @Composable
 fun SearchEngineSetting(vm: BrowserViewModel) {
     val s = vm.settings

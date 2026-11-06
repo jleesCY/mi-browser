@@ -19,7 +19,8 @@ Deleting the package (plus one line in BrowserViewModel and one in SettingsView)
 | `search/` | engines, `!` shortcuts, suggestions, Pill highlighting of shortcuts, search settings |
 | `incognito/` | WebView profiles, screen/keyboard protections, notification, toggle |
 | `tabs/` | TabsStore, TabRules, per-tab back/forward stack, tab switcher, Tabs section |
-| `library/` | HistoryStore, BookmarksStore, their rules, History and Bookmarks screens, Library section |
+| `library/` | HistoryStore, BookmarksStore, their rules, bookmark file import/export (Netscape HTML), History and Bookmarks screens, Library section |
+| `find/` | find in page: FindInPage state (query, match count) and the Pill's find content |
 | `home/` | new-tab page, Home Page section |
 | `qr/` | scanner and generator |
 | `launcher/` | launcher shortcuts, search widget |

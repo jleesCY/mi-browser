@@ -39,7 +39,8 @@ class BookmarksStore(private val store: JsonStore) {
 
     // ---- bookmarks
     fun add(title: String, url: String, folder: String?) { nodes = addBookmark(nodes, title, url, folder) }
-    fun addFolder(title: String, folder: String?) { nodes = addFolder(nodes, title, folder) }
+    /** Returns the new folder's id. */
+    fun addFolder(title: String, folder: String?): String { nodes = addFolder(nodes, title, folder); return nodes.last().id }
     /** Renames [id] (and changes its address unless it's a folder, [url] null), moving it into [folder]. */
     fun edit(id: String, title: String, url: String?, folder: String?) {
         var list = nodes
@@ -64,6 +65,19 @@ class BookmarksStore(private val store: JsonStore) {
     fun reorderFavorites(from: Int, to: Int) { favorites = favorites.toMutableList().apply { add(to, removeAt(from)) } }
 
     fun clear() { nodes = emptyList(); favorites = emptyList() }
+
+    // ---- files (see BookmarkFile.kt)
+    /**
+     * Adds bookmarks read from a file. A mi export goes back where it was; another browser's goes into a folder
+     * named [folder]. Pages already bookmarked are skipped. Returns how many were added and skipped.
+     */
+    fun import(entries: List<BookmarkEntry>, fromMi: Boolean, folder: String): Pair<Int, Int> {
+        val (list, added, skipped) = importBookmarks(nodes, if (fromMi) entries else listOf(BookmarkEntry.Folder(folder, entries)), null)
+        nodes = list
+        return added to skipped
+    }
+
+    fun export(): String = writeBookmarkFile(nodes)
 
     companion object { const val MAX_FAVORITES = 5 }
 }

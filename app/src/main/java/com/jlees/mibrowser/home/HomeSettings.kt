@@ -21,12 +21,12 @@ import com.jlees.mibrowser.ui.common.*
 
 /** The Home Page section of Settings. */
 fun homeSection(vm: BrowserViewModel) = SettingsSection("home", "Home Page", "home", "Logo, clock, date, shortcut button", listOf(
-        SettingsRow("Home Logo", "fidget center") {
-            ChoiceItem("home", "Home Logo", null, vm.settings.homeLogoType) { vm.updateSettings { copy(homeLogoType = it) } }
+        SettingsRow("Logo", "home logo fidget center") {
+            ChoiceItem("home", "Logo", null, vm.settings.homeLogoType) { vm.updateSettings { copy(homeLogoType = it) } }
         },
-        SettingsRow("Home Clock", "time") { ChoiceItem("history", "Home Clock", null, vm.settings.homeClockType) { vm.updateSettings { copy(homeClockType = it) } } },
-        SettingsRow("Home Date", "calendar") { ChoiceItem("calendar_today", "Home Date", null, vm.settings.homeDateType) { vm.updateSettings { copy(homeDateType = it) } } },
-        SettingsRow("Home Shortcut", "button action qr scan") { ShortcutItem(vm) },
+        SettingsRow("Clock", "home clock time") { ChoiceItem("history", "Clock", null, vm.settings.homeClockType) { vm.updateSettings { copy(homeClockType = it) } } },
+        SettingsRow("Date", "home date calendar") { ChoiceItem("calendar_today", "Date", null, vm.settings.homeDateType) { vm.updateSettings { copy(homeDateType = it) } } },
+        SettingsRow("Shortcut Button", "home shortcut button action qr scan") { ShortcutItem(vm) },
 ))
 
 @Composable
@@ -34,7 +34,7 @@ private fun ShortcutItem(vm: BrowserViewModel) {
     val ui = LocalUi.current
     val s = vm.settings
     Column(Modifier.fillMaxWidth().animateContentSize()) {
-        SwitchItem("apps", "Home Shortcut", "A button on the home page", s.showHomeShortcuts) { vm.updateSettings { copy(showHomeShortcuts = it) } }
+        SwitchItem("apps", "Shortcut Button", "A button on the home page", s.showHomeShortcuts) { vm.updateSettings { copy(showHomeShortcuts = it) } }
         if (s.showHomeShortcuts) {
             Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant.copy(alpha = 0.5f)))
             ExpandItem("bolt", "Shortcut Action", null, s.homeShortcutAction.label) { close ->

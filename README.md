@@ -36,7 +36,8 @@
 - Swipe up and the page zooms out into its card, like your phone's recent apps. The card's title and icon follow it from the first moment.
 - Tabs are ordered by when you last used them, with live previews, on a soft gradient of your accent colour.
 - Swipe a card up to close it (with undo). **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
-- The **tab menu** (⋮) has Favorite, Bookmark and Pin; quick tiles for Desktop site, Reader mode and Find in page; and tools for QR codes, printing and home-screen shortcuts.
+- The **tab menu** (⋮) has Favorite, Bookmark, Pin and Share; quick tiles for Desktop site, Reader mode and Find in page; and tools for QR codes, printing and home-screen shortcuts.
+- **Find in page**: the Pill turns into a find bar that counts the matches (`2/14`) as you step through them.
 
 ### Incognito
 - Switch any new tab to incognito with the mask in the Pill, or long-press a link and choose **Open in Incognito Tab**.
@@ -46,8 +47,10 @@
 
 ### A complete browser
 - Sign-in and payment pop-ups (PayPal, Google), passkeys, Google Pay, HTTP sign-in prompts and client certificates.
-- Bookmarks with folders, drag to reorder, swipe actions and search; history grouped by time or site.
-- Pages' own Print and Share buttons, downloads, and local development sites (`localhost:3000`, LAN IPs, `.local`).
+- Bookmarks with folders, drag to reorder and search: swipe right to edit, left to delete, and move them with a folder browser. **Import** bookmarks from Chrome, Firefox, Edge or Safari (their bookmarks file, chosen or pasted) and **export** yours to any browser.
+- History grouped by time or site, swipe to delete.
+- **Downloads** with mi's own downloader: pause, resume, cancel and retry, progress in a notification, and a Downloads page beside Bookmarks and History to open, share or delete files.
+- Pages' own Print and Share buttons, and local development sites (`localhost:3000`, LAN IPs, `.local`).
 
 ### Privacy & security
 - **Ad, tracker and cookie-banner blocking**, each switchable on its own, with EasyList, EasyPrivacy and the EasyList Cookie List (the lists most ad blockers use) plus a malware and ad domain list. It blocks requests, hides leftover ad spaces and consent pop-ups, and updates itself weekly. Turn it off for a single site from the tab menu.
@@ -59,6 +62,7 @@
 ### Material 3 Expressive
 - Colours from your accent or your wallpaper (Material You) in light, dark or system theme, with a **pure black (OLED)** option.
 - Google Sans Flex with an optional rounded style, Material Symbols, and spring-based motion that uses your display's full refresh rate.
+- **Haptic feedback** at each gesture's point of no return (swipes, the tab switcher, pull to refresh), which you can turn off.
 - Settings grouped into sections, each on its own page, with search across all of them.
 
 ## Installation

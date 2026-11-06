@@ -2,16 +2,17 @@
 package com.jlees.mibrowser.library
 
 import com.jlees.mibrowser.data.BookmarkNode
+import com.jlees.mibrowser.data.BookmarkType
 
 import com.jlees.mibrowser.logic.*
 
 private fun nextOrder(all: List<BookmarkNode>, parentId: String?) = (all.filter { it.parentId == parentId }.maxOfOrNull { it.order } ?: -1) + 1
 
 fun addBookmark(all: List<BookmarkNode>, title: String, url: String, parentId: String?) =
-    all + BookmarkNode(uniqueId(), "bookmark", title.ifEmpty { url }, url, parentId, nextOrder(all, parentId))
+    all + BookmarkNode(uniqueId(), BookmarkType.BOOKMARK, title.ifEmpty { url }, url, parentId, nextOrder(all, parentId))
 
 fun addFolder(all: List<BookmarkNode>, title: String, parentId: String?) =
-    all + BookmarkNode(uniqueId(), "folder", title, "", parentId, nextOrder(all, parentId))
+    all + BookmarkNode(uniqueId(), BookmarkType.FOLDER, title, "", parentId, nextOrder(all, parentId))
 
 fun descendantsAndSelf(all: List<BookmarkNode>, id: String): Set<String> {
     val out = mutableSetOf<String>()
@@ -43,14 +44,21 @@ fun reorderBookmarks(all: List<BookmarkNode>, parentId: String?, from: Int, to: 
     return all.filter { it.parentId != parentId } + siblings.mapIndexed { i, b -> b.copy(order = i) }
 }
 
-fun folderPath(all: List<BookmarkNode>, folderId: String?): String {
-    if (folderId == null) return "Bookmarks (Root)"
-    val path = mutableListOf<String>()
-    var cur: String? = folderId
-    var depth = 0
-    while (cur != null && depth < 10) {
+/** The folders directly inside [parent] (null: the top level), in their order, leaving out [excluded]. */
+fun childFolders(all: List<BookmarkNode>, parent: String?, excluded: Set<String> = emptySet()): List<BookmarkNode> =
+    all.filter { it.isFolder && it.parentId == parent && it.id !in excluded }.sortedBy { it.order }
+
+/** The folders from the top level down to [folderId] (empty for the top level itself). */
+fun folderTrail(all: List<BookmarkNode>, folderId: String?): List<BookmarkNode> {
+    val trail = mutableListOf<BookmarkNode>()
+    var cur = folderId
+    while (cur != null && trail.size < 50) { // 50: a guard against a broken (cyclic) tree
         val f = all.firstOrNull { it.id == cur } ?: break
-        path.add(0, f.title); cur = f.parentId; depth++
+        trail.add(0, f); cur = f.parentId
     }
-    return path.joinToString(" / ")
+    return trail
 }
+
+/** How many folders and bookmarks are directly inside [folderId]. */
+fun folderContents(all: List<BookmarkNode>, folderId: String): Pair<Int, Int> =
+    all.filter { it.parentId == folderId }.partition { it.isFolder }.let { (f, b) -> f.size to b.size }

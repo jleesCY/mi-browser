@@ -2,7 +2,8 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.library
 
-
+import com.jlees.mibrowser.AlertButton
+import com.jlees.mibrowser.ButtonStyle
 
 import com.jlees.mibrowser.data.Favicons
 import androidx.compose.material3.FloatingActionButton
@@ -14,7 +15,6 @@ import com.jlees.mibrowser.ui.common.DialogAction
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -37,9 +37,6 @@ import com.jlees.mibrowser.ui.ModalFrame
 import com.jlees.mibrowser.ui.common.SheetSearchField
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.common.ScrollTopAndFab
-import com.jlees.mibrowser.ui.common.SwipeActions
-import com.jlees.mibrowser.ui.common.deleteAnim
-import com.jlees.mibrowser.ui.common.rememberDeleteAnim
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -98,15 +95,15 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val slotW = maxWidth.value - 40
-        val rowH = 60f * ui.fontScale
+        val rowH = rowHeight(ui.padding, ui.fontScale) // the same rows as History and Downloads
         Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 20.dp, end = 20.dp, top = if (showPath) 130.dp else 90.dp, bottom = 100.dp)) {
             SortableSlots(
-                items = visible, key = { it.id }, slotW = slotW.dp, slotH = (rowH + 10).dp,
+                items = visible, key = { it.id }, slotW = slotW.dp, slotH = (rowH + rowMargin(ui.padding)).dp,
                 onReorder = { from, to -> if (search.isEmpty()) vm.bookmarks.reorder(currentFolder, from, to) },
             ) { b ->
                 BookmarkRow(b, rowH, vm.settings.showBookmarkIcons,
                     onPress = { if (b.isFolder) folderStack = folderStack + b else { vm.navigateTab(b.url, b.title); closeOverlay() } },
-                    onDelete = { vm.bookmarks.delete(b.id) },
+                    onDelete = { confirmDelete(vm, b) },
                     onRename = { openEdit(b) })
             }
         }
@@ -153,31 +150,18 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(ui.cs.surfaceContainerHighest).touchable { picker = true }.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Txt(modalFolder?.let { id -> vm.bookmarks.nodes.firstOrNull { it.id == id }?.title ?: "Unknown" } ?: "Bookmarks", 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+                    Txt((listOf("Bookmarks") + folderTrail(vm.bookmarks.nodes, modalFolder).map { it.title }).joinToString(" › "), 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 2)
                     Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
                 }
             } else {
-                Row(Modifier.padding(bottom = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.padding(end = 10.dp).touchable { picker = false }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
-                    Txt("Select Location", 18f, ui.cs.onSurface, ui.bold)
-                }
                 val e = editing
-                val excluded = if (modalMode == BookmarkDialog.EDIT && e != null && e.isFolder) descendantsAndSelf(vm.bookmarks.nodes, e.id) else emptySet()
-                val options = listOf<Pair<String?, String>>(null to "Bookmarks (Root)") +
-                    vm.bookmarks.nodes.filter { it.isFolder && it.id !in excluded }.map { it.id to folderPath(vm.bookmarks.nodes, it.id) }.sortedBy { it.second }
-                LazyColumn(Modifier.heightIn(max = 400.dp)) {
-                    items(options, key = { it.first ?: "root" }) { (id, path) ->
-                        Row(
-                            Modifier.fillMaxWidth().touchable { modalFolder = id; picker = false }.padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Sym(if (id == null) "home" else "folder", 20f, ui.cs.onSurfaceVariant, Modifier.padding(end = 10.dp))
-                            Txt(path, 16f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f).padding(end = 10.dp), maxLines = 3)
-                            if (modalFolder == id) Sym("check", 20f, ui.cs.primary)
-                        }
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(ui.cs.surface))
-                    }
-                }
+                FolderPicker(
+                    vm.bookmarks.nodes, modalFolder,
+                    excluded = if (modalMode == BookmarkDialog.EDIT && e != null && e.isFolder) descendantsAndSelf(vm.bookmarks.nodes, e.id) else emptySet(),
+                    onNewFolder = { name, parent -> vm.bookmarks.addFolder(name, parent) },
+                    onChoose = { modalFolder = it; picker = false },
+                    onBack = { picker = false },
+                )
             }
         }
     }
@@ -186,17 +170,15 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
 @Composable
 private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPress: () -> Unit, onDelete: () -> Unit, onRename: () -> Unit) {
     val ui = LocalUi.current
-    val (anim, del) = rememberDeleteAnim()
-    val shape = RoundedCornerShape(ui.radius.dp)
-    SwipeRevealRow(160.dp, { SwipeActions(height.dp, onRename) { del(onDelete) } }, Modifier.height(height.dp).deleteAnim { anim.value }) {
+    // swipe left to delete, right to edit (see SwipeActionRow); the sortable list positions rows itself, so no slot height
+    SwipeActionRow(height.dp, onDelete, onEdit = onRename, confirmDelete = true) {
         Row(
-            Modifier.fillMaxWidth().height(height.dp).clip(shape).background(ui.cs.surfaceContainerHighest).touchable(onClick = onPress).padding(horizontal = 15.dp),
+            Modifier.fillMaxWidth().height(height.dp).clip(libraryRowShape()).background(ui.cs.surfaceContainerHighest).touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier.padding(end = 15.dp).size(44.dp).clip(if (b.isFolder) MaterialShapes.Cookie6Sided.toShape() else CircleShape)
-                    .background(if (b.isFolder) ui.cs.tertiaryContainer else ui.cs.surfaceContainerLow),
-                contentAlignment = Alignment.Center,
+            RowIconTile(
+                shape = if (b.isFolder) MaterialShapes.Cookie6Sided.toShape() else CircleShape,
+                color = if (b.isFolder) ui.cs.tertiaryContainer else ui.cs.surfaceContainerLow,
             ) {
                 when {
                     b.isFolder -> Sym("folder_fill", 24f, ui.cs.onTertiaryContainer)
@@ -213,3 +195,22 @@ private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPre
     }
 }
 
+/** Deleting a bookmark (or a folder, with everything in it) asks first: it can't be undone. */
+private fun confirmDelete(vm: BrowserViewModel, b: BookmarkNode) {
+    val inside = descendantsAndSelf(vm.bookmarks.nodes, b.id) - b.id
+    val bookmarks = vm.bookmarks.nodes.count { it.id in inside && !it.isFolder }
+    val folders = inside.size - bookmarks
+    val contents = listOfNotNull(
+        folders.takeIf { it > 0 }?.let { if (it == 1) "1 folder" else "$it folders" },
+        bookmarks.takeIf { it > 0 }?.let { if (it == 1) "1 bookmark" else "$it bookmarks" },
+    ).joinToString(" and ")
+    vm.showAlert(
+        if (b.isFolder) "Delete Folder?" else "Delete Bookmark?",
+        when {
+            !b.isFolder -> "\"${b.title}\" will be removed from your bookmarks."
+            contents.isEmpty() -> "The folder \"${b.title}\" will be deleted."
+            else -> "The folder \"${b.title}\" and the $contents in it will be deleted."
+        },
+        listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Delete", ButtonStyle.DESTRUCTIVE) { vm.bookmarks.delete(b.id) }),
+    )
+}

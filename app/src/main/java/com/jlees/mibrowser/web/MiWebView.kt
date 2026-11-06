@@ -22,6 +22,8 @@ import androidx.compose.runtime.setValue
 class MiWebView(
     ctx: Context, private val incognito: Boolean, private val pullEnabled: () -> Boolean,
     private val onPull: (Float) -> Unit, private val onRefresh: () -> Unit,
+    /** A tick when the pull passes the point where releasing reloads (and back), if haptics are on. */
+    private val onThreshold: () -> Unit = {},
 ) : WebView(ctx) {
     private val density = ctx.resources.displayMetrics.density
     private val slop = android.view.ViewConfiguration.get(ctx).scaledTouchSlop
@@ -46,7 +48,9 @@ class MiWebView(
             android.view.MotionEvent.ACTION_MOVE -> {
                 lastX = e.x; lastY = e.y
                 if (!armedAt.isNaN()) {
+                    val was = progress >= 1f
                     progress = ((e.y - armedAt) * 0.5f / (PULL_DP * density)).coerceIn(0f, 1.4f)
+                    if ((progress >= 1f) != was) onThreshold()
                     onPull(progress)
                 }
             }

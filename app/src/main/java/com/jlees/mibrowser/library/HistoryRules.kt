@@ -1,6 +1,7 @@
 // History rules: what a visit records, deleting by time, and grouping for the History screen.
 package com.jlees.mibrowser.library
 
+
 import com.jlees.mibrowser.search.searchQueryFromUrl
 
 import com.jlees.mibrowser.data.HistoryItem

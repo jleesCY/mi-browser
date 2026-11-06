@@ -130,7 +130,6 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             }
             if (hasUrl) {
                 MenuIcon("content_copy") { copyText(ctx, vm.cleanLink(url!!)); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
-                MenuIcon("share") { dismiss(); shareText(ctx, vm.cleanLink(url!!), "Share Link") }
             }
         }
 
@@ -144,6 +143,8 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             }
             TopAction("bookmark_add", "Bookmark", false, hasUrl) { vm.bookmarksAutoAdd = true; vm.openView(Sheet.BOOKMARKS) }
             TopAction("keep", if (pinned) "Pinned" else "Pin", pinned, tab != null) { vm.tabs.togglePinned(vm.tabs.activeId) }
+            // the system share sheet, with the page's address (tracking tags removed when that setting is on)
+            TopAction("share", "Share", false, hasUrl) { dismiss(); shareText(ctx, vm.cleanLink(url!!), tab?.title?.takeIf { it.isNotBlank() }) }
         }
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -156,7 +157,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                     Tile("chrome_reader_mode", "Reader mode", if (reader) "On" else "Off", reader) { vm.setReaderMode(!reader) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.findVisible = true }
+                    Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.find.open() }
                     val blocking = vm.adsAllowedHere() == null
                     Tile("shield", "Block ads here", if (!hasUrl) null else if (blocking) "On" else "Off for this site", hasUrl && blocking, hasUrl) { vm.toggleAdsHere() }
                 }

@@ -69,6 +69,8 @@ data class Settings(
     val customSearchUrl: String = "",
     /** Pull down at the very top of a page to reload it. */
     val pullToRefresh: Boolean = true,
+    /** Haptic ticks at gesture thresholds (swipes, the switcher, pull to refresh, long presses). */
+    val hapticFeedback: Boolean = true,
     /** Your own search shortcuts: key ("ebay") → search address with %s. Checked before the built-ins. */
     val customBangs: Map<String, String> = emptyMap(),
     val cornerRadius: Int = 28, // 0 | 12 | 28
