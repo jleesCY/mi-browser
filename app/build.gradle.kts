@@ -18,8 +18,8 @@ android {
         applicationId = "com.jlees.mibrowser"
         minSdk = 26
         targetSdk = 36
-        versionCode = 140
-        versionName = "1.4.0"
+        versionCode = 150
+        versionName = "1.5.0"
     }
 
     signingConfigs {
@@ -49,6 +49,9 @@ android {
         compose = true
         buildConfig = true
     }
+
+    // Robolectric tests (Android code in plain unit tests) read the app's resources
+    testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
 // Name build outputs "mi-browser-<version>-<buildType>.apk" (e.g. mi-browser-1.0.0-release.apk)
@@ -71,4 +74,6 @@ dependencies {
     implementation("androidx.camera:camera-view:1.6.2")
     implementation("com.google.zxing:core:3.5.4")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.17") // Android code (the downloader) in unit tests
+    testImplementation("androidx.test:core:1.7.0")
 }

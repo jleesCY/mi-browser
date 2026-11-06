@@ -137,9 +137,10 @@ fun Txt(
 
 /** Material Symbols Rounded icon, sized in dp. */
 @Composable
-fun Sym(name: String, size: Float, color: Color, modifier: Modifier = Modifier) {
+fun Sym(name: String, size: Float, color: Color, modifier: Modifier = Modifier, label: String? = null) {
     val res = SymbolRes[name] ?: return
-    Icon(painterResource(res), null, modifier.size(size.dp), tint = color)
+    // [label]: what a screen reader says for an icon-only control; icons beside their own text stay silent
+    Icon(painterResource(res), label, modifier.size(size.dp), tint = color)
 }
 
 /** Clickable with the Material ripple. Clip the modifier first for a shaped ripple. */

@@ -24,16 +24,16 @@ import kotlinx.coroutines.launch
 fun adBlockSection(vm: BrowserViewModel) =
     SettingsSection("adblock", "Ad Blocking", "block", "Ads, trackers, cookie banners, allowed sites", listOf(
         SettingsRow("Block Ads", "adblock easylist banner ads malware") {
-            SwitchItem("block", "Block Ads", "Ads and ad networks (EasyList and a malware and ad domain list)", vm.settings.blockAds) { vm.updateSettings { copy(blockAds = it) } }
+            SwitchItem("block", "Block Ads", "Block ads and ad networks", vm.settings.blockAds) { vm.updateSettings { copy(blockAds = it) } }
         },
         SettingsRow("Block Trackers", "tracking analytics easyprivacy fingerprint") {
-            SwitchItem("travel_explore", "Block Trackers", "Analytics and tracking scripts that follow you across sites (EasyPrivacy)", vm.settings.blockTrackers) { vm.updateSettings { copy(blockTrackers = it) } }
+            SwitchItem("travel_explore", "Block Trackers", "Block analytics and tracking scripts that follow you across sites", vm.settings.blockTrackers) { vm.updateSettings { copy(blockTrackers = it) } }
         },
         SettingsRow("Hide Cookie Banners", "consent gdpr popup cookie") {
-            SwitchItem("cookie", "Hide Cookie Banners", "Cookie-consent pop-ups (EasyList Cookie List). Turn off if a site won't let you continue", vm.settings.hideCookieBanners) { vm.updateSettings { copy(hideCookieBanners = it) } }
+            SwitchItem("cookie", "Hide Cookie Banners", "Hide cookie-consent pop-ups", vm.settings.hideCookieBanners) { vm.updateSettings { copy(hideCookieBanners = it) } }
         },
         SettingsRow("Remove Tracking from Links", "utm fbclid gclid parameters clean url") {
-            SwitchItem("content_copy", "Remove Tracking from Links", "Strips utm_, fbclid, gclid and similar tags from links you open, copy or share", vm.settings.stripTrackingParams) { vm.updateSettings { copy(stripTrackingParams = it) } }
+            SwitchItem("content_copy", "Remove Tracking from Links", "Removes tracking tags from links you open, copy, or share", vm.settings.stripTrackingParams) { vm.updateSettings { copy(stripTrackingParams = it) } }
         },
         SettingsRow("Allowed Sites", "whitelist exception allow ads site") { AllowedSitesItem(vm) },
         SettingsRow("Update Filter Lists", "adblock update easylist") { FilterListsItem(vm) },
@@ -50,7 +50,7 @@ private fun AllowedSitesItem(vm: BrowserViewModel) {
             val ui = LocalUi.current
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 72.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Txt(site, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 1)
-                IconButton(onClick = { vm.updateSettings { copy(adAllowlist = adAllowlist - site) } }) { Sym("delete", 20f, ui.cs.onSurfaceVariant) }
+                IconButton(onClick = { vm.updateSettings { copy(adAllowlist = adAllowlist - site) } }) { Sym("delete", 20f, label = "Block ads again", color = ui.cs.onSurfaceVariant) }
             }
         }
         if (sites.isNotEmpty()) Spacer(Modifier.height(8.dp))

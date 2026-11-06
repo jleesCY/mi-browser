@@ -3,6 +3,10 @@
 // transfers alive (and shows them) while mi is in the background.
 package com.jlees.mibrowser.downloads
 
+import android.content.Intent
+
+import android.provider.DocumentsContract
+
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
@@ -38,20 +42,30 @@ class Downloader(context: Context, private val store: DownloadsStore) {
     init { current = this }
 
     /** Starts downloading [url], asked from a page with [cookies] and [userAgent]. Returns the new download's id. */
-    fun enqueue(url: String, cookies: String?, userAgent: String, contentDisposition: String?, mime: String?, length: Long, incognito: Boolean): String {
+    /**
+     * Starts downloading [url], asked from a page with [cookies] and [userAgent]. It's saved in [folder] (a document
+     * tree the user picked; null: Downloads), or exactly to [target] (a file chosen in the save dialog). Returns its id.
+     */
+    fun enqueue(
+        url: String, cookies: String?, userAgent: String, contentDisposition: String?, mime: String?, length: Long, incognito: Boolean,
+        folder: String? = null, target: Uri? = null, targetName: String? = null,
+    ): String {
         val type = mime?.substringBefore(';')?.trim()?.takeIf { it.isNotEmpty() && it != "application/octet-stream" }
             ?: MimeTypeMap.getFileExtensionFromUrl(url)?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it.lowercase()) }
             ?: "application/octet-stream"
         val item = DownloadItem(
             id = uniqueId(), url = url, mime = type, total = if (length > 0) length else -1, startedAt = System.currentTimeMillis(),
             fileName = downloadFileName(url, contentDisposition, type) { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) },
-            incognito = incognito,
-        )
+            incognito = incognito, folder = folder,
+        ).let { if (target != null) it.copy(uri = target.toString(), fileName = targetName ?: it.fileName) else it }
         headers[item.id] = buildMap { put("User-Agent", userAgent); cookies?.let { put("Cookie", it) } }
         store.add(item)
         resume(item.id)
         return item.id
     }
+
+    /** Pauses every running download (Android 15+'s daily limit for background transfers ran out). */
+    fun pauseAll() = store.items.filter { it.active }.forEach { pause(it.id) }
 
     fun pause(id: String) { jobs.remove(id)?.cancel(); store.update(id) { if (active) copy(state = DownloadState.PAUSED) else this } }
 
@@ -78,18 +92,24 @@ class Downloader(context: Context, private val store: DownloadsStore) {
     private suspend fun transfer(id: String) {
         var item = store[id] ?: return
         try {
-            var resumeFrom = if (item.uri != null) item.done else 0L
+            // resume from what's really in the file: the saved progress trails the last write by up to 250 ms, and
+            // appending from there would write some bytes twice
+            var resumeFrom = item.uri?.let { fileSize(Uri.parse(it)) } ?: 0L
             val conn = open(item.url, headers[id].orEmpty(), resumeFrom)
             val code = conn.responseCode
             when {
-                code == 416 && item.total > 0 && resumeFrom >= item.total -> { finish(item); return } // already complete
+                code == 416 && item.total > 0 && resumeFrom >= item.total -> { finish(item.copy(done = item.total)); return } // already complete
                 code >= 400 -> throw IOException("Server error $code")
                 code != 206 -> resumeFrom = 0 // the server sent the whole file: start over
             }
             val length = conn.getHeaderField("Content-Length")?.toLongOrNull() ?: -1
             val total = if (length < 0) -1 else resumeFrom + length
             if (item.uri == null) item = createFile(item)
-            post(id) { copy(state = DownloadState.RUNNING, done = resumeFrom, total = if (total > 0) total else this.total, uri = item.uri, fileName = item.fileName) }
+            post(id) {
+                // paused (or cancelled) before this arrived: keep the file details, not "running" (nothing is running)
+                val running = jobs[id]?.isActive == true
+                copy(state = if (running) DownloadState.RUNNING else state, done = resumeFrom, total = if (total > 0) total else this.total, uri = item.uri, fileName = item.fileName)
+            }
 
             var done = resumeFrom
             var lastPost = 0L
@@ -121,7 +141,7 @@ class Downloader(context: Context, private val store: DownloadsStore) {
     }
 
     private fun finish(item: DownloadItem) {
-        if (Build.VERSION.SDK_INT >= 29) runCatching {
+        if (Build.VERSION.SDK_INT >= 29 && Uri.parse(item.uri).authority == MediaStore.AUTHORITY) runCatching {
             ctx.contentResolver.update(Uri.parse(item.uri), ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
         }
         post(item.id) { copy(state = DownloadState.DONE, done = item.done, total = item.total) }
@@ -149,6 +169,16 @@ class Downloader(context: Context, private val store: DownloadsStore) {
 
     /** Creates the file in Downloads (hidden from other apps until finished, on Android 10+). */
     private fun createFile(item: DownloadItem): DownloadItem {
+        if (item.folder != null) { // a folder the user picked (its provider renames a duplicate itself)
+            val tree = Uri.parse(item.folder)
+            val dir = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+            val doc = runCatching { DocumentsContract.createDocument(ctx.contentResolver, dir, item.mime, item.fileName) }.getOrNull()
+                ?: throw IOException("Can't save to the chosen folder")
+            val name = runCatching {
+                ctx.contentResolver.query(doc, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+            }.getOrNull()
+            return item.copy(uri = doc.toString(), fileName = name ?: item.fileName)
+        }
         if (Build.VERSION.SDK_INT >= 29) {
             val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, item.fileName)
@@ -168,9 +198,40 @@ class Downloader(context: Context, private val store: DownloadsStore) {
         return item.copy(uri = Uri.fromFile(file).toString(), fileName = name)
     }
 
+    /**
+     * Finished downloads whose file was deleted outside mi (Files app, gallery) leave the list; run when the list
+     * loads and when the Downloads page opens.
+     */
+    fun pruneMissing() = scope.launch {
+        val gone = store.items.filter { it.state == DownloadState.DONE && it.uri != null && !exists(Uri.parse(it.uri)) }.map { it.id }.toSet()
+        if (gone.isNotEmpty()) main.post { gone.forEach(store::remove) }
+    }
+
+    /** The bytes already in the file (0 if it can't be read: the download then starts over). */
+    private fun fileSize(u: Uri): Long = runCatching {
+        if (u.scheme == "file") File(u.path!!).length() else ctx.contentResolver.openFileDescriptor(u, "r")?.use { it.statSize }
+    }.getOrNull()?.takeIf { it >= 0 } ?: 0L
+
+    /** Whether the file is still there. Unknown (no permission any more, say) counts as there: never prune on a guess. */
+    private fun exists(u: Uri): Boolean = when {
+        u.scheme == "file" -> File(u.path ?: return false).exists()
+        else -> try { ctx.contentResolver.query(u, null, null, null, null)?.use { it.count > 0 } ?: true }
+        catch (_: java.io.FileNotFoundException) { false } catch (_: IllegalArgumentException) { false } catch (_: Exception) { true }
+    }
+
     private fun deleteFile(uri: String) {
         val u = Uri.parse(uri)
-        runCatching { if (u.scheme == "file") File(u.path!!).delete() else ctx.contentResolver.delete(u, null, null) }
+        runCatching {
+            when {
+                u.scheme == "file" -> File(u.path!!).delete()
+                DocumentsContract.isDocumentUri(ctx, u) -> {
+                    DocumentsContract.deleteDocument(ctx.contentResolver, u) // a picked folder / save dialog
+                    // a file chosen in the save dialog held its own lasting access: give it back (a no-op otherwise)
+                    runCatching { ctx.contentResolver.releasePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+                }
+                else -> ctx.contentResolver.delete(u, null, null)
+            }
+        }
     }
 
     /** Store updates happen on the main thread (it's Compose state the UI reads). */

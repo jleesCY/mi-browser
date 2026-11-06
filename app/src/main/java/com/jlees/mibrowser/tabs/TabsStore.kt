@@ -21,6 +21,8 @@ class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<Str
     var activeId by mutableStateOf(""); private set
     /** The last tab closed (and where it was), for Undo. Only one can be restored. */
     var closed by mutableStateOf<Pair<TabItem, Int>?>(null); private set
+    /** Tabs closed this session, newest first (History → Recently closed). In memory only, never saved. */
+    var recentlyClosed by mutableStateOf(listOf<TabItem>()); private set
 
     val current get() = get(activeId)
     operator fun get(id: String) = list.firstOrNull { it.id == id }
@@ -67,6 +69,7 @@ class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<Str
         if (keep != null) { dismissUndo(); closed = keep to list.indexOf(keep) }
         closing.filter { it !== keep }.forEach { deletePreview(it) }
         destroy(closing.map { it.id }.toSet())
+        recentlyClosed = rememberClosed(recentlyClosed, closing.map { it.copy(previewImage = null) })
         val next = closeTabs(TabsState(list, activeId), ids)
         list = next.tabs
         if (next.activeId != activeId) select(next.activeId)
@@ -77,9 +80,22 @@ class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<Str
     fun undoClose() {
         val (t, idx) = closed ?: return
         closed = null
+        recentlyClosed = recentlyClosed.filterNot { it.id == t.id }
         val url = t.historyStack.getOrNull(t.currentIndex)
         list = reinsert(list, t.copy(url = url, requestedUrl = url, loadNonce = t.loadNonce + 1, hasLoadedOnce = true, loading = false), idx)
     }
+
+    /** Opens a recently closed tab again, in front, on the page it was on. */
+    fun reopen(id: String) {
+        val t = recentlyClosed.firstOrNull { it.id == id } ?: return
+        recentlyClosed = recentlyClosed - t
+        if (closed?.first?.id == id) dismissUndo() // the Undo bar for this same tab would open a second copy
+        val url = t.historyStack.getOrNull(t.currentIndex)
+        open(t.copy(url = url, requestedUrl = url, loadNonce = t.loadNonce + 1, hasLoadedOnce = true, loading = false, previewImage = null))
+    }
+
+    /** Drops [id] from the recently closed list, or (null) the whole list: clearing history clears it too. */
+    fun forgetClosed(id: String? = null) { recentlyClosed = if (id == null) emptyList() else recentlyClosed.filterNot { it.id == id } }
 
     fun dismissUndo() { closed?.first?.let(::deletePreview); closed = null }
 

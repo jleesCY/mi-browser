@@ -65,7 +65,15 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
         scope.launch { scrollY.animateTo(0f, timing(100)) }
     }
 
+    /** Opens the tab switcher without a drag (the screen-reader action on the Pill). */
+    fun openSwitcher() {
+        vm.beginSwitcher()
+        scope.launch { vm.switcher.anim.animateTo(1f, Motion.switcher); vm.switcher.settled = true }
+    }
+
     fun hideBar() {
+        // while finding in page the Pill is the find bar: it stays pinned (scrolling the results never hides it)
+        if (vm.find.visible) return
         isBarHidden = true
         scope.launch { scrollY.animateTo(HIDDEN_TRANSLATE_Y, timing(100)) }
     }

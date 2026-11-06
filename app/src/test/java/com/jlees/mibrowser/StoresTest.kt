@@ -106,4 +106,56 @@ class StoresTest {
         assertEquals(listOf(BookmarkType.FOLDER, BookmarkType.BOOKMARK, BookmarkType.BOOKMARK), nodes.map { it.type })
         assertTrue(json.encodeToString(ListSerializer(BookmarkNode.serializer()), nodes).contains("\"type\":\"folder\""))
     }
+
+    @Test fun undoPutsDeletedEntriesBackWhereTheyWere() {
+        val h = HistoryStore(store)
+        listOf("a", "b", "c").forEach { h.add("https://$it.com", it) } // newest first: c, b, a
+        val removed = h.remove(h.items[1].id)!!
+        assertEquals(listOf("c", "a"), h.items.map { it.title })
+        h.restore(removed)
+        assertEquals(listOf("c", "b", "a"), h.items.map { it.title })
+
+        val d = com.jlees.mibrowser.downloads.DownloadsStore(store)
+        listOf("x", "y").forEach { d.add(com.jlees.mibrowser.downloads.DownloadItem(it, "https://$it.com", "$it.zip")) } // y, x
+        val r = d.remove("x")!!
+        d.restore(r)
+        assertEquals(listOf("y", "x"), d.items.map { it.id })
+        assertNull(d.remove("missing"))
+    }
+
+    @Test fun recentlyClosedTabsReopen() {
+        val a = newTab("https://a.com"); val b = newTab("https://b.com"); val blank = newTab()
+        val inc = newTab("https://secret.com").copy(profile = newIncognitoProfile())
+        listOf(a, b, blank, inc).forEach { tabs.open(it) }
+        tabs.close(setOf(a.id)); tabs.close(setOf(b.id, blank.id, inc.id))
+        // newest first; a blank tab or an incognito one is never kept
+        assertEquals(setOf(a.id, b.id), tabs.recentlyClosed.map { it.id }.toSet())
+        assertEquals(a.id, tabs.recentlyClosed.last().id)
+        tabs.reopen(a.id)
+        assertEquals(a.id, tabs.activeId)
+        assertEquals("https://a.com", tabs.current?.url)
+        assertEquals(listOf(b.id), tabs.recentlyClosed.map { it.id })
+        tabs.forgetClosed()
+        assertTrue(tabs.recentlyClosed.isEmpty())
+    }
+
+    @Test fun editingAFavorite() {
+        val b = BookmarksStore(store)
+        b.addFavorite("Old", "https://old.com")
+        val id = b.favorites.single().id
+        b.updateFavorite(id, "New", "https://new.com")
+        assertEquals("New" to "https://new.com", b.favorites.single().let { it.title to it.url })
+        b.updateFavorite(id, "  ", "https://new.com") // a blank name keeps the old one
+        assertEquals("New", b.favorites.single().title)
+    }
+
+    @Test fun reopeningATabCancelsItsUndo() {
+        val a = newTab("https://a.com"); val b = newTab("https://b.com")
+        tabs.open(a); tabs.open(b)
+        tabs.close(setOf(b.id), undoable = true) // Undo bar for b, and b in recently closed
+        tabs.reopen(b.id)
+        assertNull(tabs.closed)
+        tabs.undoClose() // the bar can't bring back a second copy
+        assertEquals(1, tabs.list.count { it.id == b.id })
+    }
 }

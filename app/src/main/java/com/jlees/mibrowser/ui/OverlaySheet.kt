@@ -38,7 +38,7 @@ fun OverlaySheet(
             Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (header != null) Box(Modifier.weight(1f).padding(end = 12.dp)) { header() }
                 else Txt("Settings", 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
-                FilledTonalIconButton(onClick = onClose) { Sym("close", 24f, ui.cs.onSecondaryContainer) }
+                FilledTonalIconButton(onClick = onClose) { Sym("close", 24f, ui.cs.onSecondaryContainer, label = "Close") }
             }
             Box(Modifier.fillMaxWidth().weight(1f).paddingDp(bottom = imeDp)) { content() }
         }

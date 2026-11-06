@@ -3,6 +3,9 @@
 // is the touch target.
 package com.jlees.mibrowser.ui.settings
 
+import com.jlees.mibrowser.downloads.downloadsSection
+
+
 import com.jlees.mibrowser.search.searchSection
 
 import com.jlees.mibrowser.home.homeSection
@@ -127,7 +130,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 ChoiceItem("routine", "Theme", null, s.themeMode) { set { copy(themeMode = it) } }
             },
             SettingsRow("Pure Black", "oled amoled black dark battery") {
-                if (s.themeMode != ThemeMode.LIGHT) SwitchItem("contrast", "Pure Black (OLED)", "True black backgrounds in dark mode: saves battery on OLED screens", s.pureBlack) { set { copy(pureBlack = it) } }
+                if (s.themeMode != ThemeMode.LIGHT) SwitchItem("contrast", "Pure Black (OLED)", "True black backgrounds in dark mode", s.pureBlack) { set { copy(pureBlack = it) } }
             },
             SettingsRow("Accent Color", "colour wallpaper material you dynamic") { AccentItem(vm) },
             SettingsRow("Font Size", "text scale app") {
@@ -138,11 +141,11 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 ChoiceItem("rounded_corner", "Corners", null, listOf("0" to "Square", "12" to "Soft", "28" to "Round"), s.cornerRadius.toString()) { set { copy(cornerRadius = it.toInt()) } }
             },
             SettingsRow("Spacing", "density padding compact airy") {
-                ChoiceItem("density_medium", "Spacing", null, s.uiPadding) { set { copy(uiPadding = it) } }
+                ChoiceItem("density_medium", "Spacing", "How lists appear in mi", s.uiPadding) { set { copy(uiPadding = it) } }
             },
-            SettingsRow("Status Bar", "clock battery immersive") { SwitchItem("battery_charging_full", "Status Bar", "Show the clock and battery at the top", s.showStatusBar) { set { copy(showStatusBar = it) } } },
+            SettingsRow("Status Bar", "clock battery immersive") { SwitchItem("battery_charging_full", "Status Bar", null, s.showStatusBar) { set { copy(showStatusBar = it) } } },
             SettingsRow("Haptic Feedback", "vibration vibrate haptics touch feel") {
-                SwitchItem("vibration", "Haptic Feedback", "A light tap when a swipe or gesture is about to act", s.hapticFeedback) { set { copy(hapticFeedback = it) } }
+                SwitchItem("vibration", "Haptic Feedback", "Taps when gestures are performed", s.hapticFeedback) { set { copy(hapticFeedback = it) } }
             },
         )),
         SettingsSection("pill", "Pill", "toolbar", "Loading bar, favorites, search drawer", listOfNotNull(
@@ -161,7 +164,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 SliderItem("format_size", "Page Text Size", "Text size on websites", s.textZoom / 100f, 0.5f, 2f) { set { copy(textZoom = Math.round(it * 100)) } }
             },
             SettingsRow("Darken Web Pages", "dark mode force night websites") {
-                SwitchItem("contrast", "Darken Web Pages", "In dark theme, darken sites that have no dark mode", s.darkenPages) { set { copy(darkenPages = it) } }
+                SwitchItem("contrast", "Darken Web Pages", "Darken sites that have no dark mode", s.darkenPages) { set { copy(darkenPages = it) } }
             },
             SettingsRow("Block Video Autoplay", "autoplay video sound media") {
                 SwitchItem("block", "Block Video Autoplay", "Videos wait for a tap instead of playing on their own", s.blockAutoplay) { set { copy(blockAutoplay = it) } }
@@ -178,9 +181,14 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         )),
         tabsSection(vm),
         librarySection(vm),
+        downloadsSection(vm),
         adBlockSection(vm),
-        SettingsSection("privacy", "Privacy & Security", "shield", "HTTPS, cookies, JavaScript, pop-ups, clearing data", listOf(
-            SettingsRow("HTTPS Only", "secure ssl tls") { SwitchItem("lock", "HTTPS Only", "Always use secure connections (local addresses excluded)", s.httpsOnly) { set { copy(httpsOnly = it) } } },
+        SettingsSection("privacy", "Privacy & Security", "shield", "HTTPS, cookies, JavaScript, pop-ups, clearing data", listOfNotNull(
+            SettingsRow("HTTPS Only", "secure ssl tls") { SwitchItem("lock", "HTTPS Only", "Always use secure connections", s.httpsOnly) { set { copy(httpsOnly = it) } } },
+            // only with HTTPS Only on
+            if (s.httpsOnly) SettingsRow("Warn Every Time", "https insecure http warning ask continue") {
+                SwitchItem("warning", "Warn Every Time", "Ask before every visit to an insecure site", s.httpsWarnEveryTime) { set { copy(httpsWarnEveryTime = it) } }
+            } else null,
             SettingsRow("Allow Cookies", "cookies") { SwitchItem("cookie", "Allow Cookies", "Turning this off signs you out of most sites", !s.blockCookies) { set { copy(blockCookies = !it) } } },
             SettingsRow("Block Third-Party Cookies", "cross-site tracking") {
                 SwitchItem("cookie", "Block Third-Party Cookies", "Stops cross-site cookies; can break payment and sign-in windows", s.blockThirdPartyCookies) { set { copy(blockThirdPartyCookies = it) } }
@@ -197,6 +205,9 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                         ), onCancel = {})
                     } },
                     trailing = if (n == 0) null else { { Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) } })
+            },
+            SettingsRow("Clear on Exit", "clear exit quit close delete history cookies tabs automatically") {
+                SwitchItem("power_settings_new", "Clear on Exit", "Clear all browsing data when exiting mi", s.clearDataOnExit) { set { copy(clearDataOnExit = it) } }
             },
             SettingsRow("Clear Browsing Data", "cookies cache storage delete") {
                 Item("delete", "Clear Browsing Data", "Cookies, site data, cache, site icons and tab snapshots", danger = true, onClick = { vm.confirm = ConfirmData(ConfirmAction.CLEAR_DATA) })
@@ -216,7 +227,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         )),
         SettingsSection("about", "About", "info", "Default browser, updates, guide, credits", listOf(
             SettingsRow("Default Browser", "links open") {
-                Item("public", "Default Browser", if (isDefault) "mi opens links from other apps" else "Tap to make mi open links from other apps",
+                Item("public", "Default Browser", if (isDefault) "mi opens links from other apps" else "Make mi. open links from other apps",
                     onClick = if (isDefault) null else ::requestDefault,
                     trailing = { if (isDefault) Sym("check", 22f, ui.cs.primary) else Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) })
             },
@@ -269,7 +280,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         val sub = subId?.let { subPages[it] }
         if (sub != null) TopBarOver(sheetBg, bar = {
             Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 20.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { subPage = null }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
+                IconButton(onClick = { subPage = null }) { Sym("arrow_back", 24f, ui.cs.onSurface, label = "Back") }
                 Sym(sub.icon, 22f, ui.cs.primary, Modifier.padding(start = 4.dp, end = 10.dp))
                 Txt(sub.title, 22f, ui.cs.onSurface, ui.bold, maxLines = 1)
             }
@@ -310,7 +321,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         } else TopBarOver(sheetBg, bar = {
             // a section's page: back arrow and title instead of the search bar
             Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 20.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { openId = null }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
+                IconButton(onClick = { openId = null }) { Sym("arrow_back", 24f, ui.cs.onSurface, label = "Back") }
                 Sym(page.icon, 22f, ui.cs.primary, Modifier.padding(start = 4.dp, end = 10.dp))
                 Txt(page.title, 22f, ui.cs.onSurface, ui.bold, maxLines = 1)
             }

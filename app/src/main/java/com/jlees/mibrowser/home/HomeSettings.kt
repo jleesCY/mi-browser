@@ -34,7 +34,7 @@ private fun ShortcutItem(vm: BrowserViewModel) {
     val ui = LocalUi.current
     val s = vm.settings
     Column(Modifier.fillMaxWidth().animateContentSize()) {
-        SwitchItem("apps", "Shortcut Button", "A button on the home page", s.showHomeShortcuts) { vm.updateSettings { copy(showHomeShortcuts = it) } }
+        SwitchItem("apps", "Shortcut Button", null, s.showHomeShortcuts) { vm.updateSettings { copy(showHomeShortcuts = it) } }
         if (s.showHomeShortcuts) {
             Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant.copy(alpha = 0.5f)))
             ExpandItem("bolt", "Shortcut Action", null, s.homeShortcutAction.label) { close ->

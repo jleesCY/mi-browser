@@ -1,6 +1,8 @@
 // Pieces shared by the Library (bookmarks/history) sheets and the tab switcher.
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.ui.unit.Dp
+
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.background
@@ -25,7 +27,7 @@ fun SearchHeaderWithMenu(
     var open by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth().zIndex(1000f).padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
         SheetSearchField(value, onChange, placeholder, trailing = {
-            IconButton(onClick = { open = !open }) { Sym("more_vert", 24f, ui.cs.onSurfaceVariant) }
+            IconButton(onClick = { open = !open }) { Sym("more_vert", 24f, ui.cs.onSurfaceVariant, label = "More options") }
         })
         if (open) {
             Column(
@@ -33,6 +35,19 @@ fun SearchHeaderWithMenu(
                     .shadow(8.dp, RoundedCornerShape(16.dp)).background(ui.cs.surfaceContainer, RoundedCornerShape(16.dp)).padding(vertical = 8.dp, horizontal = 4.dp),
             ) { menu { open = false } }
         }
+    }
+}
+
+/**
+ * A Library page with nothing to show: its icon and a line ("No History Yet", or "No matches" while searching).
+ * [top] is the space above it; pages whose list starts lower pass less, so the message sits at the same height on all.
+ */
+@Composable
+fun EmptyState(icon: String, text: String, top: Dp = 50.dp) {
+    val ui = LocalUi.current
+    Column(Modifier.fillMaxWidth().padding(top = top), horizontalAlignment = Alignment.CenterHorizontally) {
+        Sym(icon, 50f, ui.cs.onSurfaceVariant)
+        Txt(text, 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 10.dp))
     }
 }
 
@@ -57,7 +72,7 @@ fun ScrollTopAndFab(kbVisible: Boolean, showScrollTop: Boolean, onScrollTop: () 
         ) {
             if (showScrollTop && !kbVisible) {
                 SmallFloatingActionButton(onClick = onScrollTop, modifier = Modifier.padding(bottom = 16.dp), containerColor = ui.cs.secondaryContainer) {
-                    Sym("arrow_upward", 24f, ui.cs.onSecondaryContainer)
+                    Sym("arrow_upward", 24f, ui.cs.onSecondaryContainer, label = "Scroll to top")
                 }
             }
             if (!kbVisible) fabs()

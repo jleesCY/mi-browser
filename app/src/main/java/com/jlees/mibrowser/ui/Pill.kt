@@ -2,6 +2,12 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui
 
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+
+import androidx.compose.ui.semantics.customActions
+
+import androidx.compose.ui.semantics.semantics
+
 import com.jlees.mibrowser.find.FindPillContent
 
 import com.jlees.mibrowser.search.BangPillTransformation
@@ -123,6 +129,15 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                     Box(
                         Modifier.fillMaxWidth().heightDp { PILL_HEIGHT + focusedAdd() }
                             .onGloballyPositioned { pillOrigin.at = it.positionInWindow() }
+                            // the Pill's swipes, for screen readers (which can't swipe)
+                            .semantics {
+                                customActions = listOfNotNull(
+                                    CustomAccessibilityAction("Show tabs") { pill.openSwitcher(); true },
+                                    if (vm.canGoBackUi) CustomAccessibilityAction("Back") { vm.goBack() } else null,
+                                    if (vm.canGoForwardUi) CustomAccessibilityAction("Forward") { vm.goForward() } else null,
+                                    CustomAccessibilityAction("Hide toolbar") { pill.hideBar(); true },
+                                )
+                            }
                             .panGesture(
                                 enabled = !vm.isInputFocused && !pill.isBarHidden && !vm.find.visible,
                                 onMove = { dx, dy -> pill.onPanMove(dx, dy) },
@@ -333,22 +348,22 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                     )
                     Row(Modifier.padding(start = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (vm.isInputFocused && tfv.text.isNotEmpty()) {
-                            Box(Modifier.padding(end = 8.dp).touchable { vm.inputUrl = ""; tfv = TextFieldValue(""); focusRequester.requestFocus() }) { Sym("cancel", 20f, ui.cs.onSurfaceVariant) }
+                            Box(Modifier.padding(end = 8.dp).touchable { vm.inputUrl = ""; tfv = TextFieldValue(""); focusRequester.requestFocus() }) { Sym("cancel", 20f, ui.cs.onSurfaceVariant, label = "Clear") }
                         }
                         if (vm.isInputFocused) {
-                            Box(Modifier.touchable { focusManager.clearFocus(); vm.submitInput(tfv.text) }) { Sym("search", 22f, ui.cs.primary) }
+                            Box(Modifier.touchable { focusManager.clearFocus(); vm.submitInput(tfv.text) }) { Sym("search", 22f, ui.cs.primary, label = "Search") }
                         } else if (vm.tabs.current?.isFresh == true && incognitoSupported) {
                             // a fresh tab has nothing to reload: here the button switches the tab between normal and incognito
                             Box(
                                 Modifier.size(32.dp).clip(CircleShape).background(if (incognito) ui.cs.inverseSurface else Color.Transparent)
                                     .touchable { vm.toggleIncognito() },
                                 contentAlignment = Alignment.Center,
-                            ) { Sym("incognito", 20f, if (incognito) ui.cs.inverseOnSurface else ui.cs.onSurface) }
+                            ) { Sym("incognito", 20f, if (incognito) ui.cs.inverseOnSurface else ui.cs.onSurface, label = if (incognito) "Leave incognito" else "Make this tab incognito") }
                         } else {
                             val hasUrl = vm.activeUrl != null
                             Box(Modifier.alpha(if (hasUrl) 1f else 0.3f).touchable(enabled = hasUrl) {
                                 if (vm.isLoading) vm.web.tryEmit(WebCmd.Stop(vm.tabs.activeId)) else vm.web.tryEmit(WebCmd.Reload(vm.tabs.activeId))
-                            }) { Sym(if (vm.isLoading) "close" else "refresh", 22f, ui.cs.onSurface) }
+                            }) { Sym(if (vm.isLoading) "close" else "refresh", 22f, ui.cs.onSurface, label = if (vm.isLoading) "Stop loading" else "Reload") }
                         }
                     }
                 }

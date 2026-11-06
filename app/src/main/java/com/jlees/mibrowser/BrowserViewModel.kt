@@ -23,7 +23,7 @@ import com.jlees.mibrowser.tabs.TabsStore
 
 import com.jlees.mibrowser.tabs.closeTabs
 import com.jlees.mibrowser.tabs.tabsToClear
-import com.jlees.mibrowser.web.CertificateExceptions
+import com.jlees.mibrowser.web.SiteExceptions
 
 import com.jlees.mibrowser.adblock.AdBlock
 
@@ -55,14 +55,14 @@ data class AlertButton(val text: String, val style: ButtonStyle = ButtonStyle.DE
 data class AlertData(val title: String, val message: String, val buttons: List<AlertButton>, val onCancel: () -> Unit = {})
 data class ContextMenuData(val url: String?, val imgUrl: String?, val text: String)
 /** What a confirmation dialog confirms (see ConfirmDialog for the wording). */
-enum class ConfirmAction { CLEAR_HISTORY, RESET_SETTINGS, BACKGROUND_REFRESH, WIPE_DATA, CLEAR_DATA }
+enum class ConfirmAction { CLEAR_HISTORY, RESET_SETTINGS, WIPE_DATA, CLEAR_DATA }
 data class ConfirmData(val action: ConfirmAction, val ms: Long = 0, val label: String = "")
 
 /** What a launcher shortcut or the search widget asked for. */
 enum class LaunchAction { NEW_TAB, NEW_INCOGNITO_TAB, SEARCH }
 
 /** The full-screen sheet over the browser, if any. */
-enum class Sheet { NONE, BOOKMARKS, HISTORY, DOWNLOADS, SETTINGS }
+enum class Sheet { NONE, BOOKMARKS, HISTORY, DOWNLOADS, SETTINGS, SITE }
 
 /** A site asked for a username and password (HTTP authentication). */
 data class AuthRequest(val host: String, val realm: String, val insecure: Boolean, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
@@ -104,7 +104,11 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     // ---- persisted state ----
     var settings by mutableStateOf(Settings())
     /** Hosts the user chose to proceed to despite certificate errors — this session only (never persisted). */
-    val certExceptions = CertificateExceptions()
+    val certExceptions = SiteExceptions()
+    /** HTTPS Only with Warn Every Time off: insecure sites continued to this session (in memory, per profile). */
+    val httpAllowed = SiteExceptions()
+    /** Sites (registrable domains) with ad blocking off in incognito tabs: in memory only, gone when incognito ends. */
+    var incognitoAdAllowlist by mutableStateOf(setOf<String>())
     val tabs = TabsStore(store) { web.tryEmit(WebCmd.Destroy(it)) }
     val history = HistoryStore(store)
     val bookmarks = BookmarksStore(store)
@@ -150,8 +154,14 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 history.load()
                 bookmarks.load()
                 downloads.load()
+                downloader.pruneMissing()
                 tabs.load(parseDeepLink(deepLink), settings.startupTabMode, settings.backgroundRefresh)
                 sweepFiles()
+            }
+            // Clear on Exit: mi may have been ended (swiped away) without closing, so it clears at the start too
+            if (settings.clearDataOnExit) {
+                clearOnExit { web.tryEmit(WebCmd.ClearBrowsingData) }
+                launch(Dispatchers.IO) { saveNow() }
             }
             ready = true
             syncInputToActiveTab()
@@ -207,6 +217,18 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Writes everything now (before mi ends its process after incognito use). */
     fun saveNow() = savers.forEach { it.writeNow() }
 
+    /**
+     * Settings → Privacy → Clear on Exit: all browsing data goes when mi closes: history and recent searches, open and
+     * recently closed tabs (pinned tabs stay: pinning is the user saying "keep this one"), and cookies, site data and
+     * cache through [clearSiteData] (the WebView host, which the caller reaches its own way at start and at exit).
+     */
+    fun clearOnExit(clearSiteData: () -> Unit) {
+        history.clear()
+        closeTabs(tabsToClear(tabs.list, keepPinned = true))
+        tabs.dismissUndo(); tabs.forgetClosed()
+        clearSiteData()
+    }
+
     fun updateSettings(f: Settings.() -> Settings) { settings = settings.f() }
 
     // ---------------------------------------------------------------- tabs (state and saving: TabsStore)
@@ -256,7 +278,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun closeTabs(ids: Set<String>, undoable: Boolean = false) {
         val before = tabs.activeId
         if (tabs.close(ids, undoable) != before) onTabShown()
-        if (tabs.list.none { it.incognito }) downloads.forgetIncognito() // incognito ended: its downloads leave the list
+        if (tabs.list.none { it.incognito }) { // incognito ended: its downloads leave the list, its ad-blocking choices go
+            downloads.forgetIncognito(); incognitoAdAllowlist = emptySet()
+        }
     }
 
     /** A page closed its window (window.close), or Back left a popup with no history: return to the page that opened it. */
@@ -268,6 +292,14 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
 
     fun clearHttpFallback(id: String) { if (tabs[id]?.httpFallback == true) tabs.update(id) { copy(httpFallback = false) } }
+
+    /** History → Recently closed: the tab opens again, in front. */
+    fun reopenClosedTab(id: String) {
+        captureOutgoing()
+        tabs.reopen(id)
+        switcherVisible = false
+        onTabShown()
+    }
 
     /** Opens [url] in a new tab next to the current one without switching to it. */
     fun addBackgroundTab(url: String) {
@@ -319,7 +351,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun loadInTab(id: String, url: String) = tabs.update(id) { copy(url = url, requestedUrl = url, loading = true, loadNonce = loadNonce + 1, httpFallback = false) }
 
     fun submitInput(text: String = inputUrl) {
-        val url = inputToUrl(text, settings.httpsOnly, searchEngine, bangs)?.let(::cleanLink) ?: return
+        var url = inputToUrl(text, settings.httpsOnly, searchEngine, bangs)?.let(::cleanLink) ?: return
+        // HTTPS Only, Warn Every Time off, and this insecure site was continued to this session: straight there
+        if (settings.httpsOnly && !settings.httpsWarnEveryTime && url.startsWith("https://") && httpAllowed.has(tabs.current?.profile, displayHost(url)))
+            url = url.replaceFirst("https://", "http://")
         navigateTab(url, text.trim())
         // like Chrome: a typed address tries https first and falls back to http if https can't connect
         if (!settings.httpsOnly && isTypedHttpsUpgrade(text, url)) tabs.update(tabs.activeId) { copy(httpFallback = true) }
@@ -397,9 +432,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- confirm actions
     fun confirmAction(c: ConfirmData) {
         when (c.action) {
-            ConfirmAction.CLEAR_HISTORY -> history.deleteRecent(c.ms)
+            ConfirmAction.CLEAR_HISTORY -> { history.deleteRecent(c.ms); tabs.forgetClosed() }
             ConfirmAction.RESET_SETTINGS -> resetSettings()
-            ConfirmAction.BACKGROUND_REFRESH -> updateSettings { copy(backgroundRefresh = true) }
             ConfirmAction.WIPE_DATA -> wipeData()
             ConfirmAction.CLEAR_DATA -> web.tryEmit(WebCmd.ClearBrowsingData)
         }
@@ -408,14 +442,14 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetSettings() {
         settings = Settings().migrated() // current version, so the next launch doesn't migrate it again
-        certExceptions.clear()
+        certExceptions.clear(); httpAllowed.clear()
     }
 
     private fun wipeData() {
         resetSettings()
         history.clear(); bookmarks.clear(); downloads.clear()
         resetTabs(keepPinned = false) // erasing everything: pinned tabs go too
-        tabs.dismissUndo()
+        tabs.dismissUndo(); tabs.forgetClosed() // after closing them, or the wiped tabs would show as recently closed
         viewModelScope.launch(Dispatchers.IO) {
             delay(1200) // let the debounced savers flush the empty state first, then remove the files
             store.clear()
@@ -434,7 +468,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
      * next time each tab is left.
      */
     fun clearBrowsingTraces() {
-        certExceptions.clear() // granted this session
+        tabs.forgetClosed()
+        certExceptions.clear(); httpAllowed.clear() // granted this session
         tabs.forgetPreviews()
         suggestions.clear()
         clearImageCache()

@@ -22,13 +22,15 @@ import com.jlees.mibrowser.web.WebError
 // ---------------------------------------------------------------- error page
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ErrorPage(err: WebError, tabUrl: String?, onRetry: () -> Unit, onUpgrade: (() -> Unit)?, onProceed: () -> Unit) {
+fun ErrorPage(err: WebError, tabUrl: String?, onRetry: () -> Unit, onUpgrade: (() -> Unit)?, onProceed: () -> Unit, onContinueHttp: () -> Unit) {
     val ui = LocalUi.current
     val desc = err.desc
     val code = err.code
     val isSsl = desc.contains("ERR_CERT") || desc.contains("ERR_SSL") || desc.contains("ssl_error") || code == -11 || code in -1206..-1200
     val isCleartext = desc.contains("ERR_CLEARTEXT_NOT_PERMITTED")
+    val httpsOnly = code == WebError.HTTPS_ONLY
     val (title, text, icon) = when {
+        httpsOnly -> Triple("Secure Connection Not Available", "This site doesn't offer a secure (https) connection. Others on your network could see or change what you send there.", "lock")
         desc.contains("ERR_NAME_NOT_RESOLVED") || code == -2 -> Triple("Site Not Found", "We couldn't find this site. Please check your spelling.", "search")
         desc.contains("ERR_INTERNET_DISCONNECTED") -> Triple("No Internet", "Please check your Wi-Fi or mobile data connection.", "wifi_off")
         desc.contains("ERR_CONNECTION_TIMED_OUT") || code == -8 -> Triple("Connection Timed Out", "The server took too long to respond.", "history")
@@ -50,6 +52,9 @@ fun ErrorPage(err: WebError, tabUrl: String?, onRetry: () -> Unit, onUpgrade: ((
         Button(onClick = onRetry, modifier = Modifier.heightIn(min = 56.dp)) { Sym("refresh", 20f, ui.cs.onPrimary, Modifier.padding(end = 8.dp)); Txt("Try Again", 16f, ui.cs.onPrimary, ui.bold) }
         if (onUpgrade != null) FilledTonalButton(onClick = onUpgrade, modifier = Modifier.padding(top = 12.dp).heightIn(min = 48.dp)) {
             Sym("lock", 18f, ui.cs.onSecondaryContainer, Modifier.padding(end = 8.dp)); Txt("Upgrade to HTTPS", 15f, ui.cs.onSecondaryContainer, ui.bold, scaled = false)
+        }
+        if (httpsOnly) TextButton(onClick = onContinueHttp, modifier = Modifier.padding(top = 12.dp)) {
+            Txt("Continue to ${displayHost(err.failingUrl ?: tabUrl)} (not secure)", 14f, ui.cs.error, ui.semibold, align = TextAlign.Center)
         }
         if (isSsl || isCleartext) TextButton(onClick = onProceed, modifier = Modifier.padding(top = 12.dp)) {
             Txt("Proceed to ${displayHost(err.failingUrl ?: tabUrl)} (unsafe)", 14f, ui.cs.error, ui.semibold, align = TextAlign.Center)

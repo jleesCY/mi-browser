@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 
 /**
  * Fixed-slot drag-to-reorder container (grid when columns > 1, horizontal row when [horizontal]).
- * Long-press [longPressMs] starts dragging; [onDragEnd] receives the pointer position in window px.
+ * Long-press [longPressMs] starts dragging; let go without moving, [onHold] runs instead (an item's own actions, like removing it).
  */
 @Composable
 fun <T> SortableSlots(
@@ -59,7 +59,8 @@ fun <T> SortableSlots(
     enabled: Boolean = true,
     onReorder: (Int, Int) -> Unit,
     onDragStart: () -> Unit = {},
-    onDragEnd: (T, Offset) -> Unit = { _, _ -> },
+    /** Long-pressed and let go without moving: the item's own actions (dragging only ever reorders). */
+    onHold: (T) -> Unit = {},
     content: @Composable (T) -> Unit,
 ) {
     val d = LocalDensity.current
@@ -80,7 +81,6 @@ fun <T> SortableSlots(
                 val scope = rememberCoroutineScope()
                 val pos = remember { Animatable(slot(index), Offset.VectorConverter) }
                 var drag by remember { mutableStateOf(Offset.Zero) }
-                var windowOrigin by remember { mutableStateOf(Offset.Zero) }
                 val isDragging = dragging == k
                 val target = slot(order[k] ?: index)
                 LaunchedEffect(target, isDragging) { if (!isDragging) pos.animateTo(target, Motion.spatial()) }
@@ -92,7 +92,6 @@ fun <T> SortableSlots(
                         .zIndex(if (isDragging) 100f else 1f)
                         .graphicsLayer { scaleX = scale; scaleY = scale }
                         .then(if (isDragging && dragShadow) Modifier.shadow(8.dp, RoundedCornerShape(LocalUi.current.radius.dp)) else Modifier)
-                        .onGloballyPositioned { windowOrigin = it.positionInWindow() - Offset(pos.value.x + drag.x, pos.value.y + drag.y) }
                         .pointerInput(k, enabled, count) {
                             if (!enabled) return@pointerInput
                             awaitEachGesture {
@@ -125,10 +124,12 @@ fun <T> SortableSlots(
                                     total = if (me != null && origin != null) Offset(me.rawX, me.rawY) - origin else total + c.positionChange()
                                     last = c.position
                                     c.consume()
-                                    drag = total
                                     val start = slot(startOrder)
-                                    val x = start.x + total.x
-                                    val y = start.y + total.y
+                                    // a row (the favorites bar) only slides along itself, between its ends: dragging
+                                    // reorders, it can't pull an item out of the row
+                                    drag = if (horizontal) Offset((start.x + total.x).coerceIn(0f, (count - 1) * wPx) - start.x, 0f) else total
+                                    val x = start.x + drag.x
+                                    val y = start.y + drag.y
                                     val newOrder = if (horizontal) (x / wPx).roundToInt()
                                     else (y / hPx).roundToInt().coerceAtLeast(0) * columns + (x / wPx).roundToInt().coerceIn(0, columns - 1)
                                     val safe = newOrder.coerceIn(0, count - 1)
@@ -143,11 +144,11 @@ fun <T> SortableSlots(
                                 }
                                 val to = order[k] ?: index
                                 val visual = pos.value + drag
-                                val endWindow = windowOrigin + visual + last
+                                val stayed = total.getDistance() <= viewConfiguration.touchSlop
                                 drag = Offset.Zero
                                 scope.launch { pos.snapTo(visual); dragging = null; pos.animateTo(slot(to), Motion.spatial()) }
                                 if (to != index) onReorder(index, to)
-                                onDragEnd(item, endWindow)
+                                if (stayed) onHold(item)
                             }
                         },
                 ) { content(item) }

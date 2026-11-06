@@ -109,27 +109,34 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
     }
     /** A header action (copy, share): a round icon button. */
     @Composable
-    fun MenuIcon(icon: String, onPress: () -> Unit) {
+    fun MenuIcon(icon: String, label: String, onPress: () -> Unit) {
         Box(Modifier.padding(start = 4.dp).size(44.dp).clip(CircleShape).touchable(onClick = onPress), contentAlignment = Alignment.Center) {
-            Sym(icon, 22f, ui.cs.onSurfaceVariant)
+            Sym(icon, 22f, ui.cs.onSurfaceVariant, label = label)
         }
     }
     @Composable
     fun Section(title: String) = Txt(title, 13f, ui.cs.primary, ui.bold, Modifier.padding(start = 6.dp, top = 18.dp, bottom = 8.dp))
 
     Column(modifier.zIndex(10f).shadow(10.dp, shape).clip(shape).background(ui.cs.surfaceContainer).blockTouches().padding(16.dp)) {
-        // the tab this menu acts on
-        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // the tab this menu acts on; tapping its site opens Site settings
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 4.dp).clip(RoundedCornerShape(22.dp))
+                .then(if (hasUrl) Modifier.touchable { dismiss(); vm.openView(Sheet.SITE) } else Modifier),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(Modifier.size(44.dp).clip(CircleShape).background(ui.cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
                 val globe = @Composable { Sym(if (incognito) "incognito" else "public", 22f, ui.cs.onSurfaceVariant) }
                 if (!incognito && url != null && vm.settings.showTabLogo) NetImage(Favicons.src(url), Modifier.size(24.dp).clip(RoundedCornerShape(6.dp)), fallback = globe) else globe()
             }
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Txt(if (incognito) "Incognito tab" else tab?.title?.ifEmpty { null } ?: "New Tab", 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
-                Txt(if (incognito) "Not saved to history" else displayHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Txt(if (incognito) "Not saved to history" else displayHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                    if (hasUrl) Sym("chevron_right", 16f, ui.cs.onSurfaceVariant, label = "Site settings")
+                }
             }
             if (hasUrl) {
-                MenuIcon("content_copy") { copyText(ctx, vm.cleanLink(url!!)); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
+                MenuIcon("content_copy", "Copy link") { copyText(ctx, vm.cleanLink(url!!)); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
             }
         }
 
@@ -178,5 +185,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
         Box(Modifier.padding(vertical = 8.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
         if (vm.tabs.list.any { it.incognito }) MenuRow("incognito", "Close incognito tabs") { dismiss(); vm.closeIncognitoTabs() }
         MenuRow("delete", "Close all tabs", ui.cs.error) { dismiss(); vm.clearAllTabs() }
+        // with Clear on Exit on: close mi now (Android rarely closes apps itself), clearing what was chosen
+        if (vm.settings.clearDataOnExit) MenuRow("power_settings_new", "Exit and Clear", ui.cs.error) { dismiss(); (ctx as? android.app.Activity)?.finishAndRemoveTask() }
     }
 }

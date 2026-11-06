@@ -24,6 +24,12 @@ class SitePermissions(
     /** "scope|host|resource" allowed this session. */
     private val allowed = HashSet<String>()
 
+    /** What [host] was allowed in [scope] this session (Site settings). */
+    fun allowedFor(scope: String, host: String) = SiteAccess.entries.filter { "$scope|$host|${it.key}" in allowed }
+
+    /** Takes back what [host] was allowed: it's asked again next time. */
+    fun revoke(scope: String, host: String, access: SiteAccess) { allowed -= "$scope|$host|${access.key}" }
+
     /** Forgets what was allowed in [scope] ("" and null: everything). */
     fun forget(scope: String? = null) { if (scope.isNullOrEmpty()) allowed.clear() else allowed.removeAll { it.startsWith("$scope|") } }
 
@@ -79,4 +85,11 @@ class SitePermissions(
             onCancel = { callback.invoke(origin, false, false) },
         )
     }
+}
+
+/** What a site can be allowed; [key] is how it's remembered (WebView's resource names, and "location"). */
+enum class SiteAccess(val label: String, val icon: String, val key: String) {
+    CAMERA("Camera", "photo_camera", PermissionRequest.RESOURCE_VIDEO_CAPTURE),
+    MICROPHONE("Microphone", "mic", PermissionRequest.RESOURCE_AUDIO_CAPTURE),
+    LOCATION("Location", "location_on", "location"),
 }

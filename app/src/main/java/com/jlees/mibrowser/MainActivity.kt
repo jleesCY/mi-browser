@@ -121,6 +121,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         vm.capturePreview = null // the ViewModel outlives this Activity; don't keep its host alive
+        // Clear on Exit, while the WebViews still exist (their cache is cleared through them)
+        if (isFinishing && vm.settings.clearDataOnExit) { vm.clearOnExit { host.handle(WebCmd.ClearBrowsingData) }; vm.saveNow() }
         host.destroyAll(finishing = isFinishing)
         if (isFinishing) host.incognito.endProcessIfUsed { vm.saveNow() }
         super.onDestroy()

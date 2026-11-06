@@ -29,14 +29,16 @@
 - One control for everything: search with suggestions (your past searches first), the tab switcher, back/forward and hiding the bar.
 - **Search shortcuts**: start a search with `!w`, `!yt`, `!r`, `!a`, `!m` or `!i` to search Wikipedia, YouTube, Reddit, Amazon, Maps or Images, or `!se` to always search your search engine. The shortcut turns into a small pill as you type. Add your own in Settings, or set a custom search engine.
 - **Pull down to refresh**, only ever from the very top of a page.
-- A loading-progress fill, a "Not secure" marker on unencrypted pages, and a favorites bar.
+- A loading-progress fill, a "Not secure" marker on unencrypted pages, and a favorites bar (drag to reorder; hold one to edit or delete it).
+- **Paste and go**: a link you just copied is offered when you tap the Pill.
 - When hidden, a small recall button brings it back; you can pin it left, centre or right.
 
 ### Tab switcher
 - Swipe up and the page zooms out into its card, like your phone's recent apps. The card's title and icon follow it from the first moment.
 - Tabs are ordered by when you last used them, with live previews, on a soft gradient of your accent colour.
-- Swipe a card up to close it (with undo). **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
+- Swipe a card up to close it (with undo); tabs closed this session wait under **History → Recently closed**. **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
 - The **tab menu** (⋮) has Favorite, Bookmark, Pin and Share; quick tiles for Desktop site, Reader mode and Find in page; and tools for QR codes, printing and home-screen shortcuts.
+- **Site settings**: tap the site at the top of the tab menu for its camera, microphone and location access, pop-ups, ad blocking, and to clear its data.
 - **Find in page**: the Pill turns into a find bar that counts the matches (`2/14`) as you step through them.
 
 ### Incognito
@@ -48,14 +50,15 @@
 ### A complete browser
 - Sign-in and payment pop-ups (PayPal, Google), passkeys, Google Pay, HTTP sign-in prompts and client certificates.
 - Bookmarks with folders, drag to reorder and search: swipe right to edit, left to delete, and move them with a folder browser. **Import** bookmarks from Chrome, Firefox, Edge or Safari (their bookmarks file, chosen or pasted) and **export** yours to any browser.
-- History grouped by time or site, swipe to delete.
-- **Downloads** with mi's own downloader: pause, resume, cancel and retry, progress in a notification, and a Downloads page beside Bookmarks and History to open, share or delete files.
+- History grouped by time or site, swipe to delete (with undo).
+- **Downloads** with mi's own downloader: pause, resume, cancel and retry, progress in a notification (tap the finished one to open the file), and a Downloads page beside Bookmarks and History, grouped by day, that stays in step with your files. Save to Downloads or any folder, choose where for each download, or hand downloads to Android's download manager.
 - Pages' own Print and Share buttons, and local development sites (`localhost:3000`, LAN IPs, `.local`).
 
 ### Privacy & security
 - **Ad, tracker and cookie-banner blocking**, each switchable on its own, with EasyList, EasyPrivacy and the EasyList Cookie List (the lists most ad blockers use) plus a malware and ad domain list. It blocks requests, hides leftover ad spaces and consent pop-ups, and updates itself weekly. Turn it off for a single site from the tab menu.
 - **Clean links**: tracking tags (`utm_*`, `fbclid`, `gclid`…) are removed from links you open, copy or share.
-- Optional third-party cookie blocking, HTTPS-only mode and Safe Browsing.
+- **HTTPS Only** by default: a site that can't connect securely shows a warning page, with a way to continue for that visit.
+- **Clear on Exit**: clear all browsing data when you leave mi. Optional third-party cookie blocking and Safe Browsing.
 - Per-site camera, microphone and location prompts; pop-up blocking; confirmation before downloads or opening other apps; punycode display for look-alike domains.
 - No tracking and no accounts. Site icons come from the sites themselves, never a third-party service.
 
@@ -64,6 +67,7 @@
 - Google Sans Flex with an optional rounded style, Material Symbols, and spring-based motion that uses your display's full refresh rate.
 - **Haptic feedback** at each gesture's point of no return (swipes, the tab switcher, pull to refresh), which you can turn off.
 - Settings grouped into sections, each on its own page, with search across all of them.
+- **Accessible**: every icon button has a label for screen readers, and every gesture (the Pill's swipes, swipe-to-delete, closing a tab) is also an action TalkBack can perform.
 
 ## Installation
 Download the latest APK from the **[Releases page](https://github.com/jleescy/mi-browser/releases/latest)** and open it on your phone. Requires Android 8.0 or newer. mi checks for new releases itself and offers to install them.

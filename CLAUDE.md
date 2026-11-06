@@ -20,6 +20,8 @@ Deleting the package (plus one line in BrowserViewModel and one in SettingsView)
 | `incognito/` | WebView profiles, screen/keyboard protections, notification, toggle |
 | `tabs/` | TabsStore, TabRules, per-tab back/forward stack, tab switcher, Tabs section |
 | `library/` | HistoryStore, BookmarksStore, their rules, bookmark file import/export (Netscape HTML), History and Bookmarks screens, Library section |
+| `downloads/` | mi's downloader (engine, foreground service, notifications), DownloadsStore, the download prompt and other handlers, Downloads page and section |
+| `sites/` | Site settings page (one site's permissions, pop-ups, ad blocking, data), opened from the tab menu |
 | `find/` | find in page: FindInPage state (query, match count) and the Pill's find content |
 | `home/` | new-tab page, Home Page section |
 | `qr/` | scanner and generator |
@@ -46,11 +48,12 @@ A file in a shell package that serves only one feature is in the wrong place.
 ## 3. Decisions are pure functions
 - Rules (which tab shows next, what gets saved, how history groups) are plain functions with no Android and no state, in `*Rules.kt` or the feature's logic file.
 - Every rule and store gets a unit test (`app/src/test/...`: `StructureTest`, `StoresTest`, `LogicTest`, or a feature test file).
+- Code that needs Android (a downloader, a service, a ContentResolver) is tested with Robolectric (`@RunWith(RobolectricTestRunner::class)`), against local fakes like the JDK's `HttpServer` (see `DownloaderTest`). A test for a bug must fail with the bug put back.
 - Run `./gradlew :app:testDebugUnitTest` before calling anything done.
 
 ## 4. Settings
 - A feature contributes its own section, `fun xSection(vm): SettingsSection`, built from `ui/settings/SettingsKit.kt` (`SettingsRow`, `Item`, `SwitchItem`, `ExpandItem`, `ChoiceItem`…).
-- SettingsView only lists the sections and keeps the app-wide ones (Appearance, Browsing, Privacy, Backup, About).
+- SettingsView only lists the sections and keeps the app-wide ones (Look & Feel, Pill, Web Pages, Privacy & Security, Backup & Reset, About).
 - New settings fields:
   - go in `data/Settings.kt` with a default;
   - use an enum implementing `Choice` for multi-way options, with `@SerialName` on persisted values;

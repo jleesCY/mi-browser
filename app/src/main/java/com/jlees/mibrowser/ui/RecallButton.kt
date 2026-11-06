@@ -65,6 +65,6 @@ fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, scree
                     onTap = { pill.showBar() },
                 ),
             contentAlignment = Alignment.Center,
-        ) { Sym("keyboard_arrow_up", 24f, ui.cs.onSecondaryContainer) }
+        ) { Sym("keyboard_arrow_up", 24f, ui.cs.onSecondaryContainer, label = "Show toolbar") }
     }
 }

@@ -38,23 +38,28 @@ data class HistorySection(val title: String, val items: List<HistoryItem>)
 private fun sameDay(a: Calendar, b: Calendar) = a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
 private fun cal(ms: Long) = Calendar.getInstance().apply { timeInMillis = ms }
 
-fun groupHistoryByDate(items: List<HistoryItem>, now: Long = System.currentTimeMillis()): List<HistorySection> {
+/** Groups [items] (newest first) by when they happened: Today, Yesterday, Last 7 Days, Older; empty groups left out. */
+fun <T> groupByDate(items: List<T>, now: Long = System.currentTimeMillis(), time: (T) -> Long): List<Pair<String, List<T>>> {
     val today = cal(now)
     val yesterday = cal(now).apply { add(Calendar.DAY_OF_YEAR, -1) }
     val lastWeek = now - 7L * 86_400_000
-    val groups = linkedMapOf<String, MutableList<HistoryItem>>("Today" to mutableListOf(), "Yesterday" to mutableListOf(), "Last 7 Days" to mutableListOf(), "Older" to mutableListOf())
+    val groups = linkedMapOf<String, MutableList<T>>("Today" to mutableListOf(), "Yesterday" to mutableListOf(), "Last 7 Days" to mutableListOf(), "Older" to mutableListOf())
     for (item in items) {
-        val c = cal(item.timestamp)
+        val t = time(item)
+        val c = cal(t)
         val key = when {
             sameDay(c, today) -> "Today"
             sameDay(c, yesterday) -> "Yesterday"
-            item.timestamp > lastWeek -> "Last 7 Days"
+            t > lastWeek -> "Last 7 Days"
             else -> "Older"
         }
         groups.getValue(key).add(item)
     }
-    return groups.filter { it.value.isNotEmpty() }.map { HistorySection(it.key, it.value) }
+    return groups.filter { it.value.isNotEmpty() }.map { it.key to it.value }
 }
+
+fun groupHistoryByDate(items: List<HistoryItem>, now: Long = System.currentTimeMillis()): List<HistorySection> =
+    groupByDate(items, now) { it.timestamp }.map { (title, list) -> HistorySection(title, list) }
 
 fun groupHistoryBySite(items: List<HistoryItem>): List<HistorySection> =
     items.groupBy { displayHost(it.url).ifEmpty { "Unknown" } }.toSortedMap().map { HistorySection(it.key, it.value) }

@@ -1,6 +1,10 @@
 // The one screen: the page, the Pill, the tab switcher, and the sheets and dialogs over them.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.ui.common.Txt
+
+import com.jlees.mibrowser.sites.SiteSettingsView
+
 import com.jlees.mibrowser.ui.common.LocalHaptics
 
 import com.jlees.mibrowser.downloads.DownloadsView
@@ -179,7 +183,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             // resting at 0 flashed it fully open for a frame before the slide began.
             val sheetX = remember { Animatable(1f) }
             var sheetShown by remember { mutableStateOf(false) }
-            fun sideOf(view: Sheet) = if (view == Sheet.SETTINGS) 1f else -1f
+            fun sideOf(view: Sheet) = if (view == Sheet.SETTINGS || view == Sheet.SITE) 1f else -1f
             LaunchedEffect(vm.activeView) {
                 if (vm.activeView != Sheet.NONE && !sheetShown) { // not when switching Bookmarks ⇄ History
                     sheetShown = true
@@ -221,7 +225,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 Modifier.fillMaxSize().padding(top = if (s.showStatusBar && !fullscreen) statusDp.dp else 0.dp).paddingDp(bottom = { if (fullscreen) 0f else imeDp() })
                     .onGloballyPositioned { vm.switcher.pageBounds = it.boundsInWindow() }
                     .graphicsLayer { switcherZoom(vm, this) }
-                    .drawWithContent { switcherOverlay(vm, this, ui.cs.primary) }
+                    .drawWithContent { switcherOverlay(vm, this, ui.cs.primary) { host.errors[it] != null } }
                     .clipToBounds(),
             ) {
                 val tab = vm.tabs.current
@@ -248,6 +252,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                             onRetry = { host.retry(tab.id) },
                             onUpgrade = tab.url?.takeIf { it.startsWith("http://") }?.let { u -> { vm.loadInTab(tab.id, u.replaceFirst("http://", "https://")) } },
                             onProceed = { host.proceedUnsafe(tab.id) },
+                            onContinueHttp = { host.continueOverHttp(tab.id) },
                         )
                     }
                     if (vm.isInputFocused) Box(Modifier.fillMaxSize().zIndex(99f).blockTouches { focusManager.clearFocus() })
@@ -264,7 +269,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 Box(Modifier.fillMaxSize()) { // no fade here: the pill morphs into the switcher bar (BottomArea)
                     if (vm.activeView == Sheet.NONE) {
                         BottomArea(vm, pill, imeDp, navDp) {
-                            RecentSearches(vm, pill, screenH)
+                            RecentSearches(vm, pill)
                         }
                     }
                     RecallButton(vm, pill, navDp, screenW, Modifier.align(Alignment.BottomStart).zIndex(3f))
@@ -274,13 +279,14 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.HISTORY || vm.activeView == Sheet.DOWNLOADS
                     val header: (@Composable () -> Unit)? = if (library) { {
                         ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.HISTORY.name to "History", Sheet.DOWNLOADS.name to "Downloads"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) }
-                    } } else null
+                    } } else if (vm.activeView == Sheet.SITE) { { Txt("Site Settings", 28f, ui.cs.onSurface, ui.extrabold) } } else null
                     OverlaySheet(sheetX, statusDp, imeDp, closeOverlay, header) {
                         when (vm.activeView) {
                             Sheet.HISTORY -> HistoryView(vm, closeOverlay)
                             Sheet.BOOKMARKS -> BookmarksView(vm, kbVisible, closeOverlay)
                             Sheet.DOWNLOADS -> DownloadsView(vm)
                             Sheet.SETTINGS -> SettingsView(vm, closeOverlay)
+                            Sheet.SITE -> SiteSettingsView(vm, host, closeOverlay)
                             Sheet.NONE -> {}
                         }
                     }
@@ -289,7 +295,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
             if (!fullscreen) PullIndicator(vm, statusDp)
             if (!fullscreen) ZoomingTabHeader(vm)
-            if (!fullscreen) TabSwitcher(vm, navDp, statusDp)
+            if (!fullscreen) TabSwitcher(vm, navDp, statusDp, errorFor = { host.errors[it] })
 
 
             QrScanner(vm)

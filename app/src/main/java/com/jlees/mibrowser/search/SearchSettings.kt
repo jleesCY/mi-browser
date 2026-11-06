@@ -38,7 +38,7 @@ fun searchSection(vm: BrowserViewModel) =
                 SwitchItem("search", "Search Suggestions", "Suggestions from your search engine while the search drawer is open", vm.settings.searchSuggestions) { vm.updateSettings { copy(searchSuggestions = it) } }
             },
         SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
-                SwitchItem("incognito", "Suggestions in Incognito", "Off: what you type in an incognito tab isn't sent to your search engine until you search", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
+                SwitchItem("incognito", "Suggestions in Incognito", "Suggestions from your search engine while in incognito mode", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
             },
         SettingsRow("Your Shortcuts", "bang custom add search shortcut") { CustomBangsItem(vm) },
         SettingsRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
@@ -72,7 +72,7 @@ private fun BangRow(key: String, name: String, onDelete: (() -> Unit)? = null) {
             Txt("!$key", 14f, ui.cs.onPrimaryContainer, ui.bold, maxLines = 1)
         }
         Txt(name, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f).padding(start = 14.dp), maxLines = 1)
-        if (onDelete != null) IconButton(onClick = onDelete) { Sym("delete", 20f, ui.cs.onSurfaceVariant) }
+        if (onDelete != null) IconButton(onClick = onDelete) { Sym("delete", 20f, ui.cs.onSurfaceVariant, label = "Delete shortcut") }
     }
 }
 
@@ -81,7 +81,7 @@ private fun BangRow(key: String, name: String, onDelete: (() -> Unit)? = null) {
 private fun CustomBangsItem(vm: BrowserViewModel) {
     var adding by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
-        Item("add", "Add a shortcut", "Type it at the start of a search, like !w mars. Yours take priority over the built-in ones.", onClick = { adding = true })
+        Item("add", "Add a shortcut", onClick = { adding = true })
         if (vm.settings.customBangs.isNotEmpty()) BangListLabel("Yours")
         vm.settings.customBangs.forEach { (key, url) ->
             BangRow(key, displayHost(url).ifEmpty { url }) { vm.updateSettings { copy(customBangs = customBangs - key) } }

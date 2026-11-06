@@ -26,7 +26,7 @@ class DownloadService : Service() {
             val active = Downloader.items().filter { it.active }
             if (active.isEmpty()) { stopSelf(); return }
             nm.notify(PROGRESS_ID, progress(this@DownloadService, active))
-            handler.postDelayed(this, 1000)
+            handler.postDelayed(this, 500) // twice a second: progress is reported every 250 ms; Android allows ~5 updates/s
         }
     }
     private val nm get() = getSystemService(NotificationManager::class.java)
@@ -37,6 +37,15 @@ class DownloadService : Service() {
         if (Build.VERSION.SDK_INT >= 29) startForeground(PROGRESS_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) else startForeground(PROGRESS_ID, n)
         handler.removeCallbacks(tick); handler.post(tick)
         return START_NOT_STICKY // after the process dies, downloads come back paused (see afterRestart)
+    }
+
+    /**
+     * Android 15+ lets a data-sync service run about 6 hours a day; when that's used up it calls this and expects the
+     * service to stop at once (or it ends mi). Downloads pause, and resume later where they stopped.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        Downloader.current?.pauseAll()
+        stopSelf()
     }
 
     override fun onDestroy() { handler.removeCallbacks(tick); super.onDestroy() }
@@ -58,15 +67,17 @@ class DownloadService : Service() {
             val nm = ctx.getSystemService(NotificationManager::class.java)
             if (!nm.areNotificationsEnabled()) return
             val done = item.state == DownloadState.DONE
-            val open = downloader.shareableUri(item)?.takeIf { done }?.let { uri ->
-                PendingIntent.getActivity(ctx, item.id.hashCode(),
-                    Intent(Intent.ACTION_VIEW).setDataAndType(uri, item.mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            } ?: openDownloads(ctx)
+            // tapping opens the file in the app that handles its type; with none for it (or a failed download), mi's
+            // Downloads page opens instead
+            val view = downloader.shareableUri(item)?.takeIf { done }?.let { uri ->
+                Intent(Intent.ACTION_VIEW).setDataAndType(uri, item.mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }?.takeIf { it.resolveActivity(ctx.packageManager) != null }
+            val open = view?.let { PendingIntent.getActivity(ctx, item.id.hashCode(), it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT) }
+                ?: openDownloads(ctx)
             nm.notify(item.id.hashCode(), Notification.Builder(ctx, CHANNEL)
                 .setSmallIcon(if (done) R.drawable.sym_download else R.drawable.sym_error)
-                .setContentTitle(if (done) "Download complete" else "Download failed")
-                .setContentText(if (item.incognito) "Incognito download" else item.fileName)
+                .setContentTitle(if (item.incognito) "Incognito download" else item.fileName)
+                .setContentText(when { !done -> "Download failed · tap to see it"; view != null -> "Download complete · tap to open"; else -> "Download complete" })
                 .setContentIntent(open).setAutoCancel(true)
                 .setVisibility(if (item.incognito) Notification.VISIBILITY_SECRET else Notification.VISIBILITY_PRIVATE)
                 .build())

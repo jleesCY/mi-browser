@@ -150,7 +150,7 @@ fun QrScanner(vm: BrowserViewModel) {
         Box(Modifier.fillMaxSize().background(Color.Black).blockTouches()) {
             CameraPreview { text -> if (!scanned && !processing) { scanned = true; onScan(vm, text) } }
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalIconButton(onClick = close, modifier = Modifier.size(56.dp)) { Sym("close", 28f, ui.cs.onSecondaryContainer) }
+                FilledTonalIconButton(onClick = close, modifier = Modifier.size(56.dp)) { Sym("close", 28f, ui.cs.onSecondaryContainer, label = "Close") }
                 Txt("Scan QR Code", 22f, Color.White, ui.bold, Modifier.padding(start = 16.dp).weight(1f))
                 if (processing) LoadingIndicator(Modifier.size(56.dp))
                 else FilledTonalIconButton(
@@ -210,7 +210,7 @@ fun QrGenerator(vm: BrowserViewModel) {
           Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Txt("QR Code", 24f, ui.cs.onSurface, ui.regular, Modifier.weight(1f), scaled = false)
-                IconButton(onClick = { vm.qrGeneratorVisible = false }) { Sym("close", 24f, ui.cs.onSurfaceVariant) }
+                IconButton(onClick = { vm.qrGeneratorVisible = false }) { Sym("close", 24f, ui.cs.onSurfaceVariant, label = "Close") }
             }
             bmp?.let { Image(it.asImageBitmap(), null, Modifier.padding(bottom = 16.dp).size(220.dp).clip(RoundedCornerShape(20.dp)).background(Color.White)) }
             Txt(url, 12f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 20.dp), maxLines = 2, align = TextAlign.Center)

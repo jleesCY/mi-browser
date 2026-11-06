@@ -55,7 +55,7 @@ fun FolderPicker(
         // back (up one level; from the top, back to the bookmark) and where you are
         Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(CircleShape).touchable { if (at == null) onBack() else at = trail.dropLast(1).lastOrNull()?.id }, contentAlignment = Alignment.Center) {
-                Sym("arrow_back", 24f, ui.cs.onSurface)
+                Sym("arrow_back", 24f, ui.cs.onSurface, label = "Back")
             }
             Txt(trail.lastOrNull()?.title ?: "Bookmarks", 20f, ui.cs.onSurface, ui.bold, Modifier.padding(start = 6.dp).weight(1f), maxLines = 1)
         }
@@ -117,8 +117,8 @@ fun FolderPicker(
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { create() }),
                             decorationBox = { inner -> Box { if (name.isEmpty()) Txt("Folder name", 15f, ui.cs.onSurfaceVariant, ui.semibold); inner() } },
                         )
-                        Box(Modifier.size(40.dp).clip(CircleShape).touchable { naming = null }, contentAlignment = Alignment.Center) { Sym("close", 20f, ui.cs.onSurfaceVariant) }
-                        Box(Modifier.size(40.dp).clip(CircleShape).touchable { create() }, contentAlignment = Alignment.Center) { Sym("check", 22f, ui.cs.primary) }
+                        Box(Modifier.size(40.dp).clip(CircleShape).touchable { naming = null }, contentAlignment = Alignment.Center) { Sym("close", 20f, ui.cs.onSurfaceVariant, label = "Cancel") }
+                        Box(Modifier.size(40.dp).clip(CircleShape).touchable { create() }, contentAlignment = Alignment.Center) { Sym("check", 22f, ui.cs.primary, label = "Create folder") }
                     }
                 }
             }

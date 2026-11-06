@@ -28,6 +28,8 @@ data class DownloadItem(
     val uri: String? = null,
     val startedAt: Long = 0,
     val error: String? = null,
+    /** The folder (a document tree the user picked) the file is created in; null: the Downloads folder. */
+    val folder: String? = null,
     @Transient val incognito: Boolean = false,
 ) {
     val active get() = state == DownloadState.QUEUED || state == DownloadState.RUNNING

@@ -29,6 +29,12 @@ interface Choice { val label: String }
 /** Where the recall handle (shown while the Pill is hidden) sits. */
 @Serializable enum class RecallPosition { @SerialName("left") LEFT, @SerialName("center") CENTER, @SerialName("right") RIGHT }
 
+/** Who downloads a file a page offers (Settings → Downloads). */
+@Serializable enum class DownloadHandler(override val label: String) : Choice {
+    // a saved "app" (the removed Another App choice) loads as the default, mi
+    @SerialName("mi") MI("mi"), @SerialName("android") ANDROID("Android"),
+}
+
 @Serializable enum class StartupTabs(override val label: String) : Choice {
     @SerialName("new") NEW("New Tab"), @SerialName("last") LAST("Continue Session")
 }
@@ -71,6 +77,13 @@ data class Settings(
     val pullToRefresh: Boolean = true,
     /** Haptic ticks at gesture thresholds (swipes, the switcher, pull to refresh, long presses). */
     val hapticFeedback: Boolean = true,
+    /** Clear on Exit: all browsing data is cleared when mi closes (and at the next start, if it was ended without closing). */
+    val clearDataOnExit: Boolean = false,
+    /** Downloads: who downloads, where mi saves (a picked folder's tree URI; null: Downloads), and what's asked. */
+    val downloadHandler: DownloadHandler = DownloadHandler.MI,
+    val downloadFolder: String? = null,
+    val askWhereToSave: Boolean = false,
+    val confirmDownloads: Boolean = true,
     /** Your own search shortcuts: key ("ebay") → search address with %s. Checked before the built-ins. */
     val customBangs: Map<String, String> = emptyMap(),
     val cornerRadius: Int = 28, // 0 | 12 | 28
@@ -88,7 +101,9 @@ data class Settings(
     val recentSearchesExpanded: Boolean = false,
     val showFavoritesDefault: Boolean = false,
     val jsEnabled: Boolean = true,
-    val httpsOnly: Boolean = false,
+    val httpsOnly: Boolean = true,
+    /** With HTTPS Only: ask before every visit to an insecure site (off: continuing lets the site through for the session). */
+    val httpsWarnEveryTime: Boolean = true,
     val blockCookies: Boolean = false,
     val blockThirdPartyCookies: Boolean = false, // payment and sign-in iframes (PayPal, SSO) need them, as in Chrome
     /** Ad blocking (AdBlock.kt), each part on its own: ads (EasyList + hosts list), trackers (EasyPrivacy), cookie banners. */
@@ -134,5 +149,7 @@ fun Settings.migrated(): Settings {
     // 1.3: "Block Ads & Trackers" (blockTrackers) split into ads / trackers / cookie banners: whoever had it off keeps
     // all three off (cookie banners only worked with it on)
     if (m.settingsVersion < 2) m = m.copy(blockAds = m.blockTrackers, hideCookieBanners = m.hideCookieBanners && m.blockTrackers, settingsVersion = 2)
+    // 1.5: HTTPS Only (with Warn Every Time) is on by default, existing installs included, once
+    if (m.settingsVersion < 3) m = m.copy(httpsOnly = true, httpsWarnEveryTime = true, settingsVersion = 3)
     return m
 }

@@ -7,7 +7,6 @@ import android.webkit.HttpAuthHandler
 import com.jlees.mibrowser.AuthRequest
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.logic.isLoopback
 
 /**
  * Sites asking who you are: HTTP authentication (Basic/Digest) and client certificates. Typed credentials last for
@@ -38,7 +37,7 @@ class SignInChallenges(private val activity: Activity, private val vm: BrowserVi
         credentials.remove(key)
         // the challenge doesn't say http or https: use this tab's navigation to that host (else the current page)
         val nav = mainNav[id]?.takeIf { displayHost(it).equals(host, ignoreCase = true) } ?: pageUrl
-        val insecure = nav?.startsWith("http://", ignoreCase = true) == true && !isLoopback(host)
+        val insecure = nav?.startsWith("http://", ignoreCase = true) == true
         vm.authRequest = AuthRequest(
             host, realm, insecure,
             onSubmit = { user, pass -> credentials[key] = user to pass; answered += key; handler.proceed(user, pass) },

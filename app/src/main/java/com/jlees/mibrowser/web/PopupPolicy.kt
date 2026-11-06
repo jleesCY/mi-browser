@@ -20,6 +20,12 @@ class PopupPolicy(private val vm: BrowserViewModel) {
     fun allowed(profile: String?, site: String) =
         if (profile != null) "$profile|$site" in incognitoSites else site in vm.settings.popupSites
 
+    /** Site settings: allow (or block again) [site]'s pop-ups without a tap, in [profile] (null: the saved list). */
+    fun setAllowed(profile: String?, site: String, allow: Boolean) {
+        if (profile != null) { if (allow) incognitoSites += "$profile|$site" else incognitoSites -= "$profile|$site" }
+        else vm.updateSettings { copy(popupSites = if (allow) (popupSites + site).distinct() else popupSites - site) }
+    }
+
     /** Tells the user a pop-up was blocked, with a way to allow the site (then they retry). */
     fun blocked(profile: String?, site: String, page: String?) {
         if (site.isEmpty() || "$site|$page" == lastNotice) return

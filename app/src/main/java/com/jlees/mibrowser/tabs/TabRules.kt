@@ -62,3 +62,10 @@ fun repairSaved(t: TabItem, loadedOnce: Boolean): TabItem {
     return t.copy(currentIndex = if (stack.isEmpty()) -1 else idx, url = url, requestedUrl = url, hasLoadedOnce = loadedOnce,
         title = t.title.ifEmpty { "New Tab" })
 }
+
+/**
+ * The recently closed tabs after [closing] closes: newest first, at most [max], and only tabs with a page that keep
+ * traces (a closed incognito tab is gone for good).
+ */
+fun rememberClosed(recent: List<TabItem>, closing: List<TabItem>, max: Int = 10): List<TabItem> =
+    (closing.filter { it.keepsTraces && it.historyStack.isNotEmpty() }.reversed() + recent).distinctBy { it.id }.take(max)

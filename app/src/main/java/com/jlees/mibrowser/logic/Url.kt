@@ -40,12 +40,6 @@ fun isLocalHost(host: String?): Boolean {
     return h.substringAfterLast('.') in LOCAL_TLDS
 }
 
-/** Loopback hosts: traffic to them never leaves this device, so plain http there isn't exposed to the network. */
-fun isLoopback(host: String?): Boolean {
-    val h = host?.trim()?.lowercase()?.removePrefix("[")?.removeSuffix("]")?.trimEnd('.') ?: return false
-    return h == "localhost" || h.endsWith(".localhost") || h == "::1" || (h.startsWith("127.") && IPV4.matches(h))
-}
-
 /**
  * Whether the connection to [url] should be flagged "Not secure": plain http that leaves the device (anything but
  * loopback; LAN http crosses the network unencrypted too), or https to a host the user allowed past a certificate
@@ -53,7 +47,7 @@ fun isLoopback(host: String?): Boolean {
  */
 fun isNotSecure(url: String?, certExceptions: Set<String>): Boolean = when {
     url == null -> false
-    url.startsWith("http://", ignoreCase = true) -> !isLoopback(displayHost(url))
+    url.startsWith("http://", ignoreCase = true) -> true
     url.startsWith("https://", ignoreCase = true) -> displayHost(url) in certExceptions
     else -> false
 }
@@ -99,11 +93,11 @@ fun inputToUrl(raw: String, httpsOnly: Boolean, engine: SearchEngine, bangs: Map
     bangUrl(text, bangs)?.let { return it }
     if (HTTP_PREFIX.containsMatchIn(text)) {
         val rest = text.replaceFirst(HTTP_PREFIX, "")
-        val local = isLocalHost(typedHost(rest)?.host)
-        return if (httpsOnly && text.startsWith("http://", ignoreCase = true) && !local) "https://$rest" else text
+        return if (httpsOnly && text.startsWith("http://", ignoreCase = true)) "https://$rest" else text
     }
     val host = typedHost(text)
-    if (host != null && isNavigableHost(host)) return (if (isLocalHost(host.host)) "http://" else "https://") + text
+    // local hosts default to http (dev servers rarely have https), except with HTTPS Only: no exceptions there
+    if (host != null && isNavigableHost(host)) return (if (isLocalHost(host.host) && !httpsOnly) "http://" else "https://") + text
     return engine.urlFor(text)
 }
 

@@ -28,6 +28,9 @@ import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.common.SearchHeaderWithMenu
 import kotlinx.coroutines.launch
 
+/** The title of History's recently closed tabs group. */
+private const val CLOSED = "Recently closed"
+
 val HISTORY_RANGES = listOf("Last Hour" to 3_600_000L, "Last 24 Hours" to 86_400_000L, "Last 7 Days" to 604_800_000L, "Last 4 Weeks" to 2_419_200_000L, "All Time" to -1L)
 
 @Composable
@@ -55,14 +58,29 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     val nearEnd by remember { derivedStateOf { list.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.let { it >= list.layoutInfo.totalItemsCount - 3 } ?: false } }
     LaunchedEffect(nearEnd, filtered.size) { if (nearEnd && visibleCount < filtered.size) visibleCount += chunk }
 
+    var undo by remember { mutableStateOf<Undo?>(null) } // the last swipe-deleted entry, for a few seconds
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 80.dp, bottom = 100.dp)) {
-            if (sections.isEmpty()) item {
-                Column(Modifier.fillMaxWidth().padding(top = 50.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Sym("history", 50f, ui.cs.onSurfaceVariant)
-                    Txt("No history found.", 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 10.dp))
+            // tabs closed this session: tap to open again (kept in memory only; History's search applies)
+            val closed = vm.tabs.recentlyClosed.mapNotNull { t ->
+                val url = t.historyStack.getOrNull(t.currentIndex) ?: return@mapNotNull null
+                (t.id to HistoryItem(url, t.title, t.lastUsed, "closed_${t.id}")).takeIf { !searching || t.title.contains(search, true) || url.contains(search, true) }
+            }
+            if (closed.isNotEmpty()) {
+                item(key = "h_closed") {
+                    Row(
+                        Modifier.fillMaxWidth().touchable { collapsed = if (CLOSED in collapsed) collapsed - CLOSED else collapsed + CLOSED }.padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Txt(CLOSED, 14f, ui.cs.onSurfaceVariant, ui.bold, Modifier.weight(1f))
+                        Sym(if (CLOSED in collapsed && !searching) "keyboard_arrow_down" else "keyboard_arrow_up", 16f, ui.cs.onSurfaceVariant)
+                    }
+                }
+                if (searching || CLOSED !in collapsed) items(closed, key = { it.second.id }) { (tabId, item) ->
+                    HistoryRow(item, Modifier.animateItem(), icon = "tab", onPress = { vm.reopenClosedTab(tabId); closeOverlay() }) { vm.tabs.forgetClosed(tabId) }
                 }
             }
+            if (sections.isEmpty() && closed.isEmpty()) item { EmptyState("history", if (searching) "No matches" else "No History Yet") }
             sections.forEach { sec ->
                 item(key = "h_" + sec.title) {
                     Row(
@@ -76,12 +94,13 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 }
                 if (searching || sec.title !in collapsed) {
                     items(sec.items, key = { it.id }) { item ->
-                        HistoryRow(item, Modifier.animateItem(), onPress = { vm.navigateTab(item.url, item.title.ifEmpty { displayHost(item.url) }); closeOverlay() }) { vm.history.remove(item.id) }
+                        HistoryRow(item, Modifier.animateItem(), onPress = { vm.navigateTab(item.url, item.title.ifEmpty { displayHost(item.url) }); closeOverlay() }) { vm.history.remove(item.id)?.let { r -> undo = Undo("Removed from history") { vm.history.restore(r) } } }
                     }
                 }
             }
         }
 
+        UndoBar(undo, onTimeout = { undo = null }, Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
         SearchHeaderWithMenu(search, { vm.historySearch = it }, "Search History...") { close ->
             var open by remember { mutableStateOf(false) }
             SheetMenuItem("delete", "Clear History", trailing = { Sym(if (open) "keyboard_arrow_up" else "keyboard_arrow_down", 16f, ui.cs.onSurface) }) { open = !open }
@@ -107,7 +126,7 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
 }
 
 @Composable
-private fun HistoryRow(item: HistoryItem, modifier: Modifier, onPress: () -> Unit, onDelete: () -> Unit) {
+private fun HistoryRow(item: HistoryItem, modifier: Modifier, icon: String = "history", onPress: () -> Unit, onDelete: () -> Unit) {
     val ui = LocalUi.current
     val height = rowHeight(ui.padding, ui.fontScale)
     val margin = rowMargin(ui.padding)
@@ -119,7 +138,7 @@ private fun HistoryRow(item: HistoryItem, modifier: Modifier, onPress: () -> Uni
                 .touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RowIconTile { Sym("history", 22f, ui.cs.onSurfaceVariant) }
+            RowIconTile { Sym(icon, 22f, ui.cs.onSurfaceVariant) }
             Column(Modifier.weight(1f)) {
                 Txt(item.title.ifEmpty { "Untitled" }, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
                 Row {

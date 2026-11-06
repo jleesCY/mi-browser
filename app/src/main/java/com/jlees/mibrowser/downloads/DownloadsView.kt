@@ -2,6 +2,12 @@
 // (open, share, delete). Newest first; search by file name or site.
 package com.jlees.mibrowser.downloads
 
+import com.jlees.mibrowser.ButtonStyle
+
+import com.jlees.mibrowser.AlertButton
+
+import com.jlees.mibrowser.library.groupByDate
+
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -18,9 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.jlees.mibrowser.AlertButton
 import com.jlees.mibrowser.BrowserViewModel
-import com.jlees.mibrowser.ButtonStyle
 import com.jlees.mibrowser.library.smartDate
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.common.*
@@ -45,56 +49,54 @@ fun DownloadsView(vm: BrowserViewModel) {
             ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType(d.mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
         }
     }
-    fun delete(d: DownloadItem) = vm.showAlert(
-        "Delete ${d.fileName}?", "Delete the file from your phone, or only remove it from this list?",
-        listOf(
-            AlertButton("Cancel", ButtonStyle.CANCEL),
-            AlertButton("Remove from List") { vm.downloads.remove(d.id) },
-            AlertButton("Delete", ButtonStyle.DESTRUCTIVE) { vm.downloader.cancel(d.id) },
-        ),
-    )
 
+    // files deleted outside mi (Files app, gallery) leave the list
+    LaunchedEffect(Unit) { vm.downloader.pruneMissing() }
+    var collapsed by remember { mutableStateOf(setOf<String>()) }
+    val sections = groupByDate(items) { it.startedAt }
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 80.dp, bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(rowMargin(ui.padding).dp)) {
-            if (items.isEmpty()) item {
-                Column(Modifier.fillMaxWidth().padding(top = 50.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Sym("download", 50f, ui.cs.onSurfaceVariant)
-                    Txt(if (q.isEmpty()) "No downloads yet." else "No downloads match.", 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 10.dp))
+            if (items.isEmpty()) item { EmptyState("download", if (q.isEmpty()) "No Downloads Yet" else "No matches") }
+            sections.forEach { (title, group) ->
+                item(key = "h_$title") {
+                    Row(
+                        Modifier.fillMaxWidth().touchable { collapsed = if (title in collapsed) collapsed - title else collapsed + title }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Txt(title, 14f, ui.cs.onSurfaceVariant, ui.bold, Modifier.weight(1f))
+                        Sym(if (title in collapsed && q.isEmpty()) "keyboard_arrow_down" else "keyboard_arrow_up", 16f, ui.cs.onSurfaceVariant)
+                    }
                 }
-            }
-            items(items, key = { it.id }) { d ->
-                // swipe left: cancel a download in progress, or remove a finished one from the list (the file stays)
-                SwipeActionRow(null, onDelete = { if (d.active || d.state == DownloadState.PAUSED) vm.downloader.cancel(d.id) else vm.downloads.remove(d.id) },
-                    Modifier.animateItem()) {
-                DownloadRow(
-                    d,
-                    onPress = { if (d.state == DownloadState.DONE) open(d) },
-                    actions = {
-                        when (d.state) {
-                            DownloadState.QUEUED, DownloadState.RUNNING -> {
-                                RowAction("pause") { vm.downloader.pause(d.id) }
-                                RowAction("close") { vm.downloader.cancel(d.id) }
-                            }
-                            DownloadState.PAUSED -> {
-                                RowAction("play_arrow") { vm.downloader.resume(d.id) }
-                                RowAction("close") { vm.downloader.cancel(d.id) }
-                            }
-                            DownloadState.FAILED -> {
-                                RowAction("refresh") { vm.downloader.resume(d.id) }
-                                RowAction("close") { vm.downloader.cancel(d.id) }
-                            }
-                            DownloadState.DONE -> {
-                                RowAction("share") { share(d) }
-                                RowAction("delete") { delete(d) }
-                            }
-                        }
-                    },
-                )
+                if (q.isNotEmpty() || title !in collapsed) items(group, key = { it.id }) { d ->
+                    // swipe left: delete a finished download from the phone, or cancel one in progress (its partial
+                    // file goes); either asks first, like bookmarks (the row springs back until confirmed)
+                    SwipeActionRow(null, onDelete = { confirmDelete(vm, d) }, Modifier.animateItem(), confirmDelete = true) {
+                        DownloadRow(
+                            d,
+                            onPress = { if (d.state == DownloadState.DONE) open(d) },
+                            actions = {
+                                when (d.state) {
+                                    DownloadState.QUEUED, DownloadState.RUNNING -> {
+                                        RowAction("pause", "Pause") { vm.downloader.pause(d.id) }
+                                        RowAction("close", "Cancel") { vm.downloader.cancel(d.id) }
+                                    }
+                                    DownloadState.PAUSED -> {
+                                        RowAction("play_arrow", "Resume") { vm.downloader.resume(d.id) }
+                                        RowAction("close", "Cancel") { vm.downloader.cancel(d.id) }
+                                    }
+                                    DownloadState.FAILED -> {
+                                        RowAction("refresh", "Retry") { vm.downloader.resume(d.id) }
+                                        RowAction("close", "Cancel") { vm.downloader.cancel(d.id) }
+                                    }
+                                    DownloadState.DONE -> RowAction("share", "Share") { share(d) } // deleting is the swipe
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
         SearchHeaderWithMenu(search, { search = it }, "Search Downloads...") { close ->
-            SheetMenuItem("delete", "Clear List") { vm.downloads.clearFinished(); close() }
             SheetMenuItem("folder", "Open Downloads Folder") {
                 close()
                 runCatching { ctx.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -132,6 +134,19 @@ private fun DownloadRow(d: DownloadItem, onPress: () -> Unit, actions: @Composab
 }
 
 @Composable
-private fun RowAction(icon: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick) { Sym(icon, 20f, LocalUi.current.cs.onSurfaceVariant) }
+private fun RowAction(icon: String, label: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick) { Sym(icon, 20f, LocalUi.current.cs.onSurfaceVariant, label = label) }
+}
+
+/** Deleting a download asks first: a finished one's file is deleted from the phone, a running one is cancelled. */
+private fun confirmDelete(vm: BrowserViewModel, d: DownloadItem) {
+    val done = d.state == DownloadState.DONE
+    vm.showAlert(
+        if (done) "Delete Download?" else "Cancel Download?",
+        if (done) "\"${d.fileName}\" will be deleted from your phone." else "\"${d.fileName}\" stops downloading and what was saved of it is deleted.",
+        listOf(
+            AlertButton(if (done) "Cancel" else "Keep Downloading", ButtonStyle.CANCEL),
+            AlertButton(if (done) "Delete" else "Cancel Download", ButtonStyle.DESTRUCTIVE) { vm.downloader.cancel(d.id) },
+        ),
+    )
 }

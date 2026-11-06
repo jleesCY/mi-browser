@@ -90,19 +90,18 @@ fun ConfirmDialog(vm: BrowserViewModel) {
     val c = last ?: return
     val message = when (c.action) {
         ConfirmAction.CLEAR_HISTORY -> "This will permanently delete history for: ${c.label}."
-        ConfirmAction.BACKGROUND_REFRESH -> "Enabling background refresh will reload all open tabs immediately when the app starts. This may consume significant battery and data."
         ConfirmAction.WIPE_DATA -> "This will delete ALL data including history, bookmarks, tabs, and settings. The app will be reset to a fresh state."
         ConfirmAction.CLEAR_DATA -> "This will delete cookies, site storage, cached files, saved site icons and tab snapshots. You will be signed out of websites."
         ConfirmAction.RESET_SETTINGS -> "This will restore all app settings to their default values. Your history and tabs will be preserved."
     }
     val action = when (c.action) {
-        ConfirmAction.RESET_SETTINGS -> "Reset"; ConfirmAction.BACKGROUND_REFRESH -> "Enable"; ConfirmAction.WIPE_DATA -> "Wipe App"
+        ConfirmAction.RESET_SETTINGS -> "Reset"; ConfirmAction.WIPE_DATA -> "Wipe App"
         ConfirmAction.CLEAR_DATA -> "Clear"; ConfirmAction.CLEAR_HISTORY -> "Delete"
     }
     ModalFrame(vm.confirm != null, { vm.confirm = null }, dismissOnScrim = true) {
         DialogCard("Are you sure?", actions = {
             DialogAction("Cancel") { vm.confirm = null }
-            DialogAction(action, destructive = c.action != ConfirmAction.BACKGROUND_REFRESH) { vm.confirmAction(c) }
+            DialogAction(action, destructive = true) { vm.confirmAction(c) }
         }) { Txt(message, 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f, scaled = false) }
     }
 }

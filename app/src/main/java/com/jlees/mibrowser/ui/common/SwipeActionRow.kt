@@ -1,5 +1,11 @@
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+
+import androidx.compose.ui.semantics.customActions
+
+import androidx.compose.ui.semantics.semantics
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.gestures.Orientation
@@ -81,7 +87,13 @@ fun SwipeActionRow(
                 }
             }
             Box(
-                Modifier.offset { IntOffset(tx.roundToInt(), 0) }.draggable(
+                // screen readers can't swipe: the same actions, as accessibility actions on the row
+                Modifier.semantics {
+                    customActions = listOfNotNull(
+                        CustomAccessibilityAction("Delete") { onDelete(); true },
+                        onEdit?.let { edit -> CustomAccessibilityAction("Edit") { edit(); true } },
+                    )
+                }.offset { IntOffset(tx.roundToInt(), 0) }.draggable(
                     rememberDraggableState { d ->
                         if (deleting) return@rememberDraggableState
                         tx = (tx + d).coerceAtMost(if (onEdit != null) Float.MAX_VALUE else 0f)

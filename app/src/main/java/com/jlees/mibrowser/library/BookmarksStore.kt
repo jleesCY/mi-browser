@@ -59,6 +59,10 @@ class BookmarksStore(private val store: JsonStore) {
         favorites = favorites + Favorite(uniqueId(), url, title.ifEmpty { "Favorite" })
     }
     fun removeFavorite(id: String) { favorites = favorites.filter { it.id != id } }
+    /** Renames a favorite or changes its address (the favorites bar's edit dialog). */
+    fun updateFavorite(id: String, title: String, url: String) {
+        favorites = favorites.map { if (it.id == id) it.copy(title = title.ifBlank { it.title }, url = url) else it }
+    }
     fun toggleFavorite(title: String, url: String) {
         favorites.firstOrNull { it.url == url }?.let { removeFavorite(it.id) } ?: addFavorite(title, url)
     }

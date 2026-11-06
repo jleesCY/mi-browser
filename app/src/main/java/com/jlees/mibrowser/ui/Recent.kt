@@ -1,6 +1,20 @@
 // The search drawer above the Pill: favorites, recent searches and engine suggestions.
 package com.jlees.mibrowser.ui
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.mutableStateOf
+
+import com.jlees.mibrowser.data.Favorite
+
+import com.jlees.mibrowser.library.FavoriteDialog
+
+
+
+import androidx.compose.ui.platform.LocalContext
+
+import com.jlees.mibrowser.search.CopiedLink
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -25,7 +39,7 @@ import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.*
 
 @Composable
-fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
+fun RecentSearches(vm: BrowserViewModel, pill: PillState) {
     val ui = LocalUi.current
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current.density
@@ -40,6 +54,23 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
     }
     Box(Modifier.fillMaxSize().background(ui.cs.surfaceContainerLow)) {
         Column(Modifier.fillMaxSize()) {
+            // Paste and go: a link copied in the last few minutes, offered before anything is typed (see CopiedLink)
+            val ctx = LocalContext.current
+            val notTyping = filter.isEmpty() || (activeUrl != null && (filter == activeUrl || filter == displayHost(activeUrl)))
+            val copied = remember(vm.isInputFocused) { if (vm.isInputFocused) CopiedLink.peek(ctx) else null }
+            if (copied != null && notTyping) Row(
+                Modifier.fillMaxWidth().touchable {
+                    val link = CopiedLink.read(ctx) ?: return@touchable
+                    focusManager.clearFocus(); vm.submitInput(link)
+                }.padding(vertical = 10.dp, horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Sym("content_paste", 20f, ui.cs.primary, Modifier.padding(end = 14.dp))
+                Column(Modifier.weight(1f)) {
+                    Txt("Paste and go", 15f, ui.cs.onSurface, ui.semibold, maxLines = 1)
+                    copied.text?.let { Txt(it, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1) }
+                }
+            }
             // drawer opened (or closed) while typing: fetch (or drop) suggestions for what's already typed
             val expanded by remember { derivedStateOf { pill.recentExpanded } }
             LaunchedEffect(expanded) { if (vm.isInputFocused) vm.suggestions.onTyping(vm.inputUrl, expanded) }
@@ -59,7 +90,7 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Txt(item.title.ifEmpty { "Untitled" }, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 1)
-                            Box(Modifier.padding(start = 8.dp).touchable { vm.history.removeSearch(item.id) }.padding(6.dp)) { Sym("close", 16f, ui.cs.onSurfaceVariant) }
+                            Box(Modifier.padding(start = 8.dp).touchable { vm.history.removeSearch(item.id) }.padding(6.dp)) { Sym("close", 16f, ui.cs.onSurfaceVariant, label = "Remove search") }
                         }
                     }
                     if (suggestions.isNotEmpty() && items.isNotEmpty()) item { Box(Modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant)) }
@@ -76,6 +107,8 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                 }
             }
             // favorites bar
+            var editing by remember { mutableStateOf<Favorite?>(null) }
+            FavoriteDialog(vm.bookmarks, editing) { editing = null }
             Row(
                 Modifier.fillMaxWidth().background(ui.cs.surfaceContainerHigh).border(1.dp, ui.cs.surface).padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
@@ -84,10 +117,8 @@ fun RecentSearches(vm: BrowserViewModel, pill: PillState, screenH: Float) {
                     items = vm.bookmarks.favorites, key = { it.id }, slotW = 60.dp, slotH = 44.dp, horizontal = true,
                     longPressMs = 150, dragScale = 1.1f, dragShadow = false,
                     onReorder = { from, to -> vm.bookmarks.reorderFavorites(from, to) },
-                    onDragEnd = { fav, pos ->
-                        // dragged up and away from the bottom bar → delete
-                        if (pos.y / density < screenH - 150) vm.bookmarks.removeFavorite(fav.id)
-                    },
+                    // dragging only reorders; hold a favorite and let go to edit it (deleting is in there)
+                    onHold = { editing = it },
                 ) { fav ->
                     Box(Modifier.width(60.dp), contentAlignment = Alignment.Center) {
                         Box(

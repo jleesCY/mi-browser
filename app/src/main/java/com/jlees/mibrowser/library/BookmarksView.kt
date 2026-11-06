@@ -97,6 +97,12 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
         val slotW = maxWidth.value - 40
         val rowH = rowHeight(ui.padding, ui.fontScale) // the same rows as History and Downloads
         Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 20.dp, end = 20.dp, top = if (showPath) 130.dp else 90.dp, bottom = 100.dp)) {
+            // History and Downloads' lists start at 80dp: this one starts lower, so the message comes up by the difference
+            if (visible.isEmpty()) EmptyState("bookmarks", top = (50 - ((if (showPath) 130 else 90) - 80)).coerceAtLeast(0).dp, text = when {
+                search.isNotBlank() -> "No matches"
+                currentFolder != null -> "This Folder Is Empty"
+                else -> "No Bookmarks Yet"
+            })
             SortableSlots(
                 items = visible, key = { it.id }, slotW = slotW.dp, slotH = (rowH + rowMargin(ui.padding)).dp,
                 onReorder = { from, to -> if (search.isEmpty()) vm.bookmarks.reorder(currentFolder, from, to) },
@@ -111,7 +117,7 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
         // header
         Column(Modifier.fillMaxWidth().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
             if (showPath) Row(Modifier.fillMaxWidth().padding(bottom = 10.dp).height(30.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (folderStack.isNotEmpty()) Box(Modifier.padding(end = 10.dp).touchable { folderStack = folderStack.dropLast(1) }) { Sym("arrow_back", 24f, ui.cs.onSurface) }
+                if (folderStack.isNotEmpty()) Box(Modifier.padding(end = 10.dp).touchable { folderStack = folderStack.dropLast(1) }) { Sym("arrow_back", 24f, ui.cs.onSurface, label = "Back") }
                 Txt(if (search.isNotEmpty()) "Search Results" else "/" + folderStack.joinToString("/") { it.title }, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
             }
             SheetSearchField(search, { search = it }, "Search Bookmarks...")
@@ -122,9 +128,9 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
         if (search.isEmpty()) ScrollTopAndFab(kbVisible, scrolledDown, { scope.launch { scroll.animateScrollTo(0) } }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SmallFloatingActionButton(onClick = { openFolder() }, modifier = Modifier.padding(end = 16.dp), containerColor = ui.cs.secondaryContainer) {
-                    Sym("create_new_folder", 24f, ui.cs.onSecondaryContainer)
+                    Sym("create_new_folder", 24f, ui.cs.onSecondaryContainer, label = "New folder")
                 }
-                FloatingActionButton(onClick = { openAdd() }, containerColor = ui.cs.primaryContainer) { Sym("add", 28f, ui.cs.onPrimaryContainer) }
+                FloatingActionButton(onClick = { openAdd() }, containerColor = ui.cs.primaryContainer) { Sym("add", 28f, ui.cs.onPrimaryContainer, label = "Add bookmark") }
             }
         }
     }

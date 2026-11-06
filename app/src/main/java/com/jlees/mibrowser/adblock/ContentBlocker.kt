@@ -13,8 +13,17 @@ import com.jlees.mibrowser.data.Settings
 import java.io.ByteArrayInputStream
 import java.util.concurrent.ConcurrentHashMap
 
-/** @param settings the current settings (what to block, allowed sites); read on WebView threads */
-class ContentBlocker(private val settings: () -> Settings) {
+/**
+ * @param settings the current settings (what to block, allowed sites); read on WebView threads
+ * @param sessionAllowed more sites with blocking off for tab [tabId] only: an incognito tab's, kept in memory
+ */
+class ContentBlocker(private val settings: () -> Settings, private val sessionAllowed: (tabId: String) -> Collection<String> = { emptyList() }) {
+    /** The settings for tab [tabId]: the saved allow-list plus the tab's session one. */
+    private fun settingsFor(tabId: String): Settings {
+        val s = settings(); val extra = sessionAllowed(tabId)
+        return if (extra.isEmpty()) s else s.copy(adAllowlist = s.adAllowlist + extra)
+    }
+
     /** Each tab's page host, for first/third-party and `$domain=` rules; written and read on WebView threads. */
     private val pageHosts = ConcurrentHashMap<String, String>()
 
@@ -26,7 +35,7 @@ class ContentBlocker(private val settings: () -> Settings) {
     fun intercept(tabId: String, request: WebResourceRequest): WebResourceResponse? {
         if (request.isForMainFrame) { pageStarted(tabId, request.url.host); return null }
         val host = request.url.host ?: return null
-        return if (AdBlock.shouldBlock(request.url.toString(), host, pageHosts[tabId], request.requestHeaders["Accept"], settings())) blocked() else null
+        return if (AdBlock.shouldBlock(request.url.toString(), host, pageHosts[tabId], request.requestHeaders["Accept"], settingsFor(tabId))) blocked() else null
     }
 
     /** Service workers fetch outside any tab: their requests are filtered without a page. */
@@ -52,12 +61,12 @@ class ContentBlocker(private val settings: () -> Settings) {
      * Element hiding on [wv]: [script] (assets/js/cosmetic-filter.js) asks, per frame, what to hide on its host;
      * a selector the page rejects is reported back ("bad:") and dropped. Needs the listener and start-script features.
      */
-    fun attach(wv: WebView, script: String) {
+    fun attach(wv: WebView, tabId: String, script: String) {
         WebViewCompat.addWebMessageListener(wv, "miAdBlock", setOf("*")) { _, message, origin, isMainFrame, reply ->
             val host = origin.host ?: return@addWebMessageListener
             val data = message.data.orEmpty()
             if (data.startsWith("bad:")) { if (isMainFrame) AdBlock.dropInvalid(data.removePrefix("bad:")) }
-            else reply.postMessage(AdBlock.cosmetics(host, isMainFrame, settings()))
+            else reply.postMessage(AdBlock.cosmetics(host, isMainFrame, settingsFor(tabId)))
         }
         WebViewCompat.addDocumentStartJavaScript(wv, script, setOf("*"))
     }

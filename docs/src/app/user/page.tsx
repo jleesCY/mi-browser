@@ -89,6 +89,7 @@ export default function UserDocs() {
                       </div>
                       <div id="incognito">
                         <GuideItem icon={<Search size={18} />} title="Incognito" desc="On a fresh tab, tap the mask in the Pill to make it incognito (a tab you've browsed in keeps its mode). Each incognito tab has its own private storage: nothing comes in from your other tabs and nothing leaves. Its pages aren't added to history, screenshots are blocked, the tab switcher shows it only as 'Incognito tab', and its cookies, logins and site data are erased when you close it. Long-press a link and choose 'Open in Incognito Tab' to send it there. While incognito tabs are open, a notification closes them all with one tap. In incognito the keyboard is asked not to learn what you type, passkeys can't be created (signing in with one works), and search suggestions are off unless you turn on Suggestions in Incognito. Downloads and bookmarks you choose to save are kept." />
+                        <GuideItem icon={<Search size={18} />} title="Paste and Go" desc="Copied a link? Tap the Pill and it's the first row of the search drawer, for a few minutes after copying. mi only reads the clipboard when you tap it." />
                       </div>
                       <div id="search-widget">
                         <GuideItem icon={<Search size={18} />} title="Search Widget" desc="Add the mi widget to your home screen: tap the bar to open a new tab ready to type, or its buttons for a new incognito tab or the QR scanner. Long-press mi's icon for the same shortcuts." />
@@ -160,8 +161,8 @@ export default function UserDocs() {
                     <GuideItem icon={<Search size={18} />} title="Search Suggestions" desc="While the drawer is open, suggestions from your search engine appear as you type, after your own matching past searches. The drawer never opens by itself." />
                     <GuideItem icon={<FolderHeart size={18} />} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
                     <GuideItem icon={<Maximize size={18} />} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
-                    <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and drag any favorite icon to reorder them instantly." />
-                    <GuideItem icon={<Trash2 size={18} />} title="Drag to Delete" desc="Drag a favorite icon upwards out of the bar area to remove it." />
+                    <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and hold a favorite, then drag it sideways to its new place." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Edit or Remove a Favorite" desc="Touch and hold a favorite and let go without moving it to edit its name and address; Delete is in there too. Dragging only ever reorders the bar. The star in the tab menu also removes the current page." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
                     <p><strong>Configurable:</strong> Use settings to automatically expand history or keep the Favorites Bar visible every time you focus the Pill.</p>
@@ -245,9 +246,12 @@ export default function UserDocs() {
                     <GuideItem icon={<Search size={18} />} title="Search History" desc="Filter through your past visits using the search bar within the History view." />
                     <GuideItem icon={<Trash2 size={18} />} title="Partial Deletion" desc="Swipe left on any history item to remove it individually without affecting the rest of your data." />
                     <GuideItem icon={<RefreshCw size={18} />} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, four weeks, or all time via the ⋮ menu in History." />
+                    <div id="recently-closed">
+                      <GuideItem icon={<Layers size={18} />} title="Recently Closed" desc="Tabs you closed this session are at the top of History: tap one to open it again where it was. They're kept in memory only, and never from incognito." />
+                    </div>
                     <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored only in the app's private storage on your device." />
                     <div id="downloads">
-                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="The third tab beside Bookmarks and History. Downloads in progress show their progress, with pause and cancel (they keep going when you leave mi, with a notification); finished ones open with a tap, and can be shared or deleted. Swipe left to cancel or remove one from the list." />
+                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="The third tab beside Bookmarks and History, grouped by day. Downloads in progress show their progress, with pause and cancel (they keep going when you leave mi, with a notification); finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. Files you delete elsewhere leave the list." />
                     </div>
                   </div>
                 </div>
@@ -320,7 +324,7 @@ export default function UserDocs() {
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
                   <SettingItem title="Site Icons on Tabs" desc="Toggles the visibility of website icons (favicons) in the bookmarks list. When disabled, a letter avatar is shown." />
-                  <SettingItem title="Background Refresh" desc="When enabled, all tabs render on app startup instead of when opened. This allows for instant switching but uses more battery." />
+                  <SettingItem title="Background Refresh" desc="When enabled, all tabs load when mi starts instead of when opened, for instant switching. Uses more battery and data." />
                 </SettingsSection>
 
                 <SettingsSection title="Library" icon={<Bookmark size={20} />}>
@@ -330,6 +334,13 @@ export default function UserDocs() {
                   <SettingItem title="Group History By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
                   <SettingItem title="History Page Size" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
                   <SettingItem title="Clear History" desc="Wipe your browsing data for the last hour, 24 hours, 7 days, 4 weeks, or all time." />
+                </SettingsSection>
+
+                <SettingsSection title="Downloads" icon={<Layers size={20} />}>
+                  <SettingItem title="Download With" desc="mi (its own downloader: pause, resume, notifications and the Downloads list) or Android's download manager (saves to Downloads; not listed in mi). Incognito tabs always use mi." />
+                  <SettingItem title="Download Location" desc="Where mi saves downloads: the Downloads folder, or any folder you choose." />
+                  <SettingItem title="Ask Where to Save" desc="Choose the folder and file name for each download in Android's save dialog." />
+                  <SettingItem title="Confirm Downloads" desc="Ask before a download starts. On by default." />
                 </SettingsSection>
 
                 <SettingsSection title="Ad Blocking" icon={<ShieldCheck size={20} />}>
@@ -342,12 +353,14 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Privacy & Security" icon={<Lock size={20} />}>
-                  <SettingItem title="HTTPS Only" desc="Forces the browser to only connect to websites via secure encrypted connections. Local addresses are excluded: localhost, IP addresses, and local network names such as nas:5000, myapp.local or dev.test." />
+                  <SettingItem title="HTTPS Only" desc="On by default. Always use secure connections, local addresses included. If a site can't connect securely, mi warns you every time you go to it, with a way to continue over http for that visit (its links stay on http while you stay on the site in that tab)." />
+                  <SettingItem title="Warn Every Time" desc="With HTTPS Only on: ask before every visit to an insecure site (on by default). Turn it off and continuing to a site lets it use http for the rest of the session." />
                   <SettingItem title="Allow Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
                   <SettingItem title="Block Third-Party Cookies" desc="Stops sites embedded in a page from setting cookies that follow you across the web. Off by default, as in Chrome, because payment and sign-in windows (such as PayPal) rely on them." />
                   <SettingItem title="JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Pop-ups" desc="Pop-up windows open when you tap something (sign-in and payment windows stay linked to the page that opened them). Pop-ups without a tap are blocked; choose Always allow when asked to allow a site, and review or reset the list here." />
-                  <SettingItem title="Not Secure Marker" desc="Pages without an encrypted connection (plain http, except your own device's localhost) and sites you allowed past a certificate warning show a red Not secure marker in the search pill. Tap it for details, and don't enter passwords or payment details there. Sign-in prompts on such sites warn that the password would be sent unencrypted." />
+                  <SettingItem title="Not Secure Marker" desc="Pages without an encrypted connection (any plain http address) and sites you allowed past a certificate warning show a red Not secure marker in the search pill. Tap it for details, and don't enter passwords or payment details there. Sign-in prompts on such sites warn that the password would be sent unencrypted." />
+                  <SettingItem title="Clear on Exit" desc="Clears all browsing data when you leave mi: history and recent searches, open and recently closed tabs (pinned tabs stay), and cookies, site data and cache. Android rarely closes apps itself, so mi also clears at its next start if it was swiped away, and Exit and Clear in the tab menu closes it on demand." />
                   <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage, cached files, saved site icons and tab snapshots, plus this session\'s sign-ins, permissions and certificate exceptions. You will be signed out of websites." />
                 </SettingsSection>
 
@@ -389,6 +402,9 @@ export default function UserDocs() {
                     </div>
                     <div id="quick-bookmark">
                       <GuideItem icon={<Bookmark size={18} />} title="Share &amp; Copy" desc="Share sends the page with your device's share sheet; the copy icon next to the tab's name copies its link." />
+                    <div id="site-settings">
+                      <GuideItem icon={<ShieldCheck size={18} />} title="Site Settings" desc="Tap the site at the top of the tab menu: its connection, what it may use this session (camera, microphone, location), pop-ups, ad blocking, and Clear Site Data for just that site." />
+                    </div>
                     </div>
                     <div id="find-in-page">
                       <GuideItem icon={<Search size={18} />} title="Find in Page" desc="The Pill turns into a find bar: type to highlight every match, and step through them with the arrows while the count (2/14) follows along. Back or ✕ turns it back into the Pill." />

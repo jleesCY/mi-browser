@@ -44,7 +44,14 @@ class HistoryStore(private val store: JsonStore) {
         recents = pruneHistory(recents, ms, { it.timestamp })
     }
 
-    fun remove(id: String) { items = items.filter { it.id != id } }
+    /** Removes [id]; returns it and where it was, for Undo ([restore]). */
+    fun remove(id: String): Pair<HistoryItem, Int>? {
+        val i = items.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return null
+        val item = items[i]; items = items.filterNot { it.id == id }
+        return item to i
+    }
+    /** Puts back what [remove] returned, where it was. */
+    fun restore(removed: Pair<HistoryItem, Int>) { items = items.toMutableList().apply { add(removed.second.coerceIn(0, size), removed.first) } }
     fun removeSearch(id: String) { recents = recents.filter { it.id != id } }
     fun clear() { items = emptyList(); recents = emptyList() }
 }

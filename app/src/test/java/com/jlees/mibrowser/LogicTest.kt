@@ -29,6 +29,9 @@ class LogicTest {
         assertEquals("http://192.168.1.1:8080/x", inputToUrl("192.168.1.1:8080/x", false, SEARCH_ENGINES[0]))
         assertEquals("http://localhost:3000", inputToUrl("localhost:3000", false, SEARCH_ENGINES[0]))
         assertEquals("https://a.com", inputToUrl("http://a.com", true, SEARCH_ENGINES[0]))
+        // HTTPS Only has no exception for local addresses (its warning page lets one through)
+        assertEquals("https://localhost:3000", inputToUrl("localhost:3000", true, SEARCH_ENGINES[0]))
+        assertEquals("https://192.168.1.1:8080/x", inputToUrl("http://192.168.1.1:8080/x", true, SEARCH_ENGINES[0]))
         assertEquals("http://a.com", inputToUrl("http://a.com", false, SEARCH_ENGINES[0]))
         assertEquals("https://www.google.com/search?q=hello%20world", inputToUrl("hello world", false, SEARCH_ENGINES[0]))
         assertEquals("https://search.yahoo.com/search?p=example.com", inputToUrl("!se example.com", false, SEARCH_ENGINES[5]))
@@ -98,8 +101,8 @@ class LogicTest {
         // local development: http, never upgraded, ports and paths kept
         assertEquals("http://localhost:3000", go("localhost:3000"))
         assertEquals("http://localhost", go("localhost"))
-        assertEquals("http://localhost:3000/api?x=1", go("localhost:3000/api?x=1", httpsOnly = true))
-        assertEquals("http://localhost:3000", go("http://localhost:3000", httpsOnly = true))
+        assertEquals("https://localhost:3000/api?x=1", go("localhost:3000/api?x=1", httpsOnly = true)) // no local exception
+        assertEquals("https://localhost:3000", go("http://localhost:3000", httpsOnly = true))
         assertEquals("http://app.localhost:8080", go("app.localhost:8080"))
         assertEquals("http://10.0.2.2:3000", go("10.0.2.2:3000"))
         assertEquals("http://192.168.1.5:8080/", go("192.168.1.5:8080/"))
@@ -156,14 +159,11 @@ class LogicTest {
         assertEquals(true, isNotSecure("http://example.com/login", none))           // plain http over the network
         assertEquals(true, isNotSecure("http://192.168.1.20:8080/", none))           // LAN http crosses Wi-Fi unencrypted
         assertEquals(false, isNotSecure("https://example.com", none))
-        assertEquals(false, isNotSecure("http://localhost:3000", none))              // never leaves the device
-        assertEquals(false, isNotSecure("http://127.0.0.1:8000", none))
-        assertEquals(false, isNotSecure("http://[::1]:8080/", none))
-        assertEquals(false, isNotSecure("http://app.localhost/", none))
+        assertEquals(true, isNotSecure("http://localhost:3000", none))               // no special rule for local addresses
+        assertEquals(true, isNotSecure("http://127.0.0.1:8000", none))
         assertEquals(true, isNotSecure("https://self-signed.example/", setOf("self-signed.example"))) // allowed past a cert error
         assertEquals(false, isNotSecure(null, none))
         assertEquals(false, isNotSecure("about:blank", none))
-        assertEquals(false, isLoopback("127.example.com"))
     }
 
     @Test fun typedHttpsUpgradeIsDetected() {

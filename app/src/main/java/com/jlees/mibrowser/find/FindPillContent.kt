@@ -67,11 +67,11 @@ fun FindPillContent(find: FindInPage, cornerRadius: Int) {
             )
         }
         val enabled = find.total > 0 || find.query.isNotEmpty()
-        IconButton(onClick = { find.next(false) }, enabled = enabled) { Sym("keyboard_arrow_up", 26f, ui.cs.onSurface.copy(alpha = if (enabled) 1f else 0.38f)) }
-        IconButton(onClick = { find.next(true) }, enabled = enabled) { Sym("keyboard_arrow_down", 26f, ui.cs.onSurface.copy(alpha = if (enabled) 1f else 0.38f)) }
+        IconButton(onClick = { find.next(false) }, enabled = enabled) { Sym("keyboard_arrow_up", 26f, ui.cs.onSurface.copy(alpha = if (enabled) 1f else 0.38f), label = "Previous match") }
+        IconButton(onClick = { find.next(true) }, enabled = enabled) { Sym("keyboard_arrow_down", 26f, ui.cs.onSurface.copy(alpha = if (enabled) 1f else 0.38f), label = "Next match") }
         Box(
             Modifier.size(40.dp).clip(CircleShape).background(ui.cs.secondaryContainer).clickable { close() },
             contentAlignment = Alignment.Center,
-        ) { Sym("close", 22f, ui.cs.onSecondaryContainer) }
+        ) { Sym("close", 22f, ui.cs.onSecondaryContainer, label = "Close find") }
     }
 }
