@@ -20,6 +20,8 @@ data class TabItem(
     val lastUsed: Long = 0,
     /** Pinned: can't be swiped away in the tab switcher; its card shows a pin. */
     val pinned: Boolean = false,
+    /** When it was closed (ms), for History's Recently Closed; 0 for an open tab. */
+    val closedAt: Long = 0,
     // runtime only
     @Transient val url: String? = null,
     @Transient val requestedUrl: String? = null,
@@ -37,6 +39,8 @@ data class TabItem(
     /** Incognito: the tab's own WebView profile ("incognito-<id>", its own cookies, storage, cache and permissions),
      *  deleted once no tab uses it. Pop-ups share their opener's. Never saved, so incognito tabs end with the app. */
     @Transient val profile: String? = null,
+    /** The last page this tab recorded in history (see isNewVisit): reloading it isn't another visit. */
+    @Transient val lastVisit: String? = null,
 ) {
     val isHome get() = openerId == null && (url == null || url == "about:blank")
     val incognito get() = profile != null

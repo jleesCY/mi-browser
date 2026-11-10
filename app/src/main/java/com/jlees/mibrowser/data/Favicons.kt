@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 object Favicons {
     private const val MAX_PX = 128
+    /** Stored icons kept at most (the least recently used beyond it are deleted at startup). */
+    private const val MAX_ICONS = 500
     private const val MAX_BYTES = 512 * 1024
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var dir: File? = null
@@ -37,11 +39,14 @@ object Favicons {
         val d = File(ctx.filesDir, "favicons").apply { mkdirs() }
         dir = d
         io.launch {
-            val found = d.listFiles()?.mapNotNull { f ->
+            // at most MAX_ICONS kept: past that, the least recently used go (a file's date is when it was last shown)
+            val files = d.listFiles().orEmpty().sortedByDescending { it.lastModified() }
+            files.drop(MAX_ICONS).forEach { it.delete() }
+            val found = files.take(MAX_ICONS).mapNotNull { f ->
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(f.path, bounds)
                 if (bounds.outWidth > 0) f.nameWithoutExtension to bounds.outWidth else { f.delete(); null }
-            }.orEmpty()
+            }
             found.forEach { (host, w) -> widths[host] = w }
             withContext(Dispatchers.Main) { found.forEach { (host, _) -> stored[host] = 0 } }
         }
@@ -62,7 +67,9 @@ object Favicons {
         val d = dir ?: return null
         if (src.startsWith("favicon-file:")) {
             val host = src.removePrefix("favicon-file:").substringBeforeLast(':')
-            return BitmapFactory.decodeFile(File(d, "$host.png").path)
+            val f = File(d, "$host.png")
+            f.setLastModified(System.currentTimeMillis()) // used: kept over icons not seen for a while (see init)
+            return BitmapFactory.decodeFile(f.path)
         }
         val host = src.removePrefix("favicon:")
         if (host in unavailable) return null

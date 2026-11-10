@@ -20,12 +20,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -160,7 +159,7 @@ fun <T> SortableSlots(
 // ---------------------------------------------------------------- images
 
 private val imageCache = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024) {
-    override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
+    override fun sizeOf(key: String, value: ImageBitmap) = value.asAndroidBitmap().byteCount // 2 bytes a pixel for snapshots
 }
 
 private const val MAX_IMAGE_PX = 2048
@@ -194,7 +193,12 @@ fun rememberImage(src: String?): State<ImageBitmap?> {
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
                 var sample = 1
                 while (bounds.outWidth / sample > MAX_IMAGE_PX || bounds.outHeight / sample > MAX_IMAGE_PX) sample *= 2
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                // page snapshots are JPEGs (no transparency): half the memory per pixel, so the cache holds twice as many
+                val opaque = src.endsWith(".jpg")
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply {
+                    inSampleSize = sample
+                    if (opaque) inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+                })?.asImageBitmap()
             } catch (_: Exception) { null }
         }
         if (bmp != null) { imageCache.put(src, bmp); state.value = bmp } else failed = true

@@ -2,6 +2,8 @@
 // callbacks. Each job behind a callback is its own class (SitePermissions, Downloads, ContentBlocker…).
 package com.jlees.mibrowser.web
 
+import com.jlees.mibrowser.data.clearBrowsingTraces
+
 import android.webkit.CookieManager
 
 import android.webkit.WebStorage
@@ -65,7 +67,7 @@ data class WebError(val code: Int, val desc: String, val failingUrl: String?) {
 
 
 /** Live WebViews kept in memory; older tabs are rebuilt from saved state when opened. */
-const val MAX_LIVE_TABS = 5
+const val MAX_LIVE_TABS = 3
 
 class WebViewHost(
     private val activity: Activity,
@@ -74,6 +76,7 @@ class WebViewHost(
     private val launchForResult: (Intent, (ActivityResult) -> Unit) -> Unit,
 ) {
     private val scripts = PageScripts(activity)
+    private val topInset by lazy { TopInset(scripts.topInset) { vm.settings.showStatusBar } }
     private val haptics = Haptics(activity.window.decorView) { vm.settings.hapticFeedback }
     // incognito tabs add their own (in-memory) sites with blocking off: never the saved list
     private val blocker: ContentBlocker = ContentBlocker({ vm.settings }) { id -> if (isIncognito(id)) vm.incognitoAdAllowlist else emptySet() }
@@ -127,14 +130,16 @@ class WebViewHost(
     /** Per-tab settings that can change (JS, desktop mode, cookies); applied before any load. */
     private fun configure(wv: WebView, desktop: Boolean) {
         val s = vm.settings
-        wv.settings.javaScriptEnabled = s.jsEnabled
+        // only what changed: this runs on every recomposition, and re-applying a setting can make the page re-lay out
+        if (wv.settings.javaScriptEnabled != s.jsEnabled) wv.settings.javaScriptEnabled = s.jsEnabled
         userAgents.apply(wv.settings, desktop)
         incognito.cookies(wv).setAcceptCookie(!s.blockCookies)
         incognito.cookies(wv).setAcceptThirdPartyCookies(wv, !s.blockCookies && !s.blockThirdPartyCookies)
         if (wv.settings.textZoom != s.textZoom) wv.settings.textZoom = s.textZoom
         // only has an effect while the WebView's theme is dark (it follows the app theme, see create)
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) WebSettingsCompat.setAlgorithmicDarkeningAllowed(wv.settings, s.darkenPages)
-        wv.settings.mediaPlaybackRequiresUserGesture = s.blockAutoplay
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING) && WebSettingsCompat.isAlgorithmicDarkeningAllowed(wv.settings) != s.darkenPages)
+            WebSettingsCompat.setAlgorithmicDarkeningAllowed(wv.settings, s.darkenPages)
+        if (wv.settings.mediaPlaybackRequiresUserGesture != s.blockAutoplay) wv.settings.mediaPlaybackRequiresUserGesture = s.blockAutoplay
     }
 
     fun noteUserTouch() = bridge.noteUserTouch()
@@ -182,6 +187,7 @@ class WebViewHost(
             applyActivity()
         }
         configure(wv, tab.desktopMode ?: vm.settings.desktopMode)
+        topInset.apply(tab.id, wv) // follows the status bar setting while the page is open
         val req = tab.requestedUrl
         if (req != null && loaded[tab.id] != (req to tab.loadNonce)) {
             loaded[tab.id] = req to tab.loadNonce
@@ -201,7 +207,7 @@ class WebViewHost(
             wasIncognito = incognito.detach(id, wv)
             wv.destroy()
         }
-        loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id)
+        loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id); topInset.reset(id)
         pausedViews.remove(id); dialogLimit.reset(id); signIn.forgetTab(id); httpContinued.remove(id)
         // posted: callers destroy a tab's WebView before (or while) removing the tab, and the tab list must be final
         if (wasIncognito || incognito.detach(id, null) || vm.tabs.list.none { it.id == id }) Handler(Looper.getMainLooper()).post { incognito.release() }
@@ -366,6 +372,7 @@ class WebViewHost(
             if (httpContinued[id].let { it != null && it != displayHost(url) }) httpContinued.remove(id)
             errors.remove(id)
             dialogLimit.reset(id)
+            topInset.reset(id); topInset.apply(id, view)
             nav(id, view, url, true)
             if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadStart)
         }
@@ -376,6 +383,7 @@ class WebViewHost(
 
         override fun onPageFinished(view: WebView, url: String?) {
             if (id == vm.tabs.activeId) vm.find.refresh() // the page searched while loading may have more now
+            topInset.reset(id); topInset.apply(id, view) // again, now the page's own head is in place
             fetchTouchIcon(view, url)
             signIn.pageFinished()
             if (errors[id] == null) vm.clearHttpFallback(id) // https worked: later failures in this tab are real errors

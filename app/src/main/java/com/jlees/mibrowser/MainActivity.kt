@@ -1,5 +1,7 @@
 package com.jlees.mibrowser
 
+import com.jlees.mibrowser.data.clearOnExit
+
 import androidx.compose.runtime.CompositionLocalProvider
 import com.jlees.mibrowser.ui.common.Haptics
 import com.jlees.mibrowser.ui.common.LocalHaptics

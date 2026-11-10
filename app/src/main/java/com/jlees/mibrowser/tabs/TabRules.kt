@@ -60,12 +60,16 @@ fun repairSaved(t: TabItem, loadedOnce: Boolean): TabItem {
     val idx = if (t.currentIndex in stack.indices) t.currentIndex else stack.size - 1
     val url = stack.getOrNull(idx)
     return t.copy(currentIndex = if (stack.isEmpty()) -1 else idx, url = url, requestedUrl = url, hasLoadedOnce = loadedOnce,
-        title = t.title.ifEmpty { "New Tab" })
+        lastVisit = com.jlees.mibrowser.library.RESTORED_VISIT, title = t.title.ifEmpty { "New Tab" })
 }
 
 /**
- * The recently closed tabs after [closing] closes: newest first, at most [max], and only tabs with a page that keep
- * traces (a closed incognito tab is gone for good).
+ * The recently closed tabs after [closing] closes: newest first, at most [max], stamped with when they closed, and only
+ * tabs with a page that keep traces (a closed incognito tab is gone for good).
  */
-fun rememberClosed(recent: List<TabItem>, closing: List<TabItem>, max: Int = 10): List<TabItem> =
-    (closing.filter { it.keepsTraces && it.historyStack.isNotEmpty() }.reversed() + recent).distinctBy { it.id }.take(max)
+fun rememberClosed(recent: List<TabItem>, closing: List<TabItem>, max: Int = 20, now: Long = System.currentTimeMillis()): List<TabItem> =
+    (closing.filter { it.keepsTraces && it.historyStack.isNotEmpty() }.map { it.copy(closedAt = now) }.reversed() + recent).distinctBy { it.id }.take(max)
+
+/** The recently closed tabs still within [keep] at [now] (all of them for SESSION: those only live until mi closes). */
+fun keptClosed(closed: List<TabItem>, keep: com.jlees.mibrowser.data.KeepClosedTabs, now: Long = System.currentTimeMillis()): List<TabItem> =
+    if (keep == com.jlees.mibrowser.data.KeepClosedTabs.SESSION) closed else closed.filter { now - it.closedAt < keep.ms }

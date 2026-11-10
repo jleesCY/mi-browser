@@ -3,6 +3,9 @@ package com.jlees.mibrowser
 import com.jlees.mibrowser.tabs.MAX_TAB_HISTORY
 
 import com.jlees.mibrowser.library.addHistory
+import com.jlees.mibrowser.library.isNewVisit
+import com.jlees.mibrowser.library.RESTORED_VISIT
+import com.jlees.mibrowser.tabs.repairSaved
 import com.jlees.mibrowser.library.pruneHistory
 import com.jlees.mibrowser.tabs.applyNavUpdate
 import com.jlees.mibrowser.tabs.capped
@@ -180,6 +183,16 @@ class LogicTest {
         assertEquals(listOf("Mars - Wikipedia"), h2.map { it.title })
         val (h3, _) = addHistory(h2, emptyList(), url, null) // a later call without a title keeps the real one
         assertEquals("Mars - Wikipedia", h3[0].title)
+    }
+
+    @Test fun reloadsAndRestoresAreNotNewVisits() {
+        val url = "https://example.com/a"
+        assertEquals(true, isNewVisit(null, url))                       // a new tab's first page
+        assertEquals(false, isNewVisit(url, url))                       // reload
+        assertEquals(false, isNewVisit("$url/", url))                   // same page, trailing slash
+        assertEquals(true, isNewVisit(url, "https://example.com/b"))    // went somewhere else
+        assertEquals(false, isNewVisit(RESTORED_VISIT, url + "?fresh=1")) // restored at startup, even if the address changed
+        assertEquals(RESTORED_VISIT, repairSaved(com.jlees.mibrowser.data.newTab().copy(historyStack = listOf(url), currentIndex = 0), false).lastVisit)
     }
 
     @Test fun tabHistoryIsCapped() {

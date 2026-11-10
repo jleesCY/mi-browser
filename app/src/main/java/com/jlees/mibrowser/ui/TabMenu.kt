@@ -136,7 +136,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 }
             }
             if (hasUrl) {
-                MenuIcon("content_copy", "Copy link") { copyText(ctx, vm.cleanLink(url!!)); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
+                MenuIcon("content_copy", "Copy link") { copyText(ctx, vm.cleanLink(url)); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
             }
         }
 

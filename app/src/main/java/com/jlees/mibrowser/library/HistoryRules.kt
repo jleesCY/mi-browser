@@ -13,6 +13,16 @@ import java.util.Locale
 
 import com.jlees.mibrowser.logic.*
 
+/** A tab's [com.jlees.mibrowser.data.TabItem.lastVisit] after mi restarts: its first load is the restore, not a visit. */
+const val RESTORED_VISIT = "\u0000restored"
+
+/**
+ * Whether a finished load of [url], in a tab whose last recorded page is [lastVisit], is a new visit for history.
+ * Reloading the same page isn't, and neither is the first load of a tab restored at startup (it was recorded when
+ * first visited; its address may also come back slightly different, e.g. a search with fresh parameters).
+ */
+fun isNewVisit(lastVisit: String?, url: String) = lastVisit != RESTORED_VISIT && lastVisit?.removeSuffix("/") != url.removeSuffix("/")
+
 /** A visit to [url]: the new (history, recent searches); a search results page is also a recent search. */
 fun addHistory(history: List<HistoryItem>, recents: List<HistoryItem>, url: String, title: String?, now: Long = System.currentTimeMillis()): Pair<List<HistoryItem>, List<HistoryItem>> {
     if (url.isEmpty() || url == "about:blank") return history to recents

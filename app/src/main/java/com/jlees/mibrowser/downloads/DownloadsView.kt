@@ -55,7 +55,7 @@ fun DownloadsView(vm: BrowserViewModel) {
     var collapsed by remember { mutableStateOf(setOf<String>()) }
     val sections = groupByDate(items) { it.startedAt }
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 80.dp, bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(rowMargin(ui.padding).dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = SheetPillSpace), verticalArrangement = Arrangement.spacedBy(rowMargin(ui.padding).dp)) {
             if (items.isEmpty()) item { EmptyState("download", if (q.isEmpty()) "No Downloads Yet" else "No matches") }
             sections.forEach { (title, group) ->
                 item(key = "h_$title") {
@@ -96,7 +96,7 @@ fun DownloadsView(vm: BrowserViewModel) {
                 }
             }
         }
-        SearchHeaderWithMenu(search, { search = it }, "Search Downloads...") { close ->
+        SheetSearchPill(search, { search = it }) { close ->
             SheetMenuItem("folder", "Open Downloads Folder") {
                 close()
                 runCatching { ctx.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

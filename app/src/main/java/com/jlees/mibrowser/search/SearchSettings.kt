@@ -40,6 +40,18 @@ fun searchSection(vm: BrowserViewModel) =
         SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
                 SwitchItem("incognito", "Suggestions in Incognito", "Suggestions from your search engine while in incognito mode", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
             },
+        // what shortcuts are, for anyone who hasn't met "!w" before: a tap explains, with an example
+        SettingsRow("About Shortcuts", "bang shortcut help what how") {
+            Item("info", "What Are Shortcuts?", "Search a particular site straight from the Pill", onClick = {
+                vm.showAlert(
+                    "Search shortcuts",
+                    "Start a search with a shortcut to search one site instead of your search engine. " +
+                        "For example, \"!w mars\" searches Wikipedia for \"mars\", and \"!yt cats\" searches YouTube.\n\n" +
+                        "Built-in Shortcuts lists the ones mi comes with. In Your Shortcuts you can add your own: a short name, " +
+                        "and the site's search address with %s where the search goes.",
+                )
+            }, trailing = { Sym("chevron_right", 22f, LocalUi.current.cs.onSurfaceVariant) })
+        },
         SettingsRow("Your Shortcuts", "bang custom add search shortcut") { CustomBangsItem(vm) },
         SettingsRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
     ))

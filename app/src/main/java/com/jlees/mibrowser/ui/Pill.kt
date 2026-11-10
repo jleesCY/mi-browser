@@ -17,7 +17,6 @@ import com.jlees.mibrowser.incognito.toggleIncognito
 import com.jlees.mibrowser.web.connectionNotSecure
 import com.jlees.mibrowser.web.explainNotSecure
 
-import com.jlees.mibrowser.tabs.SwitcherEdgeButton
 import com.jlees.mibrowser.tabs.SwitcherPillButtons
 
 import com.jlees.mibrowser.data.LoadingBar
@@ -69,7 +68,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -101,26 +99,18 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
     val padB = { interp(k(), listOf(0f, 100f), listOf(max(navInsetDp + 10f, 10f), 0f)) + k() }
     val focusedAdd = { pill.handleAnim.value * 25f }
     // Opening the tab switcher morphs the search pill into the switcher's centre pill: its sides draw in to that
-    // pill's size and position, the search content fades out early, + and ⋮ fade in late, and the edge buttons appear
-    // from behind it. Driven by the same progress as the page zoom, so it follows the finger and reverses on close.
+    // pill's size and position, the search content fades out early, and + and ⋮ fade in late (the edge buttons appear in
+    // the switcher itself). Driven by the same progress as the page zoom, so it follows the finger and reverses on close.
     val morph = { if (vm.switcherVisible) vm.switcher.anim.value.coerceIn(0f, 1f) else 0f }
-    val rootOrigin = remember { OriginHolder() }
+    val hidden = { (pill.scrollY.value / HIDDEN_TRANSLATE_Y).coerceIn(0f, 1f) } // 0 shown .. 1 the recall button
     val pillOrigin = remember { OriginHolder() }
 
-    Box(Modifier.fillMaxSize().onGloballyPositioned { rootOrigin.at = it.positionInWindow() }) {
-        if (vm.switcherVisible) {
-            EdgeButtonGhost("library_books", { vm.switcher.barLeft }, rootOrigin, morph)
-            EdgeButtonGhost("settings", { vm.switcher.barRight }, rootOrigin, morph)
-        }
+    Box(Modifier.fillMaxSize()) {
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .paddingDp(start = padH, end = padH, bottom = padB)
-                .graphicsLayer {
-                    val sy = pill.scrollY.value
-                    alpha = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y * 0.75f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.5f, 0f))
-                    val sc = interp(sy, listOf(0f, HIDDEN_TRANSLATE_Y), listOf(1f, 0.6f))
-                    translationY = sy * density; scaleX = sc; scaleY = sc; transformOrigin = TransformOrigin.Center
-                },
+                // hiding morphs the Pill into the recall button (below); once it's there, the button takes over
+                .graphicsLayer { alpha = if (hidden() >= 1f) 0f else 1f },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth()) {
@@ -139,7 +129,9 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                                 )
                             }
                             .panGesture(
-                                enabled = !vm.isInputFocused && !pill.isBarHidden && !vm.find.visible,
+                                // off once the switcher is open: its own Pill takes the swipes there (not while opening:
+                                // that would cancel the very drag that opens it)
+                                enabled = !vm.isInputFocused && !pill.isBarHidden && !vm.find.visible && !vm.switcher.settled,
                                 onMove = { dx, dy -> pill.onPanMove(dx, dy) },
                                 onRelease = { dx, dy, vx, vy -> pill.onPanRelease(dx, dy, vx, vy) },
                             ),
@@ -149,21 +141,22 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                         Box(
                             Modifier.fillMaxSize().zIndex(2f)
                                 .morphInto(morph, { vm.switcher.barPill }, pillOrigin)
+                                .morphInto(hidden, { pill.recallBounds }, pillOrigin) // hiding: shrinks into the recall button
                                 .graphicsLayer {
                                     val kk = k()
-                                    val m = morph()
-                                    val round = size.height / 2 // the switcher's pill is fully rounded
+                                    val m = maxOf(morph(), hidden()) // the switcher's pill and the recall button are both fully rounded
+                                    val round = size.height / 2
                                     val top = lerp(pillRadius.dp.toPx(), round, m)
                                     val bottom = lerp(interp(kk, listOf(0f, 100f), listOf(pillRadius, 0f)).dp.toPx(), round, m)
                                     shape = RoundedCornerShape(top, top, bottom, bottom)
-                                    shadowElevation = lerp(interp(kk, listOf(0f, 10f), listOf(10f, 0f)), 6f, m).dp.toPx()
+                                    shadowElevation = lerp(lerp(interp(kk, listOf(0f, 10f), listOf(10f, 0f)), 6f, morph()), 3f, hidden()).dp.toPx()
                                     clip = true
                                 }
-                                .background(if (ui.isDark) ui.cs.surfaceContainerHigh else lerp(ui.cs.surfaceContainerHighest, ui.cs.primaryContainer, 0.45f)),
+                                .drawBehind { drawRect(lerp(ui.pillBar, ui.cs.secondaryContainer, hidden())) },
                         ) {
                             Box(Modifier.fillMaxSize().graphicsLayer {
                                 val f = pill.findAnim.value
-                                alpha = (1f - (morph() * 3f).coerceIn(0f, 1f)) * (1f - f * 1.6f).coerceIn(0f, 1f)
+                                alpha = (1f - (maxOf(morph(), hidden()) * 3f).coerceIn(0f, 1f)) * (1f - f * 1.6f).coerceIn(0f, 1f)
                                 translationX = -40.dp.toPx() * f
                             }) {
                                 SearchPillContent(vm, pill, focusedAdd, focusManager)
@@ -223,7 +216,11 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
     // back/forward swipe feedback, read at draw time (no recomposition while dragging)
     val backOpacity = { interp(pill.horizontalDrag.value, listOf(0f, 32f), listOf(0f, 1f)) }
     val fwdOpacity = { interp(pill.horizontalDrag.value, listOf(-32f, 0f), listOf(1f, 0f)) }
-    val contentOpacity = { interp(pill.horizontalDrag.value, listOf(-32f, 0f, 32f), listOf(0f, 1f, 0f)) }
+    // the field gives way to an arrow only where there's somewhere to go: with no back (or forward) it stays put
+    val contentOpacity = {
+        val d = pill.horizontalDrag.value
+        if ((d > 0f && vm.canGoBackUi) || (d < 0f && vm.canGoForwardUi)) interp(d, listOf(-32f, 0f, 32f), listOf(0f, 1f, 0f)) else 1f
+    }
     val tab = vm.tabs.current
 
     Box(Modifier.fillMaxSize()) {
@@ -247,7 +244,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
             val fieldShape = RoundedCornerShape((s.cornerRadius * 1.5f).dp)
             Box(
                 Modifier.weight(1f).height((PILL_HEIGHT * 0.7f).dp).graphicsLayer { alpha = contentOpacity() }
-                    .clip(fieldShape).background(if (ui.isDark) ui.cs.surfaceContainerHighest else lerp(ui.cs.surfaceDim, ui.cs.primaryContainer, 0.4f))
+                    .clip(fieldShape).background(ui.pillField)
                     .then(if (incognitoRing > 0.01f) Modifier.border((2f * incognitoRing).dp, ui.cs.onSurface.copy(alpha = 0.7f * incognitoRing), fieldShape) else Modifier),
             ) {
                 // loading progress: a faint accent fill behind the text, growing left to right or from the center out
@@ -284,8 +281,10 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         modifier = Modifier.weight(1f).padding(start = if (notSecure) 8.dp else 16.dp, end = 16.dp)
                             .pointerInput(Unit) {
                                 awaitEachGesture {
-                                    // a touch on the field unlocks focus for the tap; a swipe (e.g. up to the switcher) locks it again
+                                    // a touch on the field unlocks focus for the tap; a swipe (e.g. up to the switcher) locks it again.
+                                    // Not while it's focused: there a swipe scrolls the text, and locking would drop focus and the text
                                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                    val wasFocused = vm.isInputFocused
                                     allowFocus = true
                                     var dragged = false
                                     while (true) {
@@ -293,7 +292,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                                         if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) dragged = true
                                         if (!c.pressed) break
                                     }
-                                    if (dragged) allowFocus = false
+                                    if (dragged && !wasFocused) allowFocus = false
                                 }
                             }
                             .focusProperties { canFocus = allowFocus && !vm.switcherVisible }
@@ -395,17 +394,4 @@ private fun Modifier.morphInto(progress: () -> Float, target: () -> Rect?, origi
     layout(c.maxWidth, c.maxHeight) {
         pl.place(lerp(0f, t.left - origin.at.x, p).roundToInt(), lerp(0f, t.top - origin.at.y, p).roundToInt())
     }
-}
-
-/** The switcher's edge button, appearing at its final place from behind the shrinking pill. */
-@Composable
-private fun EdgeButtonGhost(icon: String, at: () -> Rect?, root: OriginHolder, progress: () -> Float) {
-    Box(
-        Modifier
-            .offset { at()?.let { IntOffset((it.left - root.at.x).roundToInt(), (it.top - root.at.y).roundToInt()) } ?: IntOffset(-100_000, 0) }
-            .graphicsLayer {
-                val a = ((progress() - 0.2f) / 0.45f).coerceIn(0f, 1f)
-                alpha = a; scaleX = 0.6f + 0.4f * a; scaleY = 0.6f + 0.4f * a
-            },
-    ) { SwitcherEdgeButton(icon, onClick = {}) }
 }

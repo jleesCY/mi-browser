@@ -15,6 +15,8 @@ class PageScripts(ctx: Context) {
     val noPasskeyCreation by lazy { load("no-passkey-creation") }
     /** After load, when reader mode is on: a reading layout without navigation, sidebars or ad boxes. */
     val reader by lazy { load("reader") }
+    /** With the status bar hidden: space at the top of the page for the camera cutout (see TopInset). */
+    val topInset by lazy { load("top-inset") }
     /** After load: the page's largest touch icon, for its site icon. */
     val touchIcon by lazy { load("touch-icon") }
 }

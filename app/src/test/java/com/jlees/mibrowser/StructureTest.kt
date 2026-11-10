@@ -14,6 +14,8 @@ import com.jlees.mibrowser.tabs.closeTabs
 import com.jlees.mibrowser.tabs.insertAfterActive
 import com.jlees.mibrowser.tabs.reinsert
 import com.jlees.mibrowser.tabs.repairSaved
+import com.jlees.mibrowser.tabs.rememberClosed
+import com.jlees.mibrowser.tabs.keptClosed
 import com.jlees.mibrowser.tabs.restoreSession
 import com.jlees.mibrowser.tabs.tabsToClear
 import org.junit.Assert.assertEquals
@@ -26,6 +28,54 @@ import org.junit.Test
 class StructureTest {
     private fun tab(id: String, used: Long = 0, url: String? = "https://$id.com", pinned: Boolean = false, opener: String? = null) =
         newTab(url).copy(id = id, lastUsed = used, pinned = pinned, openerId = opener, historyStack = listOfNotNull(url), currentIndex = if (url != null) 0 else -1)
+
+    @Test fun hidingTheSwitcherEndsItsSettledState() {
+        // every way of hiding it (a bookmark opened over it, the walkthrough…) must leave the Pill's swipes working
+        val sw = com.jlees.mibrowser.tabs.SwitcherTransition()
+        sw.visible = true; sw.settled = true; sw.flyingTabId = "t"
+        sw.visible = false
+        assertFalse(sw.settled); assertEquals(null, sw.flyingTabId)
+    }
+
+    @Test fun updateCheckWaitsOnlyAfterNothingNew() {
+        val hour = 3_600_000L
+        assertTrue(com.jlees.mibrowser.update.Updates.dueForCheck(now = 13 * hour, lastNothingNew = 0)) // never checked
+        assertFalse(com.jlees.mibrowser.update.Updates.dueForCheck(now = 11 * hour, lastNothingNew = 0)) // checked recently
+        assertTrue(com.jlees.mibrowser.update.Updates.dueForCheck(now = 12 * hour, lastNothingNew = 0))
+    }
+
+    @Test fun dataSavedByOlderVersionsStillLoads() {
+        // an update must never lose data: fields a newer version dropped ("skippedUpdate") or doesn't know are ignored,
+        // and everything else reads back as it was
+        val old = """{"themeMode":"dark","accentColor":"#3366FF","skippedUpdate":"1.4.0","someFutureKey":true,"settingsVersion":3}"""
+        val s = com.jlees.mibrowser.data.json.decodeFromString(Settings.serializer(), old)
+        assertEquals(com.jlees.mibrowser.data.ThemeMode.DARK, s.themeMode)
+        assertEquals("#3366FF", s.accentColor)
+        val tabs = """[{"id":"t1","title":"Mars","historyStack":["https://en.wikipedia.org/wiki/Mars"],"currentIndex":0,"pinned":true,"retiredField":1}]"""
+        val t = com.jlees.mibrowser.data.json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(com.jlees.mibrowser.data.TabItem.serializer()), tabs).single()
+        assertEquals(listOf("https://en.wikipedia.org/wiki/Mars"), t.historyStack); assertTrue(t.pinned)
+    }
+
+    @Test fun recentlyClosedNeverKeepsIncognitoOrBlankTabs() {
+        val normal = tab("a")
+        val incognito = tab("b").copy(profile = com.jlees.mibrowser.data.newIncognitoProfile())
+        val blank = tab("c", url = null)
+        assertEquals(listOf("a"), rememberClosed(emptyList(), listOf(normal, incognito, blank)).map { it.id })
+        // newest first, at most 10
+        val many = (1..12).map { tab("t$it") }
+        assertEquals("t12", rememberClosed(emptyList(), many).first().id)
+        assertEquals(10, rememberClosed(emptyList(), many, max = 10).size)
+    }
+
+    @Test fun recentlyClosedDropOffAfterTheirTime() {
+        val closed = rememberClosed(emptyList(), listOf(tab("old")), now = 0) + rememberClosed(emptyList(), listOf(tab("new")), now = 3_000_000)
+        assertEquals(1000L * 0, closed.first { it.id == "old" }.closedAt) // stamped when closed
+        val hourLater = 3_700_000L
+        assertEquals(listOf("new"), keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.HOUR, hourLater).map { it.id })
+        assertEquals(2, keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.DAY, hourLater).size)
+        assertEquals(listOf("new"), keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.WEEK, 604_800_000L + 1).map { it.id }) // a week on, only the newer one
+        assertEquals(2, keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.SESSION, Long.MAX_VALUE).size) // until mi closes
+    }
 
     @Test fun closingTheActiveTabGoesToTheLastUsed() {
         val s = TabsState(listOf(tab("a", 3), tab("b", 9), tab("c", 5)), "a")
@@ -97,18 +147,29 @@ class StructureTest {
         assertFalse(Settings(settingsVersion = 0, blockThirdPartyCookies = true).migrated().blockThirdPartyCookies)
         // v1 → v2: with "Block Ads & Trackers" off, ads and cookie banners stay off too
         val off = Settings(settingsVersion = 1, blockTrackers = false, blockAds = true, hideCookieBanners = true).migrated()
-        assertFalse(off.blockAds); assertFalse(off.hideCookieBanners); assertEquals(3, off.settingsVersion) // then on to v3
+        assertFalse(off.blockAds); assertFalse(off.hideCookieBanners); assertEquals(4, off.settingsVersion) // then on to the latest
         val on = Settings(settingsVersion = 1).migrated()
         assertTrue(on.blockAds); assertTrue(on.hideCookieBanners)
         // v2 → v3: HTTPS Only (and Warn Every Time) switch on once, even where it was off
         val v2 = Settings(settingsVersion = 2, httpsOnly = false, httpsWarnEveryTime = false).migrated()
-        assertTrue(v2.httpsOnly && v2.httpsWarnEveryTime); assertEquals(3, v2.settingsVersion)
+        assertTrue(v2.httpsOnly && v2.httpsWarnEveryTime); assertEquals(4, v2.settingsVersion)
         // after that it's an ordinary setting: turned off, it stays off
         val turnedOff = v2.copy(httpsOnly = false)
         assertEquals(turnedOff, turnedOff.migrated())
         // current settings are left alone
-        val current = Settings(settingsVersion = 3, blockAds = false)
+        val current = Settings(settingsVersion = 4, blockAds = false)
         assertEquals(current, current.migrated())
+    }
+
+    @Test fun fontMigrationAndWalkthrough() {
+        // v3 → v4: the Rounded Font switch becomes the Font choice
+        val rounded = Settings(settingsVersion = 3, roundedFont = true).migrated()
+        assertEquals(com.jlees.mibrowser.data.AppFont.ROUNDED, rounded.font)
+        assertEquals(com.jlees.mibrowser.data.AppFont.STANDARD, Settings(settingsVersion = 3).migrated().font)
+        // the Quick Guide shows to existing users after updating, as well as to new installs
+        assertFalse(rounded.walkthroughSeen); assertFalse(Settings().migrated().walkthroughSeen)
+        // saved under its name from before the rename, so installs that saw it don't get it again
+        assertTrue(com.jlees.mibrowser.data.json.encodeToString(Settings.serializer(), Settings(walkthroughSeen = true)).contains("\"quickGuideSeen\":true"))
     }
 
     @Test fun resetSettingsAreNotMigratedAgain() {

@@ -1,6 +1,8 @@
 // Modal dialogs: the frame they share, alerts, confirmations, renaming a tab and website sign-in.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.data.confirmAction
+
 import com.jlees.mibrowser.ButtonStyle
 import com.jlees.mibrowser.ConfirmAction
 import androidx.compose.animation.AnimatedVisibility

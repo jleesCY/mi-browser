@@ -3,8 +3,9 @@
 // is the touch target.
 package com.jlees.mibrowser.ui.settings
 
-import com.jlees.mibrowser.downloads.downloadsSection
+import com.jlees.mibrowser.data.applyImport
 
+import com.jlees.mibrowser.downloads.downloadsSection
 
 import com.jlees.mibrowser.search.searchSection
 
@@ -19,8 +20,6 @@ import com.jlees.mibrowser.ConfirmAction
 import com.jlees.mibrowser.data.Spacing
 import com.jlees.mibrowser.data.ThemeMode
 
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeOut
@@ -28,6 +27,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,22 +37,14 @@ import androidx.compose.material3.IconButton
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -62,10 +56,6 @@ import com.jlees.mibrowser.ConfirmData
 import com.jlees.mibrowser.data.DataTransfer
 import com.jlees.mibrowser.data.ImportError
 import com.jlees.mibrowser.data.Settings
-import com.jlees.mibrowser.logic.ACCENTS
-import com.jlees.mibrowser.logic.DYNAMIC_ACCENT
-import com.jlees.mibrowser.logic.hexColor
-import com.jlees.mibrowser.ui.common.SheetSearchField
 import com.jlees.mibrowser.ui.common.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -136,7 +126,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             SettingsRow("Font Size", "text scale app") {
                 SliderItem("format_size", "Font Size", "Text size throughout mi", s.fontScale, 0.8f, 1.2f) { set { copy(fontScale = it) } }
             },
-            SettingsRow("Rounded Font", "typeface") { SwitchItem("font_download", "Rounded Font", "Softer, rounded letterforms", s.roundedFont) { set { copy(roundedFont = it) } } },
+            SettingsRow("Font", "typeface rounded system font") { ChoiceItem("font_download", "Font", null, s.font) { set { copy(font = it) } } },
             SettingsRow("Corners", "radius shape") {
                 ChoiceItem("rounded_corner", "Corners", null, listOf("0" to "Square", "12" to "Soft", "28" to "Round"), s.cornerRadius.toString()) { set { copy(cornerRadius = it.toInt()) } }
             },
@@ -148,9 +138,12 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 SwitchItem("vibration", "Haptic Feedback", "Taps when gestures are performed", s.hapticFeedback) { set { copy(hapticFeedback = it) } }
             },
         )),
-        SettingsSection("pill", "Pill", "toolbar", "Loading bar, favorites, search drawer", listOfNotNull(
+        SettingsSection("pill", "Pill", "toolbar", "Loading bar, hide on scroll, favorites, search drawer", listOfNotNull(
             SettingsRow("Loading Bar", "progress") {
                 ChoiceItem("hourglass_empty", "Loading Bar", "Fill behind the address while a page loads", s.progressBarMode) { set { copy(progressBarMode = it) } }
+            },
+            SettingsRow("Hide on Scroll", "auto hide pill toolbar scrolling recall") {
+                SwitchItem("keyboard_arrow_down", "Hide on Scroll", "Hide the Pill while you scroll down a page", s.hidePillOnScroll) { set { copy(hidePillOnScroll = it) } }
             },
             SettingsRow("Pin Favorites", "favorites bar") { SwitchItem("star", "Pin Favorites", "Always show the favorites bar when searching", s.showFavoritesDefault) { set { copy(showFavoritesDefault = it) } } },
             SettingsRow("Expand Searches", "recent searches drawer") {
@@ -237,6 +230,9 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             SettingsRow("User Guide", "help") {
                 Item("help", "User Guide", "Every gesture, tool and setting", onClick = { openPage(GUIDE_URL) }, trailing = { Sym("open_in_new", 20f, ui.cs.onSurfaceVariant) })
             },
+            SettingsRow("Gesture Walkthrough", "help gestures intro tutorial tour quick guide") {
+                Item("toolbar", "Gesture Walkthrough", "Try every swipe, step by step", onClick = { set { copy(walkthroughSeen = false) } })
+            },
             SettingsRow("Privacy Policy", "privacy data collection policy") {
                 Item("shield", "Privacy Policy", "mi collects no personal data", onClick = { openPage(PRIVACY_URL) }, trailing = { Sym("open_in_new", 20f, ui.cs.onSurfaceVariant) })
             },
@@ -265,17 +261,11 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     val nav = remember { SettingsNav(open = { subPages[it.id] = it; subPage = it }, close = { subPage = null }) }
     val sheetBg = ui.cs.surfaceContainerLow
 
-    // keyed on the section's id: the section objects are rebuilt with every settings change, and keying on them made
-    // each switch replay the page transition. A plain slide, no spring.
-    AnimatedContent(
-        openId to subPage?.id, Modifier.fillMaxSize(), label = "settings page",
-        transitionSpec = {
-            fun depth(p: Pair<String?, String?>) = (if (p.first != null) 1 else 0) + (if (p.second != null) 1 else 0)
-            val forward = depth(targetState) > depth(initialState)
-            (slideInHorizontally(tween(220)) { if (forward) it / 3 else -it / 3 } + fadeIn(tween(160))) togetherWith
-                (slideOutHorizontally(tween(220)) { if (forward) -it / 4 else it / 4 } + fadeOut(tween(120)))
-        },
-    ) { (pageId, subId) ->
+    // The page for a (section, sub-page) state. Drawn by AnimatedContent, and during a corner swipe both the page and
+    // the level above it are drawn, the page sliding off with the finger.
+    @Composable
+    fun Page(state: Pair<String?, String?>) {
+        val (pageId, subId) = state
         val page = groups.firstOrNull { it.id == pageId }
         val sub = subId?.let { subPages[it] }
         if (sub != null) TopBarOver(sheetBg, bar = {
@@ -286,12 +276,10 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             }
         }) { top ->
             CompositionLocalProvider(LocalSettingsNav provides nav) {
-                Box(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = top, bottom = 24.dp)) { sub.content() }
+                Box(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = top, bottom = SheetPillSpace)) { sub.content() }
             }
-        } else if (page == null) TopBarOver(sheetBg, bar = {
-            SheetSearchField(search, { vm.settingsSearch = it }, "Search Settings...", Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp))
-        }) { top ->
-            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = 48.dp)) {
+        } else if (page == null) TopBarOver(sheetBg, bar = {}) { top -> // the search field is the Pill at the bottom
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = SheetPillSpace)) {
                 if (q.isEmpty()) {
                     if (!isDefault) item(key = "banner") { DefaultBrowserCard(::requestDefault) }
                     itemsIndexed(groups, key = { _, g -> "s:${g.id}" }) { i, g ->
@@ -327,123 +315,56 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             }
         }) { top ->
             val pageList = rememberLazyListState()
-            LazyColumn(Modifier.fillMaxSize(), state = pageList, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = 48.dp)) {
+            LazyColumn(Modifier.fillMaxSize(), state = pageList, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = SheetPillSpace)) {
                 itemsIndexed(page.rows, key = { _, r -> "${page.id}:${r.label}" }) { i, r ->
                     CompositionLocalProvider(LocalSettingsNav provides nav) { Box(Modifier.segment(i, page.rows.size)) { r.content() } }
                 }
             }
         }
     }
-}
 
-/**
- * A top bar (search field, or a section's back arrow and title) that the list scrolls under: the bar sits on the sheet's
- * colour with a soft fade below it, so rows slide behind it and fade out instead of being cut off. [content] gets the
- * top padding that keeps its first row clear of the bar at rest.
- */
-@Composable
-private fun TopBarOver(bg: Color, bar: @Composable () -> Unit, content: @Composable (top: androidx.compose.ui.unit.Dp) -> Unit) {
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    var barPx by remember { mutableIntStateOf(0) }
-    val fade = 20.dp
-    Box(Modifier.fillMaxSize()) {
-        content(with(density) { barPx.toDp() } + fade)
-        Column(Modifier.fillMaxWidth()) {
-            Box(Modifier.fillMaxWidth().background(bg).padding(bottom = 6.dp).onSizeChanged { barPx = it.height }) { bar() }
-            Box(Modifier.fillMaxWidth().height(fade).background(Brush.verticalGradient(listOf(bg, bg.copy(alpha = 0f)))))
-        }
-    }
-}
-
-/** A section's title above its rows in search results. */
-@Composable
-private fun SectionHeader(icon: String, title: String) {
-    val ui = LocalUi.current
-    Row(Modifier.fillMaxWidth().padding(start = 8.dp, top = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Sym(icon, 18f, ui.cs.primary, Modifier.padding(end = 8.dp))
-        Txt(title, 15f, ui.cs.primary, ui.bold)
-    }
-}
-
-// ---------------------------------------------------------------- specific rows
-
-@Composable
-private fun AccentItem(vm: BrowserViewModel) {
-    val ui = LocalUi.current
-    // adaptive (wallpaper colors, Android 12+), gray, blue, green, red, orange, yellow, purple — horizontally scrollable
-    val dynamicOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val list = (if (dynamicOk) listOf(DYNAMIC_ACCENT) else emptyList()) + ACCENTS
-    Item("palette", "Accent Color", if (dynamicOk) "Your wallpaper's colors, or pick one" else null, below = {
-        LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(list) { hex ->
-                val selected = vm.settings.accentColor == hex
-                val scale by animateFloatAsState(if (selected) 0.86f else 1f, Motion.fastSpatial(), label = "swatch")
-                val isDyn = hex == DYNAMIC_ACCENT
-                Box(
-                    Modifier.size(48.dp).graphicsLayer { scaleX = scale; scaleY = scale }
-                        .clip(if (selected) RoundedCornerShape(30) else CircleShape)
-                        .background(if (isDyn) ui.cs.tertiaryContainer else Color(hexColor(hex)))
-                        .touchable { vm.updateSettings { copy(accentColor = hex) } },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isDyn) Sym("wallpaper", 22f, ui.cs.onTertiaryContainer)
-                    if (selected && !isDyn) Sym("check", 22f, Color.White)
+    // A corner swipe (bottom left, see OverlaySheet) below the top level goes up a level, following the finger: [back]
+    // is how far the page has slid off (0..1). Finishing switches the state with no transition (the slide already ran).
+    val back = remember { androidx.compose.animation.core.Animatable(0f) }
+    var backing by remember { mutableStateOf(false) }
+    var instant by remember { mutableStateOf(false) }
+    val state = openId to subPage?.id
+    val parent = if (subPage != null) openId to null else null to null
+    val sheetBack = LocalSheetBack.current
+    DisposableEffect(state) {
+        sheetBack?.inner = if (openId == null && subPage == null) null else BackSwipe(
+            drag = { p -> backing = true; scope.launch { back.snapTo(p) } },
+            release = { up ->
+                scope.launch {
+                    if (up) {
+                        back.animateTo(1f, tween(160))
+                        instant = true
+                        if (subPage != null) subPage = null else openId = null
+                    } else back.animateTo(0f, tween(200))
+                    backing = false; back.snapTo(0f)
                 }
-            }
-        }
-    })
-}
-
-@Composable
-private fun CreditsItem() {
-    val ui = LocalUi.current
-    ExpandItem("info", "Credits", "Open-source projects mi is built with", null) { _ ->
-        listOf(
-            "Ad & tracker blocklist" to "StevenBlack/hosts, MIT License",
-            "Font" to "Google Sans Flex, © Google LLC",
-            "Icons" to "Material Symbols, Apache License 2.0",
-            "UI" to "Jetpack Compose & Material 3, Apache License 2.0",
-            "QR codes" to "ZXing, Apache License 2.0",
-            "Image cropping" to "Android Image Cropper, Apache License 2.0",
-        ).forEach { (what, who) ->
-            Column(Modifier.fillMaxWidth().padding(start = 72.dp, end = 20.dp, top = 6.dp, bottom = 6.dp)) {
-                Txt(what, 14f, ui.cs.onSurface, ui.semibold)
-                Txt(who, 13f, ui.cs.onSurfaceVariant, ui.regular)
-            }
-        }
+            },
+        )
+        onDispose { sheetBack?.inner = null }
     }
-}
 
-/** Shown at the top until mi is the default browser. */
-@Composable
-private fun DefaultBrowserCard(onSet: () -> Unit) {
-    val ui = LocalUi.current
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 20.dp).clip(RoundedCornerShape(ui.radius.coerceAtLeast(12).dp)).background(ui.cs.primaryContainer).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Sym("public", 28f, ui.cs.onPrimaryContainer, Modifier.padding(end = 14.dp))
-        Column(Modifier.weight(1f)) {
-            Txt("Make mi your default browser", 16f, ui.cs.onPrimaryContainer, ui.bold)
-            Txt("Open links from other apps in mi", 13f, ui.cs.onPrimaryContainer, ui.regular, Modifier.padding(top = 2.dp))
-        }
-        FilledTonalButton(onClick = onSet, modifier = Modifier.padding(start = 8.dp)) { Txt("Set", 14f, ui.cs.onSecondaryContainer, ui.bold) }
+    Box(Modifier.fillMaxSize()) {
+    if (backing) Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().graphicsLayer { translationX = -size.width * 0.25f * (1f - back.value) }) { Page(parent) }
+        Box(Modifier.fillMaxSize().graphicsLayer { translationX = size.width * back.value; shadowElevation = 8.dp.toPx() }.background(sheetBg)) { Page(state) }
+    } else     // keyed on the section's id: the section objects are rebuilt with every settings change, and keying on them made
+    // each switch replay the page transition. A plain slide, no spring.
+AnimatedContent(
+        state, Modifier.fillMaxSize(), label = "settings page",
+        transitionSpec = {
+            if (instant) { instant = false; return@AnimatedContent EnterTransition.None togetherWith ExitTransition.None }
+            fun depth(p: Pair<String?, String?>) = (if (p.first != null) 1 else 0) + (if (p.second != null) 1 else 0)
+            val forward = depth(targetState) > depth(initialState)
+            (slideInHorizontally(tween(220)) { if (forward) it / 3 else -it / 3 } + fadeIn(tween(160))) togetherWith
+                (slideOutHorizontally(tween(220)) { if (forward) -it / 4 else it / 4 } + fadeOut(tween(120)))
+        },
+    ) { Page(it) }
+    // searching shows results from the top level, so it leaves any section that's open
+    SheetSearchPill(search, { vm.settingsSearch = it; if (it.isNotEmpty()) { subPage = null; openId = null } })
     }
-}
-
-/** Expressive segmented list: large outer corners, small inner corners, 2dp gaps. */
-/** Row [i] of [count] in a segmented card: full width, a 2dp gap below, rounded outer corners. */
-@Composable
-private fun Modifier.segment(i: Int, count: Int): Modifier {
-    val ui = LocalUi.current
-    return fillMaxWidth().padding(bottom = if (i < count - 1) 2.dp else 0.dp).clip(segmentShape(i, count, ui.radius)).background(ui.cs.surfaceContainerHighest)
-}
-
-private fun segmentShape(i: Int, count: Int, radius: Int): RoundedCornerShape {
-    val big = radius.coerceAtLeast(4).dp
-    val small = 4.dp
-    return RoundedCornerShape(
-        topStart = if (i == 0) big else small, topEnd = if (i == 0) big else small,
-        bottomStart = if (i == count - 1) big else small, bottomEnd = if (i == count - 1) big else small,
-    )
 }

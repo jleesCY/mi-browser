@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -41,10 +43,11 @@ fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, scree
     var startX by remember { mutableFloatStateOf(0f) }
     Box(
         modifier.offset { IntOffset((x.value * density).roundToInt(), 0) }.padding(bottom = maxOf(navInsetDp + 10f, 10f).dp)
-            .graphicsLayer { alpha = interp(pill.scrollY.value, listOf(0f, HIDDEN_TRANSLATE_Y - 20, HIDDEN_TRANSLATE_Y), listOf(0f, 0f, 1f)) },
+            // the Pill morphs into this spot as it hides; the button shows once it's fully there
+            .graphicsLayer { alpha = if (pill.scrollY.value >= HIDDEN_TRANSLATE_Y) 1f else 0f },
     ) {
         Box(
-            Modifier.size(w.dp, 32.dp).shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(ui.cs.secondaryContainer)
+            Modifier.size(w.dp, 32.dp).onGloballyPositioned { pill.recallBounds = it.boundsInWindow() }.shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(ui.cs.secondaryContainer)
                 .panGesture(
                     enabled = pill.isBarHidden, slopDp = 4f,
                     onStart = { startX = x.value; horizontal = null },

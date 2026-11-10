@@ -27,6 +27,7 @@ Deleting the package (plus one line in BrowserViewModel and one in SettingsView)
 | `qr/` | scanner and generator |
 | `launcher/` | launcher shortcuts, search widget |
 | `update/` | GitHub release checks and installs |
+| `onboarding/` | the Gesture Walkthrough (hands-on gesture tour, shown once to every user) |
 
 Shared plumbing, used by several features, stays in the shell packages:
 - `data/`: models, Settings, JsonStore/Saver, Favicons, backup;

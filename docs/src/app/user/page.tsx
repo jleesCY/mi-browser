@@ -128,13 +128,13 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The card's title and icon appear as soon as you start swiping. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right.
+                    Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The card's title and icon appear as soon as you start swiping. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right. Swipe that Pill right to open the Library, left to open Settings, or up for Recently closed tabs.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                     <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to zoom back into it. Swipe a card up to close it (with undo). Pinned tabs show a pin and can't be swiped away." />
-                    <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button opens Bookmarks and History on top of the switcher; closing it takes you back." />
+                    <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button (or swiping the Pill right) opens Bookmarks and Downloads on top of the switcher; swiping the Pill up (or its clock button) opens History and Recently Closed. Each searches from a Pill at the bottom; swipe that Pill back the way the page came to return to the switcher." />
                     <GuideItem icon={<History size={18} />} title="New Tab" desc="The + button opens a fresh tab and zooms into it." />
-                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button opens Settings on top of the switcher." />
+                    <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button (or swiping the Pill left) opens Settings on top of the switcher. Search from the Pill at the bottom; swipe it right to go back up a level, and from the top level back to the switcher." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
                     <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; QR tools, Print and Add to Home screen; copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
@@ -219,7 +219,7 @@ export default function UserDocs() {
                     </div>
                     <GuideItem icon={<FolderHeart size={18} />} title="Nested Folders" desc="Create and manage folders to group related bookmarks together for easier access." />
                     <GuideItem icon={<RefreshCw size={18} />} title="Import &amp; Export" desc="Settings → Library → Import Bookmarks brings bookmarks from Chrome, Firefox, Edge or Safari: choose their exported bookmarks file, or paste its contents. Export Bookmarks saves yours to a file any browser can import." />
-                    <GuideItem icon={<Search size={18} />} title="Instant Search" desc="Quickly find any saved bookmark by typing in the search bar at the top of the Bookmarks view." />
+                    <GuideItem icon={<Search size={18} />} title="Instant Search" desc="Quickly find any saved bookmark by typing in the search Pill at the bottom of the Bookmarks view." />
                   </div>
                 </div>
                 <DeviceMockup src="/images/bookmarks.jpg" color="pink" />
@@ -247,11 +247,11 @@ export default function UserDocs() {
                     <GuideItem icon={<Trash2 size={18} />} title="Partial Deletion" desc="Swipe left on any history item to remove it individually without affecting the rest of your data." />
                     <GuideItem icon={<RefreshCw size={18} />} title="Clear Ranges" desc="Wipe your history for the last hour, day, week, four weeks, or all time via the ⋮ menu in History." />
                     <div id="recently-closed">
-                      <GuideItem icon={<Layers size={18} />} title="Recently Closed" desc="Tabs you closed this session are at the top of History: tap one to open it again where it was. They're kept in memory only, and never from incognito." />
+                      <GuideItem icon={<Layers size={18} />} title="Recently Closed" desc="Tabs you closed this session are listed in History's Recently Closed section (swipe up on the tab switcher's Pill, or tap its clock button). They show as cards with the page as it was; tap one to open it again where it was, or clear them all from the ⋮ menu. They're kept until mi closes (or longer: see Keep Recently Closed), and never from incognito." />
                     </div>
                     <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored only in the app's private storage on your device." />
                     <div id="downloads">
-                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="The third tab beside Bookmarks and History, grouped by day. Downloads in progress show their progress, with pause and cancel (they keep going when you leave mi, with a notification); finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. Files you delete elsewhere leave the list." />
+                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="Beside Bookmarks in the Library, grouped by day. Downloads in progress show their progress, with pause and cancel (they keep going when you leave mi, with a notification); finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. Files you delete elsewhere leave the list." />
                     </div>
                   </div>
                 </div>
@@ -282,18 +282,19 @@ export default function UserDocs() {
               <div className="grid gap-12">
                 <SettingsSection title="Look & Feel" icon={<Palette size={20} />}>
                   <SettingItem title="Theme" desc="Choose Light, Dark, or System (follows your device's dark mode)." />
-                  <SettingItem title="Pure Black" desc="In dark mode, use true black backgrounds. Saves battery on OLED screens; cards and the Pill stay a shade lighter." />
+                  <SettingItem title="Pure Black" desc="In dark mode, use true black backgrounds. Saves battery on OLED screens; the tab switcher is black too, while cards and the Pill stay a shade lighter." />
                   <SettingItem title="Accent Color" desc="Adaptive (your wallpaper colors, Android 12+), Gray, Blue, Green, Red, Orange, Yellow, or Purple. The full Material 3 color scheme is generated from your choice." />
                   <SettingItem title="Font Size" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
-                  <SettingItem title="Rounded Font" desc="Rounds the stroke ends of Google Sans Flex across the whole interface. The mi. logo is always rounded." />
+                  <SettingItem title="Font" desc="Standard (Google Sans Flex), Rounded (its rounded stroke ends) or System (your phone's own font). The mi. logo is always rounded." />
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
-                  <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look." />
+                  <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look. With it hidden, pages still start below the camera cutout and scroll behind it." />
                   <SettingItem title="Haptic Feedback" desc="A light tap when a gesture is about to act: a swipe on a list row, the Pill opening the tab switcher or going back and forward, pull to refresh, closing a tab card, and long presses. On by default." />
                 </SettingsSection>
 
                 <SettingsSection title="Pill" icon={<Navigation size={20} />}>
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
+                  <SettingItem title="Hide on Scroll" desc="On (the default), scrolling down a page tucks the Pill into the recall button and scrolling up brings it back. Off, it stays put; you can still swipe it down." />
                   <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
                   <SettingItem title="Expand Searches" desc="Opens the search drawer fully when you tap the Pill." />
                 </SettingsSection>
@@ -323,6 +324,7 @@ export default function UserDocs() {
 
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
+                  <SettingItem title="Keep Recently Closed" desc="How long tabs you close stay in History's Recently Closed: until mi closes (the default), 1 hour, 1 day or 1 week. Longer than this session, they're saved on your device so they outlast a restart. Incognito tabs are never kept." />
                   <SettingItem title="Site Icons on Tabs" desc="Toggles the visibility of website icons (favicons) in the bookmarks list. When disabled, a letter avatar is shown." />
                   <SettingItem title="Background Refresh" desc="When enabled, all tabs load when mi starts instead of when opened, for instant switching. Uses more battery and data." />
                 </SettingsSection>
@@ -373,6 +375,7 @@ export default function UserDocs() {
 
                 <SettingsSection title="About" icon={<BookOpen size={20} />}>
                   <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
+                  <SettingItem title="Gesture Walkthrough" desc="A hands-on tour of every gesture, shown once on first launch or after updating: the Pill, your tabs, the Library, Settings and History. Open it here to go through it again." />
                   <SettingItem title="Check for Updates" desc="Look for a new release now. mi also checks on its own, at most twice a day." />
                   <SettingItem title="Privacy Policy" desc="mi collects no personal data. The full policy is on this site." />
                   <SettingItem title="Credits" desc="The open-source projects and filter lists mi is built with, and their licenses." />

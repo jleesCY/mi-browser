@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ui.common.blockTouches
 import com.jlees.mibrowser.ui.common.*
-import com.jlees.mibrowser.ui.panGesture
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.Date

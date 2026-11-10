@@ -50,8 +50,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.platform.LocalContext
 import com.jlees.mibrowser.logic.DYNAMIC_ACCENT
 import com.jlees.mibrowser.logic.GRAY_ACCENT
-import com.jlees.mibrowser.ui.common.sansFlex
-import com.jlees.mibrowser.ui.common.sansFlexTypography
+import com.jlees.mibrowser.ui.common.appFont
+import com.jlees.mibrowser.onboarding.GestureWalkthrough
+import com.jlees.mibrowser.ui.common.appTypography
 import com.materialkolor.PaletteStyle
 import com.materialkolor.rememberDynamicColorScheme
 import androidx.compose.ui.draw.clipToBounds
@@ -97,8 +98,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         style = if (s.accentColor == GRAY_ACCENT) PaletteStyle.Monochrome else PaletteStyle.Vibrant,
     )
     val scheme = if (dark && s.pureBlack) remember(baseScheme) { pureBlack(baseScheme) } else baseScheme
-    val ui = UiConfig(scheme, dark, s.cornerRadius, s.fontScale, s.uiPadding, sansFlex(s.roundedFont))
-    MaterialExpressiveTheme(colorScheme = scheme, motionScheme = MotionScheme.expressive(), typography = sansFlexTypography(s.roundedFont)) {
+    val ui = UiConfig(scheme, dark, s.cornerRadius, s.fontScale, s.uiPadding, appFont(s.font), pureBlack = dark && s.pureBlack)
+    MaterialExpressiveTheme(colorScheme = scheme, motionScheme = MotionScheme.expressive(), typography = appTypography(s.font)) {
     CompositionLocalProvider(LocalUi provides ui) {
     IncognitoTextInput(incognito = { vm.tabs.current?.incognito == true }) {
         val scope = rememberCoroutineScope()
@@ -111,7 +112,9 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         val imeInsets = WindowInsets.ime
         val imeDp = { imeInsets.getBottom(density) / d }
         val imeTargetDp = WindowInsets.imeAnimationTarget.getBottom(density) / d
-        val statusDp = WindowInsets.statusBars.getTop(density) / d
+        // the top that's safe to draw in: the status bar's height, or with it hidden, the camera cutout's (else pages and
+        // sheets would sit behind the camera)
+        val statusDp = maxOf(WindowInsets.statusBars.getTop(density), WindowInsets.displayCutout.getTop(density)) / d
         val navDp = WindowInsets.navigationBars.getBottom(density) / d
         val kbVisible = WindowInsets.isImeVisible
         val fullscreen = host.customView != null
@@ -183,12 +186,17 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             // resting at 0 flashed it fully open for a frame before the slide began.
             val sheetX = remember { Animatable(1f) }
             var sheetShown by remember { mutableStateOf(false) }
-            fun sideOf(view: Sheet) = if (view == Sheet.SETTINGS || view == Sheet.SITE) 1f else -1f
+            // History comes up from the bottom (1 = below the screen; see OverlaySheet's fromBottom)
+            fun sideOf(view: Sheet) = if (view == Sheet.SETTINGS || view == Sheet.SITE || view == Sheet.HISTORY || view == Sheet.RECENTLY_CLOSED) 1f else -1f
             LaunchedEffect(vm.activeView) {
-                if (vm.activeView != Sheet.NONE && !sheetShown) { // not when switching Bookmarks ⇄ History
+                if (vm.activeView != Sheet.NONE && !sheetShown) { // not when switching Bookmarks ⇄ Downloads
                     sheetShown = true
                     sheetX.snapTo(sideOf(vm.activeView))
                     sheetX.animateTo(0f, Motion.switcher)
+                } else if (vm.activeView == Sheet.NONE && sheetShown) {
+                    // closed without its slide (e.g. the Quick Guide finishing): rest off screen, so the next one slides in
+                    sheetShown = false
+                    sheetX.snapTo(1f)
                 }
             }
             // ✕, Back or picking an item: slide back out to the side it came from
@@ -222,14 +230,18 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
             // ---- page content
             Box(
-                Modifier.fillMaxSize().padding(top = if (s.showStatusBar && !fullscreen) statusDp.dp else 0.dp).paddingDp(bottom = { if (fullscreen) 0f else imeDp() })
+                // with the status bar hidden, pages run behind the camera cutout and leave the space themselves (TopInset); with it
+                // shown they start below it
+                Modifier.fillMaxSize().padding(top = if (!fullscreen && s.showStatusBar) statusDp.dp else 0.dp).paddingDp(bottom = { if (fullscreen) 0f else imeDp() })
                     .onGloballyPositioned { vm.switcher.pageBounds = it.boundsInWindow() }
                     .graphicsLayer { switcherZoom(vm, this) }
                     .drawWithContent { switcherOverlay(vm, this, ui.cs.primary) { host.errors[it] != null } }
                     .clipToBounds(),
             ) {
                 val tab = vm.tabs.current
-                if (tab != null && tab.isHome) {
+                // mi's own pages (the blank tab, error pages) leave the camera cutout's space as web pages do
+                val cutoutPad = if (!fullscreen && !s.showStatusBar) statusDp.dp else 0.dp
+                if (tab != null && tab.isHome) Box(Modifier.fillMaxSize().background(com.jlees.mibrowser.home.homeBackground(tab.incognito)).padding(top = cutoutPad)) {
                     HomePage(vm, onAction = { a ->
                         when (a) {
                             HomeShortcut.NEW_TAB -> vm.addNewTab()
@@ -240,13 +252,16 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     })
                 } else if (tab != null && tab.hasLoadedOnce) {
                     key(tab.id, host.generation) {
+                        // re-synced only when what the WebView uses changes (the page to load, desktop mode; the settings
+                        // sync reads are watched too), not on every title or loading update of the tab
+                        val syncKey by remember(tab.id) { derivedStateOf { vm.tabs[tab.id]?.let { Triple(it.requestedUrl, it.loadNonce, it.desktopMode) } } }
                         AndroidView(
                             factory = { host.sync(tab).also { (it.parent as? ViewGroup)?.removeView(it) } },
-                            update = { vm.tabs.list.firstOrNull { it.id == tab.id }?.let { t -> host.sync(t) } },
+                            update = { syncKey; androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { vm.tabs[tab.id] }?.let { t -> host.sync(t) } },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                    host.errors[tab.id]?.let { err ->
+                    host.errors[tab.id]?.let { err -> Box(Modifier.fillMaxSize().background(ui.cs.surface).padding(top = cutoutPad)) {
                         ErrorPage(
                             err, tab.url,
                             onRetry = { host.retry(tab.id) },
@@ -254,7 +269,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                             onProceed = { host.proceedUnsafe(tab.id) },
                             onContinueHttp = { host.continueOverHttp(tab.id) },
                         )
-                    }
+                    } }
                     if (vm.isInputFocused) Box(Modifier.fillMaxSize().zIndex(99f).blockTouches { focusManager.clearFocus() })
                 }
             }
@@ -276,13 +291,32 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
                 // above the tab switcher (zIndex 150) when opened from it; closing returns to the switcher
                 if (vm.activeView != Sheet.NONE) Box(Modifier.fillMaxSize().zIndex(160f)) {
-                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.HISTORY || vm.activeView == Sheet.DOWNLOADS
-                    val header: (@Composable () -> Unit)? = if (library) { {
-                        ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.HISTORY.name to "History", Sheet.DOWNLOADS.name to "Downloads"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) }
-                    } } else if (vm.activeView == Sheet.SITE) { { Txt("Site Settings", 28f, ui.cs.onSurface, ui.extrabold) } } else null
-                    OverlaySheet(sheetX, statusDp, imeDp, closeOverlay, header) {
+                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.DOWNLOADS
+                    val history = vm.activeView == Sheet.HISTORY || vm.activeView == Sheet.RECENTLY_CLOSED
+                    val header: (@Composable () -> Unit)? = if (library) { { Txt("Library", 28f, ui.cs.onSurface, ui.extrabold) } } else if (vm.activeView == Sheet.SITE) { { Txt("Site Settings", 28f, ui.cs.onSurface, ui.extrabold) } }
+                    else if (history) { { Txt("History", 28f, ui.cs.onSurface, ui.extrabold) } } else null
+                    val side = sideOf(vm.activeView)
+                    OverlaySheet(
+                        sheetX, statusDp, imeDp, closeOverlay,
+                        // swiping the view's search Pill pushes the sheet back out the way it came, with the finger
+                        backTowardEnd = side > 0,
+                        fromBottom = history,
+                        onBackDrag = { p -> scope.launch { sheetX.snapTo(side * p) } },
+                        onBackRelease = { close -> if (close) closeOverlay() else scope.launch { sheetX.animateTo(0f, Motion.switcher) } },
+                        // opened from the switcher: the search Pill grows out of the switcher's Pill, and back into it
+                        morphFrom = { if (vm.switcherVisible) vm.switcher.barPill else null },
+                        morphContent = { com.jlees.mibrowser.tabs.SwitcherPillButtons({}, {}) },
+                        header = header,
+                        // the page's two sections, under its title
+                        belowHeader = when {
+                            library -> { { ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.DOWNLOADS.name to "Downloads"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
+                            history -> { { ConnectedChoice(listOf(Sheet.HISTORY.name to "History", Sheet.RECENTLY_CLOSED.name to "Recently Closed"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
+                            else -> null
+                        },
+                    ) {
                         when (vm.activeView) {
                             Sheet.HISTORY -> HistoryView(vm, closeOverlay)
+                            Sheet.RECENTLY_CLOSED -> com.jlees.mibrowser.library.RecentlyClosedView(vm, closeOverlay)
                             Sheet.BOOKMARKS -> BookmarksView(vm, kbVisible, closeOverlay)
                             Sheet.DOWNLOADS -> DownloadsView(vm)
                             Sheet.SETTINGS -> SettingsView(vm, closeOverlay)
@@ -295,7 +329,15 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
             if (!fullscreen) PullIndicator(vm, statusDp)
             if (!fullscreen) ZoomingTabHeader(vm)
-            if (!fullscreen) TabSwitcher(vm, navDp, statusDp, errorFor = { host.errors[it] })
+            if (!fullscreen) TabSwitcher(
+                vm, navDp, statusDp, errorFor = { host.errors[it] },
+                // a swipe on the switcher's Pill pulls Library / Settings in with the finger, then settles it open or shut
+                dragSheet = { view, p ->
+                    if (vm.activeView != view) { sheetShown = true; vm.openView(view) } // shown: the open animation doesn't run
+                    scope.launch { sheetX.snapTo(sideOf(view) * (1f - p)) }
+                },
+                releaseSheet = { open -> if (open) scope.launch { sheetX.animateTo(0f, Motion.switcher) } else closeOverlay() },
+            )
 
 
             QrScanner(vm)
@@ -305,6 +347,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             AuthDialog(vm)
             ContextMenu(vm, onSaveImage = { url -> saveImageFromUrl(activity, vm, url) })
             CustomAlert(vm.alert, onButton = { vm.alert = null }, onCancel = { vm.alert?.onCancel?.invoke(); vm.alert = null })
+            GestureWalkthrough(vm)
 
             host.customView?.let { v ->
                 AndroidView(

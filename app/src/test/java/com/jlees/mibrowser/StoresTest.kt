@@ -12,6 +12,7 @@ import com.jlees.mibrowser.data.newTab
 import com.jlees.mibrowser.library.BookmarksStore
 import com.jlees.mibrowser.library.HistoryStore
 import com.jlees.mibrowser.tabs.TabsStore
+import com.jlees.mibrowser.data.KeepClosedTabs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -22,7 +23,8 @@ import java.nio.file.Files
 class StoresTest {
     private val store = JsonStore(Files.createTempDirectory("store").toFile())
     private val destroyed = mutableListOf<Set<String>>()
-    private val tabs = TabsStore(store) { destroyed += it }
+    private var keep = KeepClosedTabs.SESSION
+    private val tabs = TabsStore(store, { keep }) { destroyed += it }
 
     @Test fun closeAndUndo() {
         val a = newTab("https://a.com"); val b = newTab("https://b.com")
@@ -57,10 +59,50 @@ class StoresTest {
         tabs.open(a)
         tabs.open(newTab("https://secret.com").copy(profile = newIncognitoProfile()))
         tabs.saver.writeNow()
-        val loaded = TabsStore(store) {}
+        val loaded = TabsStore(store, { keep }) {}
         loaded.load(null, StartupTabs.LAST, backgroundRefresh = false)
         assertEquals(listOf(a.id), loaded.list.map { it.id })
         assertEquals(a.id, loaded.activeId) // the incognito tab was active: the latest saved one shows instead
+    }
+
+    @Test fun recentlyClosedKeepsItsPreviewUntilForgotten() {
+        // its card in History shows the page as it was: the snapshot file stays while the tab is listed there
+        val file = Files.createTempFile("preview_", ".jpg").toFile()
+        val a = newTab("https://a.com").copy(previewImage = file.path)
+        tabs.open(a); tabs.open(newTab("https://b.com"))
+        tabs.close(setOf(a.id))
+        assertTrue(file.exists()); assertEquals(file.path, tabs.recentlyClosed.single().previewImage)
+        tabs.forgetClosed(a.id)
+        assertTrue(!file.exists())
+    }
+
+    @Test fun expiredRecentlyClosedTabsAreDeletedWithTheirPreview() {
+        var time = 1_000_000L
+        val timed = TabsStore(store, { KeepClosedTabs.HOUR }, { time }) {}
+        val file = Files.createTempFile("preview_", ".jpg").toFile()
+        val a = newTab("https://a.com").copy(previewImage = file.path)
+        timed.open(a); timed.open(newTab("https://b.com"))
+        timed.close(setOf(a.id))
+        timed.pruneExpired()
+        assertEquals(listOf(a.id), timed.recentlyClosed.map { it.id }) // within the hour: kept, with its preview
+        assertTrue(file.exists())
+        time += 3_600_001 // an hour on: gone from the list and from disk, not just hidden
+        timed.pruneExpired()
+        assertTrue(timed.recentlyClosed.isEmpty()); assertTrue(!file.exists())
+    }
+
+    @Test fun recentlyClosedIsSavedOnlyWhenKeptPastTheSession() {
+        val a = newTab("https://a.com"); tabs.open(a); tabs.open(newTab("https://b.com"))
+        tabs.close(setOf(a.id))
+        // Until mi Closes: nothing is written, so a restart starts empty
+        tabs.closedSaver.writeNow()
+        assertEquals(emptyList<String>(), TabsStore(store, { KeepClosedTabs.DAY }) {}.apply { load(null, StartupTabs.NEW, false) }.recentlyClosed.map { it.id })
+        // 1 Day: saved, and back after a restart
+        keep = KeepClosedTabs.DAY
+        tabs.closedSaver.writeNow()
+        assertEquals(listOf(a.id), TabsStore(store, { KeepClosedTabs.DAY }) {}.apply { load(null, StartupTabs.NEW, false) }.recentlyClosed.map { it.id })
+        // switched back to Until mi Closes: a restart doesn't read them
+        assertEquals(emptyList<String>(), TabsStore(store, { KeepClosedTabs.SESSION }) {}.apply { load(null, StartupTabs.NEW, false) }.recentlyClosed.map { it.id })
     }
 
     @Test fun historyAndBookmarksSaveAndLoad() {

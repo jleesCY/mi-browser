@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jlees.mibrowser.R
+import com.jlees.mibrowser.data.AppFont
 
 /** Google Sans Flex (M3 Expressive typeface). The heaviest weight uses the rounded (ROND) axis for display text. */
 private fun gsf(w: Int, rond: Float = 0f) = Font(
@@ -61,11 +62,18 @@ private val SansFlexRounded = FontFamily(gsf(400, 100f), gsf(500, 100f), gsf(600
 /** Google Sans Flex; [rounded] turns on the ROND axis (rounded stroke ends) for every weight. */
 fun sansFlex(rounded: Boolean) = if (rounded) SansFlexRounded else SansFlexStandard
 
-private val typographyCache = HashMap<Boolean, androidx.compose.material3.Typography>()
+/** The family for the user's Font setting: SYSTEM is the phone's own font. */
+fun appFont(font: AppFont) = when (font) {
+    AppFont.STANDARD -> SansFlexStandard
+    AppFont.ROUNDED -> SansFlexRounded
+    AppFont.SYSTEM -> FontFamily.Default
+}
 
-/** M3 type scale set in Google Sans Flex. */
-fun sansFlexTypography(rounded: Boolean) = typographyCache.getOrPut(rounded) { androidx.compose.material3.Typography().run {
-    val family = sansFlex(rounded)
+private val typographyCache = HashMap<AppFont, androidx.compose.material3.Typography>()
+
+/** The M3 type scale set in the user's font. */
+fun appTypography(font: AppFont) = typographyCache.getOrPut(font) { androidx.compose.material3.Typography().run {
+    val family = appFont(font)
     fun TextStyle.f() = copy(fontFamily = family)
     copy(
         displayLarge.f(), displayMedium.f(), displaySmall.f(), headlineLarge.f(), headlineMedium.f(), headlineSmall.f(),
@@ -83,6 +91,7 @@ object Motion {
     fun <T> spatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.8f, stiffness = 380f)     // settles, resets
     fun <T> noBounce(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 600f)      // drawer: never past max
     fun <T> playful(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.5f, stiffness = 300f)     // fidget logo
+    fun <T> springBack(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.45f, stiffness = 500f) // the Pill settling after a drag
 }
 
 /** App-wide styling inputs: the M3 color scheme plus the user's shape/size/density/weight settings. */
@@ -94,6 +103,8 @@ data class UiConfig(
     val fontScale: Float = 1f,
     val padding: Spacing = Spacing.NORMAL,
     val font: FontFamily = sansFlex(false),
+    /** Pure Black (OLED) is on and showing: backgrounds that fill the screen are true black. */
+    val pureBlack: Boolean = false,
 ) {
     // Type weights
     val regular get() = FontWeight.W400
@@ -166,11 +177,20 @@ fun rowMargin(padding: Spacing): Float = when (padding) { Spacing.COMPACT -> 8f;
 @androidx.compose.runtime.Composable
 fun libraryRowShape() = androidx.compose.foundation.shape.RoundedCornerShape(LocalUi.current.radius.dp)
 
+/** The Pill's outer bar (and every Pill-shaped bar copying it: the sheets' search Pill, the guide's). */
+val UiConfig.pillBar: Color get() = if (isDark) cs.surfaceContainerHigh else androidx.compose.ui.graphics.lerp(cs.surfaceContainerHighest, cs.primaryContainer, 0.45f)
+/** The lighter field inside the Pill's bar (the search field, the find field). */
+val UiConfig.pillField: Color get() = if (isDark) cs.surfaceContainerHighest else androidx.compose.ui.graphics.lerp(cs.surfaceDim, cs.primaryContainer, 0.4f)
+
+/** A row tile's fill: a step darker than the row, but not Pure Black's black (a hole in a grey row). */
+@androidx.compose.runtime.Composable
+fun rowTileColor() = LocalUi.current.let { if (it.pureBlack) it.cs.surfaceContainer else it.cs.surfaceContainerLow }
+
 /** A Library row's leading tile: a 44dp circle (a folder passes its own [shape] and colour) holding an icon. */
 @androidx.compose.runtime.Composable
 fun RowIconTile(
     modifier: Modifier = Modifier, shape: androidx.compose.ui.graphics.Shape = androidx.compose.foundation.shape.CircleShape,
-    color: Color = LocalUi.current.cs.surfaceContainerLow, content: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+    color: Color = rowTileColor(), content: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) = androidx.compose.foundation.layout.Box(
     modifier.padding(end = 15.dp).size(44.dp).clip(shape).background(color),
     contentAlignment = Alignment.Center, content = content,

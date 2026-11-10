@@ -18,6 +18,12 @@ data class Release(val version: String, val apkUrl: String)
 object Updates {
     private const val LATEST = "https://api.github.com/repos/jleescy/mi-browser/releases/latest"
 
+    /**
+     * Whether the launch check should ask GitHub now. [lastNothingNew] is when a check last found nothing new: the next
+     * waits 12 hours. (A found update doesn't start the wait, so it's offered again at every launch.)
+     */
+    fun dueForCheck(now: Long, lastNothingNew: Long) = now - lastNothingNew >= 12 * 3_600_000L
+
     /** True when [candidate] ("v1.2.3", "1.2.3-beta") is a higher x.y.z than [current]. */
     fun isNewer(candidate: String, current: String): Boolean {
         fun parts(v: String) = v.trim().removePrefix("v").substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }

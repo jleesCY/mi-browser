@@ -42,7 +42,7 @@ object DataTransfer {
             }
         }
         raw ?: throw ImportError("Invalid Data", "The selected file does not contain valid app data.")
-        val obj = json.parseToJsonElement(String(raw!!)).jsonObject
+        val obj = json.parseToJsonElement(String(raw)).jsonObject
         val settingsEl = obj["settings"]?.takeIf { it is JsonObject } ?: throw ImportError("Invalid Data", "Structure mismatch.")
         return json.decodeFromJsonElement<Settings>(settingsEl)
     }

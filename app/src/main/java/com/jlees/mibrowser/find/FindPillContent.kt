@@ -17,7 +17,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -44,7 +43,7 @@ fun FindPillContent(find: FindInPage, cornerRadius: Int) {
         val fieldShape = RoundedCornerShape((cornerRadius * 1.5f).dp)
         Row(
             Modifier.weight(1f).height((PILL_HEIGHT * 0.7f).dp).clip(fieldShape)
-                .background(if (ui.isDark) ui.cs.surfaceContainerHighest else lerp(ui.cs.surfaceDim, ui.cs.primaryContainer, 0.4f)),
+                .background(ui.pillField),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Sym("search", 20f, ui.cs.onSurfaceVariant, Modifier.padding(start = 14.dp))

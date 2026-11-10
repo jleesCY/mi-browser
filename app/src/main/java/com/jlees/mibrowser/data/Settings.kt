@@ -21,6 +21,11 @@ interface Choice { val label: String }
     @SerialName("compact") COMPACT("Compact"), @SerialName("normal") NORMAL("Normal"), @SerialName("airy") AIRY("Airy")
 }
 
+/** The typeface for mi's own text: Google Sans Flex, its rounded variant, or the phone's own font. */
+@Serializable enum class AppFont(override val label: String) : Choice {
+    @SerialName("sans_flex") STANDARD("Standard"), @SerialName("rounded") ROUNDED("Rounded"), @SerialName("system") SYSTEM("System")
+}
+
 /** The loading fill behind the Pill's address. */
 @Serializable enum class LoadingBar(override val label: String) : Choice {
     @SerialName("ltr") STANDARD("Standard"), @SerialName("center") CENTER("Center Out"), @SerialName("none") HIDDEN("Hidden")
@@ -33,6 +38,12 @@ interface Choice { val label: String }
 @Serializable enum class DownloadHandler(override val label: String) : Choice {
     // a saved "app" (the removed Another App choice) loads as the default, mi
     @SerialName("mi") MI("mi"), @SerialName("android") ANDROID("Android"),
+}
+
+/** How long History's Recently Closed keeps a closed tab. Past SESSION they're saved, so they outlast a restart (never incognito tabs). */
+@Serializable enum class KeepClosedTabs(override val label: String, val ms: Long) : Choice {
+    @SerialName("session") SESSION("Until mi Closes", 0), @SerialName("hour") HOUR("1 Hour", 3_600_000), @SerialName("day") DAY("1 Day", 86_400_000),
+    @SerialName("week") WEEK("1 Week", 604_800_000),
 }
 
 @Serializable enum class StartupTabs(override val label: String) : Choice {
@@ -89,17 +100,24 @@ data class Settings(
     val cornerRadius: Int = 28, // 0 | 12 | 28
     val uiPadding: Spacing = Spacing.NORMAL,
     val fontScale: Float = 1f,
-    val roundedFont: Boolean = false, // Google Sans Flex ROND axis
+    val font: AppFont = AppFont.STANDARD,
+    /** Before 1.6 (replaced by [font]); read once by the v4 migration. */
+    val roundedFont: Boolean = false,
+    /** The Quick Guide was shown (or skipped). Until then it shows at start, for new and existing users alike. */
+    @SerialName("quickGuideSeen") val walkthroughSeen: Boolean = false, // its saved name from before the rename
     val showStatusBar: Boolean = true,
     val progressBarMode: LoadingBar = LoadingBar.STANDARD,
     val recallPosition: RecallPosition = RecallPosition.CENTER, // set by swiping the recall handle sideways
     val startupTabMode: StartupTabs = StartupTabs.NEW,
+    val keepClosedTabs: KeepClosedTabs = KeepClosedTabs.SESSION,
     val showTabLogo: Boolean = true,
     val showBookmarkIcons: Boolean = true,
     val desktopMode: Boolean = false,
     val readerModeEnabled: Boolean = false,
     val recentSearchesExpanded: Boolean = false,
     val showFavoritesDefault: Boolean = false,
+    /** Scrolling a page down hides the Pill (into the recall button), scrolling up brings it back. */
+    val hidePillOnScroll: Boolean = true,
     val jsEnabled: Boolean = true,
     val httpsOnly: Boolean = true,
     /** With HTTPS Only: ask before every visit to an insecure site (off: continuing lets the site through for the session). */
@@ -126,7 +144,6 @@ data class Settings(
     val homeLogoType: HomeLogo = HomeLogo.FIDGET,
     val showHomeShortcuts: Boolean = false,
     val homeShortcutAction: HomeShortcut = HomeShortcut.QR,
-    val skippedUpdate: String? = null, // release version the user chose to skip
     /** Sites allowed to open pop-ups without a tap (pop-ups opened by a tap are always allowed). */
     val popupSites: List<String> = emptyList(),
     /** Text size on web pages, in percent (WebSettings.textZoom). Separate from the app's own font size. */
@@ -138,6 +155,7 @@ data class Settings(
     /** Bumped when a default changes for existing installs; see BrowserViewModel.migrate. */
     val settingsVersion: Int = 0,
 ) {
+
     /** Load-time sanitising. */
     fun sanitized() = copy(searchEngineIndex = if (searchEngineIndex in SEARCH_ENGINES.indices || (searchEngineIndex == SEARCH_ENGINES.size && isValidSearchTemplate(customSearchUrl))) searchEngineIndex else 0)
 }
@@ -151,5 +169,7 @@ fun Settings.migrated(): Settings {
     if (m.settingsVersion < 2) m = m.copy(blockAds = m.blockTrackers, hideCookieBanners = m.hideCookieBanners && m.blockTrackers, settingsVersion = 2)
     // 1.5: HTTPS Only (with Warn Every Time) is on by default, existing installs included, once
     if (m.settingsVersion < 3) m = m.copy(httpsOnly = true, httpsWarnEveryTime = true, settingsVersion = 3)
+    // 1.6: the Rounded Font switch became the Font choice
+    if (m.settingsVersion < 4) m = m.copy(font = if (m.roundedFont) AppFont.ROUNDED else m.font, settingsVersion = 4)
     return m
 }

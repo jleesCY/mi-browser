@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +65,11 @@ fun SwipeActionRow(
     var deleting by remember { mutableStateOf(false) }
     val haptics = LocalHaptics.current
     var armed by remember { mutableStateOf(false) } // past the point where releasing acts: a tick when this changes
+    // the spring back runs on its own, not in the drag handler (which would hold the next drag until it ended): grabbing
+    // the row again stops it, and the new drag carries on from wherever the row is
+    val settleScope = rememberCoroutineScope()
+    val settling = remember { arrayOfNulls<kotlinx.coroutines.Job>(1) }
+    fun springBack(v: Float) { settling[0] = settleScope.launch { settle(tx, v) { tx = it } } }
     val deleteBg = ui.cs.errorContainer
     val editBg = ui.cs.primaryContainer
     val slot = if (slotHeight != null) Modifier.heightDp { slotHeight.value * shrink.value }.graphicsLayer { alpha = shrink.value } else Modifier
@@ -101,12 +107,13 @@ fun SwipeActionRow(
                         if (now != armed) { armed = now; haptics?.tick() }
                     },
                     Orientation.Horizontal, enabled = !deleting,
+                    onDragStarted = { settling[0]?.cancel() },
                     onDragStopped = { v ->
                         armed = false
                         when {
                             confirmDelete && (tx < -wPx * 0.25f || (v < -1200f && tx < -wPx * 0.08f)) -> {
                                 onDelete()
-                                settle(tx, v) { tx = it }
+                                springBack(v)
                             }
                             tx < -wPx * 0.25f || (v < -1200f && tx < -wPx * 0.08f) -> {
                                 deleting = true
@@ -116,9 +123,9 @@ fun SwipeActionRow(
                             }
                             onEdit != null && (tx > wPx * 0.25f || (v > 1200f && tx > wPx * 0.08f)) -> {
                                 onEdit()
-                                settle(tx, v) { tx = it }
+                                springBack(v)
                             }
-                            else -> settle(tx, v) { tx = it }
+                            else -> springBack(v)
                         }
                     },
                 ),

@@ -19,6 +19,7 @@ import com.jlees.mibrowser.tabs.SwitcherTransition
 
 import com.jlees.mibrowser.library.BookmarksStore
 import com.jlees.mibrowser.library.HistoryStore
+import com.jlees.mibrowser.library.isNewVisit
 import com.jlees.mibrowser.tabs.TabsStore
 
 import com.jlees.mibrowser.tabs.closeTabs
@@ -31,8 +32,6 @@ import androidx.compose.runtime.derivedStateOf
 import com.jlees.mibrowser.search.allBangs
 import androidx.compose.runtime.mutableFloatStateOf
 import com.jlees.mibrowser.search.searchEngine
-import com.jlees.mibrowser.ui.common.clearImageCache
-import com.jlees.mibrowser.data.Favicons
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +61,8 @@ data class ConfirmData(val action: ConfirmAction, val ms: Long = 0, val label: S
 enum class LaunchAction { NEW_TAB, NEW_INCOGNITO_TAB, SEARCH }
 
 /** The full-screen sheet over the browser, if any. */
-enum class Sheet { NONE, BOOKMARKS, HISTORY, DOWNLOADS, SETTINGS, SITE }
+/** The full-screen pages. The Library is BOOKMARKS / DOWNLOADS; History is HISTORY / RECENTLY_CLOSED. */
+enum class Sheet { NONE, BOOKMARKS, HISTORY, RECENTLY_CLOSED, DOWNLOADS, SETTINGS, SITE }
 
 /** A site asked for a username and password (HTTP authentication). */
 data class AuthRequest(val host: String, val realm: String, val insecure: Boolean, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
@@ -96,8 +96,8 @@ sealed interface UiEvent {
 }
 
 class BrowserViewModel(app: Application) : AndroidViewModel(app) {
-    private val store = JsonStore(File(app.filesDir, "store"))
-    private val cacheDir = app.cacheDir
+    internal val store = JsonStore(File(app.filesDir, "store"))
+    internal val cacheDir = app.cacheDir
     val web = MutableSharedFlow<WebCmd>(extraBufferCapacity = 64)
     val ui = MutableSharedFlow<UiEvent>(extraBufferCapacity = 64)
 
@@ -109,7 +109,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     val httpAllowed = SiteExceptions()
     /** Sites (registrable domains) with ad blocking off in incognito tabs: in memory only, gone when incognito ends. */
     var incognitoAdAllowlist by mutableStateOf(setOf<String>())
-    val tabs = TabsStore(store) { web.tryEmit(WebCmd.Destroy(it)) }
+    val tabs = TabsStore(store, { settings.keepClosedTabs }) { web.tryEmit(WebCmd.Destroy(it)) }
     val history = HistoryStore(store)
     val bookmarks = BookmarksStore(store)
     val downloads = DownloadsStore(store)
@@ -122,7 +122,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var isInputFocused by mutableStateOf(false)
     var isLoading by mutableStateOf(false)
     var isSubMenuVisible by mutableStateOf(false)
-    var switcherVisible by mutableStateOf(false)
+    /** The tab switcher is up (see SwitcherTransition.visible: hiding it also ends its settled state). */
+    var switcherVisible: Boolean
+        get() = switcher.visible
+        set(v) { switcher.visible = v }
     var qrScannerVisible by mutableStateOf(false)
     var qrGeneratorVisible by mutableStateOf(false)
     var bookmarksAutoAdd by mutableStateOf(false)
@@ -195,39 +198,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         web.tryEmit(WebCmd.RecreateAll)
     }
 
-    /** Startup cleanup of files that outlive their use: orphaned tab previews, camera captures for uploads, shared
-     *  QR images, a downloaded update APK, and home background images (a feature that was removed). */
-    private fun sweepFiles() {
-        val previews = tabs.list.mapNotNull { it.previewImage }.toSet()
-        viewModelScope.launch(Dispatchers.IO) {
-            cacheDir.listFiles()?.forEach { f ->
-                val stale = (f.name.startsWith("preview_") && f.path !in previews) ||
-                    f.name.startsWith("capture_") || f.name.startsWith("qrcode_share_") || f.name == "updates"
-                if (stale) f.deleteRecursively()
-            }
-            getApplication<Application>().filesDir.listFiles { f -> f.name.startsWith("home_bg_") || f.name.startsWith("bg_") }
-                ?.forEach { it.delete() }
-        }
-    }
-
     /** Every stored file; each store owns its own (incognito tabs are never written: they don't survive the app). */
-    private val savers = listOf(Saver(0, { settings }) { store.write("settings", Settings.serializer(), it) }, tabs.saver) +
+    private val savers = listOf(Saver(0, { settings }) { store.write("settings", Settings.serializer(), it) }, tabs.saver, tabs.closedSaver) +
         history.savers + bookmarks.savers + downloads.savers
 
     /** Writes everything now (before mi ends its process after incognito use). */
     fun saveNow() = savers.forEach { it.writeNow() }
-
-    /**
-     * Settings → Privacy → Clear on Exit: all browsing data goes when mi closes: history and recent searches, open and
-     * recently closed tabs (pinned tabs stay: pinning is the user saying "keep this one"), and cookies, site data and
-     * cache through [clearSiteData] (the WebView host, which the caller reaches its own way at start and at exit).
-     */
-    fun clearOnExit(clearSiteData: () -> Unit) {
-        history.clear()
-        closeTabs(tabsToClear(tabs.list, keepPinned = true))
-        tabs.dismissUndo(); tabs.forgetClosed()
-        clearSiteData()
-    }
 
     fun updateSettings(f: Settings.() -> Settings) { settings = settings.f() }
 
@@ -289,8 +265,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     /** Closed from the switcher or the tab menu: can be undone. */
     fun deleteTab(id: String) = closeTabs(setOf(id), undoable = true)
 
-
-
     fun clearHttpFallback(id: String) { if (tabs[id]?.httpFallback == true) tabs.update(id) { copy(httpFallback = false) } }
 
     /** History → Recently closed: the tab opens again, in front. */
@@ -319,8 +293,18 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         switcher.settled = false
         switcher.flyingTabId = null
         switcher.target = null
-        web.tryEmit(WebCmd.CapturePreview(tabs.activeId))
+        // no snapshot here: it's taken once the switcher settles (PillState), not on the gesture's first frames
         switcherVisible = true
+    }
+
+    /**
+     * Drops the tab switcher at once, with no zoom, and puts the Pill back in place (the Gesture Walkthrough ending over
+     * it). Runs in the ViewModel's scope: the caller may be leaving the screen, which would cancel its own.
+     */
+    fun closeSwitcherNow() {
+        isSubMenuVisible = false
+        switcherVisible = false
+        viewModelScope.launch { switcher.anim.snapTo(0f); ui.emit(UiEvent.ShowBar) }
     }
 
     fun clearAllTabs() {
@@ -332,7 +316,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Closes every tab ([keepPinned]: except pinned ones); with none left, starts over with one new tab. */
-    private fun resetTabs(keepPinned: Boolean) = closeTabs(tabsToClear(tabs.list, keepPinned))
+    internal fun resetTabs(keepPinned: Boolean) = closeTabs(tabsToClear(tabs.list, keepPinned))
 
     fun renameTab(id: String, text: String) {
         tabs.rename(id, text)
@@ -392,7 +376,11 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (id == tabs.activeId) {
             isLoading = loading
-            if (url != null && !loading && t.keepsTraces) history.add(url, tabTitle(title, url))
+            if (url != null && !loading && t.keepsTraces) {
+                // a new visit is recorded; the same page finishing again (a reload, a late title) only updates its title
+                if (isNewVisit(t.lastVisit, url) || history.items.firstOrNull()?.url == url) history.add(url, tabTitle(title, url))
+                if (t.lastVisit != url) tabs.update(id) { copy(lastVisit = url) }
+            }
             if (!isInputFocused && url != null) inputUrl = displayHost(url)
         }
     }
@@ -427,60 +415,6 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun showAlert(title: String, message: String, buttons: List<AlertButton> = listOf(AlertButton("OK")), onCancel: () -> Unit = {}) {
         alert?.onCancel?.invoke() // an unanswered prompt (e.g. a permission request) counts as declined
         alert = AlertData(title, message, buttons, onCancel)
-    }
-
-    // ---------------------------------------------------------------- confirm actions
-    fun confirmAction(c: ConfirmData) {
-        when (c.action) {
-            ConfirmAction.CLEAR_HISTORY -> { history.deleteRecent(c.ms); tabs.forgetClosed() }
-            ConfirmAction.RESET_SETTINGS -> resetSettings()
-            ConfirmAction.WIPE_DATA -> wipeData()
-            ConfirmAction.CLEAR_DATA -> web.tryEmit(WebCmd.ClearBrowsingData)
-        }
-        confirm = null
-    }
-
-    fun resetSettings() {
-        settings = Settings().migrated() // current version, so the next launch doesn't migrate it again
-        certExceptions.clear(); httpAllowed.clear()
-    }
-
-    private fun wipeData() {
-        resetSettings()
-        history.clear(); bookmarks.clear(); downloads.clear()
-        resetTabs(keepPinned = false) // erasing everything: pinned tabs go too
-        tabs.dismissUndo(); tabs.forgetClosed() // after closing them, or the wiped tabs would show as recently closed
-        viewModelScope.launch(Dispatchers.IO) {
-            delay(1200) // let the debounced savers flush the empty state first, then remove the files
-            store.clear()
-            cacheDir.listFiles()?.forEach { it.deleteRecursively() }
-        }
-        web.tryEmit(WebCmd.WipeWebData)
-        activeView = Sheet.NONE
-    }
-
-    /** Applies an imported .midata. */
-    fun applyImport(newSettings: Settings) { settings = newSettings.sanitized().migrated() }
-
-    /**
-     * Clear Browsing Data, beyond what WebView holds: tab snapshots (screenshots of pages), stored site icons and mi's
-     * own HTTP cache (icons, suggestions), all of which reveal what was browsed. Snapshots of open tabs are retaken the
-     * next time each tab is left.
-     */
-    fun clearBrowsingTraces() {
-        tabs.forgetClosed()
-        certExceptions.clear(); httpAllowed.clear() // granted this session
-        tabs.forgetPreviews()
-        suggestions.clear()
-        clearImageCache()
-        Favicons.clear()
-        viewModelScope.launch(Dispatchers.IO) {
-            cacheDir.listFiles { f -> f.name.startsWith("preview_") }?.forEach { it.delete() }
-            runCatching {
-                android.net.http.HttpResponseCache.getInstalled()?.delete() // uninstalls and deletes its contents
-                android.net.http.HttpResponseCache.install(File(cacheDir, "http"), 16L * 1024 * 1024)
-            }
-        }
     }
 
 }

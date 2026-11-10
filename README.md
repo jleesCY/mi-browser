@@ -31,12 +31,13 @@
 - **Pull down to refresh**, only ever from the very top of a page.
 - A loading-progress fill, a "Not secure" marker on unencrypted pages, and a favorites bar (drag to reorder; hold one to edit or delete it).
 - **Paste and go**: a link you just copied is offered when you tap the Pill.
-- When hidden, a small recall button brings it back; you can pin it left, centre or right.
+- Scrolling down (or a swipe down) tucks the Pill into a small recall button that brings it back; pin it left, centre or right, or turn **Hide on Scroll** off.
+- A **Gesture Walkthrough** shows every swipe hands-on the first time you open mi (and any time from Settings).
 
 ### Tab switcher
 - Swipe up and the page zooms out into its card, like your phone's recent apps. The card's title and icon follow it from the first moment.
 - Tabs are ordered by when you last used them, with live previews, on a soft gradient of your accent colour.
-- Swipe a card up to close it (with undo); tabs closed this session wait under **History → Recently closed**. **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
+- Swipe a card up to close it (with undo); Undo puts you back on it. Swipe the switcher's Pill up (or tap its clock button) for **History**, with this session's **Recently Closed** tabs beside it; swipe it right for the Library (Bookmarks and Downloads) and left for Settings, or down to open the tab you're looking at. Library, History and Settings search from a Pill at the bottom too: swipe it to go back (in Settings, up a level first); its ⋮ menu opens inside it. **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
 - The **tab menu** (⋮) has Favorite, Bookmark, Pin and Share; quick tiles for Desktop site, Reader mode and Find in page; and tools for QR codes, printing and home-screen shortcuts.
 - **Site settings**: tap the site at the top of the tab menu for its camera, microphone and location access, pop-ups, ad blocking, and to clear its data.
 - **Find in page**: the Pill turns into a find bar that counts the matches (`2/14`) as you step through them.
@@ -51,7 +52,7 @@
 - Sign-in and payment pop-ups (PayPal, Google), passkeys, Google Pay, HTTP sign-in prompts and client certificates.
 - Bookmarks with folders, drag to reorder and search: swipe right to edit, left to delete, and move them with a folder browser. **Import** bookmarks from Chrome, Firefox, Edge or Safari (their bookmarks file, chosen or pasted) and **export** yours to any browser.
 - History grouped by time or site, swipe to delete (with undo).
-- **Downloads** with mi's own downloader: pause, resume, cancel and retry, progress in a notification (tap the finished one to open the file), and a Downloads page beside Bookmarks and History, grouped by day, that stays in step with your files. Save to Downloads or any folder, choose where for each download, or hand downloads to Android's download manager.
+- **Downloads** with mi's own downloader: pause, resume, cancel and retry, progress in a notification (tap the finished one to open the file), and a Downloads page beside Bookmarks in the Library, grouped by day, that stays in step with your files. Save to Downloads or any folder, choose where for each download, or hand downloads to Android's download manager.
 - Pages' own Print and Share buttons, and local development sites (`localhost:3000`, LAN IPs, `.local`).
 
 ### Privacy & security
@@ -63,8 +64,8 @@
 - No tracking and no accounts. Site icons come from the sites themselves, never a third-party service.
 
 ### Material 3 Expressive
-- Colours from your accent or your wallpaper (Material You) in light, dark or system theme, with a **pure black (OLED)** option.
-- Google Sans Flex with an optional rounded style, Material Symbols, and spring-based motion that uses your display's full refresh rate.
+- Colours from your accent or your wallpaper (Material You) in light, dark or system theme, with a **pure black (OLED)** option. Hide the status bar and pages still keep clear of the camera cutout.
+- Google Sans Flex (rounded, or your phone's own font if you prefer), Material Symbols, and spring-based motion that uses your display's full refresh rate.
 - **Haptic feedback** at each gesture's point of no return (swipes, the tab switcher, pull to refresh), which you can turn off.
 - Settings grouped into sections, each on its own page, with search across all of them.
 - **Accessible**: every icon button has a label for screen readers, and every gesture (the Pill's swipes, swipe-to-delete, closing a tab) is also an action TalkBack can perform.

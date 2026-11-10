@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.jlees.mibrowser.data.JsonStore
+import com.jlees.mibrowser.data.KeepClosedTabs
 import com.jlees.mibrowser.data.Saver
 import com.jlees.mibrowser.data.StartupTabs
 import com.jlees.mibrowser.data.TabItem
@@ -15,13 +16,20 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import java.io.File
 
-/** @param destroy releases closed tabs' WebViews (one call per close, so a big close can't overflow anything) */
-class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<String>) -> Unit) {
+/**
+ * @param keepClosed how long Recently Closed keeps tabs (Settings); past this session they're saved
+ * @param destroy releases closed tabs' WebViews (one call per close, so a big close can't overflow anything)
+ */
+class TabsStore(
+    private val store: JsonStore, private val keepClosed: () -> KeepClosedTabs,
+    private val now: () -> Long = System::currentTimeMillis, // the time, for when tabs were closed (tests move it)
+    private val destroy: (ids: Set<String>) -> Unit,
+) {
     var list by mutableStateOf(listOf<TabItem>()); private set
     var activeId by mutableStateOf(""); private set
     /** The last tab closed (and where it was), for Undo. Only one can be restored. */
     var closed by mutableStateOf<Pair<TabItem, Int>?>(null); private set
-    /** Tabs closed this session, newest first (History → Recently closed). In memory only, never saved. */
+    /** Closed tabs, newest first (History's Recently Closed). Saved only when [keepClosed] reaches past this session. */
     var recentlyClosed by mutableStateOf(listOf<TabItem>()); private set
 
     val current get() = get(activeId)
@@ -33,6 +41,13 @@ class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<Str
         val restored = restoreSession(saved, store.read("activeTabId", String.serializer()), mode, link?.let { newTab(it, "External Link") })
         list = restored.tabs
         select(restored.activeId)
+        val keep = keepClosed()
+        if (keep != KeepClosedTabs.SESSION) recentlyClosed = keptClosed(store.read("recently_closed", ListSerializer(TabItem.serializer())) ?: emptyList(), keep, now())
+    }
+
+    /** Recently Closed, saved when they're kept past this session; otherwise the file is emptied (nothing lingers on disk). */
+    val closedSaver = Saver(1000, { if (keepClosed() == KeepClosedTabs.SESSION) emptyList() else recentlyClosed }) {
+        store.write("recently_closed", ListSerializer(TabItem.serializer()), it)
     }
 
     /** Tabs that keep traces are saved (incognito tabs never are), with the active one, or the latest used of them. */
@@ -59,20 +74,21 @@ class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<Str
 
     /**
      * Closes [ids] (see [closeTabs]) and returns the tab that shows now. [undoable]: a single closed tab that keeps
-     * traces can be restored by [undoClose] (a closed incognito tab is gone for good). Previews of tabs that can't
-     * come back are deleted.
+     * traces can be restored by [undoClose] (a closed incognito tab is gone for good). A tab that goes to Recently
+     * Closed keeps its preview (its card there shows it); the others' previews are deleted.
      */
     fun close(ids: Set<String>, undoable: Boolean = false): String {
         val closing = list.filter { it.id in ids }
         if (closing.isEmpty()) return activeId
         val keep = closing.singleOrNull()?.takeIf { undoable && it.keepsTraces }
         if (keep != null) { dismissUndo(); closed = keep to list.indexOf(keep) }
-        closing.filter { it !== keep }.forEach { deletePreview(it) }
         destroy(closing.map { it.id }.toSet())
-        recentlyClosed = rememberClosed(recentlyClosed, closing.map { it.copy(previewImage = null) })
+        val before = recentlyClosed
+        recentlyClosed = keptClosed(rememberClosed(recentlyClosed, closing, now = now()), keepClosed(), now()) // the expired ones go too
         val next = closeTabs(TabsState(list, activeId), ids)
         list = next.tabs
         if (next.activeId != activeId) select(next.activeId)
+        (closing + before).forEach { releasePreview(it.previewImage) } // kept only where still shown (or for Undo)
         return next.activeId
     }
 
@@ -91,13 +107,25 @@ class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<Str
         recentlyClosed = recentlyClosed - t
         if (closed?.first?.id == id) dismissUndo() // the Undo bar for this same tab would open a second copy
         val url = t.historyStack.getOrNull(t.currentIndex)
-        open(t.copy(url = url, requestedUrl = url, loadNonce = t.loadNonce + 1, hasLoadedOnce = true, loading = false, previewImage = null))
+        open(t.copy(url = url, requestedUrl = url, loadNonce = t.loadNonce + 1, hasLoadedOnce = true, loading = false, closedAt = 0))
     }
 
     /** Drops [id] from the recently closed list, or (null) the whole list: clearing history clears it too. */
-    fun forgetClosed(id: String? = null) { recentlyClosed = if (id == null) emptyList() else recentlyClosed.filterNot { it.id == id } }
+    fun forgetClosed(id: String? = null) {
+        val dropped = if (id == null) recentlyClosed else recentlyClosed.filter { it.id == id }
+        recentlyClosed = recentlyClosed - dropped.toSet()
+        dropped.forEach { releasePreview(it.previewImage) }
+    }
 
-    fun dismissUndo() { closed?.first?.let(::deletePreview); closed = null }
+    /** Drops the closed tabs past their time (Keep Recently Closed), and their previews: not just hidden, but gone. */
+    fun pruneExpired() {
+        val expired = recentlyClosed - keptClosed(recentlyClosed, keepClosed(), now()).toSet()
+        if (expired.isEmpty()) return
+        recentlyClosed = recentlyClosed - expired.toSet()
+        expired.forEach { releasePreview(it.previewImage) }
+    }
+
+    fun dismissUndo() { val t = closed?.first; closed = null; releasePreview(t?.previewImage) }
 
     fun togglePinned(id: String) = update(id) { copy(pinned = !pinned) }
 
@@ -111,7 +139,13 @@ class TabsStore(private val store: JsonStore, private val destroy: (ids: Set<Str
     fun forgetPreviews() {
         list = list.map { it.copy(previewImage = null) }
         closed = closed?.let { (t, i) -> t.copy(previewImage = null) to i }
+        recentlyClosed = recentlyClosed.map { it.copy(previewImage = null) }
     }
 
-    private fun deletePreview(t: TabItem) { t.previewImage?.let { File(it).delete() } }
+    /** Deletes a preview file once nothing shows it any more: no open tab, recently closed tab or Undo. */
+    private fun releasePreview(path: String?) {
+        if (path == null) return
+        if (list.any { it.previewImage == path } || recentlyClosed.any { it.previewImage == path } || closed?.first?.previewImage == path) return
+        File(path).delete()
+    }
 }
