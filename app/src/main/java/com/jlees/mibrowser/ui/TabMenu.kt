@@ -1,6 +1,7 @@
 // The tab menu (⋮ in the tab switcher): favorite, bookmark, pin; quick tiles; tools; closing tabs.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.search.addSearchShortcutFromPage
 import com.jlees.mibrowser.incognito.closeIncognitoTabs
 import com.jlees.mibrowser.library.toggleFavorite
 
@@ -18,6 +19,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -154,7 +157,10 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             TopAction("share", "Share", false, hasUrl) { dismiss(); shareText(ctx, vm.cleanLink(url!!), tab?.title?.takeIf { it.isNotBlank() }) }
         }
 
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+        // the space the middle part has and what it needs: the tools stack in rows while they fit (see below)
+        var viewportH by remember { mutableIntStateOf(0) }
+        var contentH by remember { mutableIntStateOf(0) }
+        Column(Modifier.weight(1f).onSizeChanged { viewportH = it.height }.verticalScroll(rememberScrollState()).onSizeChanged { contentH = it.height }) {
             Section("This tab")
             val desktop = tab?.desktopMode ?: vm.settings.desktopMode
             val reader = tab?.readerMode ?: vm.settings.readerModeEnabled
@@ -171,12 +177,40 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             }
 
             Section("Tools")
-            Row(Modifier.fillMaxWidth()) {
-                Round("qr_code_scanner", "Scan QR") { leave(); vm.qrScannerVisible = true }
-                Round("qr_code_2", "QR code", hasUrl) { leave(); vm.qrGeneratorVisible = true }
-                Round("print", "Print", hasUrl) { leave(); vm.web.tryEmit(WebCmd.Print) }
+            val tools = listOfNotNull(
+                TabTool("qr_code_scanner", "Scan QR", true) { leave(); vm.qrScannerVisible = true },
+                TabTool("qr_code_2", "QR code", hasUrl) { leave(); vm.qrGeneratorVisible = true },
+                TabTool("print", "Print", hasUrl) { leave(); vm.web.tryEmit(WebCmd.Print) },
+                // a search shortcut for this site, found from the page (not from incognito: it'd save the site in Settings)
+                if (!incognito) TabTool("travel_explore", "Add shortcut", hasUrl) { dismiss(); vm.addSearchShortcutFromPage() } else null,
                 // not from incognito: a shortcut would write the page's address into the launcher, outside mi
-                if (!incognito) Round("add_to_home_screen", "Home screen", hasUrl) { dismiss(); tab?.let { LauncherShortcuts.pinSite(ctx, it.title, it.url ?: return@let) } }
+                if (!incognito) TabTool("add_to_home_screen", "Home screen", hasUrl) { dismiss(); tab?.let { LauncherShortcuts.pinSite(ctx, it.title, it.url ?: return@let) } } else null,
+            )
+            // At most four to a row. The rows stack while the menu has room for them; only when they'd overflow do they
+            // become pages swiped sideways, with dots for which page shows.
+            val pages = tools.chunked(4)
+            var rowH by remember { mutableIntStateOf(0) }
+            var stacked by remember { mutableStateOf(true) }
+            val dotsH = with(LocalDensity.current) { 12.dp.roundToPx() }
+            LaunchedEffect(viewportH, contentH, rowH, pages.size) {
+                if (rowH == 0 || viewportH == 0) return@LaunchedEffect
+                val rows = pages.size * rowH; val paged = rowH + dotsH
+                val heightStacked = if (stacked) contentH else contentH - paged + rows
+                stacked = heightStacked <= viewportH
+            }
+            @Composable fun ToolRow(page: List<TabTool>) = Row(Modifier.fillMaxWidth().onSizeChanged { rowH = it.height }) {
+                page.forEach { Round(it.icon, it.label, it.enabled, it.onPress) }
+                repeat(4 - page.size) { Spacer(Modifier.weight(1f)) } // a short last row keeps the columns above
+            }
+            if (pages.size == 1 || stacked) pages.forEach { ToolRow(it) }
+            else {
+                val pager = androidx.compose.foundation.pager.rememberPagerState { pages.size }
+                androidx.compose.foundation.pager.HorizontalPager(pager, Modifier.fillMaxWidth()) { i -> ToolRow(pages[i]) }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.Center) {
+                    pages.indices.forEach { i ->
+                        Box(Modifier.padding(horizontal = 3.dp).size(6.dp).clip(CircleShape).background(if (i == pager.currentPage) ui.cs.primary else ui.cs.outlineVariant))
+                    }
+                }
             }
 
         }
@@ -189,3 +223,6 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
         if (vm.settings.clearDataOnExit) MenuRow("power_settings_new", "Exit and Clear", ui.cs.error) { dismiss(); (ctx as? android.app.Activity)?.finishAndRemoveTask() }
     }
 }
+
+/** One of the tab menu's tools: shown four to a row, on pages swiped sideways when there are more. */
+private class TabTool(val icon: String, val label: String, val enabled: Boolean, val onPress: () -> Unit)

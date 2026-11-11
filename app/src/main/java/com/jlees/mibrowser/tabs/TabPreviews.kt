@@ -24,8 +24,8 @@ class TabPreviews(private val activity: Activity, private val vm: BrowserViewMod
         val tab = vm.tabs.list.firstOrNull { it.id == id }
         if (tab == null || !tab.keepsTraces) return // incognito tabs are never photographed: no snapshot in memory or on disk
         // the same page, scrolled to the same place, at the same size and fully drawn: the last snapshot still stands
-        val shot = wv?.let { "${it.url}|${it.scrollX},${it.scrollY}|${it.width}x${it.height}|${it.contentHeight}|${it.progress}" }
-        if (shot != null && shot == lastShot[id] && tab.previewImage != null) return
+        val shot = wv?.let { snapshotKey(it.url, it.scrollX, it.scrollY, it.width, it.height, it.contentHeight, it.progress) }
+        if (!needsSnapshot(shot, lastShot[id], tab.previewImage != null)) return
         // with the keyboard up the page is shorter than usual: such a snapshot wouldn't match the page (keep the last one)
         if (wv != null && androidx.core.view.ViewCompat.getRootWindowInsets(wv)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true) return
         if (wv != null && wv.width > 0 && wv.height > 0 && wv.isAttachedToWindow) {
@@ -53,3 +53,10 @@ class TabPreviews(private val activity: Activity, private val vm: BrowserViewMod
         }
     }
 }
+
+/** What a page looks like for its snapshot: its address, scroll, size and how much has loaded. */
+fun snapshotKey(url: String?, scrollX: Int, scrollY: Int, width: Int, height: Int, contentHeight: Int, progress: Int) =
+    "$url|$scrollX,$scrollY|${width}x$height|$contentHeight|$progress"
+
+/** A new snapshot is needed unless the tab has one taken of the page exactly as it is now ([key] = [lastKey]). */
+fun needsSnapshot(key: String?, lastKey: String?, hasSnapshot: Boolean) = !(key != null && key == lastKey && hasSnapshot)

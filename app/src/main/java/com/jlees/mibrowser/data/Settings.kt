@@ -41,8 +41,11 @@ interface Choice { val label: String }
 }
 
 /** How long History's Recently Closed keeps a closed tab. Past SESSION they're saved, so they outlast a restart (never incognito tabs). */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 @Serializable enum class KeepClosedTabs(override val label: String, val ms: Long) : Choice {
-    @SerialName("session") SESSION("Until mi Closes", 0), @SerialName("hour") HOUR("1 Hour", 3_600_000), @SerialName("day") DAY("1 Day", 86_400_000),
+    @SerialName("session") SESSION("Until mi. Closes", 0),
+    @kotlinx.serialization.json.JsonNames("hour") // 1.6.0 also had 1 Hour: that choice now reads as 1 Day
+    @SerialName("day") DAY("1 Day", 86_400_000),
     @SerialName("week") WEEK("1 Week", 604_800_000),
 }
 

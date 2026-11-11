@@ -22,13 +22,13 @@ import kotlinx.coroutines.delay
 class Undo(val message: String, val undo: () -> Unit)
 
 /**
- * "Tab closed · Undo": shown for a few seconds after something is deleted, then [onTimeout] (the deletion stands).
+ * "Tab closed · Undo": shown for [showMs] after something is deleted, then [onTimeout] (the deletion stands).
  * Each new [undo] restarts the timer. Nothing shows while it's null.
  */
 @Composable
-fun UndoBar(undo: Undo?, onTimeout: () -> Unit, modifier: Modifier = Modifier) {
+fun UndoBar(undo: Undo?, onTimeout: () -> Unit, modifier: Modifier = Modifier, showMs: Long = 4000) {
     val ui = LocalUi.current
-    LaunchedEffect(undo) { if (undo != null) { delay(4000); onTimeout() } }
+    LaunchedEffect(undo) { if (undo != null) { delay(showMs); onTimeout() } }
     Box(modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
         AnimatedVisibility(undo != null, enter = fadeIn(), exit = fadeOut()) {
             Surface(shape = CircleShape, color = ui.cs.inverseSurface) {

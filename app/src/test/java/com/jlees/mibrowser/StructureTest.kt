@@ -70,9 +70,11 @@ class StructureTest {
     @Test fun recentlyClosedDropOffAfterTheirTime() {
         val closed = rememberClosed(emptyList(), listOf(tab("old")), now = 0) + rememberClosed(emptyList(), listOf(tab("new")), now = 3_000_000)
         assertEquals(1000L * 0, closed.first { it.id == "old" }.closedAt) // stamped when closed
-        val hourLater = 3_700_000L
-        assertEquals(listOf("new"), keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.HOUR, hourLater).map { it.id })
-        assertEquals(2, keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.DAY, hourLater).size)
+        val dayLater = 86_400_000L + 1
+        assertEquals(listOf("new"), keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.DAY, dayLater).map { it.id })
+        assertEquals(2, keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.WEEK, dayLater).size)
+        // a 1 Hour choice saved by 1.6.0 reads as 1 Day
+        assertEquals(com.jlees.mibrowser.data.KeepClosedTabs.DAY, com.jlees.mibrowser.data.json.decodeFromString(Settings.serializer(), """{"keepClosedTabs":"hour"}""").keepClosedTabs)
         assertEquals(listOf("new"), keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.WEEK, 604_800_000L + 1).map { it.id }) // a week on, only the newer one
         assertEquals(2, keptClosed(closed, com.jlees.mibrowser.data.KeepClosedTabs.SESSION, Long.MAX_VALUE).size) // until mi closes
     }

@@ -82,7 +82,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Reset All Settings", type: "Settings", href: "/user#setting-reset-all-settings", excerpt: "Revert all settings to their defaults." },
   { title: "Wipe All Data", type: "Settings", href: "/user#setting-wipe-all-data", excerpt: "Permanently delete all app data." },
   { title: "Default Browser", type: "Settings", href: "/user#setting-default-browser", excerpt: "Make mi the app that opens links." },
-  { title: "Keep Recently Closed", type: "Settings", href: "/user#setting-keep-recently-closed", excerpt: "How long closed tabs stay in History: until mi closes, 1 hour, 1 day or 1 week." },
+  { title: "Keep Recently Closed", type: "Settings", href: "/user#setting-keep-recently-closed", excerpt: "How long closed tabs stay in History: until mi closes, 1 day or 1 week." },
   { title: "Gesture Walkthrough", type: "Settings", href: "/user#setting-gesture-walkthrough", excerpt: "Go through mi's gestures again, hands-on." },
   { title: "Check for Updates", type: "Settings", href: "/user#setting-check-for-updates", excerpt: "Look for a new mi release." },
   { title: "Privacy Policy", type: "Settings", href: "/user#setting-privacy-policy", excerpt: "What mi does (and doesn't do) with your data." },

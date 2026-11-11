@@ -66,8 +66,9 @@ data class WebError(val code: Int, val desc: String, val failingUrl: String?) {
 }
 
 
-/** Live WebViews kept in memory; older tabs are rebuilt from saved state when opened. */
-const val MAX_LIVE_TABS = 3
+/** Live WebViews kept in memory: the active tab and three in the background. Older tabs are rebuilt from saved state
+ *  when opened (each live WebView holds tens of MB; background ones are paused, so they cost memory, not battery). */
+const val MAX_LIVE_TABS = 4
 
 class WebViewHost(
     private val activity: Activity,

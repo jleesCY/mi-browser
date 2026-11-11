@@ -40,19 +40,7 @@ fun searchSection(vm: BrowserViewModel) =
         SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
                 SwitchItem("incognito", "Suggestions in Incognito", "Suggestions from your search engine while in incognito mode", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
             },
-        // what shortcuts are, for anyone who hasn't met "!w" before: a tap explains, with an example
-        SettingsRow("About Shortcuts", "bang shortcut help what how") {
-            Item("info", "What Are Shortcuts?", "Search a particular site straight from the Pill", onClick = {
-                vm.showAlert(
-                    "Search shortcuts",
-                    "Start a search with a shortcut to search one site instead of your search engine. " +
-                        "For example, \"!w mars\" searches Wikipedia for \"mars\", and \"!yt cats\" searches YouTube.\n\n" +
-                        "Built-in Shortcuts lists the ones mi comes with. In Your Shortcuts you can add your own: a short name, " +
-                        "and the site's search address with %s where the search goes.",
-                )
-            }, trailing = { Sym("chevron_right", 22f, LocalUi.current.cs.onSurfaceVariant) })
-        },
-        SettingsRow("Your Shortcuts", "bang custom add search shortcut") { CustomBangsItem(vm) },
+        SettingsRow("Your Shortcuts", "bang custom add search shortcut help what") { CustomBangsItem(vm) },
         SettingsRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
     ))
 
@@ -93,7 +81,10 @@ private fun BangRow(key: String, name: String, onDelete: (() -> Unit)? = null) {
 private fun CustomBangsItem(vm: BrowserViewModel) {
     var adding by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
-        Item("add", "Add a shortcut", onClick = { adding = true })
+        // the "i" explains shortcuts, for anyone who hasn't met "!w" before
+        Item("add", "Add a shortcut", onClick = { adding = true }, trailing = {
+            IconButton(onClick = { explainShortcuts(vm) }) { Sym("info", 22f, LocalUi.current.cs.onSurfaceVariant, label = "What are shortcuts?") }
+        })
         if (vm.settings.customBangs.isNotEmpty()) BangListLabel("Yours")
         vm.settings.customBangs.forEach { (key, url) ->
             BangRow(key, displayHost(url).ifEmpty { url }) { vm.updateSettings { copy(customBangs = customBangs - key) } }
@@ -121,10 +112,10 @@ private fun BangListLabel(text: String) {
 
 /** A new shortcut: its key and the site's search address (%s = the search). */
 @Composable
-private fun AddBangDialog(vm: BrowserViewModel, visible: Boolean, onClose: () -> Unit) {
+private fun AddBangDialog(vm: BrowserViewModel, visible: Boolean, initialKey: String = "", initialUrl: String = "https://", onClose: () -> Unit) {
     val ui = LocalUi.current
-    var key by remember(visible) { mutableStateOf("") }
-    var url by remember(visible) { mutableStateOf("https://") }
+    var key by remember(visible) { mutableStateOf(initialKey) }
+    var url by remember(visible) { mutableStateOf(initialUrl) }
     val k = key.trim().removePrefix("!").lowercase()
     val keyOk = isValidBangKey(k)
     val urlOk = isValidSearchTemplate(url)
@@ -138,9 +129,10 @@ private fun AddBangDialog(vm: BrowserViewModel, visible: Boolean, onClose: () ->
                 when { k.isNotEmpty() && !keyOk -> "Use up to 12 letters or numbers"; k in BANGS -> "Replaces the built-in !$k (${BANGS[k]!!.name})"; k == SEARCH_ENGINE_BANG -> "Replaces the built-in !se (your search engine)"; k.isNotEmpty() -> "You'll type !$k"; else -> " " },
                 12f, if (k.isNotEmpty() && !keyOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 12.dp),
             )
-            LabeledField("Search address", url, { url = it }, uri = true, placeholder = "https://www.ebay.com/sch/i.html?_nkw=%s")
+            // a pasted results page is turned into the search address: its search becomes %s
+            LabeledField("Search address", url, { v -> url = if (v.length - url.length > 1 && "%s" !in v) searchTemplateFrom(v) ?: v else v }, uri = true, placeholder = "https://www.ebay.com/sch/i.html?_nkw=%s")
             Txt(
-                if (url.length > 8 && !urlOk) "Enter a web address starting with https://" else "Search the site for \"test\", copy the address of the results page, and put %s where \"test\" was.",
+                if (url.length > 8 && !urlOk) "Enter a web address starting with https://" else "Easiest: search the site, then tap ⋮ › Add shortcut. Or paste the address of one of its results pages here.",
                 12f, if (url.length > 8 && !urlOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp), lineHeight = 16f,
             )
         }
@@ -171,3 +163,19 @@ private fun CustomEngineDialog(vm: BrowserViewModel, visible: Boolean, onClose: 
     }
 }
 
+/** What search shortcuts are, with an example (the "i" beside Add a shortcut). */
+private fun explainShortcuts(vm: BrowserViewModel) = vm.showAlert(
+    "Search shortcuts",
+    "Start a search with a shortcut to search one site instead of your search engine. " +
+        "For example, \"!w mars\" searches Wikipedia for \"mars\", and \"!yt cats\" searches YouTube.\n\n" +
+        "To add your own, search the site as usual, then tap ⋮ › Add shortcut: mi finds the site's search for you. " +
+        "Or tap Add a shortcut here and paste the address of one of the site's results pages.\n\n" +
+        "Built-in Shortcuts lists the ones mi comes with.",
+)
+
+/** The Add dialog for a shortcut found on a page (tab menu › Add shortcut), filled in and ready to save. */
+@Composable
+fun ShortcutDraftDialog(vm: BrowserViewModel) {
+    val draft = vm.shortcutDraft
+    AddBangDialog(vm, draft != null, draft?.first.orEmpty(), draft?.second ?: "https://") { vm.shortcutDraft = null }
+}

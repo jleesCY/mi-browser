@@ -132,6 +132,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var alert by mutableStateOf<AlertData?>(null)
     var confirm by mutableStateOf<ConfirmData?>(null)
     var renameTabId by mutableStateOf<String?>(null)
+    /** A search shortcut found on a page (name, address), waiting in its Add dialog (see addSearchShortcutFromPage). */
+    var shortcutDraft by mutableStateOf<Pair<String, String>?>(null)
     var authRequest by mutableStateOf<AuthRequest?>(null)
     var contextMenu by mutableStateOf<ContextMenuData?>(null)
     var settingsSearch by mutableStateOf("")

@@ -219,7 +219,7 @@ fun TabSwitcher(
                 )
             }
             val closedTab = vm.tabs.closed
-            UndoBar(remember(closedTab) { closedTab?.let { (t, _) -> Undo("Tab closed") { vm.tabs.undoClose(); refocus = t.id } } }, onTimeout = { vm.tabs.dismissUndo() })
+            UndoBar(remember(closedTab) { closedTab?.let { (t, _) -> Undo("Tab closed") { vm.tabs.undoClose(); refocus = t.id } } }, onTimeout = { vm.tabs.dismissUndo() }, showMs = 2500) // shorter: closing tabs comes in quick runs
             // bottom bar: [Library] ( + · ⋮ ) [Settings]
             // (positions are published so the search pill can morph into the centre pill as the switcher opens). Shown
             // The side buttons appear in place as the page shrinks (one button the whole way: no hand-over that could

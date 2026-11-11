@@ -23,6 +23,8 @@ import com.jlees.mibrowser.search.searchEngine
 import com.jlees.mibrowser.search.searchQueryFromUrl
 import com.jlees.mibrowser.search.typedBangLength
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LogicTest {
@@ -293,5 +295,48 @@ class LogicTest {
         assertEquals("https://a.com/p?q=utm_source", stripTracking("https://a.com/p?q=utm_source"))     // values aren't touched
         assertEquals("https://a.com/search?q=mars", stripTracking("https://a.com/search?q=mars"))
         assertEquals("mibrowser://x?utm_source=y", stripTracking("mibrowser://x?utm_source=y"))         // web links only
+    }
+
+    @Test fun siteIconsKeepTheMostRecentlyUsed() {
+        val icons = listOf("old.png" to 1L, "newest.png" to 30L, "mid.png" to 20L, "older.png" to 5L)
+        assertEquals(listOf("older.png", "old.png"), com.jlees.mibrowser.data.leastRecentlyUsed(icons, keep = 2))
+        assertEquals(emptyList<String>(), com.jlees.mibrowser.data.leastRecentlyUsed(icons, keep = 500)) // under the cap: none go
+    }
+
+    @Test fun snapshotsAreSkippedOnlyWhenThePageIsUnchanged() {
+        val key = com.jlees.mibrowser.tabs.snapshotKey("https://a.com", 0, 400, 1080, 2000, 9000, 100)
+        val scrolled = com.jlees.mibrowser.tabs.snapshotKey("https://a.com", 0, 900, 1080, 2000, 9000, 100)
+        assertFalse(com.jlees.mibrowser.tabs.needsSnapshot(key, key, hasSnapshot = true))      // same page, same place: skip
+        assertTrue(com.jlees.mibrowser.tabs.needsSnapshot(scrolled, key, hasSnapshot = true))  // scrolled since: take one
+        assertTrue(com.jlees.mibrowser.tabs.needsSnapshot(key, key, hasSnapshot = false))      // none kept (e.g. cleared): take one
+        assertTrue(com.jlees.mibrowser.tabs.needsSnapshot(key, null, hasSnapshot = true))      // never taken this session
+    }
+
+    @Test fun searchShortcutsAreFoundFromResultsPages() {
+        // the search in a results page's address becomes %s; the page's other parameters stay
+        assertEquals("https://www.ebay.com/sch/i.html?_from=R40&_nkw=%s&_sacat=0",
+            com.jlees.mibrowser.search.searchTemplateFrom("https://www.ebay.com/sch/i.html?_from=R40&_nkw=headphones&_sacat=0"))
+        assertEquals("https://duckduckgo.com/?q=%s", com.jlees.mibrowser.search.searchTemplateFrom("https://duckduckgo.com/?q=cats+and+dogs"))
+        assertEquals(null, com.jlees.mibrowser.search.searchTemplateFrom("https://example.com/about"))   // not a results page
+        assertEquals(null, com.jlees.mibrowser.search.searchTemplateFrom("https://example.com/?q="))     // an empty search
+        assertEquals("ebay", com.jlees.mibrowser.search.suggestedShortcutKey("https://www.ebay.com/sch/i.html"))
+    }
+
+    @Test fun searchShortcutsAreFoundFromWhatSitesDeclare() {
+        val html = """<head><link rel="search" type="application/opensearchdescription+xml" href="/opensearch.xml" title="Wiki"></head>"""
+        assertEquals("https://en.wikipedia.org/opensearch.xml", com.jlees.mibrowser.search.openSearchLink(html, "https://en.wikipedia.org/wiki/Mars"))
+        val xml = """<OpenSearchDescription><Url type="application/x-suggestions+json" template="https://x/s?q={searchTerms}"/>""" +
+            """<Url type="text/html" method="get" template="https://en.wikipedia.org/w/index.php?title=Special:Search&amp;search={searchTerms}&amp;page={startPage?}"/></OpenSearchDescription>"""
+        assertEquals("https://en.wikipedia.org/w/index.php?title=Special:Search&search=%s", com.jlees.mibrowser.search.templateFromOpenSearch(xml))
+        assertEquals(null, com.jlees.mibrowser.search.openSearchLink("<head></head>", "https://example.com"))
+    }
+
+    @Test fun readAtMostStopsAtTheCap() {
+        val data = ByteArray(20_000) { it.toByte() }
+        val (all, moreAll) = com.jlees.mibrowser.logic.readAtMost(data.inputStream(), 50_000)
+        assertEquals(20_000, all.size); assertFalse(moreAll)            // under the cap: everything, nothing more
+        val (part, more) = com.jlees.mibrowser.logic.readAtMost(data.inputStream(), 10_000)
+        assertEquals(10_000, part.size); assertTrue(more)               // over: cut at the cap, and says there was more
+        assertFalse(com.jlees.mibrowser.logic.readAtMost(data.inputStream(), 20_000).second) // exactly the cap: nothing more
     }
 }

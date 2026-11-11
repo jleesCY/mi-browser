@@ -40,9 +40,10 @@ object Favicons {
         dir = d
         io.launch {
             // at most MAX_ICONS kept: past that, the least recently used go (a file's date is when it was last shown)
-            val files = d.listFiles().orEmpty().sortedByDescending { it.lastModified() }
-            files.drop(MAX_ICONS).forEach { it.delete() }
-            val found = files.take(MAX_ICONS).mapNotNull { f ->
+            val all = d.listFiles().orEmpty()
+            val drop = leastRecentlyUsed(all.map { it.name to it.lastModified() }, MAX_ICONS).toSet()
+            all.filter { it.name in drop }.forEach { it.delete() }
+            val found = all.filter { it.name !in drop }.mapNotNull { f ->
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(f.path, bounds)
                 if (bounds.outWidth > 0) f.nameWithoutExtension to bounds.outWidth else { f.delete(); null }
@@ -121,17 +122,12 @@ object Favicons {
             connectTimeout = 5000; readTimeout = 5000; instanceFollowRedirects = true
         }
         if (conn.responseCode !in 200..299) return null
-        val bytes = conn.inputStream.use { input ->
-            val out = java.io.ByteArrayOutputStream()
-            val buf = ByteArray(8192)
-            while (true) {
-                val n = input.read(buf)
-                if (n < 0) break
-                out.write(buf, 0, n)
-                if (out.size() > MAX_BYTES) return null // not an icon
-            }
-            out.toByteArray()
-        }
+        val (bytes, more) = conn.inputStream.use { com.jlees.mibrowser.logic.readAtMost(it, MAX_BYTES) }
+        if (more) return null // bigger than any icon: not one
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.takeIf { it.width >= 16 && it.height >= 16 }
     }.getOrNull()
 }
+
+/** The names (of [items]: name and last-used time) beyond the [keep] most recently used: the ones to delete. */
+fun leastRecentlyUsed(items: List<Pair<String, Long>>, keep: Int): List<String> =
+    items.sortedByDescending { it.second }.drop(keep).map { it.first }

@@ -27,7 +27,7 @@
 
 ### The Pill
 - One control for everything: search with suggestions (your past searches first), the tab switcher, back/forward and hiding the bar.
-- **Search shortcuts**: start a search with `!w`, `!yt`, `!r`, `!a`, `!m` or `!i` to search Wikipedia, YouTube, Reddit, Amazon, Maps or Images, or `!se` to always search your search engine. The shortcut turns into a small pill as you type. Add your own in Settings, or set a custom search engine.
+- **Search shortcuts**: start a search with `!w`, `!yt`, `!r`, `!a`, `!m` or `!i` to search Wikipedia, YouTube, Reddit, Amazon, Maps or Images, or `!se` to always search your search engine. The shortcut turns into a small pill as you type. Add your own in one tap: search a site, then ⋮ › **Add shortcut** (or paste a results page's address in Settings). You can also set a custom search engine.
 - **Pull down to refresh**, only ever from the very top of a page.
 - A loading-progress fill, a "Not secure" marker on unencrypted pages, and a favorites bar (drag to reorder; hold one to edit or delete it).
 - **Paste and go**: a link you just copied is offered when you tap the Pill.

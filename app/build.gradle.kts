@@ -18,8 +18,8 @@ android {
         applicationId = "com.jlees.mibrowser"
         minSdk = 26
         targetSdk = 36
-        versionCode = 160
-        versionName = "1.6.0"
+        versionCode = 161
+        versionName = "1.6.1"
     }
 
     signingConfigs {
@@ -69,6 +69,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    // debug builds only: watches for leaked screens and objects while you use the app, and reports them in a notification
+    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
     implementation("androidx.camera:camera-camera2:1.6.2")
     implementation("androidx.camera:camera-lifecycle:1.6.2")
     implementation("androidx.camera:camera-view:1.6.2")

@@ -78,15 +78,15 @@ class StoresTest {
 
     @Test fun expiredRecentlyClosedTabsAreDeletedWithTheirPreview() {
         var time = 1_000_000L
-        val timed = TabsStore(store, { KeepClosedTabs.HOUR }, { time }) {}
+        val timed = TabsStore(store, { KeepClosedTabs.DAY }, { time }) {}
         val file = Files.createTempFile("preview_", ".jpg").toFile()
         val a = newTab("https://a.com").copy(previewImage = file.path)
         timed.open(a); timed.open(newTab("https://b.com"))
         timed.close(setOf(a.id))
         timed.pruneExpired()
-        assertEquals(listOf(a.id), timed.recentlyClosed.map { it.id }) // within the hour: kept, with its preview
+        assertEquals(listOf(a.id), timed.recentlyClosed.map { it.id }) // within the day: kept, with its preview
         assertTrue(file.exists())
-        time += 3_600_001 // an hour on: gone from the list and from disk, not just hidden
+        time += 86_400_001 // a day on: gone from the list and from disk, not just hidden
         timed.pruneExpired()
         assertTrue(timed.recentlyClosed.isEmpty()); assertTrue(!file.exists())
     }

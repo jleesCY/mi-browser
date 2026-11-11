@@ -137,7 +137,7 @@ export default function UserDocs() {
                     <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button (or swiping the Pill left) opens Settings on top of the switcher. Search from the Pill at the bottom; swipe it right to go back up a level, and from the top level back to the switcher." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; QR tools, Print and Add to Home screen; copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
+                    <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; tools (Scan QR, QR code, Print, Add shortcut, Home screen: four to a row, swiped sideways if the menu runs out of room); copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
                   </div>
                 </div>
               </div>
@@ -310,7 +310,7 @@ export default function UserDocs() {
                   <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo. Pick Custom… to use any other search site: enter a name and an address with %s where your search goes (for example https://www.startpage.com/do/search?q=%s)." />
                   <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
                   <SettingItem title="Suggestions in Incognito" desc="Off by default: in an incognito tab, nothing you type is sent to your search engine until you search." />
-                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Settings → Search Shortcuts lists them all and lets you add your own (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority." />
+                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Settings → Search Shortcuts lists them all and lets you add your own (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority. To add your own, search a site as usual, then tap ⋮ › Add shortcut: mi finds the site's search for you (or paste a results page's address under Your Shortcuts)." />
                 </SettingsSection>
 
                 <SettingsSection title="Web Pages" icon={<Monitor size={20} />}>
@@ -324,9 +324,9 @@ export default function UserDocs() {
 
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
-                  <SettingItem title="Keep Recently Closed" desc="How long tabs you close stay in History's Recently Closed: until mi closes (the default), 1 hour, 1 day or 1 week. Longer than this session, they're saved on your device so they outlast a restart. Incognito tabs are never kept." />
+                  <SettingItem title="Keep Recently Closed" desc="How long tabs you close stay in History's Recently Closed: until mi closes (the default), 1 day or 1 week. Longer than this session, they're saved on your device so they outlast a restart. Incognito tabs are never kept." />
                   <SettingItem title="Site Icons on Tabs" desc="Toggles the visibility of website icons (favicons) in the bookmarks list. When disabled, a letter avatar is shown." />
-                  <SettingItem title="Background Refresh" desc="When enabled, all tabs load when mi starts instead of when opened, for instant switching. Uses more battery and data." />
+                  <SettingItem title="Background Refresh" desc="When enabled, your most recent tabs (up to three besides the one you're on) load when mi starts instead of when opened, for instant switching. Uses more battery and data at startup." />
                 </SettingsSection>
 
                 <SettingsSection title="Library" icon={<Bookmark size={20} />}>

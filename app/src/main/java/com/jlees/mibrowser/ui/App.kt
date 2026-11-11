@@ -344,6 +344,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             QrGenerator(vm)
             ConfirmDialog(vm)
             RenameDialog(vm)
+            com.jlees.mibrowser.search.ShortcutDraftDialog(vm)
             AuthDialog(vm)
             ContextMenu(vm, onSaveImage = { url -> saveImageFromUrl(activity, vm, url) })
             CustomAlert(vm.alert, onButton = { vm.alert = null }, onCancel = { vm.alert?.onCancel?.invoke(); vm.alert = null })
