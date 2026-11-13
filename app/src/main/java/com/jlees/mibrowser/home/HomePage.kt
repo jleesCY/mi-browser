@@ -1,4 +1,4 @@
-// The new-tab page: logo, clock, date and an optional shortcut button (set in Settings → Home Page).
+// The new-tab page: logo, clock, date and your favorites (set in Settings → Home Page).
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.home
 
@@ -6,13 +6,9 @@ package com.jlees.mibrowser.home
 import com.jlees.mibrowser.data.HomeClock
 import com.jlees.mibrowser.data.HomeDate
 import com.jlees.mibrowser.data.HomeLogo
-import com.jlees.mibrowser.data.HomeShortcut
 
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CoroutineStart
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.toShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.AnimatedContent
@@ -31,7 +27,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -48,14 +43,14 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
-fun HomePage(vm: BrowserViewModel, onAction: (HomeShortcut) -> Unit) {
+fun HomePage(vm: BrowserViewModel) {
     val ui = LocalUi.current
     val s = vm.settings
     val focusManager = LocalFocusManager.current
 
     // clock
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(s.homeClockType, s.homeDateType) {
         if (s.homeClockType == HomeClock.NONE && s.homeDateType == HomeDate.NONE) return@LaunchedEffect
         // the clock shows minutes: wake on each minute boundary, and only while mi is on screen
@@ -108,18 +103,8 @@ fun HomePage(vm: BrowserViewModel, onAction: (HomeShortcut) -> Unit) {
             }
         }
 
-        // shortcut
-        if (s.showHomeShortcuts) {
-            val shortcut = s.homeShortcutAction
-            val (icon, label) = shortcut.icon to shortcut.short
-            Column(
-                Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp).touchable { onAction(s.homeShortcutAction) },
-                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Box(Modifier.size(72.dp).shadow(3.dp, MaterialShapes.Cookie9Sided.toShape()).clip(MaterialShapes.Cookie9Sided.toShape()).background(ui.cs.primaryContainer), contentAlignment = Alignment.Center) { Sym(icon, 30f, ui.cs.onPrimaryContainer) }
-                Txt(label, 12f, ui.cs.onSurface, ui.bold)
-            }
-        }
+        // favorites, at the bottom above the Pill
+        HomeFavorites(vm)
     }
 }
 

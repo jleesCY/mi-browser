@@ -144,10 +144,10 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
         }
 
         // favorite · bookmark · pin: their own row, right under the tab's name
-        val fav = url != null && vm.bookmarks.favorites.any { it.url == url }
+        val fav = url != null && vm.bookmarks.isFavorite(url)
         val pinned = tab?.pinned == true
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TopAction("star", if (fav) "Favorited" else "Favorite", fav, hasUrl && (fav || vm.bookmarks.canAddFavorite)) {
+            TopAction("star", if (fav) "Favorited" else "Favorite", fav, hasUrl) {
                 vm.toggleFavorite()
                 android.widget.Toast.makeText(ctx, if (fav) "Removed from favorites" else "Added to favorites", android.widget.Toast.LENGTH_SHORT).show()
             }

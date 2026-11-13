@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Slider
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,8 +16,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.ui.common.*
 
-/** A setting row: [label] and [keywords] are what search matches; [content] draws it. */
-class SettingsRow(val label: String, val keywords: String = "", val content: @Composable () -> Unit)
+/** A setting row: [label] and [keywords] are what search matches; [content] draws it. [header]: see [SettingsHeading]. */
+class SettingsRow(val label: String, val keywords: String = "", val header: Boolean = false, val content: @Composable () -> Unit)
+
+/** A heading inside a section (e.g. Gestures › Tab Switcher Pill): the rows after it, to the next heading, are its block. */
+fun SettingsHeading(label: String) = SettingsRow(label, header = true) {}
+
+/** A row of a section with the heading it sits under (null before any) and its place in its block. */
+internal class PlacedRow(val row: SettingsRow, val heading: String?, val index: Int, val count: Int)
+
+/** [rows] split into their headings' blocks; heading rows come through with index 0 / count 0. */
+internal fun placeRows(rows: List<SettingsRow>): List<PlacedRow> {
+    val out = ArrayList<PlacedRow>(rows.size)
+    var heading: String? = null
+    var i = 0
+    while (i < rows.size) {
+        if (rows[i].header) { heading = rows[i].label; out += PlacedRow(rows[i], heading, 0, 0); i++; continue }
+        val end = (i until rows.size).firstOrNull { rows[it].header } ?: rows.size
+        for (j in i until end) out += PlacedRow(rows[j], heading, j - i, end - i)
+        i = end
+    }
+    return out
+}
 /** A section: its own page from the main list ([summary] says what's in it). */
 class SettingsSection(val id: String, val title: String, val icon: String, val summary: String, val rows: List<SettingsRow>)
 
@@ -82,7 +103,9 @@ fun SliderItem(icon: String, title: String, subtitle: String?, value: Float, min
         icon, title, subtitle,
         trailing = { Txt("${Math.round(value * 100)}%", 14f, ui.cs.onSurfaceVariant, ui.bold, scaled = false) },
         below = {
-            Slider(value = value, valueRange = min..max, steps = Math.round((max - min) / 0.1f) - 1, onValueChange = { onChange(Math.round(it * 10f) / 10f) })
+            val state = rememberSliderState(value, Math.round((max - min) / 0.1f) - 1, trackRange = min..max)
+            state.value = value // follows the setting (a reset, a restore)
+            Slider(state, onValueChange = { onChange(Math.round(it * 10f) / 10f) })
         },
     )
 }

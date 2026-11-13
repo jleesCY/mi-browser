@@ -28,7 +28,7 @@ fun Modifier.panGesture(
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
         val tracker = VelocityTracker()
-        // Track the finger in raw screen coordinates. The dragged element (pill, sheet header, drawer handle,
+        // Track the finger in raw screen coordinates. The dragged element (pill, sheet header,
         // logo) moves under the finger, so local positions/deltas would feed its own movement back into the
         // gesture: it lags at half speed and oscillates (jitter).
         val first = currentEvent.motionEvent

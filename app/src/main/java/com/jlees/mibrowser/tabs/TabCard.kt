@@ -9,6 +9,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import com.jlees.mibrowser.home.IncognitoMark
 import com.jlees.mibrowser.home.MiLogo
+import com.jlees.mibrowser.home.FavoritesGrid
 import com.jlees.mibrowser.home.homeBackground
 import com.jlees.mibrowser.ui.*
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -55,6 +56,8 @@ internal fun TabCardView(
     onRect: (Rect) -> Unit, onOpen: () -> Unit, onRename: () -> Unit, onClosed: () -> Unit,
     /** Can be swiped away: not a pinned tab (nor the Gesture Walkthrough's blank tab, which it returns to). */
     closable: Boolean = !tab.pinned,
+    /** The home page's favorites, drawn on a blank tab's card as on its page. */
+    favorites: List<com.jlees.mibrowser.data.BookmarkNode> = emptyList(),
 ) {
     val ui = LocalUi.current
     var heightPx by remember { mutableIntStateOf(1) }
@@ -121,6 +124,7 @@ internal fun TabCardView(
             // a blank page (or an incognito tab's mask), drawn as on screen
             else if (tab.incognito || tab.url == null) PageMini(Modifier.background(homeBackground(tab.incognito))) {
                 if (tab.incognito) IncognitoMark() else if (logoShown) MiLogo()
+                if (tab.url == null) FavoritesGrid(favorites)
             }
             // scaled to the card's width from the top, as the page is: never stretched, and text keeps its size
             else if (tab.previewImage != null) NetImage(tab.previewImage, Modifier.fillMaxSize(), ContentScale.FillWidth, alignmentTop = true)
@@ -132,8 +136,8 @@ internal fun TabCardView(
 }
 
 /**
- * Something drawn as it is on the full screen, scaled down to the card: laid out at the window's size, then scaled
- * about its centre by card width / window width (read at draw time, no extra pass).
+ * Something drawn as it is on the full screen, scaled down to the card: laid out at the window's width and the page's
+ * height (the card's shape), then scaled about its centre by card width / window width (read at draw time, no extra pass).
  */
 @Composable
 internal fun PageMini(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
@@ -141,8 +145,10 @@ internal fun PageMini(modifier: Modifier = Modifier, content: @Composable BoxSco
     val d = androidx.compose.ui.platform.LocalDensity.current
     BoxWithConstraints(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.Center) {
         val w = window.width.coerceAtLeast(1)
-        val h = window.height.coerceAtLeast(1)
         val sc = constraints.maxWidth.toFloat() / w
+        // as tall as the page itself (the card has the page's shape), not the whole window: a page below the status bar
+        // is shorter, and things placed from its centre or bottom (the logo, the favorites) would land off on the card
+        val h = (constraints.maxHeight / sc).toInt().coerceAtLeast(1)
         Box(
             Modifier.wrapContentSize(unbounded = true).requiredSize(with(d) { w.toDp() }, with(d) { h.toDp() })
                 .graphicsLayer { scaleX = sc; scaleY = sc }.then(modifier),

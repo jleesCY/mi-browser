@@ -55,11 +55,11 @@ fun restoreSession(saved: List<TabItem>, savedActive: String?, mode: StartupTabs
 }
 
 /** A saved tab made consistent: its index inside its history stack, its page the one at that index. */
-fun repairSaved(t: TabItem, loadedOnce: Boolean): TabItem {
+fun repairSaved(t: TabItem): TabItem {
     val stack = t.historyStack
     val idx = if (t.currentIndex in stack.indices) t.currentIndex else stack.size - 1
     val url = stack.getOrNull(idx)
-    return t.copy(currentIndex = if (stack.isEmpty()) -1 else idx, url = url, requestedUrl = url, hasLoadedOnce = loadedOnce,
+    return t.copy(currentIndex = if (stack.isEmpty()) -1 else idx, url = url, requestedUrl = url, hasLoadedOnce = false, // loads when opened
         lastVisit = com.jlees.mibrowser.library.RESTORED_VISIT, title = t.title.ifEmpty { "New Tab" })
 }
 
@@ -73,3 +73,10 @@ fun rememberClosed(recent: List<TabItem>, closing: List<TabItem>, max: Int = 20,
 /** The recently closed tabs still within [keep] at [now] (all of them for SESSION: those only live until mi closes). */
 fun keptClosed(closed: List<TabItem>, keep: com.jlees.mibrowser.data.KeepClosedTabs, now: Long = System.currentTimeMillis()): List<TabItem> =
     if (keep == com.jlees.mibrowser.data.KeepClosedTabs.SESSION) closed else closed.filter { now - it.closedAt < keep.ms }
+
+/** Tab search in the switcher: [query] (trimmed, any case) appears in the tab's title or its page's address. */
+fun matchesTab(tab: TabItem, query: String): Boolean {
+    val q = query.trim()
+    val address = tab.url ?: tab.historyStack.getOrNull(tab.currentIndex).orEmpty()
+    return tab.title.contains(q, ignoreCase = true) || address.contains(q, ignoreCase = true)
+}

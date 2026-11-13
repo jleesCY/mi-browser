@@ -1,4 +1,4 @@
-// The Pill's animated state (shown/hidden, loading progress, search drawer height) and its drag gesture.
+// The Pill's animated state (shown/hidden, loading progress) and its drag gesture.
 package com.jlees.mibrowser.ui
 
 import com.jlees.mibrowser.Sheet
@@ -14,8 +14,6 @@ import com.jlees.mibrowser.ui.common.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 
 /** Height of the search pill, dp. */
 const val PILL_HEIGHT = 70f
@@ -46,9 +44,7 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
     val focusAnim = Animatable(0f)        // isPillFocusedAnim
     /** 0 = the Pill shows the address, 1 = it has turned into the find bar. */
     val findAnim = Animatable(0f)
-    val handleAnim = Animatable(0f)       // handleVisibleAnim
     val progress = Animatable(0f)
-    val recentHeight = Animatable(0f)
     var isBarHidden by mutableStateOf(false)
     var ignoreNextScroll = false
     var lastScrollY = 0f
@@ -80,6 +76,8 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
     fun onScroll(y: Float) {
         if (ignoreNextScroll) { lastScrollY = y; ignoreNextScroll = false; return }
         if (vm.isInputFocused || vm.activeView != Sheet.NONE || y < 0) return
+        // a new tab's page doesn't scroll: a late scroll from the page just left mustn't hide the Pill over it
+        if (vm.tabs.current?.isFresh == true) { lastScrollY = y; return }
         if (!vm.settings.hidePillOnScroll) { lastScrollY = y; return }
         val dy = y - lastScrollY
         if (abs(dy) > 1) {
@@ -104,6 +102,8 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
 
     fun tabSwitched() {
         ignoreNextScroll = true
+        // the Pill was hidden by scrolling the last page: a new tab always shows it (there's nothing to scroll back up)
+        if (isBarHidden && vm.tabs.current?.isFresh == true) showBar()
         scope.launch { progress.snapTo(if (vm.tabs.current?.loading == true) 0.2f else 0f) }
     }
 
@@ -162,33 +162,4 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
         if (dy < -10 || vy < -0.3f) showBar()
         else scope.launch { scrollY.animateTo(HIDDEN_TRANSLATE_Y, Motion.spatial()) }
     }
-
-    // recentSearchesPanResponder
-    var recentStart = 0f
-    var recentMin = 0f
-    var recentMax = 0f
-    /** The search drawer is open (past half height): only then are engine suggestions fetched and shown. */
-    val recentExpanded get() = recentMax > 0f && recentHeight.value > recentMax / 2
-
-    fun recentGrab() { recentStart = recentHeight.value; scope.launch { recentHeight.stop() } }
-
-    fun recentDrag(dy: Float) {
-        val h = max(recentMin, min(recentStart - dy, recentMax))
-        now { recentHeight.snapTo(h) }
-    }
-
-    fun recentRelease(dy: Float, vy: Float) {
-        val target = when {
-            dy < -32 || vy < -0.3f -> recentMax
-            dy > 32 || vy > 0.3f -> recentMin
-            else -> if (recentHeight.value > recentMax / 2) recentMax else recentMin
-        }
-        animateRecent(target)
-    }
-
-    fun animateRecent(target: Float, spring: Boolean = true) = scope.launch {
-        if (spring) recentHeight.animateTo(target, Motion.noBounce()) else recentHeight.animateTo(target, timing(200))
-    }
 }
-
-/** Bottom floating area: the search pill + recent searches drawer. Swipe up opens the tab switcher. */

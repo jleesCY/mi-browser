@@ -27,9 +27,9 @@ import com.jlees.mibrowser.ui.common.SheetSearchField
 class BackSwipe(val drag: (Float) -> Unit, val release: (Boolean) -> Unit)
 
 /**
- * What swiping a sheet's search Pill does: pushes the sheet back out the way it came ([towardEnd]: to the right, for
- * Settings; else to the left, for the Library), unless a view with levels of its own (Settings' sections) has set
- * [inner] to go up a level instead. Provided by OverlaySheet.
+ * What swiping a sheet's search Pill does: pushes the sheet back out the way it came ([towardEnd]: to the right; else
+ * to the left; [downward]: down), unless a view with levels of its own (Settings' sections, Library folders) has set
+ * [inner]: then a swipe right goes up a level, wherever the sheet came from. Provided by OverlaySheet.
  */
 class SheetBack(
     val towardEnd: Boolean, val close: BackSwipe,
@@ -73,8 +73,13 @@ fun BoxScope.SheetSearchPill(
     @OptIn(ExperimentalLayoutApi::class) val keyboardUp = WindowInsets.isImeVisible
     LaunchedEffect(keyboardUp) { if (!keyboardUp && typing) focusManager.clearFocus() }
     var swipe by remember { mutableStateOf<BackSwipe?>(null) } // the handler this drag started with
+    var upLevel by remember { mutableStateOf(false) } // it's [SheetBack.inner]: always a swipe right
+    var decided by remember { mutableStateOf(false) } // this drag's direction has been checked
+    val screenPx = with(LocalDensity.current) { androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp.toPx() }
     var progress by remember { mutableFloatStateOf(0f) }
-    val sign = if (back?.towardEnd == true) 1f else -1f
+    // the swipe below outlives this composition: it reads the sheet's current way back (it changes when the Gestures
+    // setting moves the page while it's open), not the one it started with
+    val latestBack = rememberUpdatedState(back)
     val density = LocalDensity.current
     // morphing with the switcher's Pill: m = 0 the search Pill .. 1 the switcher's Pill, from how far the sheet is out
     val from = back?.morphFrom?.invoke()
@@ -96,14 +101,21 @@ fun BoxScope.SheetSearchPill(
                 .morphToward(if (rest != null) from else null, rest, m)
                 .panGesture(
                     enabled = back != null && !typing,
-                    onStart = { swipe = back?.inner ?: back?.close; progress = 0f },
+                    onStart = { val b = latestBack.value; upLevel = b?.inner != null; swipe = b?.inner ?: b?.close; progress = 0f; decided = false },
                     onMove = { dx, dy ->
-                        val p = ((if (back?.downward == true) dy else dx * sign) * density.density / (back?.extent?.invoke() ?: 1f)).coerceIn(0f, 1f)
+                        // in a sub-level only a swipe right does anything (up a level); down or left is ignored there,
+                        // rather than starting the level's slide at nothing (which flickered)
+                        if (upLevel && !decided) { decided = true; if (dx <= 0f || kotlin.math.abs(dy) > kotlin.math.abs(dx)) swipe = null }
+                        val b = latestBack.value
+                        val sign = if (b?.towardEnd == true) 1f else -1f
+                        val p = if (upLevel) (dx * density.density / screenPx).coerceIn(0f, 1f)
+                        else ((if (b?.downward == true) dy else dx * sign) * density.density / (b?.extent?.invoke() ?: 1f)).coerceIn(0f, 1f)
                         if ((p > 0.25f) != (progress > 0.25f)) haptics?.tick() // past here, letting go goes back
                         progress = p; swipe?.drag?.invoke(p)
                     },
                     onRelease = { _, _, vx, vy ->
-                        val toward = if (back?.downward == true) vy else vx * sign // dp/ms
+                        val b = latestBack.value
+                        val toward = if (upLevel) vx else if (b?.downward == true) vy else vx * (if (b?.towardEnd == true) 1f else -1f) // dp/ms
                         swipe?.release?.invoke(progress > 0.25f || (toward > 0.5f && progress > 0.02f)); swipe = null
                     },
                 )

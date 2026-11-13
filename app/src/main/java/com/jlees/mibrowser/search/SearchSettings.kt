@@ -30,19 +30,29 @@ import com.jlees.mibrowser.search.SEARCH_ENGINE_BANG
 import com.jlees.mibrowser.search.isValidSearchTemplate
 import com.jlees.mibrowser.ui.common.*
 
-/** Settings → Search: the engine, suggestions, and search shortcuts (yours and the built-ins). */
+/** Settings → Search: the engine and search shortcuts (yours and the built-ins). What the Pill suggests is in Settings › Pill (pillSearchRows). */
 fun searchSection(vm: BrowserViewModel) =
-    SettingsSection("search", "Search", "search", "Search engine, suggestions, !shortcuts", listOf(
+    SettingsSection("search", "Search", "search", "Search engine, !shortcuts", listOf(
         SettingsRow("Search Engine", "google bing duckduckgo brave ecosia yahoo") { SearchEngineSetting(vm) },
-        SettingsRow("Search Suggestions", "autocomplete") {
-                SwitchItem("search", "Search Suggestions", "Suggestions from your search engine while the search drawer is open", vm.settings.searchSuggestions) { vm.updateSettings { copy(searchSuggestions = it) } }
-            },
-        SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
-                SwitchItem("incognito", "Suggestions in Incognito", "Suggestions from your search engine while in incognito mode", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
-            },
         SettingsRow("Your Shortcuts", "bang custom add search shortcut help what") { CustomBangsItem(vm) },
         SettingsRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
     ))
+
+/** Settings › Pill's search rows: what shows above the Pill as you type (your past searches, your engine's suggestions). */
+fun pillSearchRows(vm: BrowserViewModel) = listOf(
+    SettingsRow("Shortcut Suggestions", "bang shortcut autocomplete !") {
+        SwitchItem("bolt", "Shortcut Suggestions", "Matching search shortcuts as you type one (\"!w\")", vm.settings.shortcutSuggestions) { vm.updateSettings { copy(shortcutSuggestions = it) } }
+    },
+    SettingsRow("Recent Searches", "history past searches suggestions") {
+        SwitchItem("history", "Recent Searches", "Your past searches, above the Pill when you tap it", vm.settings.recentSearches) { vm.updateSettings { copy(recentSearches = it) } }
+    },
+    SettingsRow("Search Suggestions", "autocomplete") {
+        SwitchItem("search", "Search Suggestions", "Suggestions from your search engine as you type", vm.settings.searchSuggestions) { vm.updateSettings { copy(searchSuggestions = it) } }
+    },
+    SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
+        SwitchItem("incognito", "Suggestions in Incognito", "Suggestions from your search engine in incognito tabs too", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
+    },
+)
 
 /** The search engine row in Settings → Search, with the custom engine dialog. */
 @Composable

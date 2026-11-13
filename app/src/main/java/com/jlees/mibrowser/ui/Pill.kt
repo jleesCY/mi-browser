@@ -2,6 +2,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.tabs.switcherLayout
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 
 import androidx.compose.ui.semantics.customActions
@@ -32,6 +33,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -54,7 +56,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -79,12 +80,12 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 @Composable
-fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navInsetDp: Float, recent: @Composable () -> Unit) {
+fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navInsetDp: Float, suggestionsMaxDp: Float) {
     val ui = LocalUi.current
     val s = vm.settings
     val focusManager = LocalFocusManager.current
-    // All animated values (keyboard focus, drag handle, hide/show, drawer height) are read inside layout/draw
-    // lambdas, so animating them never recomposes the pill, its text field or the recent-searches list.
+    // All animated values (keyboard focus, hide/show) are read inside layout/draw lambdas, so animating them never
+    // recomposes the pill, its text field or its suggestions.
     // effective keyboard height: the Pill rides above the keyboard while its field or the find field has focus
     val k = { imeDp() * max(pill.focusAnim.value, pill.findAnim.value) }
     // Find in page turns the Pill into the find bar: the address content slides left and fades as the find field,
@@ -97,7 +98,6 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
     val pillRadius = if (s.cornerRadius >= 20) PILL_HEIGHT / 2f else s.cornerRadius * 2f
     val padH = { interp(k(), listOf(0f, 100f), listOf(10f, 0f)) }
     val padB = { interp(k(), listOf(0f, 100f), listOf(max(navInsetDp + 10f, 10f), 0f)) + k() }
-    val focusedAdd = { pill.handleAnim.value * 25f }
     // Opening the tab switcher morphs the search pill into the switcher's centre pill: its sides draw in to that
     // pill's size and position, the search content fades out early, and + and ⋮ fade in late (the edge buttons appear in
     // the switcher itself). Driven by the same progress as the page zoom, so it follows the finger and reverses on close.
@@ -113,72 +113,72 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                 .graphicsLayer { alpha = if (hidden() >= 1f) 0f else 1f },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth()) {
-                    // gesture area
-                    Box(
-                        Modifier.fillMaxWidth().heightDp { PILL_HEIGHT + focusedAdd() }
-                            .onGloballyPositioned { pillOrigin.at = it.positionInWindow() }
-                            // the Pill's swipes, for screen readers (which can't swipe)
-                            .semantics {
-                                customActions = listOfNotNull(
-                                    CustomAccessibilityAction("Show tabs") { pill.openSwitcher(); true },
-                                    if (vm.canGoBackUi) CustomAccessibilityAction("Back") { vm.goBack() } else null,
-                                    if (vm.canGoForwardUi) CustomAccessibilityAction("Forward") { vm.goForward() } else null,
-                                    CustomAccessibilityAction("Hide toolbar") { pill.hideBar(); true },
-                                )
-                            }
-                            .panGesture(
-                                // off once the switcher is open: its own Pill takes the swipes there (not while opening:
-                                // that would cancel the very drag that opens it)
-                                enabled = !vm.isInputFocused && !pill.isBarHidden && !vm.find.visible && !vm.switcher.settled,
-                                onMove = { dx, dy -> pill.onPanMove(dx, dy) },
-                                onRelease = { dx, dy, vx, vy -> pill.onPanRelease(dx, dy, vx, vy) },
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        // SEARCH PILL
-                        Box(
-                            Modifier.fillMaxSize().zIndex(2f)
-                                .morphInto(morph, { vm.switcher.barPill }, pillOrigin)
-                                .morphInto(hidden, { pill.recallBounds }, pillOrigin) // hiding: shrinks into the recall button
-                                .graphicsLayer {
-                                    val kk = k()
-                                    val m = maxOf(morph(), hidden()) // the switcher's pill and the recall button are both fully rounded
-                                    val round = size.height / 2
-                                    val top = lerp(pillRadius.dp.toPx(), round, m)
-                                    val bottom = lerp(interp(kk, listOf(0f, 100f), listOf(pillRadius, 0f)).dp.toPx(), round, m)
-                                    shape = RoundedCornerShape(top, top, bottom, bottom)
-                                    shadowElevation = lerp(lerp(interp(kk, listOf(0f, 10f), listOf(10f, 0f)), 6f, morph()), 3f, hidden()).dp.toPx()
-                                    clip = true
-                                }
-                                .drawBehind { drawRect(lerp(ui.pillBar, ui.cs.secondaryContainer, hidden())) },
-                        ) {
-                            Box(Modifier.fillMaxSize().graphicsLayer {
-                                val f = pill.findAnim.value
-                                alpha = (1f - (maxOf(morph(), hidden()) * 3f).coerceIn(0f, 1f)) * (1f - f * 1.6f).coerceIn(0f, 1f)
-                                translationX = -40.dp.toPx() * f
-                            }) {
-                                SearchPillContent(vm, pill, focusedAdd, focusManager)
-                            }
-                            if (findShown) Box(Modifier.fillMaxSize().graphicsLayer {
-                                val f = pill.findAnim.value
-                                alpha = ((f - 0.25f) / 0.75f).coerceIn(0f, 1f)
-                                translationX = 60.dp.toPx() * (1f - f)
-                            }) {
-                                if (vm.find.visible) FindPillContent(vm.find, s.cornerRadius)
-                            }
-                            if (vm.switcherVisible) Box(
-                                Modifier.matchParentSize().graphicsLayer { alpha = ((morph() - 0.55f) / 0.45f).coerceIn(0f, 1f) },
-                                contentAlignment = Alignment.Center,
-                            ) { SwitcherPillButtons({}, {}) }
+            // gesture area
+            Box(
+                Modifier.fillMaxWidth()
+                    .onGloballyPositioned { pillOrigin.at = it.positionInWindow() }
+                    // the Pill's swipes, for screen readers (which can't swipe)
+                    .semantics {
+                        customActions = listOfNotNull(
+                            CustomAccessibilityAction("Show tabs") { pill.openSwitcher(); true },
+                            if (vm.canGoBackUi) CustomAccessibilityAction("Back") { vm.goBack() } else null,
+                            if (vm.canGoForwardUi) CustomAccessibilityAction("Forward") { vm.goForward() } else null,
+                            CustomAccessibilityAction("Hide toolbar") { pill.hideBar(); true },
+                        )
+                    }
+                    .panGesture(
+                        // off once the switcher is open: its own Pill takes the swipes there (not while opening:
+                        // that would cancel the very drag that opens it)
+                        enabled = !vm.isInputFocused && !pill.isBarHidden && !vm.find.visible && !vm.switcher.settled,
+                        onMove = { dx, dy -> pill.onPanMove(dx, dy) },
+                        onRelease = { dx, dy, vx, vy -> pill.onPanRelease(dx, dy, vx, vy) },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                // SEARCH PILL
+                Box(
+                    Modifier.fillMaxWidth().zIndex(2f)
+                        .morphInto(morph, { vm.switcher.barPill }, pillOrigin)
+                        .morphInto(hidden, { pill.recallBounds }, pillOrigin) // hiding: shrinks into the recall button
+                        .graphicsLayer {
+                            val kk = k()
+                            val m = maxOf(morph(), hidden()) // the switcher's pill and the recall button are both fully rounded
+                            val round = size.height / 2
+                            val top = lerp(pillRadius.dp.toPx(), round, m)
+                            val bottom = lerp(interp(kk, listOf(0f, 100f), listOf(pillRadius, 0f)).dp.toPx(), round, m)
+                            shape = RoundedCornerShape(top, top, bottom, bottom)
+                            shadowElevation = lerp(lerp(interp(kk, listOf(0f, 10f), listOf(10f, 0f)), 6f, morph()), 3f, hidden()).dp.toPx()
+                            clip = true
                         }
+                        .drawBehind { drawRect(lerp(ui.pillBar, ui.cs.secondaryContainer, hidden())) },
+                ) { Column {
+                    // typing: suggestions inside the Pill, above the field. The Pill grows up (and shrinks back)
+                    // to fit them as they come and go, never jumping. Only this part animates its size: the
+                    // morph into the switcher's Pill sizes the field directly, so it keeps pace with the outside
+                    Box(Modifier.fillMaxWidth().animateContentSize(Motion.noBounce(), alignment = Alignment.BottomCenter)) {
+                        if (vm.isInputFocused) PillSuggestions(vm, suggestionsMaxDp)
                     }
-                    // recent searches drawer
-                    Box(Modifier.fillMaxWidth().heightDp { pill.recentHeight.value }.zIndex(5f).clipToBounds().background(ui.cs.surfaceContainerLow)) {
-                        recent()
+                    Box(Modifier.fillMaxWidth().height(PILL_HEIGHT.dp)) {
+                        Box(Modifier.fillMaxSize().graphicsLayer {
+                            val f = pill.findAnim.value
+                            alpha = (1f - (maxOf(morph(), hidden()) * 3f).coerceIn(0f, 1f)) * (1f - f * 1.6f).coerceIn(0f, 1f)
+                            translationX = -40.dp.toPx() * f
+                        }) {
+                            SearchPillContent(vm, pill, focusManager)
+                        }
+                        if (findShown) Box(Modifier.fillMaxSize().graphicsLayer {
+                            val f = pill.findAnim.value
+                            alpha = ((f - 0.25f) / 0.75f).coerceIn(0f, 1f)
+                            translationX = 60.dp.toPx() * (1f - f)
+                        }) {
+                            if (vm.find.visible) FindPillContent(vm.find, s.cornerRadius)
+                        }
+                        if (vm.switcherVisible) Box(
+                            Modifier.matchParentSize().graphicsLayer { alpha = ((morph() - 0.55f) / 0.45f).coerceIn(0f, 1f) },
+                            contentAlignment = Alignment.Center,
+                        ) { SwitcherPillButtons({}, {}, up = vm.settings.switcherLayout.up) }
                     }
-                }
+                } }
             }
         }
     }
@@ -186,7 +186,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd: () -> Float, focusManager: androidx.compose.ui.focus.FocusManager) {
+private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusManager: androidx.compose.ui.focus.FocusManager) {
     val ui = LocalUi.current
     val s = vm.settings
     val focusRequester = remember { FocusRequester() }
@@ -212,7 +212,6 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
     LaunchedEffect(Unit) {
         vm.ui.collect { if (it == com.jlees.mibrowser.UiEvent.FocusInput) { allowFocus = true; focusRequester.requestFocus() } }
     }
-    val imeVisible = WindowInsets.isImeVisible
     // back/forward swipe feedback, read at draw time (no recomposition while dragging)
     val backOpacity = { interp(pill.horizontalDrag.value, listOf(0f, 32f), listOf(0f, 1f)) }
     val fwdOpacity = { interp(pill.horizontalDrag.value, listOf(-32f, 0f), listOf(1f, 0f)) }
@@ -224,19 +223,8 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
     val tab = vm.tabs.current
 
     Box(Modifier.fillMaxSize()) {
-        if (vm.isInputFocused && imeVisible) {
-            Box(
-                Modifier.fillMaxWidth().height(24.dp).zIndex(10f).panGesture(
-                    true, claimImmediately = true,
-                    onStart = { pill.recentGrab() },
-                    onMove = { _, dy -> pill.recentDrag(dy) },
-                    onRelease = { _, dy, _, vy -> pill.recentRelease(dy, vy) },
-                ),
-                contentAlignment = Alignment.Center,
-            ) { Box(Modifier.size(40.dp, 4.dp).alpha(0.5f).background(ui.cs.onSurfaceVariant, RoundedCornerShape(2.dp))) }
-        }
         Row(
-            Modifier.fillMaxSize().paddingDp(top = focusedAdd).padding(horizontal = 10.dp),
+            Modifier.fillMaxSize().padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // incognito: the field gets an outline, always, so the mode is clear at a glance
@@ -275,7 +263,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
                         value = tfv,
                         onValueChange = { v ->
                             if (v.text == staleText && v.text != tfv.text) return@BasicTextField // stale pre-focus text (see staleText)
-                            if (v.text != tfv.text) vm.suggestions.onTyping(v.text, pill.recentExpanded)
+                            if (v.text != tfv.text) vm.suggestions.onTyping(v.text)
                             tfv = v; vm.inputUrl = v.text
                         },
                         modifier = Modifier.weight(1f).padding(start = if (notSecure) 8.dp else 16.dp, end = 16.dp)
@@ -369,8 +357,8 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusedAdd:
             }
         }
         // nav arrows (pointerEvents none)
-        if (tab != null && vm.canGoBackUi) Box(Modifier.align(Alignment.CenterStart).padding(start = 20.dp).paddingDp(top = focusedAdd).graphicsLayer { alpha = backOpacity() }) { Sym("arrow_back", 28f, ui.cs.onSurface) }
-        if (tab != null && vm.canGoForwardUi) Box(Modifier.align(Alignment.CenterEnd).padding(end = 20.dp).paddingDp(top = focusedAdd).graphicsLayer { alpha = fwdOpacity() }) { Sym("arrow_forward", 28f, ui.cs.onSurface) }
+        if (tab != null && vm.canGoBackUi) Box(Modifier.align(Alignment.CenterStart).padding(start = 20.dp).graphicsLayer { alpha = backOpacity() }) { Sym("arrow_back", 28f, ui.cs.onSurface) }
+        if (tab != null && vm.canGoForwardUi) Box(Modifier.align(Alignment.CenterEnd).padding(end = 20.dp).graphicsLayer { alpha = fwdOpacity() }) { Sym("arrow_forward", 28f, ui.cs.onSurface) }
     }
 }
 
@@ -379,19 +367,20 @@ private class OriginHolder { var at = Offset.Zero }
 
 /**
  * Lays the pill out between its own place ([origin], progress 0) and [target] in the window (progress 1), without
- * changing the space it takes in its parent.
+ * changing the space it takes in its parent. It only morphs while not typing, so at its own size: full width, PILL_HEIGHT.
  */
 private fun Modifier.morphInto(progress: () -> Float, target: () -> Rect?, origin: OriginHolder) = layout { m, c ->
     val p = progress()
     val t = target()
-    if (p <= 0f || t == null || !c.hasBoundedWidth || !c.hasBoundedHeight) {
+    if (p <= 0f || t == null || !c.hasBoundedWidth) {
         val pl = m.measure(c)
         return@layout layout(pl.width, pl.height) { pl.place(0, 0) }
     }
     val w = lerp(c.maxWidth.toFloat(), t.width, p).roundToInt().coerceAtLeast(1)
-    val h = lerp(c.maxHeight.toFloat(), t.height, p).roundToInt().coerceAtLeast(1)
+    val ownH = PILL_HEIGHT.dp.roundToPx()
+    val h = lerp(ownH.toFloat(), t.height, p).roundToInt().coerceAtLeast(1)
     val pl = m.measure(Constraints.fixed(w, h))
-    layout(c.maxWidth, c.maxHeight) {
+    layout(c.maxWidth, ownH) {
         pl.place(lerp(0f, t.left - origin.at.x, p).roundToInt(), lerp(0f, t.top - origin.at.y, p).roundToInt())
     }
 }

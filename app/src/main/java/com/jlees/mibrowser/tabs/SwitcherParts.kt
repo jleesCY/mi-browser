@@ -2,6 +2,7 @@
 package com.jlees.mibrowser.tabs
 
 import com.jlees.mibrowser.ui.*
+import com.jlees.mibrowser.data.SwitcherPanel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.FilledIconButton
@@ -46,10 +47,11 @@ fun SwitcherEdgeButton(icon: String, onClick: () -> Unit, modifier: Modifier = M
 
 /** The contents of the switcher's centre pill: History (also a swipe up), new tab and the tab menu. */
 @Composable
-fun SwitcherPillButtons(onNew: () -> Unit, onMenu: () -> Unit, onHistory: () -> Unit = {}) {
+fun SwitcherPillButtons(onNew: () -> Unit, onMenu: () -> Unit, up: SwitcherPanel = SwitcherPanel.HISTORY, onUp: () -> Unit = {}) {
     val ui = LocalUi.current
     Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onHistory, Modifier.padding(start = 4.dp, end = 4.dp).size(52.dp)) { Sym("history", 24f, ui.cs.onSurface, label = "History") }
+        // the page that a swipe up opens (History unless moved in Settings › Tabs)
+        IconButton(onClick = onUp, Modifier.padding(start = 4.dp, end = 4.dp).size(52.dp)) { Sym(up.icon, 24f, ui.cs.onSurface, label = up.label) }
         FilledIconButton(
             onClick = onNew, modifier = Modifier.size(56.dp),
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = ui.cs.primaryContainer),

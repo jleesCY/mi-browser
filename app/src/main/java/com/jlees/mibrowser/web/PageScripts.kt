@@ -9,6 +9,8 @@ class PageScripts(ctx: Context) {
 
     /** Every page, at document start: page Print and Share buttons call into mi. */
     val bridge by lazy { load("bridge") }
+    /** Every frame, at document start: reports audio and video playing, and plays/pauses it (media/BackgroundMedia). */
+    val media by lazy { load("media") }
     /** Every frame, at document start: element hiding for ad, tracker and cookie-banner blocking. */
     val cosmeticFilter by lazy { load("cosmetic-filter") }
     /** Incognito frames, at document start: creating passkeys is refused (signing in still works). */

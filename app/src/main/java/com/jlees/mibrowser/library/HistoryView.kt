@@ -40,7 +40,7 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     val scope = rememberCoroutineScope()
     val list = rememberLazyListState()
     val search = vm.historySearch
-    val chunk = vm.settings.historyLoadCount.takeIf { it > 0 } ?: 25
+    val chunk = 25 // entries loaded at a time; more as you scroll
     var visibleCount by remember(search, chunk) { mutableIntStateOf(chunk) }
     var collapsed by remember { mutableStateOf(setOf<String>()) }
     val searching = search.trim().isNotEmpty()
@@ -192,13 +192,13 @@ fun RecentlyClosedView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         }
         // ⋮: clear them all (asks first, as History's Clear does)
         SheetSearchPill(search, { search = it }) { close ->
-            SheetMenuItem("delete", "Clear Recently Closed") {
-                close()
-                vm.showAlert(
-                    "Clear recently closed?", "The tabs you closed are removed from this list. Your history stays.",
-                    listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Clear", ButtonStyle.DESTRUCTIVE) { vm.tabs.forgetClosed() }),
-                )
-            }
+            SheetMenuItem("delete", "Clear Recently Closed") { close(); vm.confirmClearRecentlyClosed() }
         }
     }
 }
+
+/** Clear Recently Closed (History's ⋮ menu, Settings › History): asks first, then empties the list. History stays. */
+fun BrowserViewModel.confirmClearRecentlyClosed() = showAlert(
+    "Clear recently closed?", "The tabs you closed are removed from this list. Your history stays.",
+    listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Clear", ButtonStyle.DESTRUCTIVE) { tabs.forgetClosed() }),
+)

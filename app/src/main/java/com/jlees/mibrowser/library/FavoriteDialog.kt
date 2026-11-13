@@ -9,18 +9,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.jlees.mibrowser.data.Favorite
+import com.jlees.mibrowser.data.BookmarkNode
 import com.jlees.mibrowser.ui.ModalFrame
 import com.jlees.mibrowser.ui.common.DialogAction
 import com.jlees.mibrowser.ui.common.DialogCard
 import com.jlees.mibrowser.ui.common.LabeledField
 
 /**
- * Editing a favorite (hold one in the favorites bar and let go): its name and address, Save, or Delete. Deleting lives
- * here on purpose, so it's never one slip of a drag away.
+ * Editing a favorite (hold one on the home page): its name and address, Save, or Delete. Deleting lives here on
+ * purpose, so it's never one slip of a tap away.
  */
 @Composable
-fun FavoriteDialog(store: BookmarksStore, favorite: Favorite?, onClose: () -> Unit) {
+fun FavoriteDialog(store: BookmarksStore, favorite: BookmarkNode?, onClose: () -> Unit) {
     var title by remember(favorite) { mutableStateOf(favorite?.title.orEmpty()) }
     var url by remember(favorite) { mutableStateOf(favorite?.url.orEmpty()) }
     // a typed address without a scheme gets https://; it needs a host to be saved
@@ -28,7 +28,7 @@ fun FavoriteDialog(store: BookmarksStore, favorite: Favorite?, onClose: () -> Un
     val valid = runCatching { !Uri.parse(address).host.isNullOrBlank() }.getOrDefault(false)
     ModalFrame(favorite != null, onClose) {
         DialogCard("Edit Favorite", actions = {
-            DialogAction("Delete", destructive = true) { favorite?.let { store.removeFavorite(it.id) }; onClose() }
+            DialogAction("Delete", destructive = true) { favorite?.let { store.delete(it.id) }; onClose() }
             DialogAction("Cancel", onClick = onClose)
             DialogAction("Save") { if (valid && favorite != null) { store.updateFavorite(favorite.id, title.trim(), address); onClose() } }
         }) {

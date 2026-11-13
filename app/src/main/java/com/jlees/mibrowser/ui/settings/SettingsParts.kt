@@ -48,10 +48,10 @@ internal fun TopBarOver(bg: Color, bar: @Composable () -> Unit, content: @Compos
 
 /** A section's title above its rows in search results. */
 @Composable
-internal fun SectionHeader(icon: String, title: String) {
+internal fun SectionHeader(icon: String?, title: String) {
     val ui = LocalUi.current
     Row(Modifier.fillMaxWidth().padding(start = 8.dp, top = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Sym(icon, 18f, ui.cs.primary, Modifier.padding(end = 8.dp))
+        if (icon != null) Sym(icon, 18f, ui.cs.primary, Modifier.padding(end = 8.dp))
         Txt(title, 15f, ui.cs.primary, ui.bold)
     }
 }

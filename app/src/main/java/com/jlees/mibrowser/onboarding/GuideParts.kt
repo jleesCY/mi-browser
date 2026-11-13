@@ -2,6 +2,8 @@
 package com.jlees.mibrowser.onboarding
 
 import androidx.compose.animation.animateColorAsState
+import com.jlees.mibrowser.data.SwitcherPanel
+import com.jlees.mibrowser.tabs.PillSwipe
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,18 +36,35 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
 
-/** A page the switcher's Pill opens: where it comes from, and the swipe on its own search Pill that goes back. */
-internal enum class Panel(val title: String) { LIBRARY("Library"), SETTINGS("Settings"), HISTORY("History") }
+/** The word for the swipe that opens a page from [s] ("right": the page comes in from the left). */
+internal fun openWord(s: PillSwipe) = when (s) { PillSwipe.RIGHT -> "right"; PillSwipe.LEFT -> "left"; PillSwipe.UP -> "up" }
+/** The word for the swipe on a page's search Pill that sends it back the way it came. */
+internal fun backWord(s: PillSwipe) = when (s) { PillSwipe.RIGHT -> "left"; PillSwipe.LEFT -> "right"; PillSwipe.UP -> "down" }
+internal fun openMove(s: PillSwipe) = when (s) { PillSwipe.RIGHT -> Move.RIGHT; PillSwipe.LEFT -> Move.LEFT; PillSwipe.UP -> Move.UP }
+internal fun backMove(s: PillSwipe) = when (s) { PillSwipe.RIGHT -> Move.LEFT; PillSwipe.LEFT -> Move.RIGHT; PillSwipe.UP -> Move.DOWN }
+/** How far a drag [dx]/[dy] (px) has pulled the page from [s] open: a screen [w]idth sideways, [h] up. */
+internal fun openPull(s: PillSwipe, dx: Float, dy: Float, w: Float, h: Float) = when (s) { PillSwipe.RIGHT -> dx / w; PillSwipe.LEFT -> -dx / w; PillSwipe.UP -> -dy / h }
+/** How far a drag on the page's search Pill has pushed it back out: a screen [w]idth sideways, [down] px down. */
+internal fun backPullOf(s: PillSwipe, dx: Float, dy: Float, w: Float, down: Float) = when (s) { PillSwipe.RIGHT -> -dx / w; PillSwipe.LEFT -> dx / w; PillSwipe.UP -> dy / down }
 
 /** One thing a step asks you to try, as a line in the caption's checklist. [leaves]: going back out of the step's page. */
 internal enum class Task(val label: String, val leaves: Boolean = false) {
     GO_BACK("Swipe right to go back"), GO_FORWARD("Swipe left to go forward"),
     OTHER_TABS("Swipe right to see your other tabs"), CLOSE_TAB("Swipe a tab up to close it"),
+    SEARCH_TABS("Hold the Pill to search your tabs"), // only while Settings › Gestures › Long Press to Search is on
     DELETE_BOOKMARK("Swipe a bookmark left to delete it"), EDIT_BOOKMARK("Swipe a bookmark right to edit it"),
-    LEAVE_LIBRARY("Swipe the search Pill left to go back", leaves = true),
-    LEAVE_SETTINGS("Swipe the search Pill right to go back", leaves = true),
+    // going back: the direction depends on where the page sits (see [labelFor])
+    LEAVE_LIBRARY("", leaves = true), LEAVE_SETTINGS("", leaves = true),
     DELETE_ENTRY("Swipe an entry left to delete it"),
-    LEAVE_HISTORY("Swipe the search Pill down to go back", leaves = true),
+    LEAVE_HISTORY("", leaves = true);
+
+    /** The checklist line; [swipeOf] gives a page's place (for going back out of it). */
+    fun labelFor(swipeOf: (SwitcherPanel) -> PillSwipe) = when (this) {
+        LEAVE_LIBRARY -> "Swipe the search Pill ${backWord(swipeOf(SwitcherPanel.LIBRARY))} to go back"
+        LEAVE_SETTINGS -> "Swipe the search Pill ${backWord(swipeOf(SwitcherPanel.SETTINGS))} to go back"
+        LEAVE_HISTORY -> "Swipe the search Pill ${backWord(swipeOf(SwitcherPanel.HISTORY))} to go back"
+        else -> label
+    }
 }
 
 /**
@@ -53,18 +72,19 @@ internal enum class Task(val label: String, val leaves: Boolean = false) {
  * then back to the tab. [text] is what to do; a page step shows [inside] once its page is open. [chips] are the tasks
  * the step needs, each ticked off once done.
  */
-internal enum class Step(val title: String, val text: String, val inside: String = "", val chips: List<Task> = emptyList(), val panel: Panel? = null) {
+internal enum class Step(val title: String, val text: String, val inside: String = "", val chips: List<Task> = emptyList(), val panel: SwitcherPanel? = null) {
     INTRO("Meet the Pill", "It's your search bar for the web: type an address, or anything you want to find."),
     NAVIGATE("Page Navigation", "Swipe to navigate forward or backward while web browsing.", chips = listOf(Task.GO_BACK, Task.GO_FORWARD)),
     HIDE("Hide the Pill", "Swipe it down to hide it while you browse."),
     TABS("Your tabs", "Swipe up on the Pill for your tabs."),
-    CARDS("Navigating your tabs", "Your open tabs, the newest on the right. Pinned tabs can't be closed.", chips = listOf(Task.OTHER_TABS, Task.CLOSE_TAB)),
-    LIBRARY("Library", "Swipe the Pill right to open your bookmarks and downloads.", "Your bookmarks and downloads. Try these:",
-        listOf(Task.DELETE_BOOKMARK, Task.EDIT_BOOKMARK, Task.LEAVE_LIBRARY), Panel.LIBRARY),
-    SETTINGS("Settings", "Swipe the Pill left to open Settings.", "Inside a section, the same swipe goes up a level.",
-        listOf(Task.LEAVE_SETTINGS), Panel.SETTINGS),
-    HISTORY("History", "Swipe the Pill up for History and recently closed tabs.", "Pages you visited and tabs you closed. Try these:",
-        listOf(Task.DELETE_ENTRY, Task.LEAVE_HISTORY), Panel.HISTORY),
+    CARDS("Navigating your tabs", "Your open tabs, the newest on the right. Pinned tabs can't be closed.", chips = listOf(Task.OTHER_TABS, Task.CLOSE_TAB, Task.SEARCH_TABS)),
+    // %s: the swipe that opens the page (it follows Settings › Tabs › Gestures)
+    LIBRARY("Library", "Swipe the Pill %s to open your bookmarks and downloads.", "Your bookmarks and downloads. Try these:",
+        listOf(Task.DELETE_BOOKMARK, Task.EDIT_BOOKMARK, Task.LEAVE_LIBRARY), SwitcherPanel.LIBRARY),
+    SETTINGS("Settings", "Swipe the Pill %s to open Settings.", "Inside a section, swipe the search Pill right to go up a level.",
+        listOf(Task.LEAVE_SETTINGS), SwitcherPanel.SETTINGS),
+    HISTORY("History", "Swipe the Pill %s for History and recently closed tabs.", "Pages you visited and tabs you closed. Try these:",
+        listOf(Task.DELETE_ENTRY, Task.LEAVE_HISTORY), SwitcherPanel.HISTORY),
     OPEN("Back to your tab", "Swipe down or tap the current tab to open it."),
     DONE("You're all set", "That's every gesture. Enjoy mi."),
 }
@@ -112,33 +132,33 @@ internal fun GuidePillField(navDragDp: Float, modifier: Modifier) {
 }
 
 /**
- * A copy of the Library, Settings or History page, [p] of the way in (from the left, the right, or the bottom), with a
+ * A copy of the Library, Settings or History page, [p] of the way in (from the left, the right, or the bottom: [from]), with a
  * sample row to swipe (not in Settings) and its search Pill at the bottom. [rowSwipe] and [pillSwipe] make them work.
  */
 @Composable
 internal fun GuidePage(
-    panel: Panel, p: Float, onRow: (Rect) -> Unit, onPill: (Rect) -> Unit, onDelete: () -> Unit, onEdit: (() -> Unit)?, pillSwipe: Modifier,
+    panel: SwitcherPanel, from: PillSwipe, p: Float, onRow: (Rect) -> Unit, onPill: (Rect) -> Unit, onDelete: () -> Unit, onEdit: (() -> Unit)?, pillSwipe: Modifier,
 ) {
     val ui = LocalUi.current
     Box(
         Modifier.fillMaxSize().graphicsLayer {
-            when (panel) {
-                Panel.LIBRARY -> translationX = -size.width * (1f - p)
-                Panel.SETTINGS -> translationX = size.width * (1f - p)
-                Panel.HISTORY -> translationY = size.height * (1f - p)
+            when (from) { // the side its place in the switcher brings it in from
+                PillSwipe.RIGHT -> translationX = -size.width * (1f - p)
+                PillSwipe.LEFT -> translationX = size.width * (1f - p)
+                PillSwipe.UP -> translationY = size.height * (1f - p)
             }
         }.background(ui.cs.surfaceContainerLow).blockTouches().windowInsetsPadding(WindowInsets.systemBars),
     ) {
         Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 16.dp)) {
             // as the real page: its title and ✕, then (Library, History) its two sections
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Txt(panel.title, 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
+                Txt(panel.label, 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
                 Box(Modifier.size(40.dp).clip(CircleShape).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) { Sym("close", 24f, ui.cs.onSecondaryContainer) }
             }
-            val sections = when (panel) { Panel.LIBRARY -> listOf("Bookmarks", "Downloads"); Panel.HISTORY -> listOf("History", "Recently Closed"); Panel.SETTINGS -> null }
+            val sections = when (panel) { SwitcherPanel.LIBRARY -> listOf("Bookmarks", "Downloads"); SwitcherPanel.HISTORY -> listOf("History", "Recently Closed"); SwitcherPanel.SETTINGS -> null }
             if (sections != null) com.jlees.mibrowser.ui.common.ConnectedChoice(sections.map { it to it }, sections[0], Modifier.padding(top = 12.dp, end = 4.dp)) {}
-            if (panel != Panel.SETTINGS) {
-                val (icon, title, sub) = if (panel == Panel.LIBRARY) Triple("bookmarks", "mi browser", "github.com") else Triple("history", "Example Domain", "example.com")
+            if (panel != SwitcherPanel.SETTINGS) {
+                val (icon, title, sub) = if (panel == SwitcherPanel.LIBRARY) Triple("bookmarks", "mi browser", "github.com") else Triple("history", "Example Domain", "example.com")
                 // the app's own swipe row: red with a trash can to delete, the accent with a pencil to edit
                 SwipeActionRow(64.dp, onDelete, Modifier.padding(top = 20.dp, end = 12.dp).onGloballyPositioned { onRow(it.boundsInRoot()) }, onEdit = onEdit, confirmDelete = true) {
                     Row(

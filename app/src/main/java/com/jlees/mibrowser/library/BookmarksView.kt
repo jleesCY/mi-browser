@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -89,6 +90,23 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
         }
     }
 
+    // inside a folder, a swipe right on the search Pill goes up a folder (the list slides away with the finger)
+    val folderSlide = remember { androidx.compose.animation.core.Animatable(0f) }
+    val sheetBack = LocalSheetBack.current
+    DisposableEffect(folderStack.size, search.isEmpty()) {
+        sheetBack?.inner = if (folderStack.isEmpty() || search.isNotEmpty()) null else BackSwipe(
+            drag = { p -> scope.launch { folderSlide.snapTo(p) } },
+            release = { up ->
+                scope.launch {
+                    if (up) { folderSlide.animateTo(1f, androidx.compose.animation.core.tween(160)); folderStack = folderStack.dropLast(1) }
+                    else folderSlide.animateTo(0f, androidx.compose.animation.core.tween(200))
+                    folderSlide.snapTo(0f)
+                }
+            },
+        )
+        onDispose { sheetBack?.inner = null }
+    }
+
     val visible = if (search.isNotBlank()) vm.bookmarks.nodes.filter { it.title.lowercase().contains(search.lowercase()) || (!it.isFolder && it.url.lowercase().contains(search.lowercase())) }
     else vm.bookmarks.nodes.filter { it.parentId == currentFolder }.sortedBy { it.order }
     val showPath = search.isNotEmpty() || folderStack.isNotEmpty()
@@ -96,7 +114,8 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val slotW = maxWidth.value - 40
         val rowH = rowHeight(ui.padding, ui.fontScale) // the same rows as History and Downloads
-        Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(start = 20.dp, end = 20.dp, top = if (showPath) 64.dp else 16.dp, bottom = SheetPillSpace)) {
+        Column(Modifier.fillMaxSize().graphicsLayer { translationX = size.width * folderSlide.value; alpha = 1f - folderSlide.value }
+            .verticalScroll(scroll).padding(start = 20.dp, end = 20.dp, top = if (showPath) 64.dp else 16.dp, bottom = SheetPillSpace)) {
             // History and Downloads' lists start at 16dp: under the folder path this one starts lower, so the message comes up by the difference
             if (visible.isEmpty()) EmptyState("bookmarks", top = (50 - ((if (showPath) 64 else 16) - 16)).coerceAtLeast(0).dp, text = when {
                 search.isNotBlank() -> "No matches"
@@ -191,6 +210,7 @@ private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPre
                 color = if (b.isFolder) ui.cs.tertiaryContainer else rowTileColor(),
             ) {
                 when {
+                    b.id == FAVORITES_FOLDER -> Sym("star", 24f, ui.cs.onTertiaryContainer) // your favorites (the home page's)
                     b.isFolder -> Sym("folder_fill", 24f, ui.cs.onTertiaryContainer)
                     showIcon -> NetImage(Favicons.src(b.url), Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))) { Sym("public", 26f, ui.cs.onSurfaceVariant) }
                     else -> Txt(b.title.ifEmpty { "?" }.take(1).uppercase(), 20f, ui.cs.onSurface, FontWeight.W700)
@@ -214,6 +234,15 @@ private fun confirmDelete(vm: BrowserViewModel, b: BookmarkNode) {
         folders.takeIf { it > 0 }?.let { if (it == 1) "1 folder" else "$it folders" },
         bookmarks.takeIf { it > 0 }?.let { if (it == 1) "1 bookmark" else "$it bookmarks" },
     ).joinToString(" and ")
+    // the Favorites folder is your favorites: deleting it empties the home page's grid, so it says so
+    if (b.id == FAVORITES_FOLDER) {
+        val n = vm.bookmarks.favorites.size
+        return vm.showAlert(
+            "Delete All Favorites?",
+            if (n == 0) "The Favorites folder will be deleted." else "The Favorites folder holds your favorites. Deleting it removes ${if (n == 1) "your favorite" else "all $n favorites"} from your home page and bookmarks.",
+            listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Delete All", ButtonStyle.DESTRUCTIVE) { vm.bookmarks.delete(b.id) }),
+        )
+    }
     vm.showAlert(
         if (b.isFolder) "Delete Folder?" else "Delete Bookmark?",
         when {

@@ -40,27 +40,13 @@ import java.net.URL
 import kotlin.math.roundToInt
 
 /**
- * Fixed-slot drag-to-reorder container (grid when columns > 1, horizontal row when [horizontal]).
- * Long-press [longPressMs] starts dragging; let go without moving, [onHold] runs instead (an item's own actions, like removing it).
+ * Drag-to-reorder fixed slots: a list (the Bookmarks list), or a grid of [columns] (the home page's favorites). Hold an
+ * item a moment, then drag it; let go without moving and [onHold] runs instead (its own actions, like editing it).
  */
 @Composable
 fun <T> SortableSlots(
-    items: List<T>,
-    key: (T) -> String,
-    slotW: Dp,
-    slotH: Dp,
-    modifier: Modifier = Modifier,
-    columns: Int = 1,
-    horizontal: Boolean = false,
-    longPressMs: Long = 200,
-    dragScale: Float = 1.02f,
-    dragShadow: Boolean = true,
-    enabled: Boolean = true,
-    onReorder: (Int, Int) -> Unit,
-    onDragStart: () -> Unit = {},
-    /** Long-pressed and let go without moving: the item's own actions (dragging only ever reorders). */
-    onHold: (T) -> Unit = {},
-    content: @Composable (T) -> Unit,
+    items: List<T>, key: (T) -> String, slotW: Dp, slotH: Dp, onReorder: (Int, Int) -> Unit,
+    columns: Int = 1, onHold: (T) -> Unit = {}, content: @Composable (T) -> Unit,
 ) {
     val d = LocalDensity.current
     val wPx = with(d) { slotW.toPx() }
@@ -70,10 +56,8 @@ fun <T> SortableSlots(
     var dragging by remember { mutableStateOf<String?>(null) }
     val haptics = LocalHaptics.current
     val count = items.size
-    fun slot(i: Int) = if (horizontal) Offset(i * wPx, 0f) else Offset((i % columns) * wPx, (i / columns) * hPx)
-    val rows = if (horizontal) 1 else (count + columns - 1) / columns
-    val width = if (horizontal) slotW * count else slotW * columns
-    Box(modifier.size(width, slotH * rows)) {
+    fun slot(i: Int) = Offset((i % columns) * wPx, (i / columns) * hPx)
+    Box(Modifier.size(slotW * columns, slotH * ((count + columns - 1) / columns))) {
         items.forEachIndexed { index, item ->
             val k = key(item)
             key(k) {
@@ -83,23 +67,24 @@ fun <T> SortableSlots(
                 val isDragging = dragging == k
                 val target = slot(order[k] ?: index)
                 LaunchedEffect(target, isDragging) { if (!isDragging) pos.animateTo(target, Motion.spatial()) }
-                val scale by animateFloatAsState(if (isDragging) dragScale else 1f, Motion.fastSpatial(), label = "scale")
+                val scale by animateFloatAsState(if (isDragging) 1.02f else 1f, Motion.fastSpatial(), label = "scale")
                 Box(
                     Modifier
                         .offset { IntOffset((pos.value.x + drag.x).roundToInt(), (pos.value.y + drag.y).roundToInt()) }
                         .size(slotW, slotH)
                         .zIndex(if (isDragging) 100f else 1f)
                         .graphicsLayer { scaleX = scale; scaleY = scale }
-                        .then(if (isDragging && dragShadow) Modifier.shadow(8.dp, RoundedCornerShape(LocalUi.current.radius.dp)) else Modifier)
-                        .pointerInput(k, enabled, count) {
-                            if (!enabled) return@pointerInput
+                        // always there (flat when not held): adding it on pick-up would change the item's modifiers
+                        // mid-gesture, which can restart the touch handler below and lose the rest of the drag
+                        .shadow(if (isDragging) 8.dp else 0.dp, RoundedCornerShape(LocalUi.current.radius.dp))
+                        .pointerInput(k, count) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
                                 // raw screen position of the touch-down (the dragged item moves under the finger)
                                 val downMe = currentEvent.motionEvent
                                 val origin = if (downMe != null) Offset(downMe.rawX, downMe.rawY) else null
                                 // wait for the long-press delay; abort if the finger moves or lifts first
-                                val held = withTimeoutOrNull(longPressMs) {
+                                val held = withTimeoutOrNull(200L) {
                                     while (true) {
                                         val e = awaitPointerEvent()
                                         val c = e.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
@@ -112,26 +97,22 @@ fun <T> SortableSlots(
                                 val startOrder = order[k] ?: index
                                 dragging = k
                                 haptics?.longPress() // picked up
-                                onDragStart()
                                 var total = Offset.Zero
-                                var last = down.position
+                                // moved at any point while held (not just where it ended up): a drag that comes back to
+                                // where it started is still a rearrange, never an edit
+                                var moved = false
                                 while (true) {
                                     val e = awaitPointerEvent()
-                                    val c = e.changes.firstOrNull { it.id == down.id } ?: break
-                                    if (!c.pressed) { last = c.position; break }
+                                    val c = e.changes.firstOrNull { it.id == down.id }
+                                    if (c == null) { moved = true; break } // the touch was lost (cancelled): not a hold either
+                                    if (!c.pressed) break
                                     val me = e.motionEvent
                                     total = if (me != null && origin != null) Offset(me.rawX, me.rawY) - origin else total + c.positionChange()
-                                    last = c.position
+                                    if (total.getDistance() > viewConfiguration.touchSlop) moved = true
                                     c.consume()
-                                    val start = slot(startOrder)
-                                    // a row (the favorites bar) only slides along itself, between its ends: dragging
-                                    // reorders, it can't pull an item out of the row
-                                    drag = if (horizontal) Offset((start.x + total.x).coerceIn(0f, (count - 1) * wPx) - start.x, 0f) else total
-                                    val x = start.x + drag.x
-                                    val y = start.y + drag.y
-                                    val newOrder = if (horizontal) (x / wPx).roundToInt()
-                                    else (y / hPx).roundToInt().coerceAtLeast(0) * columns + (x / wPx).roundToInt().coerceIn(0, columns - 1)
-                                    val safe = newOrder.coerceIn(0, count - 1)
+                                    drag = total
+                                    val at = slot(startOrder) + drag
+                                    val safe = ((at.y / hPx).roundToInt().coerceAtLeast(0) * columns + (at.x / wPx).roundToInt().coerceIn(0, columns - 1)).coerceIn(0, count - 1)
                                     val cur = order[k] ?: index
                                     if (safe != cur) {
                                         for ((kk, v) in order.toMap()) {
@@ -143,11 +124,10 @@ fun <T> SortableSlots(
                                 }
                                 val to = order[k] ?: index
                                 val visual = pos.value + drag
-                                val stayed = total.getDistance() <= viewConfiguration.touchSlop
                                 drag = Offset.Zero
                                 scope.launch { pos.snapTo(visual); dragging = null; pos.animateTo(slot(to), Motion.spatial()) }
                                 if (to != index) onReorder(index, to)
-                                if (stayed) onHold(item)
+                                if (!moved && to == index) onHold(item)
                             }
                         },
                 ) { content(item) }

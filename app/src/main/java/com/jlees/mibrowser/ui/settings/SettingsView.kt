@@ -17,8 +17,6 @@ import com.jlees.mibrowser.adblock.adBlockSection
 
 import com.jlees.mibrowser.ButtonStyle
 import com.jlees.mibrowser.ConfirmAction
-import com.jlees.mibrowser.data.Spacing
-import com.jlees.mibrowser.data.ThemeMode
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
@@ -43,9 +41,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -63,6 +61,7 @@ import kotlinx.coroutines.withContext
 
 private const val GUIDE_URL = "https://jleescy.github.io/mi-browser/user"
 private const val SOURCE_URL = "https://github.com/jleescy/mi-browser"
+private const val NEW_ISSUE_URL = "$SOURCE_URL/issues/new"
 private const val PRIVACY_URL = "https://jleescy.github.io/mi-browser/privacy"
 
 @Composable
@@ -115,97 +114,21 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     }
 
     val groups = listOf(
-        SettingsSection("look", "Look & Feel", "palette", "Theme, colours, fonts, spacing, haptics", listOf(
-            SettingsRow("Theme", "light dark system mode") {
-                ChoiceItem("routine", "Theme", null, s.themeMode) { set { copy(themeMode = it) } }
-            },
-            SettingsRow("Pure Black", "oled amoled black dark battery") {
-                if (s.themeMode != ThemeMode.LIGHT) SwitchItem("contrast", "Pure Black (OLED)", "True black backgrounds in dark mode", s.pureBlack) { set { copy(pureBlack = it) } }
-            },
-            SettingsRow("Accent Color", "colour wallpaper material you dynamic") { AccentItem(vm) },
-            SettingsRow("Font Size", "text scale app") {
-                SliderItem("format_size", "Font Size", "Text size throughout mi", s.fontScale, 0.8f, 1.2f) { set { copy(fontScale = it) } }
-            },
-            SettingsRow("Font", "typeface rounded system font") { ChoiceItem("font_download", "Font", null, s.font) { set { copy(font = it) } } },
-            SettingsRow("Corners", "radius shape") {
-                ChoiceItem("rounded_corner", "Corners", null, listOf("0" to "Square", "12" to "Soft", "28" to "Round"), s.cornerRadius.toString()) { set { copy(cornerRadius = it.toInt()) } }
-            },
-            SettingsRow("Spacing", "density padding compact airy") {
-                ChoiceItem("density_medium", "Spacing", "How lists appear in mi", s.uiPadding) { set { copy(uiPadding = it) } }
-            },
-            SettingsRow("Status Bar", "clock battery immersive") { SwitchItem("battery_charging_full", "Status Bar", null, s.showStatusBar) { set { copy(showStatusBar = it) } } },
-            SettingsRow("Haptic Feedback", "vibration vibrate haptics touch feel") {
-                SwitchItem("vibration", "Haptic Feedback", "Taps when gestures are performed", s.hapticFeedback) { set { copy(hapticFeedback = it) } }
-            },
-        )),
-        SettingsSection("pill", "Pill", "toolbar", "Loading bar, hide on scroll, favorites, search drawer", listOfNotNull(
-            SettingsRow("Loading Bar", "progress") {
-                ChoiceItem("hourglass_empty", "Loading Bar", "Fill behind the address while a page loads", s.progressBarMode) { set { copy(progressBarMode = it) } }
-            },
-            SettingsRow("Hide on Scroll", "auto hide pill toolbar scrolling recall") {
-                SwitchItem("keyboard_arrow_down", "Hide on Scroll", "Hide the Pill while you scroll down a page", s.hidePillOnScroll) { set { copy(hidePillOnScroll = it) } }
-            },
-            SettingsRow("Pin Favorites", "favorites bar") { SwitchItem("star", "Pin Favorites", "Always show the favorites bar when searching", s.showFavoritesDefault) { set { copy(showFavoritesDefault = it) } } },
-            SettingsRow("Expand Searches", "recent searches drawer") {
-                SwitchItem("list", "Expand Searches", "Open the search drawer fully when you tap the pill", s.recentSearchesExpanded) { set { copy(recentSearchesExpanded = it) } }
-            },
-        )),
+        lookSection(vm),
+        pillSection(vm),
+        gesturesSection(vm),
         homeSection(vm),
         searchSection(vm),
-        SettingsSection("pages", "Web Pages", "public", "Text size, dark pages, autoplay, desktop and reader mode", listOf(
-            SettingsRow("Page Text Size", "zoom font web websites") {
-                SliderItem("format_size", "Page Text Size", "Text size on websites", s.textZoom / 100f, 0.5f, 2f) { set { copy(textZoom = Math.round(it * 100)) } }
-            },
-            SettingsRow("Darken Web Pages", "dark mode force night websites") {
-                SwitchItem("contrast", "Darken Web Pages", "Darken sites that have no dark mode", s.darkenPages) { set { copy(darkenPages = it) } }
-            },
-            SettingsRow("Block Video Autoplay", "autoplay video sound media") {
-                SwitchItem("block", "Block Video Autoplay", "Videos wait for a tap instead of playing on their own", s.blockAutoplay) { set { copy(blockAutoplay = it) } }
-            },
-            SettingsRow("Desktop Site by Default", "desktop mode user agent") {
-                SwitchItem("desktop_windows", "Desktop Site by Default", "Request desktop versions of websites (each tab can still change it)", s.desktopMode) { set { copy(desktopMode = it) } }
-            },
-            SettingsRow("Reader Mode by Default", "reader readability") {
-                SwitchItem("chrome_reader_mode", "Reader Mode by Default", "Simplify pages for reading (each tab can still change it)", s.readerModeEnabled) { set { copy(readerModeEnabled = it) } }
-            },
-            SettingsRow("Pull to Refresh", "reload swipe down gesture") {
-                SwitchItem("refresh", "Pull to Refresh", "Pull down at the very top of a page to reload it", s.pullToRefresh) { set { copy(pullToRefresh = it) } }
-            },
-        )),
+        pagesSection(vm),
+        com.jlees.mibrowser.media.mediaSection(vm),
         tabsSection(vm),
-        librarySection(vm),
-        downloadsSection(vm),
+        // the Library page holds Bookmarks and Downloads, so its settings do too (each still built by its own package)
+        librarySection(vm).let { lib ->
+            SettingsSection(lib.id, lib.title, lib.icon, lib.summary, listOf(SettingsHeading("Bookmarks")) + lib.rows + SettingsHeading("Downloads") + downloadsSection(vm).rows)
+        },
+        com.jlees.mibrowser.library.historySection(vm),
         adBlockSection(vm),
-        SettingsSection("privacy", "Privacy & Security", "shield", "HTTPS, cookies, JavaScript, pop-ups, clearing data", listOfNotNull(
-            SettingsRow("HTTPS Only", "secure ssl tls") { SwitchItem("lock", "HTTPS Only", "Always use secure connections", s.httpsOnly) { set { copy(httpsOnly = it) } } },
-            // only with HTTPS Only on
-            if (s.httpsOnly) SettingsRow("Warn Every Time", "https insecure http warning ask continue") {
-                SwitchItem("warning", "Warn Every Time", "Ask before every visit to an insecure site", s.httpsWarnEveryTime) { set { copy(httpsWarnEveryTime = it) } }
-            } else null,
-            SettingsRow("Allow Cookies", "cookies") { SwitchItem("cookie", "Allow Cookies", "Turning this off signs you out of most sites", !s.blockCookies) { set { copy(blockCookies = !it) } } },
-            SettingsRow("Block Third-Party Cookies", "cross-site tracking") {
-                SwitchItem("cookie", "Block Third-Party Cookies", "Stops cross-site cookies; can break payment and sign-in windows", s.blockThirdPartyCookies) { set { copy(blockThirdPartyCookies = it) } }
-            },
-            SettingsRow("JavaScript", "js scripts") { SwitchItem("code", "JavaScript", "Most sites need it to work", s.jsEnabled) { set { copy(jsEnabled = it) } } },
-            SettingsRow("Pop-ups", "popups windows") {
-                val n = s.popupSites.size
-                Item("open_in_new", "Pop-ups",
-                    if (n == 0) "Open when you tap; blocked otherwise" else "Also allowed without a tap on $n site${if (n == 1) "" else "s"}",
-                    onClick = if (n == 0) null else { {
-                        vm.showAlert("Pop-ups", "Allowed without a tap on:\n" + s.popupSites.joinToString("\n"), listOf(
-                            AlertButton("Close", ButtonStyle.CANCEL),
-                            AlertButton("Block all again", ButtonStyle.DESTRUCTIVE) { set { copy(popupSites = emptyList()) } },
-                        ), onCancel = {})
-                    } },
-                    trailing = if (n == 0) null else { { Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) } })
-            },
-            SettingsRow("Clear on Exit", "clear exit quit close delete history cookies tabs automatically") {
-                SwitchItem("power_settings_new", "Clear on Exit", "Clear all browsing data when exiting mi", s.clearDataOnExit) { set { copy(clearDataOnExit = it) } }
-            },
-            SettingsRow("Clear Browsing Data", "cookies cache storage delete") {
-                Item("delete", "Clear Browsing Data", "Cookies, site data, cache, site icons and tab snapshots", danger = true, onClick = { vm.confirm = ConfirmData(ConfirmAction.CLEAR_DATA) })
-            },
-        )),
+        privacySection(vm),
         SettingsSection("data", "Backup & Reset", "save", "Export, import, reset", listOf(
             SettingsRow("Export Settings", "backup save") {
                 Item("upload", "Export Settings", "Save your settings to a file", onClick = { exporter.launch("settings_${System.currentTimeMillis()}.midata") })
@@ -218,21 +141,28 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 Item("delete", "Wipe All Data", "Delete bookmarks, history, tabs, favorites and settings", danger = true, onClick = { vm.confirm = ConfirmData(ConfirmAction.WIPE_DATA) })
             },
         )),
-        SettingsSection("about", "About", "info", "Default browser, updates, guide, credits", listOf(
+        // mi itself first (its version, being the default), then help (learning it, then reaching out), then the fine print
+        SettingsSection("about", "About", "info", "Updates, help, feedback, credits", listOf(
+            SettingsHeading("mi browser"),
+            SettingsRow("Check for Updates", "version update") {
+                Item("restart_alt", "Check for Updates", "mi browser ${BuildConfig.VERSION_NAME}", onClick = { vm.updater.checkNow() })
+            },
             SettingsRow("Default Browser", "links open") {
                 Item("public", "Default Browser", if (isDefault) "mi opens links from other apps" else "Make mi. open links from other apps",
                     onClick = if (isDefault) null else ::requestDefault,
                     trailing = { if (isDefault) Sym("check", 22f, ui.cs.primary) else Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) })
             },
-            SettingsRow("Check for Updates", "version update") {
-                Item("restart_alt", "Check for Updates", "mi browser ${BuildConfig.VERSION_NAME}", onClick = { vm.updater.checkNow() })
+            SettingsHeading("Help & Feedback"),
+            SettingsRow("Gesture Walkthrough", "help gestures intro tutorial tour quick guide") {
+                Item("toolbar", "Gesture Walkthrough", "Try every swipe, step by step", onClick = { set { copy(walkthroughSeen = false) } })
             },
             SettingsRow("User Guide", "help") {
                 Item("help", "User Guide", "Every gesture, tool and setting", onClick = { openPage(GUIDE_URL) }, trailing = { Sym("open_in_new", 20f, ui.cs.onSurfaceVariant) })
             },
-            SettingsRow("Gesture Walkthrough", "help gestures intro tutorial tour quick guide") {
-                Item("toolbar", "Gesture Walkthrough", "Try every swipe, step by step", onClick = { set { copy(walkthroughSeen = false) } })
+            SettingsRow("Report a Bug or Suggest a Feature", "feedback issue bug report feature request idea github problem") {
+                Item("bug_report", "Report a Bug or Suggest a Feature", "Open a new issue on GitHub", onClick = { openPage(NEW_ISSUE_URL) }, trailing = { Sym("open_in_new", 20f, ui.cs.onSurfaceVariant) })
             },
+            SettingsHeading("Legal & Credits"),
             SettingsRow("Privacy Policy", "privacy data collection policy") {
                 Item("shield", "Privacy Policy", "mi collects no personal data", onClick = { openPage(PRIVACY_URL) }, trailing = { Sym("open_in_new", 20f, ui.cs.onSurfaceVariant) })
             },
@@ -246,14 +176,32 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         )),
     )
 
+    // the main page's headings, each over its own block of sections (by id): a new section is added to one here
+    val headings = listOf(
+        // most-changed first (search engine, theme, ad blocking), housekeeping last
+        "Browsing" to listOf("search", "pages", "media"),
+        "Appearance" to listOf("look", "pill", "home"),
+        "Protection" to listOf("adblock", "privacy"),
+        "Navigation" to listOf("tabs", "gestures"),
+        "Saved" to listOf("library", "history"),
+        "General" to listOf("data", "about"),
+    ).map { (title, ids) -> title to ids.mapNotNull { id -> groups.firstOrNull { it.id == id } } }
+        .filter { it.second.isNotEmpty() }
+
     // ---- the main page lists the sections (and searches every setting); a section opens as its own page, without the
     // search bar. Back (or the arrow) returns to the list.
     val q = search.trim().lowercase()
+    // matching settings by section, each with the heading it sits under (shown with it: "Swipe Left" alone is unclear)
     val visible = if (q.isEmpty()) emptyList() else groups.mapNotNull { g ->
-        if (g.title.lowercase().contains(q)) g
-        else g.rows.filter { it.label.lowercase().contains(q) || it.keywords.contains(q) }.takeIf { it.isNotEmpty() }?.let { SettingsSection(g.id, g.title, g.icon, g.summary, it) }
+        val placed = placeRows(g.rows).filter { !it.row.header }
+        val hits = if (g.title.lowercase().contains(q)) placed
+            else placed.filter { it.row.label.lowercase().contains(q) || it.row.keywords.contains(q) || it.heading?.lowercase()?.contains(q) == true }
+        hits.takeIf { it.isNotEmpty() }?.let { g to it }
     }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
+    // a search result opened: its row in the section, scrolled to and briefly lit up (the search stays for Back)
+    var found by remember { mutableStateOf<Pair<String?, String>?>(null) } // (heading, label)
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var subPage by remember { mutableStateOf<SettingsSubPage?>(null) } // a full page opened from a row of the section
     // pages opened so far, by id: a page sliding out after Back is still drawn as itself (not its section)
     val subPages = remember { mutableMapOf<String, SettingsSubPage>() }
@@ -282,8 +230,11 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = SheetPillSpace)) {
                 if (q.isEmpty()) {
                     if (!isDefault) item(key = "banner") { DefaultBrowserCard(::requestDefault) }
-                    itemsIndexed(groups, key = { _, g -> "s:${g.id}" }) { i, g ->
-                        Box(Modifier.segment(i, groups.size)) { Item(g.icon, g.title, g.summary, onClick = { openId = g.id }, trailing = { Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) }) }
+                    headings.forEach { (title, sections) ->
+                        item(key = "g:$title") { SectionHeader(null, title) }
+                        itemsIndexed(sections, key = { _, g -> "s:${g.id}" }) { i, g ->
+                            Box(Modifier.segment(i, sections.size)) { Item(g.icon, g.title, g.summary, onClick = { openId = g.id }, trailing = { Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) }) }
+                        }
                     }
                 } else {
                     if (visible.isEmpty()) item(key = "empty") {
@@ -292,11 +243,15 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                             Txt("No settings match \"$search\"", 16f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 10.dp))
                         }
                     }
-                    // results grouped by section (headers scroll with them, under the search bar)
-                    visible.forEach { g ->
+                    // results grouped by section (headers scroll with them, under the search bar). Each opens the setting on
+                    // its own page, among its neighbours, rather than changing it here out of context
+                    visible.forEach { (g, hits) ->
                         item(key = "h:${g.id}") { SectionHeader(g.icon, g.title) }
-                        itemsIndexed(g.rows, key = { _, r -> "${g.id}:${r.label}" }) { i, r ->
-                            CompositionLocalProvider(LocalSettingsNav provides nav) { Box(Modifier.animateItem().segment(i, g.rows.size)) { r.content() } }
+                        itemsIndexed(hits, key = { _, p -> "${g.id}:${p.heading}:${p.row.label}" }) { i, p ->
+                            Box(Modifier.animateItem().segment(i, hits.size)) {
+                                // the keyboard goes and the search Pill lets go: the setting is what you're after now
+                                Item(g.icon, p.row.label, p.heading, onClick = { focusManager.clearFocus(); found = p.heading to p.row.label; openId = g.id }, trailing = { Sym("chevron_right", 22f, ui.cs.onSurfaceVariant) })
+                            }
                         }
                     }
                 }
@@ -315,9 +270,25 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             }
         }) { top ->
             val pageList = rememberLazyListState()
+            // opened from a search result: scroll to the setting and light it up for a moment
+            val flash = remember { androidx.compose.animation.core.Animatable(0f) }
+            val placed = placeRows(page.rows)
+            val target = found?.let { (heading, label) -> placed.indexOfFirst { !it.row.header && it.heading == heading && it.row.label == label } }?.takeIf { it >= 0 }
+            LaunchedEffect(page.id, target) {
+                if (target == null) return@LaunchedEffect
+                pageList.animateScrollToItem(target)
+                flash.animateTo(1f, tween(250)); flash.animateTo(0f, tween(900, delayMillis = 400))
+                found = null
+            }
             LazyColumn(Modifier.fillMaxSize(), state = pageList, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = SheetPillSpace)) {
-                itemsIndexed(page.rows, key = { _, r -> "${page.id}:${r.label}" }) { i, r ->
-                    CompositionLocalProvider(LocalSettingsNav provides nav) { Box(Modifier.segment(i, page.rows.size)) { r.content() } }
+                itemsIndexed(placed, key = { _, p -> "${page.id}:${p.heading}:${p.row.label}" }) { i, p ->
+                    val r = p.row
+                    if (r.header) SectionHeader(null, r.label) // a heading inside the section, over its own block
+                    else CompositionLocalProvider(LocalSettingsNav provides nav) {
+                        Box(Modifier.segment(p.index, p.count).then(
+                            if (i == target) Modifier.drawWithContent { drawContent(); drawRect(ui.cs.primary.copy(alpha = 0.18f * flash.value)) } else Modifier,
+                        )) { r.content() }
+                    }
                 }
             }
         }

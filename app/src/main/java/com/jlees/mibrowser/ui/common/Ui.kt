@@ -89,7 +89,7 @@ object Motion {
 
     fun <T> fastSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.6f, stiffness = 800f) // pill swap, sheet open
     fun <T> spatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.8f, stiffness = 380f)     // settles, resets
-    fun <T> noBounce(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 600f)      // drawer: never past max
+    fun <T> noBounce(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 600f)      // settles without overshoot (the Pill growing, the switcher's search)
     fun <T> playful(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.5f, stiffness = 300f)     // fidget logo
     fun <T> springBack(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.45f, stiffness = 500f) // the Pill settling after a drag
 }

@@ -160,7 +160,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 bookmarks.load()
                 downloads.load()
                 downloader.pruneMissing()
-                tabs.load(parseDeepLink(deepLink), settings.startupTabMode, settings.backgroundRefresh)
+                tabs.load(parseDeepLink(deepLink), settings.startupTabMode)
                 sweepFiles()
             }
             // Clear on Exit: mi may have been ended (swiped away) without closing, so it clears at the start too

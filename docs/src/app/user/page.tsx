@@ -5,6 +5,9 @@ import { Navbar } from "@/components/navbar";
 import { useHighlight } from "@/hooks/useHighlight";
 import { motion } from "framer-motion";
 import {
+  Calculator,
+  CirclePlay,
+  Hand,
   Bookmark,
   BookOpen,
   ChevronRight,
@@ -89,7 +92,7 @@ export default function UserDocs() {
                       </div>
                       <div id="incognito">
                         <GuideItem icon={<Search size={18} />} title="Incognito" desc="On a fresh tab, tap the mask in the Pill to make it incognito (a tab you've browsed in keeps its mode). Each incognito tab has its own private storage: nothing comes in from your other tabs and nothing leaves. Its pages aren't added to history, screenshots are blocked, the tab switcher shows it only as 'Incognito tab', and its cookies, logins and site data are erased when you close it. Long-press a link and choose 'Open in Incognito Tab' to send it there. While incognito tabs are open, a notification closes them all with one tap. In incognito the keyboard is asked not to learn what you type, passkeys can't be created (signing in with one works), and search suggestions are off unless you turn on Suggestions in Incognito. Downloads and bookmarks you choose to save are kept." />
-                        <GuideItem icon={<Search size={18} />} title="Paste and Go" desc="Copied a link? Tap the Pill and it's the first row of the search drawer, for a few minutes after copying. mi only reads the clipboard when you tap it." />
+                        <GuideItem icon={<Search size={18} />} title="Paste and Go" desc="Copied a link? Tap the Pill and Paste and Go is offered right above the field, for a few minutes after copying. mi only reads the clipboard when you tap it." />
                       </div>
                       <div id="search-widget">
                         <GuideItem icon={<Search size={18} />} title="Search Widget" desc="Add the mi widget to your home screen: tap the bar to open a new tab ready to type, or its buttons for a new incognito tab or the QR scanner. Long-press mi's icon for the same shortcuts." />
@@ -128,7 +131,7 @@ export default function UserDocs() {
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The card's title and icon appear as soon as you start swiping. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right. Swipe that Pill right to open the Library, left to open Settings, or up for Recently closed tabs.
+                    Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The card's title and icon appear as soon as you start swiping. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right. Swipe that Pill right to open the Library, left to open Settings, or up for History and Recently Closed (Settings › Gestures lets you choose which page each swipe opens). Hold it to search your open tabs.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                     <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to zoom back into it. Swipe a card up to close it (with undo). Pinned tabs show a pin and can't be swiped away." />
@@ -143,29 +146,30 @@ export default function UserDocs() {
               </div>
             </motion.div>
 
-            {/* 3. Expanded Search Drawer - IMAGE RIGHT */}
+            {/* 3. Search & Favorites - IMAGE RIGHT */}
             <motion.div id="recent-history" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
                   <Maximize size={24} />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Expanded Search</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Search &amp; Favorites</h2>
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
                   <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
-                    Access your history and favorite sites without leaving the search experience. When the search pill is focused, an expanded interaction area appears.
+                    Tap the Pill and it grows upward with what you need, the best match closest to your thumb. Your favorites wait on every new tab.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
-                    <GuideItem icon={<Clock size={18} />} title="Recent Searches" desc="Drag the handle above the focused Pill upwards to reveal your recent searches. Tap one to put it back in the address bar." />
-                    <GuideItem icon={<Search size={18} />} title="Search Suggestions" desc="While the drawer is open, suggestions from your search engine appear as you type, after your own matching past searches. The drawer never opens by itself." />
-                    <GuideItem icon={<FolderHeart size={18} />} title="Favorites Bar" desc="A persistent row of your top 5 pinned sites sits at the bottom of the drawer for instant navigation." />
-                    <GuideItem icon={<Maximize size={18} />} title="Adding Favorites" desc="Tap the '+' icon in the Favorites Bar to instantly pin the current page to your quick-access list." />
-                    <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and hold a favorite, then drag it sideways to its new place." />
-                    <GuideItem icon={<Trash2 size={18} />} title="Edit or Remove a Favorite" desc="Touch and hold a favorite and let go without moving it to edit its name and address; Delete is in there too. Dragging only ever reorders the bar. The star in the tab menu also removes the current page." />
+                    <GuideItem icon={<Calculator size={18} />} title="Inline Answers" desc="Math, unit conversions, number bases, the time in a city, coin flips and dice are answered right above the field as you type, worked out on your phone. Tap an answer to copy it." />
+                    <GuideItem icon={<Clock size={18} />} title="Recent Searches" desc="Your past searches appear as soon as you tap the Pill. Tap one to put it back in the field; tap its ✕ to forget it." />
+                    <GuideItem icon={<Search size={18} />} title="Search Suggestions" desc="Suggestions from your search engine appear as you type, with the part you typed in bold. Tap ↖ to fill one in and keep typing." />
+                    <GuideItem icon={<Zap size={18} />} title="Shortcut Suggestions" desc="Type ! and your search shortcuts appear, narrowing as you type. Tap one to put it in the Pill." />
+                    <GuideItem icon={<FolderHeart size={18} />} title="Favorites" desc="Your favorites sit at the bottom of every new tab, four across and two down, swiped sideways for more. Add one with the star in the tab menu, or hold a link and choose Add to Favorites." />
+                    <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and hold a favorite, then drag it to its new place." />
+                    <GuideItem icon={<Trash2 size={18} />} title="Edit or Remove a Favorite" desc="Touch and hold a favorite and let go without moving it to edit its name and address; Delete is in there too. Favorites also live in a Favorites folder in your bookmarks; deleting that folder deletes them all (mi asks first)." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Configurable:</strong> Use settings to automatically expand history or keep the Favorites Bar visible every time you focus the Pill.</p>
+                    <p><strong>Configurable:</strong> Settings › Pill › While Typing switches each kind of suggestion on or off, and Settings › Home Page › Favorites shows or hides the favorites.</p>
                   </div>
                 </div>
                 <DeviceMockup src="/images/recent_history.jpg" color="blue" />
@@ -280,6 +284,24 @@ export default function UserDocs() {
               </div>
 
               <div className="grid gap-12">
+                <SettingsSection title="Search" icon={<Search size={20} />}>
+                  <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo. Pick Custom… to use any other search site: enter a name and an address with %s where your search goes (for example https://www.startpage.com/do/search?q=%s)." />
+                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Your Shortcuts lists yours and lets you add more (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority. To add one, search a site as usual, then tap ⋮ › Add shortcut: mi finds the site's search for you." />
+                </SettingsSection>
+
+                <SettingsSection title="Web Pages" icon={<Monitor size={20} />}>
+                  <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
+                  <SettingItem title="Darken Web Pages" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
+                  <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
+                  <SettingItem title="Reader Mode by Default" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
+                </SettingsSection>
+
+                <SettingsSection title="Media" icon={<CirclePlay size={20} />}>
+                  <SettingItem title="Block Video Autoplay" desc="Videos wait for a tap instead of playing on their own." />
+                  <SettingItem title="Picture-in-Picture" desc="A fullscreen video keeps playing in a small floating window when you leave mi, shaped to the video. On by default." />
+                  <SettingItem title="Background Playback" desc="Audio and video keep playing when you leave mi or lock your phone, with play/pause, a seek bar and back/forward 10 seconds in a notification and on the lock screen. Playback pauses when headphones disconnect, a call comes in or another app plays, and stays paused until you press play." />
+                </SettingsSection>
+
                 <SettingsSection title="Look & Feel" icon={<Palette size={20} />}>
                   <SettingItem title="Theme" desc="Choose Light, Dark, or System (follows your device's dark mode)." />
                   <SettingItem title="Pure Black" desc="In dark mode, use true black backgrounds. Saves battery on OLED screens; the tab switcher is black too, while cards and the Pill stay a shade lighter." />
@@ -288,61 +310,26 @@ export default function UserDocs() {
                   <SettingItem title="Font" desc="Standard (Google Sans Flex), Rounded (its rounded stroke ends) or System (your phone's own font). The mi. logo is always rounded." />
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
-                  <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look. With it hidden, pages still start below the camera cutout and scroll behind it." />
+                  <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look. With it hidden, pages (sticky headers included) still start below the camera cutout and scroll behind it." />
                   <SettingItem title="Haptic Feedback" desc="A light tap when a gesture is about to act: a swipe on a list row, the Pill opening the tab switcher or going back and forward, pull to refresh, closing a tab card, and long presses. On by default." />
                 </SettingsSection>
 
                 <SettingsSection title="Pill" icon={<Navigation size={20} />}>
-                  <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Hide on Scroll" desc="On (the default), scrolling down a page tucks the Pill into the recall button and scrolling up brings it back. Off, it stays put; you can still swipe it down." />
-                  <SettingItem title="Pin Favorites" desc="Keeps the Favorites Bar visible at the bottom of the search drawer whenever the Pill is focused." />
-                  <SettingItem title="Expand Searches" desc="Opens the search drawer fully when you tap the Pill." />
+                  <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
+                  <SettingItem title="Quick Actions" desc="While typing: actions like Paste and Go, offered above the Pill when you tap it. On by default." />
+                  <SettingItem title="Inline Answers" desc="While typing: math, unit conversions, number bases, the time and date (here or in a city), coin flips and dice, worked out on your phone and shown right above the field. Tap an answer to copy it. On by default." />
+                  <SettingItem title="Shortcut Suggestions" desc="While typing: start with ! and your search shortcuts appear, narrowing as you type; tap one to put it in the Pill. On by default." />
+                  <SettingItem title="Recent Searches" desc="While typing: your past searches, above the Pill when you tap it. Never in incognito tabs. On by default." />
+                  <SettingItem title="Search Suggestions" desc="While typing: suggestions from your search engine. Turn off to keep keystrokes from being sent before you search. On by default." />
+                  <SettingItem title="Suggestions in Incognito" desc="Off by default: in an incognito tab, nothing you type is sent to your search engine until you search." />
                 </SettingsSection>
 
                 <SettingsSection title="Home Page" icon={<Home size={20} />}>
-                  <SettingItem title="Logo" desc="Choose the logo style displayed at the top of the home page: None, Static, or Fidget (interactive)." />
+                  <SettingItem title="Logo" desc="Choose the logo style displayed on the home page: None, Static, or Fidget (interactive)." />
                   <SettingItem title="Clock" desc="Select the clock format on the home page: None, 12h, or 24h." />
                   <SettingItem title="Date" desc="Choose the date placement on the home page: None, Above Clock, or Below Clock." />
-                  <SettingItem title="Shortcut Button" desc="Toggle the home page shortcut button on or off. When enabled, choose its action: New Tab, QR Scanner, Bookmarks, or History." />
-                </SettingsSection>
-
-                <SettingsSection title="Search" icon={<Search size={20} />}>
-                  <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo. Pick Custom… to use any other search site: enter a name and an address with %s where your search goes (for example https://www.startpage.com/do/search?q=%s)." />
-                  <SettingItem title="Search Suggestions" desc="Shows suggestions from your search engine while you type. Turn off to keep keystrokes from being sent before you search." />
-                  <SettingItem title="Suggestions in Incognito" desc="Off by default: in an incognito tab, nothing you type is sent to your search engine until you search." />
-                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Settings → Search Shortcuts lists them all and lets you add your own (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority. To add your own, search a site as usual, then tap ⋮ › Add shortcut: mi finds the site's search for you (or paste a results page's address under Your Shortcuts)." />
-                </SettingsSection>
-
-                <SettingsSection title="Web Pages" icon={<Monitor size={20} />}>
-                  <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
-                  <SettingItem title="Darken Web Pages" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
-                  <SettingItem title="Block Video Autoplay" desc="Videos wait for a tap instead of playing on their own." />
-                  <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
-                  <SettingItem title="Reader Mode by Default" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
-                  <SettingItem title="Pull to Refresh" desc="Pull down at the very top of a page to reload it. It never triggers while you're scrolled down, even if you scroll back to the top in the same pull." />
-                </SettingsSection>
-
-                <SettingsSection title="Tabs" icon={<Layers size={20} />}>
-                  <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
-                  <SettingItem title="Keep Recently Closed" desc="How long tabs you close stay in History's Recently Closed: until mi closes (the default), 1 day or 1 week. Longer than this session, they're saved on your device so they outlast a restart. Incognito tabs are never kept." />
-                  <SettingItem title="Site Icons on Tabs" desc="Toggles the visibility of website icons (favicons) in the bookmarks list. When disabled, a letter avatar is shown." />
-                  <SettingItem title="Background Refresh" desc="When enabled, your most recent tabs (up to three besides the one you're on) load when mi starts instead of when opened, for instant switching. Uses more battery and data at startup." />
-                </SettingsSection>
-
-                <SettingsSection title="Library" icon={<Bookmark size={20} />}>
-                  <SettingItem title="Site Icons on Bookmarks" desc="Shows each website's icon in your bookmarks. When off, a letter avatar is shown." />
-                  <SettingItem title="Import Bookmarks" desc="Bring bookmarks from Chrome, Firefox, Edge, Safari or a mi export: choose the browser's exported bookmarks file (.html), or paste its contents. Folders are kept, pages you already have are skipped, and another browser's bookmarks go into a dated Imported folder. Chrome's file can also come from Google Takeout." />
-                  <SettingItem title="Export Bookmarks" desc="Save all your bookmarks to a standard bookmarks file that mi and any other browser can import." />
-                  <SettingItem title="Group History By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
-                  <SettingItem title="History Page Size" desc="The number of history items rendered at a time (10, 25, 50, or 100). Rendering more items may affect performance." />
-                  <SettingItem title="Clear History" desc="Wipe your browsing data for the last hour, 24 hours, 7 days, 4 weeks, or all time." />
-                </SettingsSection>
-
-                <SettingsSection title="Downloads" icon={<Layers size={20} />}>
-                  <SettingItem title="Download With" desc="mi (its own downloader: pause, resume, notifications and the Downloads list) or Android's download manager (saves to Downloads; not listed in mi). Incognito tabs always use mi." />
-                  <SettingItem title="Download Location" desc="Where mi saves downloads: the Downloads folder, or any folder you choose." />
-                  <SettingItem title="Ask Where to Save" desc="Choose the folder and file name for each download in Android's save dialog." />
-                  <SettingItem title="Confirm Downloads" desc="Ask before a download starts. On by default." />
+                  <SettingItem title="Favorites" desc="Your favorites at the bottom of the home page, four across and two down, swiped sideways for more. Hold one and drag to rearrange it, or hold and let go to edit it. On by default." />
                 </SettingsSection>
 
                 <SettingsSection title="Ad Blocking" icon={<ShieldCheck size={20} />}>
@@ -355,6 +342,8 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Privacy & Security" icon={<Lock size={20} />}>
+                  <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage, cached files, saved site icons and tab snapshots, plus this session's sign-ins, permissions and certificate exceptions. You will be signed out of websites." />
+                  <SettingItem title="Clear on Exit" desc="Clears all browsing data when you leave mi: history and recent searches, open and recently closed tabs (pinned tabs stay), and cookies, site data and cache. Android rarely closes apps itself, so mi also clears at its next start if it was swiped away, and Exit and Clear in the tab menu closes it on demand." />
                   <SettingItem title="HTTPS Only" desc="On by default. Always use secure connections, local addresses included. If a site can't connect securely, mi warns you every time you go to it, with a way to continue over http for that visit (its links stay on http while you stay on the site in that tab)." />
                   <SettingItem title="Warn Every Time" desc="With HTTPS Only on: ask before every visit to an insecure site (on by default). Turn it off and continuing to a site lets it use http for the rest of the session." />
                   <SettingItem title="Allow Cookies" desc="Allow websites to store cookies on your device. Disabling this may break login functionality on many sites." />
@@ -362,8 +351,34 @@ export default function UserDocs() {
                   <SettingItem title="JavaScript" desc="Optionally disable JavaScript for maximum security or to bypass certain site restrictions." />
                   <SettingItem title="Pop-ups" desc="Pop-up windows open when you tap something (sign-in and payment windows stay linked to the page that opened them). Pop-ups without a tap are blocked; choose Always allow when asked to allow a site, and review or reset the list here." />
                   <SettingItem title="Not Secure Marker" desc="Pages without an encrypted connection (any plain http address) and sites you allowed past a certificate warning show a red Not secure marker in the search pill. Tap it for details, and don't enter passwords or payment details there. Sign-in prompts on such sites warn that the password would be sent unencrypted." />
-                  <SettingItem title="Clear on Exit" desc="Clears all browsing data when you leave mi: history and recent searches, open and recently closed tabs (pinned tabs stay), and cookies, site data and cache. Android rarely closes apps itself, so mi also clears at its next start if it was swiped away, and Exit and Clear in the tab menu closes it on demand." />
-                  <SettingItem title="Clear Browsing Data" desc="Deletes cookies, site storage, cached files, saved site icons and tab snapshots, plus this session\'s sign-ins, permissions and certificate exceptions. You will be signed out of websites." />
+                </SettingsSection>
+
+                <SettingsSection title="Tabs" icon={<Layers size={20} />}>
+                  <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
+                  <SettingItem title="Site Icons on Tabs" desc="Shows each website's icon on its tab card in the tab switcher. When off, a globe is shown." />
+                </SettingsSection>
+
+                <SettingsSection title="Gestures" icon={<Hand size={20} />}>
+                  <SettingItem title="Swipe Left, Swipe Right, Swipe Up" desc="Which page each swipe on the tab switcher's Pill opens: Library, Settings or History. The buttons and the side each page slides in from follow your choice." />
+                  <SettingItem title="Long Press to Search" desc="Hold the tab switcher's Pill to search your open tabs. On by default." />
+                  <SettingItem title="Pull to Refresh" desc="Pull down at the very top of a page to reload it. It never triggers while you're scrolled down, even if you scroll back to the top in the same pull." />
+                </SettingsSection>
+
+                <SettingsSection title="Library" icon={<Bookmark size={20} />}>
+                  <SettingItem title="Site Icons on Bookmarks" desc="Shows each website's icon in your bookmarks. When off, a letter avatar is shown." />
+                  <SettingItem title="Import Bookmarks" desc="Bring bookmarks from Chrome, Firefox, Edge, Safari or a mi export: choose the browser's exported bookmarks file (.html), or paste its contents. Folders are kept, pages you already have are skipped, and another browser's bookmarks go into a dated Imported folder. Chrome's file can also come from Google Takeout." />
+                  <SettingItem title="Export Bookmarks" desc="Save all your bookmarks to a standard bookmarks file that mi and any other browser can import." />
+                  <SettingItem title="Download With" desc="mi (its own downloader: pause, resume, notifications and the Downloads list) or Android's download manager (saves to Downloads; not listed in mi). Incognito tabs always use mi." />
+                  <SettingItem title="Download Location" desc="Where mi saves downloads: the Downloads folder, or any folder you choose." />
+                  <SettingItem title="Ask Where to Save" desc="Choose the folder and file name for each download in Android's save dialog." />
+                  <SettingItem title="Confirm Downloads" desc="Ask before a download starts. On by default." />
+                </SettingsSection>
+
+                <SettingsSection title="History" icon={<History size={20} />}>
+                  <SettingItem title="Group History By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
+                  <SettingItem title="Clear History" desc="Wipe your browsing history for the last hour, 24 hours, 7 days, 4 weeks, or all time." />
+                  <SettingItem title="Keep Recently Closed" desc="How long tabs you close stay in History's Recently Closed: Session (the default, until mi closes), 1 Day or 1 Week. Longer than a session, they're saved on your device so they outlast a restart. Incognito tabs are never kept." />
+                  <SettingItem title="Clear Recently Closed" desc="Forget the tabs you've closed." />
                 </SettingsSection>
 
                 <SettingsSection title="Backup & Reset" icon={<RefreshCw size={20} />}>
@@ -374,9 +389,10 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="About" icon={<BookOpen size={20} />}>
+                  <SettingItem title="Check for Updates" desc="Look for a new release now. mi also checks on its own, at most twice a day." />
                   <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
                   <SettingItem title="Gesture Walkthrough" desc="A hands-on tour of every gesture, shown once on first launch or after updating: the Pill, your tabs, the Library, Settings and History. Open it here to go through it again." />
-                  <SettingItem title="Check for Updates" desc="Look for a new release now. mi also checks on its own, at most twice a day." />
+                  <SettingItem title="Report a Bug or Suggest a Feature" desc="Opens a new issue on mi's GitHub page." />
                   <SettingItem title="Privacy Policy" desc="mi collects no personal data. The full policy is on this site." />
                   <SettingItem title="Credits" desc="The open-source projects and filter lists mi is built with, and their licenses." />
                 </SettingsSection>
@@ -401,7 +417,7 @@ export default function UserDocs() {
                   </p>
                   <div className="grid grid-cols-1 gap-4 inline-block text-left w-full">
                     <div id="pin-tabs">
-                      <GuideItem icon={<Pin size={18} />} title="Favorite, Bookmark &amp; Pin" desc="The row at the top: add the page to your favorites bar, save it to a bookmark folder, or pin the tab so it can't be swiped away or closed by Close all tabs." />
+                      <GuideItem icon={<Pin size={18} />} title="Favorite, Bookmark &amp; Pin" desc="The row at the top: add the page to your favorites (on the home page), save it to a bookmark folder, or pin the tab so it can't be swiped away or closed by Close all tabs." />
                     </div>
                     <div id="quick-bookmark">
                       <GuideItem icon={<Bookmark size={18} />} title="Share &amp; Copy" desc="Share sends the page with your device's share sheet; the copy icon next to the tab's name copies its link." />

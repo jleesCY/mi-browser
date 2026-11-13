@@ -43,7 +43,7 @@ interface Choice { val label: String }
 /** How long History's Recently Closed keeps a closed tab. Past SESSION they're saved, so they outlast a restart (never incognito tabs). */
 @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 @Serializable enum class KeepClosedTabs(override val label: String, val ms: Long) : Choice {
-    @SerialName("session") SESSION("Until mi. Closes", 0),
+    @SerialName("session") SESSION("Session", 0),
     @kotlinx.serialization.json.JsonNames("hour") // 1.6.0 also had 1 Hour: that choice now reads as 1 Day
     @SerialName("day") DAY("1 Day", 86_400_000),
     @SerialName("week") WEEK("1 Week", 604_800_000),
@@ -69,12 +69,11 @@ interface Choice { val label: String }
     @SerialName("None") NONE("None"), @SerialName("Static") STATIC("Static"), @SerialName("Fidget") FIDGET("Fidget")
 }
 
-/** The home page's shortcut button: its icon, its label on the home page, and its name in Settings. */
-@Serializable enum class HomeShortcut(val icon: String, val short: String, override val label: String) : Choice {
-    @SerialName("newTab") NEW_TAB("add", "New Tab", "New Tab"),
-    @SerialName("qr") QR("qr_code_scanner", "Scan", "Scan QR Code"),
-    @SerialName("bookmarks") BOOKMARKS("bookmarks", "Saved", "Bookmarks"),
-    @SerialName("history") HISTORY("history", "Recent", "History"),
+/** A page the tab switcher opens from one of its places (see tabs/SwitcherLayout). */
+@Serializable enum class SwitcherPanel(override val label: String, val icon: String) : Choice {
+    @SerialName("library") LIBRARY("Library", "library_books"),
+    @SerialName("settings") SETTINGS("Settings", "settings"),
+    @SerialName("history") HISTORY("History", "history"),
 }
 
 @Serializable
@@ -117,8 +116,6 @@ data class Settings(
     val showBookmarkIcons: Boolean = true,
     val desktopMode: Boolean = false,
     val readerModeEnabled: Boolean = false,
-    val recentSearchesExpanded: Boolean = false,
-    val showFavoritesDefault: Boolean = false,
     /** Scrolling a page down hides the Pill (into the recall button), scrolling up brings it back. */
     val hidePillOnScroll: Boolean = true,
     val jsEnabled: Boolean = true,
@@ -137,16 +134,27 @@ data class Settings(
     val adAllowlist: List<String> = emptyList(),
     /** Videos wait for a tap instead of playing on their own. */
     val blockAutoplay: Boolean = false,
+    /** Fullscreen video shrinks into a floating window when you leave mi (media/). */
+    val pictureInPicture: Boolean = true,
+    /** Audio and video keep playing with mi in the background, with controls in a notification (media/). */
+    val backgroundAudio: Boolean = true,
+    /** Tab switcher: the pages on its left button (swipe right), right button (swipe left) and Pill button (swipe up). */
+    val switcherLeft: SwitcherPanel = SwitcherPanel.LIBRARY,
+    val switcherRight: SwitcherPanel = SwitcherPanel.SETTINGS,
+    val switcherUp: SwitcherPanel = SwitcherPanel.HISTORY,
+    /** Tab switcher: long-pressing its Pill turns it into a search field for the open tabs. */
+    val longPressTabSearch: Boolean = true,
     val searchSuggestions: Boolean = true,
+    val recentSearches: Boolean = true,
+    val quickActions: Boolean = true,
+    val inlineAnswers: Boolean = true,
+    val shortcutSuggestions: Boolean = true,
     val incognitoSuggestions: Boolean = false,
-    val historyLoadCount: Int = 10,
     val historyGrouping: HistoryGrouping = HistoryGrouping.TIME,
-    val backgroundRefresh: Boolean = false,
     val homeClockType: HomeClock = HomeClock.NONE,
     val homeDateType: HomeDate = HomeDate.NONE,
     val homeLogoType: HomeLogo = HomeLogo.FIDGET,
-    val showHomeShortcuts: Boolean = false,
-    val homeShortcutAction: HomeShortcut = HomeShortcut.QR,
+    val homeFavorites: Boolean = true,
     /** Sites allowed to open pop-ups without a tap (pop-ups opened by a tap are always allowed). */
     val popupSites: List<String> = emptyList(),
     /** Text size on web pages, in percent (WebSettings.textZoom). Separate from the app's own font size. */

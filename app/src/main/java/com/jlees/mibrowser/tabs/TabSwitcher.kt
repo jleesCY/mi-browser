@@ -3,6 +3,8 @@
 // vm.switcher.anim: the live page shrinks into its card under the finger (switcherZoom); tapping a card zooms it back.
 package com.jlees.mibrowser.tabs
 
+import com.jlees.mibrowser.home.homeFavorites
+
 
 
 import com.jlees.mibrowser.web.WebError
@@ -20,6 +22,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,6 +40,7 @@ import com.jlees.mibrowser.ui.SWITCHER_DRAG
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
@@ -54,6 +60,8 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ui.common.*
 import kotlinx.coroutines.launch
@@ -139,22 +147,53 @@ fun TabSwitcher(
     val tabs = vm.tabs.list.let { all ->
         order.mapNotNull { id -> all.firstOrNull { it.id == id } } + all.filter { it.id !in order }.sortedBy { it.lastUsed }
     }
-    val pager = rememberPagerState(initialPage = tabs.indexOfFirst { it.id == vm.tabs.activeId }.coerceAtLeast(0)) { tabs.size }
+    // tab search (TabSearch.kt): the cards narrow to the matching tabs
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    fun endSearch() { query = ""; searching = false; focusManager.clearFocus() }
+    // a tab is opening: the search stays as it is while its card zooms back (ending it would reshuffle the cards)
+    var leaving by remember { mutableStateOf(false) }
+    // the keyboard going away, however it goes (Back, its own key), ends the search: back to the normal switcher
+    @OptIn(ExperimentalLayoutApi::class) val keyboardUp = WindowInsets.isImeVisible
+    var keyboardSeen by remember { mutableStateOf(false) }
+    LaunchedEffect(keyboardUp, searching) {
+        when {
+            !searching -> keyboardSeen = false
+            keyboardUp -> keyboardSeen = true
+            keyboardSeen && !leaving -> endSearch()
+        }
+    }
+    val shown = if (query.isBlank()) tabs else tabs.filter { matchesTab(it, query) }
+    val pager = rememberPagerState(initialPage = tabs.indexOfFirst { it.id == vm.tabs.activeId }.coerceAtLeast(0)) { shown.size }
+    LaunchedEffect(query) { if (query.isNotBlank() && shown.isNotEmpty()) pager.scrollToPage(0) } // the best match first
     // Undo brings a closed tab back: once its card is in the pager, scroll to it
     var refocus by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(refocus, tabs.size) {
-        val i = tabs.indexOfFirst { it.id == refocus }.takeIf { it >= 0 } ?: return@LaunchedEffect
+        val i = shown.indexOfFirst { it.id == refocus }.takeIf { it >= 0 } ?: return@LaunchedEffect
         withFrameNanos {} // let the pager lay out the list first: its keep-the-same-card adjustment would cancel the scroll
         pager.animateScrollToPage(i)
         refocus = null // after: it's this effect's key, so clearing it earlier would cancel the scroll
     }
-    val centered = tabs.getOrNull(pager.currentPage.coerceIn(0, (tabs.size - 1).coerceAtLeast(0)))
+    val centered = shown.getOrNull(pager.currentPage.coerceIn(0, (shown.size - 1).coerceAtLeast(0)))
     val cardRects = remember { mutableStateMapOf<String, Rect>() }
-    val pageAspect = cardAspect(vm)
+    // the cards' shape: the page's. While searching it stays as it was when the search opened: the keyboard shortens the
+    // page, and the cards would take on that squat shape. Held until the keyboard has fully gone (not just until the
+    // search ends): while it slides away the page is still short, and the cards would flash wide to the screen's edges
+    val liveAspect = cardAspect(vm)
+    // shown or not (its slide included), read so the switcher only recomposes when that flips, not every frame of the slide
+    val imeInsets = WindowInsets.ime
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val keyboardShowing by remember(imeInsets, density) { derivedStateOf { imeInsets.getBottom(density) > 0 } }
+    var steadyAspect by remember { mutableFloatStateOf(liveAspect) }
+    SideEffect { if (!searching && !keyboardShowing) steadyAspect = liveAspect }
+    val pageAspect = if (searching || keyboardShowing) steadyAspect else liveAspect
 
     /** Sets up the zoom back into [open] (or a new tab, null); [close] then animates it, a swipe down drives it. */
     fun beginClose(open: String?) {
+        leaving = true
         vm.isSubMenuVisible = false
+        focusManager.clearFocus() // the keyboard goes with the switcher
         if (open != null) vm.setActiveTab(open)
         vm.switcher.target = open?.let { cardRects[it] }
         vm.switcher.flyingTabId = open
@@ -180,26 +219,41 @@ fun TabSwitcher(
         swipingDown = false
         scope.launch {
             anim.animateTo(if (open) 0f else 1f, Motion.switcher)
-            if (open) vm.switcherVisible = false else vm.switcher.settled = true
+            if (open) vm.switcherVisible = false else { vm.switcher.settled = true; leaving = false }
             vm.switcher.flyingTabId = null
         }
     }
     BackHandler(enabled = vm.activeView == Sheet.NONE) { if (vm.isSubMenuVisible) vm.isSubMenuVisible = false else close(centered?.id) }
+    BackHandler(enabled = searching && vm.activeView == Sheet.NONE) { endSearch() } // registered later: runs first
 
     // While zooming the switcher sits behind the page; once settled it moves on top and takes touches.
     // background: the accent colour from darker (top-left) to lighter (bottom-right), so the cards stand out (black in Pure Black)
     val gradient = remember(ui.cs, ui.isDark, ui.pureBlack) { switcherGradient(ui) }
     Box(Modifier.fillMaxSize().zIndex(if (vm.switcher.settled) 150f else -1f).graphicsLayer { alpha = anim.value }.background(gradient).blockTouches()) {
-        Column(Modifier.fillMaxSize().pullDownToOpen(SWITCHER_DRAG, ::dragDown, ::releaseDown).padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 12.dp)) {
-            Txt("${tabs.size} ${if (tabs.size == 1) "tab" else "tabs"}", 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.align(Alignment.CenterHorizontally))
-            HorizontalPager(
+        // the bottom bar sits above the keyboard while searching (the navigation bar's height otherwise)
+        val bottomInset = WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom)
+        Box(Modifier.fillMaxSize().pullDownToOpen(SWITCHER_DRAG, ::dragDown, ::releaseDown)) {
+        // the cards keep their size while searching: the keyboard and the search field come up over their lower part
+        Column(Modifier.fillMaxSize()
+            // searching, a tap on empty space (not a card, not the search field) lets go of the field: the search ends
+            .then(if (searching) Modifier.pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } } else Modifier)
+            .padding(top = statusDp.dp + 16.dp, bottom = 12.dp).windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
+            val count = when {
+                query.isBlank() -> "${tabs.size} ${if (tabs.size == 1) "tab" else "tabs"}"
+                shown.isEmpty() -> "0 of ${tabs.size} tabs"
+                else -> "${shown.size} of ${tabs.size} tabs"
+            }
+            Txt(count, 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.align(Alignment.CenterHorizontally))
+            val favorites = vm.homeFavorites() // drawn on blank tabs' cards, as on their page
+            if (query.isNotBlank() && shown.isEmpty()) NoTabsFound(query, Modifier.fillMaxWidth().weight(1f))
+            else HorizontalPager(
                 state = pager,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(horizontal = 56.dp),
                 pageSpacing = 12.dp,
-                key = { tabs.getOrNull(it)?.id ?: it },
+                key = { shown.getOrNull(it)?.id ?: it },
             ) { page ->
-                val tab = tabs.getOrNull(page) ?: return@HorizontalPager
+                val tab = shown.getOrNull(page) ?: return@HorizontalPager
                 TabCardView(
                     tab, tab.id == vm.tabs.activeId, vm.settings.showTabLogo, pageAspect, errorFor(tab.id),
                     hidden = !vm.switcher.settled && tab.id == vm.tabs.activeId, // the zooming page stands in for it
@@ -216,10 +270,16 @@ fun TabSwitcher(
                     onOpen = { close(tab.id) },
                     onRename = { vm.renameTabId = tab.id },
                     onClosed = { vm.deleteTab(tab.id) },
+                    favorites = favorites,
                 )
             }
+            // below the cards: the undo bar, and room for the bar (drawn on top, below)
             val closedTab = vm.tabs.closed
             UndoBar(remember(closedTab) { closedTab?.let { (t, _) -> Undo("Tab closed") { vm.tabs.undoClose(); refocus = t.id } } }, onTimeout = { vm.tabs.dismissUndo() }, showMs = 2500) // shorter: closing tabs comes in quick runs
+            Spacer(Modifier.height(BAR_HEIGHT))
+        }
+        // the bottom bar, in the room kept for it above; while searching it rides up above the keyboard, over the cards
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().windowInsetsPadding(bottomInset).padding(bottom = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             // bottom bar: [Library] ( + · ⋮ ) [Settings]
             // (positions are published so the search pill can morph into the centre pill as the switcher opens). Shown
             // The side buttons appear in place as the page shrinks (one button the whole way: no hand-over that could
@@ -229,45 +289,74 @@ fun TabSwitcher(
                 val a = ((anim.value - 0.2f) / 0.45f).coerceIn(0f, 1f)
                 alpha = a; scaleX = 0.6f + 0.4f * a; scaleY = 0.6f + 0.4f * a
             }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                SwitcherEdgeButton("library_books", { vm.openView(Sheet.BOOKMARKS) }, label = "Library", modifier = edgeIn)
-                Spacer(Modifier.weight(1f))
-                Surface(
-                    shape = CircleShape, color = ui.cs.surfaceContainerHigh, shadowElevation = 6.dp,
+            val layout = vm.settings.switcherLayout // which page is on which button and swipe (Settings › Tabs)
+            // the edge buttons hold the sides and the Pill the middle; searching, the Pill grows from the middle to the
+            // full width as the edge buttons shrink away
+            Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                Slot(!searching, Modifier.align(Alignment.CenterStart), fadeIn() + scaleIn(), fadeOut() + scaleOut()) { // shrinks away while searching
+                    SwitcherEdgeButton(layout.left.icon, { vm.openView(layout.left.sheet) }, label = layout.left.label, modifier = edgeIn)
+                }
+                // a Box rather than a Surface: its shape, shadow and colour sit outside the size animation, so the
+                // Pill stays round at every width while it grows into the search field
+                Box(
                     modifier = Modifier.onGloballyPositioned { vm.switcher.barPill = it.boundsInWindow() }
                         .graphicsLayer { alpha = if (vm.switcher.settled) 1f else 0f }
-                        .switcherPillSwipes(
-                            LocalConfiguration.current.screenHeightDp.toFloat(), // History rises with the finger, up the screen
+                        // a long press searches the tabs (Settings › Gestures); its swipes rest while it's a search field
+                        // (a swipe there moves through the text)
+                        .then(if (searching || !vm.settings.longPressTabSearch) Modifier else Modifier.pillLongPress { vm.isSubMenuVisible = false; searching = true })
+                        .then(if (searching) Modifier else Modifier.switcherPillSwipes(
+                            LocalConfiguration.current.screenHeightDp.toFloat(), // the page swiped up rises with the finger, up the screen
+                            labelOf = { layout.at(it).label },
+                            onSearch = { vm.isSubMenuVisible = false; searching = true },
                             onDrag = { dir, p ->
                                 vm.isSubMenuVisible = false
-                                when (dir) {
-                                    PillSwipe.RIGHT -> dragSheet(Sheet.BOOKMARKS, p)
-                                    PillSwipe.LEFT -> dragSheet(Sheet.SETTINGS, p)
-                                    PillSwipe.UP -> dragSheet(Sheet.HISTORY, p)
-                                }
+                                dragSheet(layout.at(dir).sheet, p)
                             },
                             onRelease = { dir, open ->
                                 releaseSheet(open)
                             },
-                        ),
+                        ))
+                        .shadow(6.dp, CircleShape).background(ui.cs.surfaceContainerHigh, CircleShape)
+                        // grows from its middle: both edges move out to the search field's width (and back), the icons staying put
+                        .animateContentSize(Motion.noBounce(), alignment = Alignment.Center)
+                        .then(if (searching) Modifier.fillMaxWidth() else Modifier),
+                    // centred at every width while it grows or shrinks: the buttons stay in the middle of the Pill
+                    contentAlignment = Alignment.Center,
                 ) {
-                    SwitcherPillButtons(onNew = { vm.addNewTab(); close(null) }, onHistory = { vm.openView(Sheet.HISTORY) }, onMenu = {
-                        centered?.let { vm.setActiveTab(it.id) } // the tab menu acts on the centered tab
-                        vm.isSubMenuVisible = !vm.isSubMenuVisible
-                    })
+                    Slot(searching, enter = PILL_IN, exit = PILL_OUT) {
+                        SwitcherSearchBar(query, { query = it }, ::endSearch, onFocus = { focused -> if (!focused && !leaving) endSearch() })
+                    }
+                    Slot(!searching, enter = PILL_IN, exit = PILL_OUT) {
+                        SwitcherPillButtons(onNew = { vm.addNewTab(); close(null) }, up = layout.up, onUp = { vm.openView(layout.up.sheet) }, onMenu = {
+                            centered?.let { vm.setActiveTab(it.id) } // the tab menu acts on the centered tab
+                            vm.isSubMenuVisible = !vm.isSubMenuVisible
+                        })
+                    }
                 }
-                Spacer(Modifier.weight(1f))
-                SwitcherEdgeButton("settings", { vm.openView(Sheet.SETTINGS) }, label = "Settings", modifier = edgeIn)
+                Slot(!searching, Modifier.align(Alignment.CenterEnd), fadeIn() + scaleIn(), fadeOut() + scaleOut()) {
+                    SwitcherEdgeButton(layout.right.icon, { vm.openView(layout.right.sheet) }, label = layout.right.label, modifier = edgeIn)
+                }
             }
+        }
         }
         // tab menu: a tall card above the bottom bar, growing out of the ⋮ button
         if (vm.isSubMenuVisible) Box(Modifier.fillMaxSize().blockTouches { vm.isSubMenuVisible = false })
         androidx.compose.animation.AnimatedVisibility(
             vm.isSubMenuVisible, Modifier.align(Alignment.BottomCenter),
-            enter = fadeIn(tween(120)) + scaleIn(Motion.fastSpatial(), initialScale = 0.85f, transformOrigin = TransformOrigin(0.5f, 1f)),
+            enter = fadeIn(tween(120)) + scaleIn(Motion.noBounce(), initialScale = 0.85f, transformOrigin = TransformOrigin(0.5f, 1f)),
             exit = fadeOut(tween(120)) + scaleOut(tween(150), targetScale = 0.9f, transformOrigin = TransformOrigin(0.5f, 1f)),
         ) {
             TabMenu(vm, Modifier.fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 88.dp, start = 12.dp, end = 12.dp))
         }
     }
 }
+
+/** A plain AnimatedVisibility, called from here (inside the bar's Column, the Column-only overload would be picked). */
+@Composable
+private fun Slot(visible: Boolean, modifier: Modifier = Modifier, enter: EnterTransition, exit: ExitTransition, content: @Composable () -> Unit) =
+    AnimatedVisibility(visible, modifier, enter = enter, exit = exit) { content() }
+
+// the Pill's buttons and its search field, fading as the other takes over; a quick fade out, as the search field fills
+// the Pill's width and the Pill shrinks back only once it has gone
+private val PILL_IN = fadeIn(tween(200, delayMillis = 60))
+private val PILL_OUT = fadeOut(tween(90))

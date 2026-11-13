@@ -84,6 +84,9 @@ class WebViewHost(
     private val userAgents = UserAgents(activity)
     private val permissions = SitePermissions(activity, vm, requestPermissions)
     private val popups = PopupPolicy(vm)
+    /** Audio and video that keep playing in the background, with the media notification. */
+    val media = com.jlees.mibrowser.media.BackgroundMedia(activity.applicationContext, { vm.settings.backgroundAudio }, ::isIncognito,
+        { id -> vm.tabs.list.firstOrNull { it.id == id }?.url }) { applyActivity() }
     private val downloads = DownloadPrompt(activity, vm, requestPermissions, launchForResult)
     private val printer = Printer(activity) { id -> destroy(id) }
     private val externalApps = ExternalApps(activity, vm)
@@ -150,22 +153,26 @@ class WebViewHost(
     private var timersPaused = false
     private val pausedViews = HashSet<String>()
 
-    /** Pauses animations/geolocation in every WebView but the active one (and that one too while mi isn't visible). */
+    /**
+     * Pauses animations/geolocation in every WebView but the active one (and that one too while mi isn't visible) and
+     * the tab playing media. With mi in the background and nothing playing, JS timers stop too (process-wide).
+     */
     fun applyActivity() {
+        val playing = media.playingTab
         for ((id, wv) in views) {
-            val run = appVisible && id == vm.tabs.activeId
+            val run = com.jlees.mibrowser.media.keepsRunning(id, vm.tabs.activeId, appVisible, playing)
             if (run && id in pausedViews) { wv.onResume(); pausedViews -= id }
             else if (!run && id !in pausedViews) { wv.onPause(); pausedViews += id }
         }
+        // instance methods, but they act on every WebView in the process; with none alive, create() catches up
+        val timers = appVisible || playing != null
+        if (timers == timersPaused) views.values.firstOrNull()?.let { if (timers) it.resumeTimers() else it.pauseTimers(); timersPaused = !timers }
     }
 
-    /** Activity started/stopped. Stopped: JS timers in all pages stop too (WebView.pauseTimers is process-wide). */
+    /** Activity started/stopped. */
     fun setAppVisible(visible: Boolean) {
         if (visible == appVisible) return
         appVisible = visible
-        // instance methods, but they act on every WebView in the process; with none alive, create() catches up
-        if (visible) { views.values.firstOrNull()?.let { it.resumeTimers(); timersPaused = false } }
-        else views.values.firstOrNull()?.let { it.pauseTimers(); timersPaused = true }
         applyActivity()
     }
 
@@ -209,7 +216,7 @@ class WebViewHost(
             wv.destroy()
         }
         loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id); topInset.reset(id)
-        pausedViews.remove(id); dialogLimit.reset(id); signIn.forgetTab(id); httpContinued.remove(id)
+        pausedViews.remove(id); dialogLimit.reset(id); media.forget(id); signIn.forgetTab(id); httpContinued.remove(id)
         // posted: callers destroy a tab's WebView before (or while) removing the tab, and the tab list must be final
         if (wasIncognito || incognito.detach(id, null) || vm.tabs.list.none { it.id == id }) Handler(Looper.getMainLooper()).post { incognito.release() }
     }
@@ -219,7 +226,7 @@ class WebViewHost(
         while (views.size > max) {
             // never a popup or its opener: the page relies on window.opener / postMessage between the two
             val linked = vm.tabs.list.filter { it.openerId != null }.flatMap { listOf(it.id, it.openerId!!) }.toSet()
-            val id = views.keys.filter { it != vm.tabs.activeId && it !in linked && !printer.isPrinting(it) }.minByOrNull { lastUsed[it] ?: 0L } ?: return
+            val id = views.keys.filter { it != vm.tabs.activeId && it != media.tabId && it !in linked && !printer.isPrinting(it) }.minByOrNull { lastUsed[it] ?: 0L } ?: return
             val state = Bundle().also { views[id]?.saveState(it) }
             destroy(id)
             saved[id] = state
@@ -229,6 +236,7 @@ class WebViewHost(
     /** Activity teardown: release every WebView (they hold the Activity). [finishing]: incognito ends with the app. */
     fun destroyAll(finishing: Boolean) {
         views.keys.toList().forEach { destroy(it) }
+        media.release()
         if (finishing) incognito.release(all = true) // wipe now; folders go at the next launch
     }
 
@@ -285,9 +293,11 @@ class WebViewHost(
         wv.overScrollMode = View.OVER_SCROLL_NEVER
         with(wv.settings) {
             domStorageEnabled = true
-            @Suppress("DEPRECATION") databaseEnabled = true
+            @Suppress("DEPRECATION")
+            databaseEnabled = true
             cacheMode = WebSettings.LOAD_DEFAULT
-            @Suppress("DEPRECATION") saveFormData = true
+            @Suppress("DEPRECATION")
+            saveFormData = true
             setGeolocationEnabled(true)
             javaScriptCanOpenWindowsAutomatically = true
             setSupportMultipleWindows(true)
@@ -302,7 +312,9 @@ class WebViewHost(
         }
         val ws = wv.settings
         // No "X-Requested-With: <app id>" header where WebView allows turning it off (it marks requests as coming
-        // from an embedded WebView). WebView 155 doesn't offer this, so there the header is still sent.
+        // from an embedded WebView). WebView 155 doesn't offer this, so there the header is still sent. Deprecated, but
+        // still what removes the header where it's supported: kept on purpose.
+        @Suppress("DEPRECATION")
         if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) WebSettingsCompat.setRequestedWithHeaderOriginAllowList(ws, emptySet())
         // Passkeys / security keys (WebAuthn) through Android's Credential Manager, as a browser.
         // Incognito: signing in with a passkey works, creating one doesn't (it would be saved to the password manager
@@ -319,6 +331,9 @@ class WebViewHost(
             WebViewCompat.addWebMessageListener(wv, "miBridge", setOf("*"), bridge.listener(id))
             blocker.attach(wv, id, scripts.cosmeticFilter)
             WebViewCompat.addDocumentStartJavaScript(wv, scripts.bridge, setOf("*"))
+            // what plays, for background playback and picture-in-picture (assets/js/media.js)
+            WebViewCompat.addWebMessageListener(wv, "miMedia", setOf("*"), media.listener(id))
+            WebViewCompat.addDocumentStartJavaScript(wv, scripts.media, setOf("*"))
         }
         if (timersPaused && appVisible) { wv.resumeTimers(); timersPaused = false } // paused while every WebView was gone
         wv.webViewClient = Client(id)
@@ -373,6 +388,7 @@ class WebViewHost(
             if (httpContinued[id].let { it != null && it != displayHost(url) }) httpContinued.remove(id)
             errors.remove(id)
             dialogLimit.reset(id)
+            media.forget(id) // the page that was playing is gone
             topInset.reset(id); topInset.apply(id, view)
             nav(id, view, url, true)
             if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadStart)

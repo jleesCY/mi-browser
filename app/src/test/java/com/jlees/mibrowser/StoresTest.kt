@@ -60,7 +60,7 @@ class StoresTest {
         tabs.open(newTab("https://secret.com").copy(profile = newIncognitoProfile()))
         tabs.saver.writeNow()
         val loaded = TabsStore(store, { keep }) {}
-        loaded.load(null, StartupTabs.LAST, backgroundRefresh = false)
+        loaded.load(null, StartupTabs.LAST)
         assertEquals(listOf(a.id), loaded.list.map { it.id })
         assertEquals(a.id, loaded.activeId) // the incognito tab was active: the latest saved one shows instead
     }
@@ -96,13 +96,13 @@ class StoresTest {
         tabs.close(setOf(a.id))
         // Until mi Closes: nothing is written, so a restart starts empty
         tabs.closedSaver.writeNow()
-        assertEquals(emptyList<String>(), TabsStore(store, { KeepClosedTabs.DAY }) {}.apply { load(null, StartupTabs.NEW, false) }.recentlyClosed.map { it.id })
+        assertEquals(emptyList<String>(), TabsStore(store, { KeepClosedTabs.DAY }) {}.apply { load(null, StartupTabs.NEW) }.recentlyClosed.map { it.id })
         // 1 Day: saved, and back after a restart
         keep = KeepClosedTabs.DAY
         tabs.closedSaver.writeNow()
-        assertEquals(listOf(a.id), TabsStore(store, { KeepClosedTabs.DAY }) {}.apply { load(null, StartupTabs.NEW, false) }.recentlyClosed.map { it.id })
+        assertEquals(listOf(a.id), TabsStore(store, { KeepClosedTabs.DAY }) {}.apply { load(null, StartupTabs.NEW) }.recentlyClosed.map { it.id })
         // switched back to Until mi Closes: a restart doesn't read them
-        assertEquals(emptyList<String>(), TabsStore(store, { KeepClosedTabs.SESSION }) {}.apply { load(null, StartupTabs.NEW, false) }.recentlyClosed.map { it.id })
+        assertEquals(emptyList<String>(), TabsStore(store, { KeepClosedTabs.SESSION }) {}.apply { load(null, StartupTabs.NEW) }.recentlyClosed.map { it.id })
     }
 
     @Test fun historyAndBookmarksSaveAndLoad() {
@@ -113,15 +113,38 @@ class StoresTest {
         assertEquals(1, h2.items.size); assertEquals("cats", h2.recents.single().title)
 
         val b = BookmarksStore(store)
-        repeat(7) { b.addFavorite("f$it", "https://f$it.com") }
-        assertEquals(BookmarksStore.MAX_FAVORITES, b.favorites.size)
+        repeat(12) { b.addFavorite("f$it", "https://f$it.com") } // any number
+        b.addFavorite("again", "https://f1.com") // once only
+        assertEquals(12, b.favorites.size)
         b.toggleFavorite("f0", "https://f0.com")
-        assertTrue(b.canAddFavorite)
         b.add("Site", "https://s.com", null)
         b.savers.forEach { it.writeNow() }
         val b2 = BookmarksStore(store).apply { load() }
-        assertEquals(listOf("Site"), b2.nodes.map { it.title })
-        assertEquals(4, b2.favorites.size)
+        assertEquals(listOf("Favorites", "Site"), b2.nodes.filter { it.parentId == null }.map { it.title }) // favorites live in their folder
+        assertEquals(11, b2.favorites.size)
+        b2.delete(com.jlees.mibrowser.library.FAVORITES_FOLDER) // deleting the folder deletes every favorite
+        assertEquals(0, b2.favorites.size)
+        b2.addFavorite("back", "https://back.com") // and favoriting again brings the folder back, first in Bookmarks
+        assertEquals(1, b2.favorites.size)
+        assertEquals("Favorites", b2.nodes.filter { it.parentId == null }.minBy { it.order }.title)
+    }
+
+    @Test fun reorderingFavoritesSkipsFoldersKeptInTheirFolder() {
+        val b = BookmarksStore(store)
+        listOf("a", "b", "c").forEach { b.addFavorite(it, "https://$it.com") }
+        b.addFolder("Sub", com.jlees.mibrowser.library.FAVORITES_FOLDER) // a folder in Favorites isn't a favorite
+        b.reorderFavorites(2, 0)
+        assertEquals(listOf("c", "a", "b"), b.favorites.map { it.title })
+    }
+
+    @Test fun oldFavoritesMoveIntoTheFolder() {
+        store.write("favorites", kotlinx.serialization.builtins.ListSerializer(com.jlees.mibrowser.data.Favorite.serializer()),
+            listOf(com.jlees.mibrowser.data.Favorite("x", "https://old.com", "Old")))
+        val b = BookmarksStore(store).apply { load() }
+        assertEquals(listOf("Old"), b.favorites.map { it.title })
+        b.delete(com.jlees.mibrowser.library.FAVORITES_FOLDER)
+        b.savers.forEach { it.writeNow() }
+        assertEquals(0, BookmarksStore(store).apply { load() }.favorites.size) // moved once: deleting them sticks
     }
 
     @Test fun findInPageCountsAndSearchesAgain() {

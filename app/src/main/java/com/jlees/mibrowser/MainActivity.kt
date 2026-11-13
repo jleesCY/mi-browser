@@ -13,7 +13,11 @@ import com.jlees.mibrowser.incognito.IncognitoNotice
 import com.jlees.mibrowser.launcher.LauncherShortcuts
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.Lifecycle
+import com.jlees.mibrowser.media.PictureInPicture
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -56,6 +60,7 @@ class MainActivity : ComponentActivity() {
         )
         lifecycleScope.launch { vm.web.collect { host.handle(it) } }
         vm.capturePreview = host::capturePreview
+        watchPictureInPicture()
 
         IncognitoNotice.update(this, 0) // left over if the process ended while incognito tabs were open
         vm.start(if (intent?.action == Intent.ACTION_VIEW) intent.dataString else null, shortcutOf(intent))
@@ -66,6 +71,25 @@ class MainActivity : ComponentActivity() {
         // one Haptics for the whole UI, following the Haptic Feedback setting
         val haptics = Haptics(window.decorView) { vm.settings.hapticFeedback }
         setContent { if (vm.ready) CompositionLocalProvider(LocalHaptics provides haptics) { App(vm, host, this) } }
+    }
+
+    /** A fullscreen video (with the setting on) goes picture-in-picture when you leave mi. */
+    private fun pipWanted() = vm.settings.pictureInPicture && host.customView != null && PictureInPicture.supported(this)
+
+    private fun watchPictureInPicture() {
+        if (Build.VERSION.SDK_INT >= 31) lifecycleScope.launch {
+            // again when the video's size arrives (often just after it goes fullscreen), so the window takes its shape
+            snapshotFlow { pipWanted() to host.media.videoSize }.collect { (wanted, size) -> setPictureInPictureParams(PictureInPicture.params(size, auto = wanted)) }
+        }
+        addOnPictureInPictureModeChangedListener { info ->
+            // closed with its ✕ (not expanded back into mi, which resumes): the video stops, as closing a player does
+            if (!info.isInPictureInPictureMode && lifecycle.currentState == Lifecycle.State.CREATED) { host.media.pause(); host.exitFullscreen() }
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT < 31 && pipWanted()) runCatching { enterPictureInPictureMode(PictureInPicture.params(host.media.videoSize, auto = false)) }
     }
 
     override fun onPause() {
@@ -137,6 +161,8 @@ class MainActivity : ComponentActivity() {
             ACTION_SCAN_QR -> vm.qrScannerVisible = true
             ACTION_CLOSE_INCOGNITO -> vm.closeIncognitoTabs()
             ACTION_OPEN_DOWNLOADS -> vm.openView(Sheet.DOWNLOADS)
+            // the media notification: back to the tab that's playing
+            ACTION_SHOW_TAB -> intent.getStringExtra(EXTRA_TAB)?.takeIf { id -> vm.tabs.list.any { it.id == id } }?.let { vm.setActiveTab(it); vm.switcherVisible = false }
             ACTION_NEW_TAB, ACTION_NEW_INCOGNITO, ACTION_SEARCH -> shortcutOf(intent)?.let(vm::openFromShortcut)
         }
     }
@@ -148,6 +174,8 @@ class MainActivity : ComponentActivity() {
         const val ACTION_NEW_TAB = "com.jlees.mibrowser.NEW_TAB"
         const val ACTION_NEW_INCOGNITO = "com.jlees.mibrowser.NEW_INCOGNITO"
         const val ACTION_SEARCH = "com.jlees.mibrowser.SEARCH"
+        const val ACTION_SHOW_TAB = "com.jlees.mibrowser.SHOW_TAB"
+        const val EXTRA_TAB = "tab"
     }
 
     private fun shortcutOf(i: Intent?) = when (i?.action) {

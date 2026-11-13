@@ -5,6 +5,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -18,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.ui.common.LocalHaptics
 import kotlin.math.abs
 
-/** Which way a swipe on the switcher's Pill went: RIGHT opens the Library, LEFT Settings, UP History. */
+/** Which way a swipe on the switcher's Pill went (the page each opens: see SwitcherLayout). */
 enum class PillSwipe { RIGHT, LEFT, UP }
 
 /**
@@ -28,10 +30,17 @@ enum class PillSwipe { RIGHT, LEFT, UP }
  */
 @Composable
 fun Modifier.switcherPillSwipes(
-    upDistanceDp: Float, onDrag: (PillSwipe, Float) -> Unit, onRelease: (PillSwipe, Boolean) -> Unit,
+    upDistanceDp: Float, labelOf: (PillSwipe) -> String, onDrag: (PillSwipe, Float) -> Unit, onRelease: (PillSwipe, Boolean) -> Unit,
+    onSearch: () -> Unit,
 ): Modifier {
     val haptics = LocalHaptics.current
     val density = LocalDensity.current
+    // the gesture below lives as long as the Pill: it reads the latest actions (the Gestures setting can change while
+    // the switcher is open), not the ones from when it started
+    val drag by rememberUpdatedState(onDrag)
+    val release by rememberUpdatedState(onRelease)
+    val label by rememberUpdatedState(labelOf)
+    val search by rememberUpdatedState(onSearch)
     val widthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val upPx = with(density) { upDistanceDp.dp.toPx() }
     val slop = with(density) { 8.dp.toPx() }
@@ -47,10 +56,10 @@ fun Modifier.switcherPillSwipes(
                     // a flick toward the panel opens it too, however short
                     val v = velocity.calculateVelocity()
                     val toward = when (d) { PillSwipe.RIGHT -> v.x; PillSwipe.LEFT -> -v.x; PillSwipe.UP -> -v.y }
-                    onRelease(d, progress >= OPEN_AT || (toward > FLICK_PX_PER_S && progress > 0.03f))
+                    release(d, progress >= OPEN_AT || (toward > FLICK_PX_PER_S && progress > 0.03f))
                 }
             },
-            onDragCancel = { dir?.let { onRelease(it, false) } },
+            onDragCancel = { dir?.let { release(it, false) } },
         ) { change, amount ->
             change.consume()
             velocity.addPosition(change.uptimeMillis, change.position)
@@ -64,12 +73,12 @@ fun Modifier.switcherPillSwipes(
             val p = when (d) { PillSwipe.RIGHT -> total.x / widthPx; PillSwipe.LEFT -> -total.x / widthPx; PillSwipe.UP -> -total.y / upPx }.coerceIn(0f, 1f)
             if ((p >= OPEN_AT) != (progress >= OPEN_AT)) haptics?.tick() // crossed the point where letting go opens it
             progress = p
-            onDrag(d, p)
+            drag(d, p)
         }
     }.semantics {
-        customActions = listOf(PillSwipe.RIGHT to "Open Library", PillSwipe.LEFT to "Open Settings", PillSwipe.UP to "Open History").map { (d, label) ->
-            CustomAccessibilityAction(label) { onDrag(d, 1f); onRelease(d, true); true }
-        }
+        customActions = PillSwipe.entries.map { d ->
+            CustomAccessibilityAction("Open ${label(d)}") { drag(d, 1f); release(d, true); true }
+        } + CustomAccessibilityAction("Search tabs") { search(); true } // the long press, for screen readers
     }
 }
 
@@ -118,4 +127,33 @@ fun Modifier.pullDownToOpen(distanceDp: Float, onDrag: (Float) -> Unit, onReleas
             }
         }
     }.semantics { customActions = listOf(CustomAccessibilityAction("Open this tab") { onDrag(1f); onRelease(true); true }) }
+}
+
+/**
+ * Holding the switcher's Pill still (anywhere on it, its buttons too) calls [onLongPress] once the long-press time
+ * passes; moving first leaves the touch to the Pill's swipes. Seen before the buttons see the touch, and the rest of a
+ * long press is kept from them, so the button under the thumb doesn't click as well.
+ */
+@Composable
+fun Modifier.pillLongPress(onLongPress: () -> Unit): Modifier {
+    val haptics = LocalHaptics.current
+    val action by rememberUpdatedState(onLongPress)
+    return pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val slop = viewConfiguration.touchSlop
+            // false: let go or moved in time (a tap or a swipe); null: still held, still, when the time ran out
+            val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                while (true) {
+                    val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                    if (!c.pressed || (c.position - down.position).getDistance() > slop) break
+                }
+                false
+            }
+            if (ended != null) return@awaitEachGesture
+            haptics?.longPress()
+            action()
+            do { val e = awaitPointerEvent(PointerEventPass.Initial); e.changes.forEach { it.consume() } } while (e.changes.any { it.pressed })
+        }
+    } // its screen-reader action is with the Pill's swipe actions (switcherPillSwipes): one node holds one list
 }

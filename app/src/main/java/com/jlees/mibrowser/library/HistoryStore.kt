@@ -15,7 +15,7 @@ import kotlinx.serialization.builtins.ListSerializer
 class HistoryStore(private val store: JsonStore) {
     /** Visited pages, newest first (at most 1000). */
     var items by mutableStateOf(listOf<HistoryItem>()); private set
-    /** Searches made, newest first (at most 20), shown in the Pill's drawer. */
+    /** Searches made, newest first (at most 20), shown above the Pill while typing. */
     var recents by mutableStateOf(listOf<HistoryItem>()); private set
 
     private val serializer = ListSerializer(HistoryItem.serializer())

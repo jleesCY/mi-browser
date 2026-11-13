@@ -1,6 +1,7 @@
 // The one screen: the page, the Pill, the tab switcher, and the sheets and dialogs over them.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.tabs.switcherLayout
 import com.jlees.mibrowser.ui.common.Txt
 
 import com.jlees.mibrowser.sites.SiteSettingsView
@@ -20,7 +21,6 @@ import com.jlees.mibrowser.incognito.IncognitoTextInput
 import com.jlees.mibrowser.ui.common.blockTouches
 
 import com.jlees.mibrowser.Sheet
-import com.jlees.mibrowser.data.HomeShortcut
 import com.jlees.mibrowser.data.ThemeMode
 
 import androidx.compose.ui.draw.clip
@@ -160,7 +160,6 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
         // ---- pill focus animations
         LaunchedEffect(vm.isInputFocused) { pill.focusAnim.animateTo(if (vm.isInputFocused) 1f else 0f, timing(200)) }
-        LaunchedEffect(vm.isInputFocused, kbVisible) { pill.handleAnim.animateTo(if (vm.isInputFocused && kbVisible) 1f else 0f, timing(200)) }
 
         BoxWithConstraints(Modifier.fillMaxSize().background(ui.cs.surface)) {
             // Focus sink: when Android re-assigns view focus after clearFocus(), Compose gives it to the first focusable
@@ -168,26 +167,21 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             Box(Modifier.size(1.dp).focusable())
             val screenH = maxHeight.value
 
-            // ---- recent searches drawer sizing
-            pill.recentMin = if (s.showFavoritesDefault) 65f else 0f
-            pill.recentMax = screenH - (PILL_HEIGHT + 24) - imeTargetDp - statusDp - navDp
-            LaunchedEffect(vm.isInputFocused, kbVisible) { if (!vm.isInputFocused || !kbVisible) pill.animateRecent(0f, spring = false) }
-            LaunchedEffect(vm.isInputFocused, kbVisible, s.recentSearchesExpanded, s.showFavoritesDefault) {
-                if (vm.isInputFocused && kbVisible) {
-                    val target = if (s.recentSearchesExpanded) pill.recentMax else if (s.showFavoritesDefault) 65f else 0f
-                    if (target > 0) pill.animateRecent(target)
-                }
-            }
+            // the Pill's suggestions (above its field, while typing) grow it by at most 300dp (about six rows; the list
+            // scrolls past that, a row cut off at the top showing there's more), and never past the status bar
+            val suggestionsMaxDp = minOf(300f, screenH - PILL_HEIGHT - imeTargetDp - statusDp - 24f)
 
             // ---- overlay sheet
-            // Sheets are full screen and slide in from the side of the button that opens them: Bookmarks/History from
-            // the left, Settings from the right. sheetX is the offset in screen widths (-1 left, 0 shown, 1 right).
+            // Sheets are full screen and slide in from the side of their place in the tab switcher (tabs/SwitcherLayout:
+            // the left button's from the left, the right button's from the right, the Pill button's from the bottom;
+            // Site settings from the right). sheetX is the offset in screen widths (-1 left, 0 shown, 1 right).
             // Closed, it rests off screen (|sheetX| = 1), so the sheet's first frame is already hidden when it opens;
             // resting at 0 flashed it fully open for a frame before the slide began.
             val sheetX = remember { Animatable(1f) }
             var sheetShown by remember { mutableStateOf(false) }
-            // History comes up from the bottom (1 = below the screen; see OverlaySheet's fromBottom)
-            fun sideOf(view: Sheet) = if (view == Sheet.SETTINGS || view == Sheet.SITE || view == Sheet.HISTORY || view == Sheet.RECENTLY_CLOSED) 1f else -1f
+            // the Pill button's page comes up from the bottom (1 = below the screen; see OverlaySheet's fromBottom)
+            fun swipeOf(view: Sheet) = com.jlees.mibrowser.tabs.panelOf(view)?.let { s.switcherLayout.swipeFor(it) }
+            fun sideOf(view: Sheet) = if (swipeOf(view) == com.jlees.mibrowser.tabs.PillSwipe.RIGHT) -1f else 1f
             LaunchedEffect(vm.activeView) {
                 if (vm.activeView != Sheet.NONE && !sheetShown) { // not when switching Bookmarks ⇄ Downloads
                     sheetShown = true
@@ -242,14 +236,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 // mi's own pages (the blank tab, error pages) leave the camera cutout's space as web pages do
                 val cutoutPad = if (!fullscreen && !s.showStatusBar) statusDp.dp else 0.dp
                 if (tab != null && tab.isHome) Box(Modifier.fillMaxSize().background(com.jlees.mibrowser.home.homeBackground(tab.incognito)).padding(top = cutoutPad)) {
-                    HomePage(vm, onAction = { a ->
-                        when (a) {
-                            HomeShortcut.NEW_TAB -> vm.addNewTab()
-                            HomeShortcut.QR -> vm.qrScannerVisible = true
-                            HomeShortcut.BOOKMARKS -> vm.openView(Sheet.BOOKMARKS)
-                            HomeShortcut.HISTORY -> vm.openView(Sheet.HISTORY)
-                        }
-                    })
+                    HomePage(vm)
                 } else if (tab != null && tab.hasLoadedOnce) {
                     key(tab.id, host.generation) {
                         // re-synced only when what the WebView uses changes (the page to load, desktop mode; the settings
@@ -283,9 +270,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 val screenW = maxWidth.value
                 Box(Modifier.fillMaxSize()) { // no fade here: the pill morphs into the switcher bar (BottomArea)
                     if (vm.activeView == Sheet.NONE) {
-                        BottomArea(vm, pill, imeDp, navDp) {
-                            RecentSearches(vm, pill)
-                        }
+                        BottomArea(vm, pill, imeDp, navDp, suggestionsMaxDp)
                     }
                     RecallButton(vm, pill, navDp, screenW, Modifier.align(Alignment.BottomStart).zIndex(3f))
                 }
@@ -300,12 +285,12 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                         sheetX, statusDp, imeDp, closeOverlay,
                         // swiping the view's search Pill pushes the sheet back out the way it came, with the finger
                         backTowardEnd = side > 0,
-                        fromBottom = history,
+                        fromBottom = swipeOf(vm.activeView) == com.jlees.mibrowser.tabs.PillSwipe.UP,
                         onBackDrag = { p -> scope.launch { sheetX.snapTo(side * p) } },
                         onBackRelease = { close -> if (close) closeOverlay() else scope.launch { sheetX.animateTo(0f, Motion.switcher) } },
                         // opened from the switcher: the search Pill grows out of the switcher's Pill, and back into it
                         morphFrom = { if (vm.switcherVisible) vm.switcher.barPill else null },
-                        morphContent = { com.jlees.mibrowser.tabs.SwitcherPillButtons({}, {}) },
+                        morphContent = { com.jlees.mibrowser.tabs.SwitcherPillButtons({}, {}, up = s.switcherLayout.up) },
                         header = header,
                         // the page's two sections, under its title
                         belowHeader = when {
@@ -391,7 +376,7 @@ private fun PullIndicator(vm: BrowserViewModel, statusDp: Float) {
 private fun pureBlack(cs: androidx.compose.material3.ColorScheme): androidx.compose.material3.ColorScheme {
     fun step(v: Int) = androidx.compose.ui.graphics.lerp(Color(0xFF000000.toInt() or (v shl 16) or (v shl 8) or v), cs.primary, 0.04f)
     return cs.copy(
-        // full-screen backgrounds (pages, Settings, Library, the search drawer: surfaceContainerLow) are black
+        // full-screen backgrounds (pages, Settings, Library: surfaceContainerLow) are black
         background = Color.Black, surface = Color.Black, surfaceDim = Color.Black, surfaceContainerLowest = Color.Black,
         surfaceContainerLow = Color.Black, surfaceContainer = step(0x12), surfaceContainerHigh = step(0x1C),
         surfaceContainerHighest = step(0x26), surfaceBright = step(0x2E), inverseOnSurface = Color.Black,

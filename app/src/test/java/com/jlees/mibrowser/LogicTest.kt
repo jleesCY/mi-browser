@@ -11,6 +11,8 @@ import com.jlees.mibrowser.tabs.applyNavUpdate
 import com.jlees.mibrowser.tabs.capped
 import com.jlees.mibrowser.tabs.pushNavigation
 import com.jlees.mibrowser.update.Updates
+import com.jlees.mibrowser.media.*
+import com.jlees.mibrowser.tabs.switcherLayout
 
 import com.jlees.mibrowser.adblock.stripTracking
 import com.jlees.mibrowser.data.HistoryItem
@@ -22,6 +24,7 @@ import com.jlees.mibrowser.search.isValidBangKey
 import com.jlees.mibrowser.search.searchEngine
 import com.jlees.mibrowser.search.searchQueryFromUrl
 import com.jlees.mibrowser.search.typedBangLength
+import com.jlees.mibrowser.search.shortcutMatches
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -194,7 +197,7 @@ class LogicTest {
         assertEquals(false, isNewVisit("$url/", url))                   // same page, trailing slash
         assertEquals(true, isNewVisit(url, "https://example.com/b"))    // went somewhere else
         assertEquals(false, isNewVisit(RESTORED_VISIT, url + "?fresh=1")) // restored at startup, even if the address changed
-        assertEquals(RESTORED_VISIT, repairSaved(com.jlees.mibrowser.data.newTab().copy(historyStack = listOf(url), currentIndex = 0), false).lastVisit)
+        assertEquals(RESTORED_VISIT, repairSaved(com.jlees.mibrowser.data.newTab().copy(historyStack = listOf(url), currentIndex = 0)).lastVisit)
     }
 
     @Test fun tabHistoryIsCapped() {
@@ -286,6 +289,14 @@ class LogicTest {
         assertEquals(5, typedBangLength("!ebay mars", mine))
         assertEquals(0, typedBangLength("!nope x", mine))
         assertEquals(false, isValidBangKey("Has Space"))
+        // autocomplete while a shortcut is typed: by key first (shortest first), then by site name; none after a space
+        val keys = { t: String -> shortcutMatches(t, mine).map { it.first } }
+        assertEquals(listOf("w"), keys("!w"))
+        assertEquals(listOf("ebay"), keys("!eb"))
+        assertEquals(listOf("yt"), keys("!youtu"))
+        assertEquals(mine.size, keys("!").size)
+        assertEquals(emptyList<String>(), keys("!w mars"))
+        assertEquals(emptyList<String>(), keys("w"))
     }
 
     @Test
@@ -338,5 +349,55 @@ class LogicTest {
         val (part, more) = com.jlees.mibrowser.logic.readAtMost(data.inputStream(), 10_000)
         assertEquals(10_000, part.size); assertTrue(more)               // over: cut at the cap, and says there was more
         assertFalse(com.jlees.mibrowser.logic.readAtMost(data.inputStream(), 20_000).second) // exactly the cap: nothing more
+    }
+
+    @Test fun backgroundMediaRules() {
+        fun m(muted: Boolean = false, duration: Double = 200.0) = PageMedia("t", true, muted, duration, 0, 0, "", "")
+        assertTrue(isSessionMedia(m()))
+        assertTrue(isSessionMedia(m(duration = -1.0)))  // live stream
+        assertFalse(isSessionMedia(m(muted = true)))    // muted autoplay video
+        assertFalse(isSessionMedia(m(duration = 2.0)))  // a short sound
+        val run = ::keepsRunning
+        assertTrue(run("a", "a", true, null)); assertFalse(run("a", "a", false, null)) // visible tab, only while mi shows
+        assertTrue(run("b", "a", false, "b")); assertFalse(run("c", "a", true, "b"))    // the playing tab, always
+    }
+
+    @Test fun pipAspectStaysInAndroidsRange() {
+        val a = ::pipAspect
+        assertEquals(16 to 9, a(0, 0)); assertEquals(1920 to 1080, a(1920, 1080))
+        assertEquals(239 to 100, a(3000, 1000)); assertEquals(100 to 239, a(100, 1000))
+    }
+
+    @Test fun switcherLayoutSwapsPages() {
+        val d = com.jlees.mibrowser.tabs.SwitcherLayout.DEFAULT
+        val R = com.jlees.mibrowser.tabs.PillSwipe.RIGHT; val L = com.jlees.mibrowser.tabs.PillSwipe.LEFT; val U = com.jlees.mibrowser.tabs.PillSwipe.UP
+        val lib = com.jlees.mibrowser.data.SwitcherPanel.LIBRARY; val set = com.jlees.mibrowser.data.SwitcherPanel.SETTINGS; val his = com.jlees.mibrowser.data.SwitcherPanel.HISTORY
+        // Settings onto the left button: the Library takes Settings' old place (the right button), History stays
+        val a = d.with(R, set)
+        assertEquals(com.jlees.mibrowser.tabs.SwitcherLayout(set, lib, his), a)
+        assertEquals(L, a.swipeFor(lib)); assertEquals(R, a.swipeFor(set))
+        assertEquals(com.jlees.mibrowser.tabs.SwitcherLayout(his, set, lib), d.with(U, lib)) // History and Library trade places
+        assertEquals(d, d.with(R, lib)) // already there: nothing moves
+        // a saved layout without each page once falls back to the default
+        assertEquals(d, com.jlees.mibrowser.data.Settings(switcherLeft = lib, switcherRight = lib).switcherLayout)
+    }
+
+    @Test fun tabSearchMatchesTitleOrAddress() {
+        val t = TabItem(id = "a", title = "Mars - Wikipedia", historyStack = listOf("https://example.com", "https://en.wikipedia.org/wiki/Mars"), currentIndex = 1)
+        assertTrue(com.jlees.mibrowser.tabs.matchesTab(t, "mars"))       // title, any case
+        assertTrue(com.jlees.mibrowser.tabs.matchesTab(t, " wikipedia.org ")) // the current page's address, trimmed
+        assertFalse(com.jlees.mibrowser.tabs.matchesTab(t, "example"))   // an earlier page in its history isn't the tab's page
+        assertTrue(com.jlees.mibrowser.tabs.matchesTab(t, ""))           // no search: every tab
+    }
+
+    @Test fun settingsHeadingsSplitASectionIntoBlocks() {
+        val rows = listOf(
+            com.jlees.mibrowser.ui.settings.SettingsRow("a") {},
+            com.jlees.mibrowser.ui.settings.SettingsHeading("Tab Switcher Pill"),
+            com.jlees.mibrowser.ui.settings.SettingsRow("b") {}, com.jlees.mibrowser.ui.settings.SettingsRow("c") {},
+        )
+        val placed = com.jlees.mibrowser.ui.settings.placeRows(rows)
+        assertEquals(listOf(null, "Tab Switcher Pill", "Tab Switcher Pill", "Tab Switcher Pill"), placed.map { it.heading })
+        assertEquals(listOf(0 to 1, 0 to 0, 0 to 2, 1 to 2), placed.map { it.index to it.count }) // each block is its own rounded group
     }
 }

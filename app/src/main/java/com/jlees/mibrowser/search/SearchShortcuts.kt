@@ -39,6 +39,26 @@ fun bangUrl(text: String, bangs: Map<String, String>): String? {
     return SearchEngine("", template).urlFor(query.trim())
 }
 
+/**
+ * The shortcuts to offer while one is being typed ("!" and no space yet), as key → search address: those whose key
+ * starts with what's typed first, then those whose site has it in its name ("!wik" finds !w, Wikipedia). Empty
+ * otherwise.
+ */
+fun shortcutMatches(text: String, bangs: Map<String, String>): List<Pair<String, String>> {
+    if (!text.startsWith("!") || text.any { it.isWhitespace() }) return emptyList()
+    val typed = text.drop(1).lowercase()
+    val all = bangs.entries.map { it.key to it.value }
+    val byKey = all.filter { it.first.startsWith(typed) }.sortedBy { it.first.length }
+    val byName = all.filter { it !in byKey && typed.isNotEmpty() && shortcutName(it.first, it.second).contains(typed, ignoreCase = true) }
+    return byKey + byName
+}
+
+/** A shortcut's site name: the built-in's ("Wikipedia"), "Search engine" for !se, else its site ("ebay.com"). */
+fun shortcutName(key: String, url: String): String = when (key) {
+    SEARCH_ENGINE_BANG -> "Your search engine"
+    else -> BANGS[key]?.takeIf { it.url == url }?.name ?: com.jlees.mibrowser.logic.displayHost(url).removePrefix("www.")
+}
+
 /** Length of a known shortcut typed at the start ("!w " → 2: the "!w"), or 0. */
 fun typedBangLength(text: String, bangs: Map<String, String>): Int {
     val m = BANG_TYPED.find(text) ?: return 0

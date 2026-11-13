@@ -39,6 +39,9 @@ import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ui.SWITCHER_DRAG
 import com.jlees.mibrowser.tabs.pullDownToOpen
+import com.jlees.mibrowser.tabs.pillLongPress
+import com.jlees.mibrowser.tabs.switcherLayout
+import com.jlees.mibrowser.data.SwitcherPanel
 import com.jlees.mibrowser.tabs.TabCardView
 import com.jlees.mibrowser.tabs.cardAspect
 import com.jlees.mibrowser.tabs.switcherGradient
@@ -83,13 +86,15 @@ fun GestureWalkthrough(vm: BrowserViewModel) {
         val at = step
         scope.launch { delay(900); if (step == at) advance() }
     }
+    /** This step's tasks: holding the Pill to search only while that gesture is on (Settings › Gestures). Read at call time. */
+    fun chips() = step.chips.filter { it != Task.SEARCH_TABS || vm.settings.longPressTabSearch }
     /** The page's row tasks (delete, edit) are done: only then does going back appear, and work. Read at call time. */
-    fun rowsDone() = step.chips.filterNot { it.leaves }.all { it in lit }
+    fun rowsDone() = chips().filterNot { it.leaves }.all { it in lit }
     /** Ticks off [task], if it's one of this step's (a swipe can match another step's: ignored). */
     fun light(task: Task) {
-        if (task !in step.chips || task in lit) return
+        if (task !in chips() || task in lit) return
         lit += task; haptics?.tick()
-        if (step.chips.all { it in lit }) complete()
+        if (chips().all { it in lit }) complete()
     }
     fun finish() {
         vm.updateSettings { copy(walkthroughSeen = true) }
@@ -139,12 +144,11 @@ fun GestureWalkthrough(vm: BrowserViewModel) {
         if (open) complete()
     }
     /** How far a swipe on the page's own search Pill has pushed it back out (0..1). */
-    fun backPull(d: Offset) = when (step.panel) { // read now: these handlers outlive the composition they were made in
-        Panel.LIBRARY -> -d.x / widthPx
-        Panel.SETTINGS -> d.x / widthPx
-        Panel.HISTORY -> d.y / (220 * px)
-        null -> 0f
-    }.coerceIn(0f, 1f)
+    // which swipe opens each page, as in the real switcher (Settings › Tabs › Gestures)
+    val layout = vm.settings.switcherLayout
+    fun swipeOf(p: SwitcherPanel) = vm.settings.switcherLayout.swipeFor(p)
+    // read now: these handlers outlive the composition they were made in
+    fun backPull(d: Offset) = step.panel?.let { backPullOf(swipeOf(it), d.x, d.y, widthPx, 220 * px) }?.coerceIn(0f, 1f) ?: 0f
 
     Box(Modifier.fillMaxSize().zIndex(4000f).blockTouches()) {
         // ---- the blank tab's page (below the status bar, as in the app), zooming into its card as the switcher opens
@@ -271,18 +275,18 @@ fun GestureWalkthrough(vm: BrowserViewModel) {
                     .windowInsetsPadding(WindowInsets.navigationBars).padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SwitcherEdgeButton("library_books", {}, label = "Library")
+                SwitcherEdgeButton(layout.left.icon, {}, label = layout.left.label)
                 Spacer(Modifier.weight(1f))
                 Surface(
                     shape = CircleShape, color = ui.cs.surfaceContainerHigh, shadowElevation = 6.dp,
-                    modifier = Modifier.onGloballyPositioned { barRect = it.boundsInRoot() }.guideDrag(
+                    modifier = Modifier.onGloballyPositioned { barRect = it.boundsInRoot() }
+                        .pillLongPress { if (step == Step.CARDS) light(Task.SEARCH_TABS) } // as the real Pill: hold to search
+                        .guideDrag(
                         onDrag = { d ->
                             scope.launch {
                                 when {
                                     step == Step.OPEN -> if (d.y > 0) zoom.snapTo(1f - (d.y / px / 220f).coerceIn(0f, 1f))
-                                    step.panel == Panel.LIBRARY && d.x > 0 -> panelP.snapTo((d.x / widthPx).coerceIn(0f, 1f))
-                                    step.panel == Panel.SETTINGS && d.x < 0 -> panelP.snapTo((-d.x / widthPx).coerceIn(0f, 1f))
-                                    step.panel == Panel.HISTORY && d.y < 0 -> panelP.snapTo((-d.y / heightPx).coerceIn(0f, 1f))
+                                    step.panel != null -> openPull(swipeOf(step.panel!!), d.x, d.y, widthPx, heightPx).let { if (it > 0f) panelP.snapTo(it.coerceIn(0f, 1f)) }
                                 }
                             }
                         },
@@ -290,37 +294,34 @@ fun GestureWalkthrough(vm: BrowserViewModel) {
                             scope.launch {
                                 if (step == Step.OPEN) { releaseOpen(d.y / px / 220f, v.y); return@launch }
                                 // decided from the whole swipe: a quick flick may not have reported any movement before it ended
-                                val (pulled, fast) = when (step.panel) {
-                                    Panel.LIBRARY -> d.x / widthPx to (v.x > 500f)
-                                    Panel.SETTINGS -> -d.x / widthPx to (v.x < -500f)
-                                    Panel.HISTORY -> -d.y / heightPx to (v.y < -500f)
-                                    null -> return@launch
-                                }
+                                val s = swipeOf(step.panel ?: return@launch)
+                                val pulled = openPull(s, d.x, d.y, widthPx, heightPx)
+                                val fast = openPull(s, v.x, v.y, 1f, 1f) > 500f
                                 val open = pulled > 0.2f || fast
                                 if (open) pageOpened = true
                                 panelP.animateTo(if (open) 1f else 0f, spring(0.9f, 700f))
                             }
                         },
                     ),
-                ) { SwitcherPillButtons({}, {}) }
+                ) { SwitcherPillButtons({}, {}, up = layout.up) }
                 Spacer(Modifier.weight(1f))
-                SwitcherEdgeButton("settings", {}, label = "Settings")
+                SwitcherEdgeButton(layout.right.icon, {}, label = layout.right.label)
             }
         }
 
         // ---- the step's page, sliding in with the finger
         if (panel != null && panelOpen) GuidePage(
-            panel, panelP.value,
+            panel, swipeOf(panel), panelP.value,
             onRow = { rowRect = it }, onPill = { panelPillRect = it },
-            onDelete = { light(if (panel == Panel.LIBRARY) Task.DELETE_BOOKMARK else Task.DELETE_ENTRY) }, onEdit = if (panel == Panel.LIBRARY) { { light(Task.EDIT_BOOKMARK) } } else null,
+            onDelete = { light(if (panel == SwitcherPanel.LIBRARY) Task.DELETE_BOOKMARK else Task.DELETE_ENTRY) }, onEdit = if (panel == SwitcherPanel.LIBRARY) { { light(Task.EDIT_BOOKMARK) } } else null,
             pillSwipe = Modifier.guideDrag(
                 onDrag = { d -> if (rowsDone()) scope.launch { panelP.snapTo(1f - backPull(d)) } },
                 onRelease = { d, v ->
                     if (rowsDone()) scope.launch {
-                        val fast = when (step.panel) { Panel.LIBRARY -> v.x < -500f; Panel.SETTINGS -> v.x > 500f; Panel.HISTORY -> v.y > 500f; null -> false }
+                        val fast = step.panel?.let { backPullOf(swipeOf(it), v.x, v.y, 1f, 1f) > 500f } ?: false
                         val back = backPull(d) > 0.25f || fast
                         panelP.animateTo(if (back) 0f else 1f, spring(0.9f, 700f))
-                        if (back) step.chips.firstOrNull { it.leaves }?.let(::light)
+                        if (back) chips().firstOrNull { it.leaves }?.let(::light)
                     }
                 },
             ),
@@ -347,19 +348,20 @@ fun GestureWalkthrough(vm: BrowserViewModel) {
             val hint: Pair<Rect?, Move> = when (step) {
                 Step.INTRO -> null to Move.TAP // nothing to do: just read
                 // closing is only pointed at on a tab that can be closed (not the blank one, nor the pinned one)
-                Step.CARDS -> cardRect to when {
-                    step.chips[0] !in lit -> Move.RIGHT
-                    guideTabs.getOrNull(pager.currentPage).let { it != null && it.id != GUIDE_HOME && !it.pinned } -> Move.UP
-                    else -> Move.SIDEWAYS
+                Step.CARDS -> when {
+                    Task.OTHER_TABS !in lit -> cardRect to Move.RIGHT
+                    Task.CLOSE_TAB !in lit -> cardRect to if (guideTabs.getOrNull(pager.currentPage).let { it != null && it.id != GUIDE_HOME && !it.pinned }) Move.UP else Move.SIDEWAYS
+                    else -> barRect to Move.TAP // hold the Pill
                 }
                 Step.NAVIGATE -> pillRect to Move.SIDEWAYS
                 Step.HIDE -> pillRect to if (hidden.value >= 1f) Move.TAP else Move.DOWN
                 Step.TABS -> pillRect to Move.UP
                 Step.OPEN -> cardRect to Move.DOWN
                 else -> when {
-                    !panelOpen -> barRect to when (panel) { Panel.LIBRARY -> Move.RIGHT; Panel.SETTINGS -> Move.LEFT; else -> Move.UP }
-                    rowPending -> rowRect to if (panel == Panel.LIBRARY) Move.SIDEWAYS else Move.LEFT
-                    else -> panelPillRect to when (panel) { Panel.LIBRARY -> Move.LEFT; Panel.SETTINGS -> Move.RIGHT; else -> Move.DOWN }
+                    panel == null -> null to Move.TAP
+                    !panelOpen -> barRect to openMove(swipeOf(panel))
+                    rowPending -> rowRect to if (panel == SwitcherPanel.LIBRARY) Move.SIDEWAYS else Move.LEFT
+                    else -> panelPillRect to backMove(swipeOf(panel))
                 }
             }
             hint.first?.let { FingerHint(hint.second, it) }
@@ -385,18 +387,20 @@ fun GestureWalkthrough(vm: BrowserViewModel) {
                 when {
                     step == Step.HIDE && hidden.value >= 1f && !stepDone -> "Now tap the button to bring it back."
                     panelP.value >= 1f && step.inside.isNotEmpty() -> step.inside
+                    step.panel != null -> step.text.format(openWord(swipeOf(step.panel!!)))
+                    // the only way into tab search, so it's taught here (unless it's switched off in Settings › Gestures)
                     else -> step.text
                 },
                 15f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 4.dp), lineHeight = 22f,
             )
             // a page's checklist shows once the page has been opened; going back joins it once the row tasks are done
             val shown = when {
-                step == Step.CARDS -> if (step.chips[0] in lit) step.chips else step.chips.take(1) // closing comes once you've moved
-                panel == null -> step.chips
+                step == Step.CARDS -> if (Task.OTHER_TABS in lit) chips() else chips().take(1) // the rest come once you've moved
+                panel == null -> chips()
                 !pageOpened -> emptyList()
-                else -> step.chips.filter { rowsDone() || !it.leaves }
+                else -> chips().filter { rowsDone() || !it.leaves }
             }
-            if (shown.isNotEmpty()) Column(Modifier.padding(top = 12.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) { shown.forEach { Chip(it.label, it in lit) } }
+            if (shown.isNotEmpty()) Column(Modifier.padding(top = 12.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) { shown.forEach { Chip(it.labelFor(::swipeOf), it in lit) } }
             if (step == Step.DONE) Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
                 Button(onClick = ::finish) { Txt("Start browsing", 15f, ui.cs.onPrimary, ui.semibold) }
             } else if (step == Step.INTRO) Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.CenterEnd) {

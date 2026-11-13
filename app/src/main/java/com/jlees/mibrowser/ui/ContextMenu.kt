@@ -1,6 +1,7 @@
 // The long-press menu for links and images on a page.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.adblock.cleanLink
 import com.jlees.mibrowser.incognito.incognitoSupported
 
@@ -48,6 +49,12 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
             if (web && d.url != null) Action("tab", "Open in Background Tab") {
                 vm.addBackgroundTab(d.url)
                 android.widget.Toast.makeText(ctx, "Opened in background", android.widget.Toast.LENGTH_SHORT).show()
+                close()
+            }
+            // a link straight to the home page's favorites (the Favorites folder), named by its text or else its site
+            if (web && d.url != null && !vm.bookmarks.isFavorite(d.url)) Action("star", "Add to Favorites") {
+                vm.bookmarks.addFavorite(d.text.trim().ifEmpty { displayHost(d.url).removePrefix("www.") }, d.url)
+                android.widget.Toast.makeText(ctx, "Added to favorites", android.widget.Toast.LENGTH_SHORT).show()
                 close()
             }
             if (target != null) Action("content_copy", if (d.url != null) "Copy Link" else "Copy Image Link") {

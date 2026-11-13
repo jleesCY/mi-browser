@@ -19,28 +19,42 @@
   <img src="docs/public/images/incognito.jpg" width="200" alt="A new incognito tab" />
 </p>
 
-**mi.** (pronounced "my") replaces the usual toolbar with one floating **Pill**: tap it to search, swipe up for your tabs, swipe sideways to go back and forward, swipe down to hide it. It's written natively in Kotlin with Jetpack Compose, weighs under 3 MB, and keeps all of your data on your device.
+**mi.** (pronounced "my") replaces the usual toolbar with one floating **Pill**: tap it to search, swipe up for your tabs, swipe sideways to go back and forward, swipe down to hide it. It's written natively in Kotlin with Jetpack Compose, weighs under 5 MB, and keeps all of your data on your device.
 
 **[Website](https://jleescy.github.io/mi-browser)** · **[User Guide](https://jleescy.github.io/mi-browser/user)** · **[Developer Guide](https://jleescy.github.io/mi-browser/developer)** · **[Privacy Policy](https://jleescy.github.io/mi-browser/privacy)** · **[Download](https://github.com/jleescy/mi-browser/releases/latest)**
 
 ## Features
 
 ### The Pill
-- One control for everything: search with suggestions (your past searches first), the tab switcher, back/forward and hiding the bar.
+- One control for everything: search, the tab switcher, back/forward and hiding the bar.
+- **Suggestions inside the Pill**: tap it and the Pill grows upward with your recent searches, your search engine's suggestions and matching shortcuts, the best match closest to your thumb. The part matching what you typed is in bold; tap ↖ to fill a suggestion in and keep typing. Each kind is a switch in **Settings › Pill › While Typing**.
+- **Inline answers**, worked out on your phone as you type: math (`2^10`, `20% of 150`, `sqrt(2)`), unit conversions (`5 km in mi`, `98.6 f to c`), number bases (`255 in hex`), the time and date here or in a city (`time in tokyo`), coin flips and dice. Tap an answer to copy it.
 - **Search shortcuts**: start a search with `!w`, `!yt`, `!r`, `!a`, `!m` or `!i` to search Wikipedia, YouTube, Reddit, Amazon, Maps or Images, or `!se` to always search your search engine. The shortcut turns into a small pill as you type. Add your own in one tap: search a site, then ⋮ › **Add shortcut** (or paste a results page's address in Settings). You can also set a custom search engine.
 - **Pull down to refresh**, only ever from the very top of a page.
-- A loading-progress fill, a "Not secure" marker on unencrypted pages, and a favorites bar (drag to reorder; hold one to edit or delete it).
+- A loading-progress fill and a "Not secure" marker on unencrypted pages.
 - **Paste and go**: a link you just copied is offered when you tap the Pill.
 - Scrolling down (or a swipe down) tucks the Pill into a small recall button that brings it back; pin it left, centre or right, or turn **Hide on Scroll** off.
 - A **Gesture Walkthrough** shows every swipe hands-on the first time you open mi (and any time from Settings).
 
+### Home page
+- **Favorites** sit at the bottom of a new tab, four across and two down, swiped sideways for more. Hold one and drag it to rearrange, or hold and let go to edit it. A site without an icon gets its first letter on a colour of its own.
+- Favorite a page with the tab menu's star, or hold a link and choose **Add to Favorites**. Favorites live in a **Favorites** folder in your bookmarks, so you can manage them there too.
+- Logo, clock and date, each optional in **Settings › Home Page**.
+
 ### Tab switcher
 - Swipe up and the page zooms out into its card, like your phone's recent apps. The card's title and icon follow it from the first moment.
 - Tabs are ordered by when you last used them, with live previews, on a soft gradient of your accent colour.
-- Swipe a card up to close it (with undo); Undo puts you back on it. Swipe the switcher's Pill up (or tap its clock button) for **History**, with this session's **Recently Closed** tabs beside it; swipe it right for the Library (Bookmarks and Downloads) and left for Settings, or down to open the tab you're looking at. Library, History and Settings search from a Pill at the bottom too: swipe it to go back (in Settings, up a level first); its ⋮ menu opens inside it. **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
+- Swipe a card up to close it (with undo); Undo puts you back on it. Swipe the switcher's Pill up (or tap its clock button) for **History**, with your **Recently Closed** tabs beside it; swipe it right for the Library (Bookmarks and Downloads) and left for Settings, or down to open the tab you're looking at. Prefer another arrangement? **Settings › Gestures** lets you choose which page each swipe (and button) opens. Library, History and Settings search from a Pill at the bottom too: swipe it to go back (in Settings, up a level first); its ⋮ menu opens inside it. **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
+- **Search your tabs**: hold the switcher's Pill and it turns into a search field; the cards narrow to the tabs whose title or address matches.
 - The **tab menu** (⋮) has Favorite, Bookmark, Pin and Share; quick tiles for Desktop site, Reader mode and Find in page; and tools for QR codes, printing and home-screen shortcuts.
 - **Site settings**: tap the site at the top of the tab menu for its camera, microphone and location access, pop-ups, ad blocking, and to clear its data.
 - **Find in page**: the Pill turns into a find bar that counts the matches (`2/14`) as you step through them.
+
+### Media
+- **Picture-in-picture**: a fullscreen video keeps playing in a small window when you leave mi, shaped to the video.
+- **Background playback**: audio and video keep playing when you leave mi or lock your phone (YouTube included), with controls in a notification and on the lock screen: play/pause, a seek bar, and back/forward 10 seconds. The site's icon shows with it.
+- Playback pauses when your headphones disconnect, a call comes in or another app starts playing, and stays paused until you press play.
+- Each is a switch in **Settings › Media**, beside **Block Video Autoplay**.
 
 ### Incognito
 - Switch any new tab to incognito with the mask in the Pill, or long-press a link and choose **Open in Incognito Tab**.
@@ -64,10 +78,11 @@
 - No tracking and no accounts. Site icons come from the sites themselves, never a third-party service.
 
 ### Material 3 Expressive
-- Colours from your accent or your wallpaper (Material You) in light, dark or system theme, with a **pure black (OLED)** option. Hide the status bar and pages still keep clear of the camera cutout.
+- Colours from your accent or your wallpaper (Material You) in light, dark or system theme, with a **pure black (OLED)** option. Hide the status bar and pages still keep clear of the camera cutout, sticky headers included.
 - Google Sans Flex (rounded, or your phone's own font if you prefer), Material Symbols, and spring-based motion that uses your display's full refresh rate.
 - **Haptic feedback** at each gesture's point of no return (swipes, the tab switcher, pull to refresh), which you can turn off.
-- Settings grouped into sections, each on its own page, with search across all of them.
+- Settings in headed groups (Browsing, Appearance, Protection, Navigation, Saved, General), each section on its own page; search across all of them takes you straight to the setting.
+- **Report a bug or suggest a feature** from Settings › About, straight to a new GitHub issue.
 - **Accessible**: every icon button has a label for screen readers, and every gesture (the Pill's swipes, swipe-to-delete, closing a tab) is also an action TalkBack can perform.
 
 ## Installation
@@ -98,6 +113,8 @@ app/src/main/java/com/jlees/mibrowser/
 ├── search/               # engines, ! shortcuts, suggestions
 ├── adblock/              # filter engine, content blocking, link cleaning
 ├── incognito/            # WebView profiles, screen and keyboard protection
+├── media/                # picture-in-picture, background playback, media notification
+├── answers/              # inline answers in the Pill: calculator, units, time, coin and dice
 ├── home/  qr/  launcher/  update/
 ├── data/  logic/         # shared models, storage, URL parsing
 ├── web/                  # WebViewHost and one class per WebView job

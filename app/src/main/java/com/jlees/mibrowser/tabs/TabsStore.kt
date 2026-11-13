@@ -36,8 +36,8 @@ class TabsStore(
     operator fun get(id: String) = list.firstOrNull { it.id == id }
 
     /** Restores the saved session at launch (see [restoreSession]); [link] is a page that opened mi. */
-    fun load(link: String?, mode: StartupTabs, backgroundRefresh: Boolean) {
-        val saved = (store.read("tabs", ListSerializer(TabItem.serializer())) ?: emptyList()).map { repairSaved(it, backgroundRefresh) }
+    fun load(link: String?, mode: StartupTabs) {
+        val saved = (store.read("tabs", ListSerializer(TabItem.serializer())) ?: emptyList()).map(::repairSaved)
         val restored = restoreSession(saved, store.read("activeTabId", String.serializer()), mode, link?.let { newTab(it, "External Link") })
         list = restored.tabs
         select(restored.activeId)

@@ -139,9 +139,9 @@ class StructureTest {
 
     @Test fun repairingASavedTab() {
         val t = newTab().copy(historyStack = listOf("https://a.com", "https://b.com"), currentIndex = 7, title = "")
-        val r = repairSaved(t, loadedOnce = false)
+        val r = repairSaved(t)
         assertEquals(1, r.currentIndex); assertEquals("https://b.com", r.url); assertEquals("New Tab", r.title)
-        assertEquals(-1, repairSaved(newTab().copy(currentIndex = 3), true).currentIndex)
+        assertEquals(-1, repairSaved(newTab().copy(currentIndex = 3)).currentIndex)
     }
 
     @Test fun settingsMigration() {

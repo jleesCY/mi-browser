@@ -14,6 +14,33 @@ fun addBookmark(all: List<BookmarkNode>, title: String, url: String, parentId: S
 fun addFolder(all: List<BookmarkNode>, title: String, parentId: String?) =
     all + BookmarkNode(uniqueId(), BookmarkType.FOLDER, title, "", parentId, nextOrder(all, parentId))
 
+/** The Favorites folder's id: favorites are the bookmarks in it, so deleting the folder deletes them all. */
+const val FAVORITES_FOLDER = "favorites"
+
+/** The favorites, in their order: the bookmarks in the Favorites folder (none once it's deleted). */
+fun favoritesOf(all: List<BookmarkNode>): List<BookmarkNode> =
+    all.filter { it.parentId == FAVORITES_FOLDER && !it.isFolder }.sortedBy { it.order }
+
+/** [url] added to favorites (the end of the Favorites folder, made first in Bookmarks if it's gone); once only. */
+fun addFavorite(all: List<BookmarkNode>, title: String, url: String): List<BookmarkNode> {
+    if (favoritesOf(all).any { it.url == url }) return all
+    val first = (all.filter { it.parentId == null }.minOfOrNull { it.order } ?: 0) - 1
+    val withFolder = if (all.any { it.id == FAVORITES_FOLDER }) all
+        else all + BookmarkNode(FAVORITES_FOLDER, BookmarkType.FOLDER, "Favorites", "", null, first)
+    return addBookmark(withFolder, title.ifEmpty { "Favorite" }, url, FAVORITES_FOLDER)
+}
+
+/**
+ * The favorite at [from] moved to [to] (places among the favorites, as the home page shows them). Folders kept in the
+ * Favorites folder aren't favorites, so the move is made among all its contents, landing where the favorite at [to] is.
+ */
+fun reorderFavorites(all: List<BookmarkNode>, from: Int, to: Int): List<BookmarkNode> {
+    val favs = favoritesOf(all)
+    if (from !in favs.indices || to !in favs.indices) return all
+    val siblings = all.filter { it.parentId == FAVORITES_FOLDER }.sortedBy { it.order }
+    return reorderBookmarks(all, FAVORITES_FOLDER, siblings.indexOf(favs[from]), siblings.indexOf(favs[to]))
+}
+
 fun descendantsAndSelf(all: List<BookmarkNode>, id: String): Set<String> {
     val out = mutableSetOf<String>()
     fun walk(x: String) { if (out.add(x)) all.filter { it.parentId == x }.forEach { walk(it.id) } }

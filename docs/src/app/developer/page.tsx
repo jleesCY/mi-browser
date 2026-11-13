@@ -25,6 +25,8 @@ const PROJECT_STRUCTURE = `
 │       │   ├── search/              # Engines, ! shortcuts, suggestions
 │       │   ├── adblock/             # Filter engine, content blocking, link cleaning
 │       │   ├── incognito/           # WebView profiles, screen & keyboard protection
+│       │   ├── media/               # Picture-in-picture, background playback
+│       │   ├── answers/             # Inline answers: calculator, units, time
 │       │   ├── home/ qr/ launcher/ update/
 │       │   ├── data/ logic/         # Shared models, JSON storage, URL parsing
 │       │   ├── web/                 # WebViewHost + one class per WebView job
@@ -184,7 +186,7 @@ export default function DeveloperDocs() {
                     </div>
                     <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
                       <h4 className="font-bold text-sm mb-2">Gesture Logic</h4>
-                      <p className="text-xs text-white/50 leading-relaxed">The Pill, sheets, and drawer share one pan detector that tracks the finger in screen coordinates and always settles on release, animated with Material 3 Expressive springs.</p>
+                      <p className="text-xs text-white/50 leading-relaxed">The Pill, sheets, and switcher share one pan detector that tracks the finger in screen coordinates and always settles on release, animated with Material 3 Expressive springs.</p>
                     </div>
                   </div>
                 </div>

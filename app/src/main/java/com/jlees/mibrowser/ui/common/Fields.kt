@@ -70,10 +70,11 @@ fun ClearableField(
 @Composable
 fun SheetSearchField(
     value: String, onChange: (String) -> Unit,
-    trailing: (@Composable () -> Unit)? = null, onFocus: (Boolean) -> Unit = {},
+    trailing: (@Composable () -> Unit)? = null, onFocus: (Boolean) -> Unit = {}, autoFocus: Boolean = false,
 ) {
     val ui = LocalUi.current
     val fr = remember { FocusRequester() }
+    if (autoFocus) LaunchedEffect(Unit) { fr.requestFocus() } // opened to type in: the keyboard comes straight up
     Row(
         // the main Pill's field: a lighter tone inside the Pill's bar, the same height and corners
         Modifier.fillMaxWidth().height(49.dp)

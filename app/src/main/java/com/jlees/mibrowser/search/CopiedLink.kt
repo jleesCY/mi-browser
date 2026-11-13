@@ -1,4 +1,4 @@
-// "Paste and go": the search drawer offers a link you just copied, as its first row.
+// "Paste and go": the Pill offers a link you just copied, as its first suggestion.
 package com.jlees.mibrowser.search
 
 import android.content.ClipDescription
@@ -11,9 +11,9 @@ import android.view.textclassifier.TextClassifier
 
 /**
  * Whether the clipboard holds a recently copied link. On Android 12+ reading the clipboard shows a system "pasted"
- * notice, so mi only looks at the clip's description there (Android's own link classification and when it was
- * copied) and reads the link when the user taps the row. Older Android shows no notice, so the link itself is read
- * and shown.
+ * notice, so mi only looks at the clip's description there (when it was copied, and Android's link classification
+ * when it has one) and reads the text when the user taps the row; if that turns out not to be a link, it's searched.
+ * Older Android shows no notice, so the link itself is read and shown.
  */
 object CopiedLink {
     /** Copied in the last 10 minutes: an old link on the clipboard isn't offered again and again. */
@@ -26,9 +26,12 @@ object CopiedLink {
         val cm = ctx.getSystemService(ClipboardManager::class.java) ?: return null
         val desc = runCatching { cm.primaryClipDescription }.getOrNull() ?: return null
         if (!desc.hasMimeType("text/*") || !fresh(desc.timestamp)) return null
+        if (desc.label == com.jlees.mibrowser.answers.ANSWER_CLIP) return null // an inline answer just copied, not a link
         if (Build.VERSION.SDK_INT >= 31) {
+            // Android often leaves a clip unclassified (most copies from other apps): offered then too, and only
+            // left out when Android has looked and says it isn't a link
             val classified = desc.classificationStatus == ClipDescription.CLASSIFICATION_COMPLETE
-            return if (classified && desc.getConfidenceScore(TextClassifier.TYPE_URL) >= 0.5f) Offer(null) else null
+            return if (classified && desc.getConfidenceScore(TextClassifier.TYPE_URL) < 0.5f) null else Offer(null)
         }
         return read(ctx)?.takeIf { Patterns.WEB_URL.matcher(it).matches() }?.let(::Offer)
     }

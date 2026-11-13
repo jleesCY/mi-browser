@@ -12,6 +12,6 @@ fun shareText(ctx: android.content.Context, text: String, title: String? = null)
     ctx.startActivity(Intent.createChooser(send, title))
 }
 
-fun copyText(ctx: android.content.Context, text: String) =
+fun copyText(ctx: android.content.Context, text: String, label: String = "link") =
     (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-        .setPrimaryClip(android.content.ClipData.newPlainText("link", text))
+        .setPrimaryClip(android.content.ClipData.newPlainText(label, text))

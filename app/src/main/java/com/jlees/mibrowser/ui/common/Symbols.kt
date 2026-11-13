@@ -14,6 +14,8 @@ val SymbolRes: Map<String, Int> = mapOf(
     "bolt" to R.drawable.sym_bolt,
     "bookmark_add" to R.drawable.sym_bookmark_add,
     "bookmarks" to R.drawable.sym_bookmarks,
+    "bug_report" to R.drawable.sym_bug_report,
+    "calculate" to R.drawable.sym_calculate,
     "calendar_today" to R.drawable.sym_calendar_today,
     "cancel" to R.drawable.sym_cancel,
     "check" to R.drawable.sym_check,

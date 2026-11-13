@@ -18,13 +18,15 @@ Deleting the package (plus one line in BrowserViewModel and one in SettingsView)
 | `adblock/` | filter engine, content blocker (WebView hooks), tracking-parameter cleaning, Ad Blocking section |
 | `search/` | engines, `!` shortcuts, suggestions, Pill highlighting of shortcuts, search settings |
 | `incognito/` | WebView profiles, screen/keyboard protections, notification, toggle |
-| `tabs/` | TabsStore, TabRules, per-tab back/forward stack, tab switcher, Tabs section |
-| `library/` | HistoryStore, BookmarksStore, their rules, bookmark file import/export (Netscape HTML), History and Bookmarks screens, Library section |
-| `downloads/` | mi's downloader (engine, foreground service, notifications), DownloadsStore, the download prompt and other handlers, Downloads page and section |
+| `tabs/` | TabsStore, TabRules, per-tab back/forward stack, tab switcher and its search, the switcher Pill's layout (SwitcherLayout), Tabs section |
+| `library/` | HistoryStore, BookmarksStore (favorites are the bookmarks in its Favorites folder), their rules, bookmark file import/export (Netscape HTML), History and Bookmarks screens, Library and History sections (History holds Keep Recently Closed) |
+| `downloads/` | mi's downloader (engine, foreground service, notifications), DownloadsStore, the download prompt and other handlers, Downloads page, its settings (shown inside the Library section) |
 | `sites/` | Site settings page (one site's permissions, pop-ups, ad blocking, data), opened from the tab menu |
+| `answers/` | inline answers in the Pill (math, unit conversions, number bases, time and date, coin and dice): the rules, the answer row, its setting (shown in the Pill section) |
 | `find/` | find in page: FindInPage state (query, match count) and the Pill's find content |
-| `home/` | new-tab page, Home Page section |
+| `home/` | new-tab page and its favorites grid, Home Page section |
 | `qr/` | scanner and generator |
+| `media/` | background playback (page media script, media notification service), picture-in-picture, Media section |
 | `launcher/` | launcher shortcuts, search widget |
 | `update/` | GitHub release checks and installs |
 | `onboarding/` | the Gesture Walkthrough (hands-on gesture tour, shown once to every user) |
@@ -33,7 +35,7 @@ Shared plumbing, used by several features, stays in the shell packages:
 - `data/`: models, Settings, JsonStore/Saver, Favicons, backup;
 - `logic/`: URL parsing, list helpers;
 - `web/`: WebViewHost and one class per WebView job;
-- `ui/`: App, Pill, sheets, dialogs, the tab menu, Settings shell, `common/` widgets.
+- `ui/`: App, Pill, sheets, dialogs, the tab menu, Settings shell (including the app-wide Gestures section), `common/` widgets.
 
 A file in a shell package that serves only one feature is in the wrong place.
 
@@ -54,7 +56,8 @@ A file in a shell package that serves only one feature is in the wrong place.
 
 ## 4. Settings
 - A feature contributes its own section, `fun xSection(vm): SettingsSection`, built from `ui/settings/SettingsKit.kt` (`SettingsRow`, `Item`, `SwitchItem`, `ExpandItem`, `ChoiceItem`…).
-- SettingsView only lists the sections and keeps the app-wide ones (Look & Feel, Pill, Web Pages, Privacy & Security, Backup & Reset, About).
+- SettingsView only lists the sections (under the main page's headings) and keeps the app-wide ones: Backup & Reset and About in it; Look & Feel, Pill, Web Pages and Privacy & Security in `AppSections.kt`; Gestures in `GesturesSettings.kt`.
+- A long section can be divided with `SettingsHeading(...)` rows: each starts its own block (search shows a setting with its heading).
 - New settings fields:
   - go in `data/Settings.kt` with a default;
   - use an enum implementing `Choice` for multi-way options, with `@SerialName` on persisted values;
@@ -81,7 +84,7 @@ A file in a shell package that serves only one feature is in the wrong place.
 1. Create a package. Put the rules in it (pure, tested).
 2. If it keeps state, add a store with `load()` and `savers`, and hold it in BrowserViewModel (add it to `start()` and `savers`).
 3. Put actions that span stores in extension functions in the package.
-4. Add a Settings section function, and list it in SettingsView.
+4. Add a Settings section function, list it in SettingsView, and add its id to one of the main page's `headings` there (a section in none of them doesn't show).
 5. Put WebView behaviour in its own class, delegated from WebViewHost.
 6. Apply the `keepsTraces` rule to anything recorded.
 7. Write tests, then build and run on the emulator `mi_test` (never the user's phone).
