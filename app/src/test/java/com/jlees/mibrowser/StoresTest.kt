@@ -17,6 +17,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import java.nio.file.Files
 
 /** The stores: what closing, Undo and saving do, and that what's saved loads back (without incognito). */
@@ -222,5 +224,23 @@ class StoresTest {
         assertNull(tabs.closed)
         tabs.undoClose() // the bar can't bring back a second copy
         assertEquals(1, tabs.list.count { it.id == b.id })
+    }
+
+    @Test fun stateThatKeepsChangingIsStillSaved() = kotlinx.coroutines.runBlocking { // a download's progress, every 250 ms
+        var state by androidx.compose.runtime.mutableStateOf(0)
+        val written = java.util.Collections.synchronizedList(mutableListOf<Int>())
+        val saving = com.jlees.mibrowser.data.Saver(100, { state }) { written += it }.launchIn(this)
+        repeat(30) { kotlinx.coroutines.delay(20); state++; androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications() }
+        saving.cancel()
+        assertTrue("saved while still changing: $written", written.isNotEmpty()) // waiting for it to stop never saved
+    }
+
+    @Test fun aFullDiskKeepsTheLastGoodFile() {
+        val dir = Files.createTempDirectory("store").toFile()
+        val store = JsonStore(dir)
+        store.write("x", ListSerializer(kotlinx.serialization.serializer<Int>()), listOf(1))
+        java.io.File(dir, "x.json.tmp").mkdir() // the next write can't create its file, as on a full disk
+        store.write("x", ListSerializer(kotlinx.serialization.serializer<Int>()), listOf(2)) // no crash
+        assertEquals(listOf(1), store.read("x", ListSerializer(kotlinx.serialization.serializer<Int>())))
     }
 }

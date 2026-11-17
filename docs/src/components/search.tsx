@@ -22,7 +22,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Search & Favorites", type: "User Guide", href: "/user#recent-history", excerpt: "Suggestions inside the Pill, inline answers, and favorites on the home page." },
   { title: "Inline Answers", type: "User Guide", href: "/user#recent-history", excerpt: "Calculator, unit conversions and more, right above the field." },
   { title: "Paste and Go", type: "User Guide", href: "/user#the-pill", excerpt: "Open a link you just copied from the Pill." },
-  { title: "Downloads", type: "User Guide", href: "/user#downloads", excerpt: "Pause, resume and manage downloads beside Bookmarks in the Library." },
+  { title: "Downloads", type: "User Guide", href: "/user#downloads", excerpt: "Fast downloads with speed and time left that carry on by themselves, beside Bookmarks in the Library." },
   { title: "Find in Page", type: "User Guide", href: "/user#find-in-page", excerpt: "Find text on the page, with a match count." },
   // Settings (the app's sections: Search, Web Pages, Media, Look & Feel, Pill, Home Page, Ad Blocking, Privacy & Security, Tabs, Gestures, Library, History, Backup & Reset, About)
   { title: "Theme", type: "Settings", href: "/user#setting-theme", excerpt: "Light, Dark, or System." },

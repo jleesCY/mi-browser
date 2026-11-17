@@ -112,7 +112,7 @@ fun <T> SortableSlots(
                                     c.consume()
                                     drag = total
                                     val at = slot(startOrder) + drag
-                                    val safe = ((at.y / hPx).roundToInt().coerceAtLeast(0) * columns + (at.x / wPx).roundToInt().coerceIn(0, columns - 1)).coerceIn(0, count - 1)
+                                    val safe = gridSlot(at.x / wPx, at.y / hPx, columns, count)
                                     val cur = order[k] ?: index
                                     if (safe != cur) {
                                         for ((kk, v) in order.toMap()) {
@@ -197,3 +197,7 @@ fun NetImage(
     if (b != null) Image(b, null, modifier, alignment = if (alignmentTop) Alignment.TopCenter else Alignment.Center, contentScale = contentScale, alpha = alpha, colorFilter = colorFilter)
     else fallback()
 }
+
+/** The slot a dragged item is over: [col] and [row] in slot widths and heights from the top-left, kept inside the grid. */
+fun gridSlot(col: Float, row: Float, columns: Int, count: Int): Int =
+    (row.roundToInt().coerceAtLeast(0) * columns + col.roundToInt().coerceIn(0, columns - 1)).coerceIn(0, count - 1)

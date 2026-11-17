@@ -20,13 +20,39 @@ import kotlin.random.Random
  */
 data class InlineAnswer(val question: String, val answer: String, val copy: String = answer)
 
+/** How long an answer stays once the text no longer has one, however much is typed meanwhile. */
+const val ANSWER_LINGER_MS = 500L
+
 /**
- * Whether the answer shown for [shownFor] stays while [typed] has none of its own: typing on from it or back over it
- * ("2^1" → "2^10" passes through "2^"), so the Pill doesn't shrink and grow back between keystrokes.
+ * How long typing has to pause on [typed] before its answer shows. Text ending in a letter may be a word still being
+ * typed ("pi" → "pictures", "time" → "timer", "5 km in mi" → "miles"), so it waits longer than a finished sum ("2+2").
+ * Between keystrokes is usually 150–350 ms on a phone keyboard.
  */
-fun keepsAnswer(shownFor: String, typed: String): Boolean {
-    val a = shownFor.trim(); val b = typed.trim()
-    return a.isNotEmpty() && b.isNotEmpty() && (b.startsWith(a) || a.startsWith(b))
+fun answerDelayMs(typed: String): Long = if (typed.trimEnd().lastOrNull()?.isLetter() == true) 900 else 450
+
+/**
+ * Whether [typed], with no answer of its own, may still be on its way to one: every word the start of something mi
+ * works out with (a number, an operator, a function or constant, a unit, "in"/"to"), with a number, π or an operator in it. "pi*",
+ * "2+2 s" (sqrt?) and "5 km in mil" (miles?) may be; "pi* stack overflow" and "pictures" can't. The last answer stays
+ * while it may.
+ */
+fun mayBecomeAnswer(typed: String): Boolean {
+    val q = typed.trim().lowercase(Locale.ROOT)
+    // something mathematical in it, so plain words that happen to be units or "in"/"to" ("a", "to", "mi") aren't kept
+    if (q.isEmpty() || (q.none { it.isDigit() || it in "()+*/^π" } && "pi" !in q)) return false
+    if (q.any { !it.isLetterOrDigit() && it !in FORMULA_SIGNS }) return false
+    // units count in a conversion ("5 km in mil"), not beside a sum: "pi day" is a search, not π days
+    val words = if (CONVERTING.containsMatchIn(q)) MATH_WORDS + CONVERSION_WORDS else MATH_WORDS
+    return WORD.findAll(q).all { w -> words.any { it.startsWith(w.value) } }
+}
+
+private const val FORMULA_SIGNS = " +-*/^%!().,×÷°=?\"'π−"
+private val WORD = Regex("""[a-zµ]+""")
+private val CONVERTING = Regex("""\s(in|to|into|as)(\s|$)""")
+private val MATH_WORDS = Calc.FUNCTIONS.keys.toList() + listOf("pi", "e", "x", "mod", "of")
+private val CONVERSION_WORDS: List<String> by lazy {
+    (BASES.keys + UNIT_NAMES.keys + listOf("in", "to", "into", "as", "a", "an", "degree", "degrees"))
+        .flatMap { WORD.findAll(it).map { m -> m.value } }.distinct()
 }
 
 /** "1048576.5" → "1,048,576.5": thousands grouped in a plain number (scientific ones are left as they are). */
@@ -74,17 +100,27 @@ fun formatNumber(d: Double, digits: Int = 10): String {
 private fun mathAnswer(q: String): InlineAnswer? {
     // only expressions: something to work out, and a number (or π) in it, so a lone "e" or a year isn't answered
     if (q.none { it.isDigit() } && !q.contains("pi", ignoreCase = true) && 'π' !in q) return null
+    // numbers joined by dashes are ranges, dates and phone numbers ("1-800", "2024-11-17", "555-1234"), not sums; a
+    // date with slashes ("11/17/2026") too, and a percent alone ("100%", on the way to "100% cotton")
+    if (NOT_SUMS.any { it.matches(q) }) return null
     val r = Calc(normalize(q)).run() ?: return null
     val n = formatNumber(r)
     return InlineAnswer("$q =", groupThousands(n), n)
 }
 
+private val NOT_SUMS = listOf(Regex("""\d+(-\d+)+"""), Regex("""\d+/\d+/\d+"""), Regex("""[\d.,]+\s*%"""))
+
+private val THOUSANDS = Regex("""(?<=\d),(?=\d{3}(\D|$))""")
+private val TIMES = Regex("""(?<=[\d)])\s*[x×]\s*(?=[\d(])""")
+private val PERCENT_OF = Regex("""%\s*of\s+""")
+private val GROUPED = Regex("""(?<=\d),(?=\d{3})""")
+
 /** Written math as the parser reads it: "3 x 4" and "÷", "1,000", "20% of 150". */
 private fun normalize(q: String) = q.lowercase(Locale.ROOT)
-    .replace(Regex("""(?<=\d),(?=\d{3}(\D|$))"""), "")
-    .replace(Regex("""(?<=[\d)])\s*[x×]\s*(?=[\d(])"""), "*")
+    .replace(THOUSANDS, "")
+    .replace(TIMES, "*")
     .replace('÷', '/').replace("**", "^").replace('−', '-')
-    .replace(Regex("""%\s*of\s+"""), "%*")
+    .replace(PERCENT_OF, "%*")
     .replace(" mod ", "%")
 
 /**
@@ -302,7 +338,7 @@ private fun unitNamed(name: String): Measure? = name.trim().removePrefix("a ").r
 private val CONVERSION = Regex("""^(-?[\d.]+(?:e-?\d+)?)?\s*(.+?)\s+(?:in|to|into|as|=)\s+(.+?)\??$""")
 
 private fun unitAnswer(q: String): InlineAnswer? {
-    val m = CONVERSION.find(q.replace(Regex("""(?<=\d),(?=\d{3})"""), "")) ?: return null
+    val m = CONVERSION.find(q.replace(GROUPED, "")) ?: return null
     val amount = m.groupValues[1].ifEmpty { "1" }.toDoubleOrNull() ?: return null
     val from = unitNamed(m.groupValues[2]) ?: return null
     val to = unitNamed(m.groupValues[3]) ?: return null

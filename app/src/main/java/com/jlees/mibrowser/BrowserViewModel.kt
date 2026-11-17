@@ -163,6 +163,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 tabs.load(parseDeepLink(deepLink), settings.startupTabMode)
                 sweepFiles()
             }
+            downloader.resumeInterrupted() // downloads running when mi was last closed carry on
             // Clear on Exit: mi may have been ended (swiped away) without closing, so it clears at the start too
             if (settings.clearDataOnExit) {
                 clearOnExit { web.tryEmit(WebCmd.ClearBrowsingData) }

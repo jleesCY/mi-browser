@@ -1,12 +1,11 @@
 // mi's own downloader: fetches a file with the tab's cookies and identity, saves it into the public Downloads folder,
-// and can pause, resume (HTTP Range), cancel and retry. Progress goes to DownloadsStore; DownloadService keeps
+// and can pause, resume (HTTP Range), cancel and retry. A large file from a server that sends parts is fetched over
+// several connections at once. Progress goes to DownloadsStore; DownloadService keeps
 // transfers alive (and shows them) while mi is in the background.
 package com.jlees.mibrowser.downloads
 
 import android.content.Intent
-
 import android.provider.DocumentsContract
-
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
@@ -18,7 +17,20 @@ import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import com.jlees.mibrowser.logic.uniqueId
+import android.net.ConnectivityManager
+import android.net.Network
+import android.os.ParcelFileDescriptor
+import android.provider.BaseColumns
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLongArray
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,6 +43,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.coroutines.coroutineContext
 
+/** Bytes read at a time: large reads mean fewer, cheaper writes on a fast connection. */
+private const val BUFFER = 256 * 1024
+/** Retries in a row a dropped download gets by itself before it waits for the user's Retry. */
+private const val MAX_RETRIES = 5
+
 class Downloader(context: Context, private val store: DownloadsStore) {
     private val ctx = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -38,10 +55,14 @@ class Downloader(context: Context, private val store: DownloadsStore) {
     private val jobs = HashMap<String, Job>()
     /** Session only, never saved: what the server needs to hand the file over again (sign-in cookies, identity). */
     private val headers = HashMap<String, Map<String, String>>()
+    private val speeds = HashMap<String, Speedometer>()
+    /** Downloads that failed on the connection, retried by themselves (with a growing wait) once there's a network. */
+    private val retries = HashMap<String, Int>()
+    private val network = ctx.getSystemService(ConnectivityManager::class.java)
+    private var watching: ConnectivityManager.NetworkCallback? = null
 
     init { current = this }
 
-    /** Starts downloading [url], asked from a page with [cookies] and [userAgent]. Returns the new download's id. */
     /**
      * Starts downloading [url], asked from a page with [cookies] and [userAgent]. It's saved in [folder] (a document
      * tree the user picked; null: Downloads), or exactly to [target] (a file chosen in the save dialog). Returns its id.
@@ -67,12 +88,45 @@ class Downloader(context: Context, private val store: DownloadsStore) {
     /** Pauses every running download (Android 15+'s daily limit for background transfers ran out). */
     fun pauseAll() = store.items.filter { it.active }.forEach { pause(it.id) }
 
-    fun pause(id: String) { jobs.remove(id)?.cancel(); store.update(id) { if (active) copy(state = DownloadState.PAUSED) else this } }
+    fun pause(id: String) { stopRetrying(id); jobs.remove(id)?.cancel(); store.update(id) { if (active) copy(state = DownloadState.PAUSED) else this } }
 
 
     /** Stops [id] (if running) and deletes its file and its entry. */
-    fun cancel(id: String) { jobs.remove(id)?.cancel(); store[id]?.uri?.let(::deleteFile); store.remove(id) }
+    fun cancel(id: String) { stopRetrying(id); jobs.remove(id)?.cancel(); store[id]?.uri?.let(::deleteFile); store.remove(id) }
 
+
+    /** Carries on the downloads that were running when mi was last closed (run once the list has loaded). */
+    fun resumeInterrupted() = store.interrupted.forEach { id -> if (store[id]?.state == DownloadState.PAUSED) resume(id) }
+
+    private fun speedOf(id: String, now: Long, done: Long) = synchronized(speeds) { speeds.getOrPut(id) { Speedometer() } }.reading(now, done)
+
+    /**
+     * Retries [id] by itself once there's a network: at once if there is one, after a growing wait (2, 4, 8… s),
+     * at most [MAX_RETRIES] times in a row. False when it has used them up (it stays failed, for Retry).
+     */
+    private fun retryWhenOnline(id: String): Boolean {
+        val n = (retries[id] ?: 0) + 1
+        if (n > MAX_RETRIES) { stopRetrying(id); return false }
+        retries[id] = n
+        if (watching == null) watching = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(net: Network) { main.post { retryWaiting() } }
+        }.also { runCatching { network.registerDefaultNetworkCallback(it) } }
+        if (network.activeNetwork != null) retryWaiting() // online already (the connection, not the network, dropped)
+        return true
+    }
+
+    /** A network is there: each waiting download goes again after its wait (resume ignores one already going). */
+    private fun retryWaiting() {
+        for ((id, n) in retries.toMap()) {
+            main.postDelayed({ if (store[id]?.state == DownloadState.FAILED && id in retries) resume(id) }, 1000L shl n)
+        }
+    }
+
+    /** [id] finished, or was paused or cancelled: no more retries; with none left waiting, stop listening for networks. */
+    private fun stopRetrying(id: String) {
+        retries.remove(id)
+        if (retries.isEmpty()) watching?.let { runCatching { network.unregisterNetworkCallback(it) }; watching = null }
+    }
 
     /** A content:// address other apps can open the file through (granted with the intent), or null. */
     fun shareableUri(item: DownloadItem): Uri? {
@@ -92,7 +146,13 @@ class Downloader(context: Context, private val store: DownloadsStore) {
     private suspend fun transfer(id: String) {
         var item = store[id] ?: return
         try {
-            // resume from what's really in the file: the saved progress trails the last write by up to 250 ms, and
+            // fetched in parts before: every part goes on where it stopped
+            if (item.parts != null && item.uri != null) {
+                val file = openRw(item) ?: throw IOException("Can't open the file")
+                started(id, item, item.parts.sumOf { it.done })
+                transferParts(id, item, file, null); return
+            }
+            // resume from what's really in the file: the saved progress trails the last write by up to a second, and
             // appending from there would write some bytes twice
             var resumeFrom = item.uri?.let { fileSize(Uri.parse(it)) } ?: 0L
             val conn = open(item.url, headers[id].orEmpty(), resumeFrom)
@@ -104,18 +164,23 @@ class Downloader(context: Context, private val store: DownloadsStore) {
             }
             val length = conn.getHeaderField("Content-Length")?.toLongOrNull() ?: -1
             val total = if (length < 0) -1 else resumeFrom + length
-            if (item.uri == null) item = createFile(item)
-            post(id) {
-                // paused (or cancelled) before this arrived: keep the file details, not "running" (nothing is running)
-                val running = jobs[id]?.isActive == true
-                copy(state = if (running) DownloadState.RUNNING else state, done = resumeFrom, total = if (total > 0) total else this.total, uri = item.uri, fileName = item.fileName)
+            if (item.uri == null) {
+                if (total > 0 && item.folder == null && total > freeSpace()) throw IOException("ENOSPC")
+                item = createFile(item)
             }
+            // a large file from a server that hands out parts (it answered the Range from byte 0): several connections
+            if (code == 206 && resumeFrom == 0L && total >= PARTS_FROM) openRw(item)?.let { file ->
+                item = item.copy(parts = planParts(total), total = total)
+                started(id, item, 0)
+                transferParts(id, item, file, conn); return
+            }
+            started(id, item.copy(total = if (total > 0) total else item.total), resumeFrom)
 
             var done = resumeFrom
             var lastPost = 0L
             conn.inputStream.use { input ->
                 ctx.contentResolver.openOutputStream(Uri.parse(item.uri), if (resumeFrom > 0) "wa" else "wt")!!.use { out ->
-                    val buf = ByteArray(64 * 1024)
+                    val buf = ByteArray(BUFFER)
                     while (true) {
                         coroutineContext.ensureActive() // pause / cancel
                         val n = input.read(buf)
@@ -123,40 +188,133 @@ class Downloader(context: Context, private val store: DownloadsStore) {
                         out.write(buf, 0, n)
                         done += n
                         val now = System.currentTimeMillis()
-                        if (now - lastPost > 250) { lastPost = now; val d = done; post(id) { copy(done = d) } }
+                        if (now - lastPost > 250) { lastPost = now; val d = done; val v = speedOf(id, now, d); post(id) { copy(done = d, speed = v) } }
                     }
                 }
             }
-            if (total > 0 && done < total) throw IOException("Connection lost")
+            if (total > 0 && done < total) throw IOException(CONNECTION_LOST)
             item = store[id] ?: return
             finish(item.copy(done = done, total = if (total > 0) total else done))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            post(id) { copy(state = DownloadState.FAILED, error = (e as? IOException)?.message?.takeIf { it.length < 60 } ?: "Connection problem") }
-            DownloadService.notifyFinished(ctx, store[id] ?: item, this)
+            val error = downloadError(e)
+            main.post {
+                store.update(id) { copy(state = DownloadState.FAILED, error = error) }
+                // a dropped connection: tried again by itself; anything else (or out of tries) waits for Retry
+                if (retriesItself(error) && retryWhenOnline(id)) store.update(id) { copy(error = RETRYING) }
+                else DownloadService.notifyFinished(ctx, store[id] ?: item, this)
+            }
         } finally {
-            main.post { jobs.remove(id); DownloadService.ensureRunning(ctx) }
+            main.post { jobs.remove(id); synchronized(speeds) { speeds.remove(id) }; DownloadService.ensureRunning(ctx) }
+        }
+    }
+
+    /** The server answered: running (unless paused or cancelled before this arrived), with the file's details. */
+    private fun started(id: String, item: DownloadItem, done: Long) = post(id) {
+        val running = jobs[id]?.isActive == true
+        copy(state = if (running) DownloadState.RUNNING else state, done = done, total = item.total, uri = item.uri, fileName = item.fileName, parts = item.parts)
+    }
+
+    /**
+     * Fetches [item]'s unfinished parts over [DOWNLOAD_CONNECTIONS] connections, each written at its own place in
+     * [file]; [first] (already open from byte 0) serves the first part. A server that refuses the extra connections
+     * (too many at once) leaves the parts to the ones it accepted.
+     */
+    private suspend fun transferParts(id: String, item: DownloadItem, file: ParcelFileDescriptor, first: HttpURLConnection?) {
+        val parts = item.parts!!
+        val done = AtomicLongArray(parts.size).apply { parts.forEachIndexed { i, p -> set(i, p.done) } }
+        fun report() {
+            val now = parts.mapIndexed { i, p -> p.copy(done = done[i]) }
+            val sum = now.sumOf { it.done }
+            val v = speedOf(id, System.currentTimeMillis(), sum)
+            post(id) { copy(parts = now, done = sum, speed = v) }
+        }
+        val queue = ConcurrentLinkedQueue(parts.indices.filter { !parts[it].finished && !(it == 0 && first != null) })
+        val workers = AtomicInteger(DOWNLOAD_CONNECTIONS)
+        file.use {
+            val out = FileOutputStream(file.fileDescriptor).channel
+            coroutineScope {
+                val reporter = launch { while (true) { delay(250); report() } }
+                try {
+                    List(DOWNLOAD_CONNECTIONS) { w ->
+                        launch(Dispatchers.IO) {
+                            val buf = ByteArray(BUFFER)
+                            try {
+                                if (w == 0 && first != null) fetchPart(id, item.url, parts[0], 0, done, out, buf, first)
+                                while (true) {
+                                    val i = queue.poll() ?: break
+                                    try { fetchPart(id, item.url, parts[i], i, done, out, buf, null) }
+                                    catch (e: PartRefused) { queue.add(i); if (workers.get() > 1) break else throw IOException("Server error ${e.code}") }
+                                }
+                            } finally { workers.decrementAndGet() }
+                        }
+                    }.joinAll()
+                } finally { reporter.cancel(); report() }
+            }
+        }
+        if (parts.indices.any { parts[it].start + done[it] < parts[it].end }) throw IOException(CONNECTION_LOST)
+        finish(item.copy(done = item.total))
+    }
+
+    private class PartRefused(val code: Int) : IOException()
+
+    /**
+     * Fetches the rest of [part] (number [i]; its progress in [done]) into [out] at its place, over [opened] or a new
+     * connection asking for just those bytes. A dropped connection is retried, three times, waiting a little longer each time.
+     */
+    private suspend fun fetchPart(
+        id: String, url: String, part: DownloadPart, i: Int, done: AtomicLongArray, out: FileChannel, buf: ByteArray, opened: HttpURLConnection?,
+    ) {
+        var conn = opened
+        var retries = 0
+        while (part.start + done[i] < part.end) {
+            var c: HttpURLConnection? = null
+            try {
+                c = conn ?: open(url, headers[id].orEmpty(), part.start + done[i], part.end - 1)
+                conn = null
+                if (c.responseCode != 206) throw PartRefused(c.responseCode)
+                c.inputStream.use { input ->
+                    var pos = part.start + done[i]
+                    while (pos < part.end) {
+                        coroutineContext.ensureActive() // pause / cancel
+                        val n = input.read(buf, 0, minOf(buf.size.toLong(), part.end - pos).toInt())
+                        if (n < 0) throw IOException(CONNECTION_LOST)
+                        val b = ByteBuffer.wrap(buf, 0, n)
+                        while (b.hasRemaining()) out.write(b, pos + b.position())
+                        pos += n
+                        done[i] = pos - part.start
+                    }
+                }
+            } catch (e: PartRefused) { throw e
+            } catch (e: IOException) {
+                if (e.message?.contains("ENOSPC") == true || ++retries > 3) throw e
+                delay(1000L shl retries)
+            } finally { c?.disconnect() }
         }
     }
 
     private fun finish(item: DownloadItem) {
+        main.post { stopRetrying(item.id) }
         if (Build.VERSION.SDK_INT >= 29 && Uri.parse(item.uri).authority == MediaStore.AUTHORITY) runCatching {
             ctx.contentResolver.update(Uri.parse(item.uri), ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
         }
-        post(item.id) { copy(state = DownloadState.DONE, done = item.done, total = item.total) }
+        post(item.id) { copy(state = DownloadState.DONE, done = item.done, total = item.total, parts = null) }
         DownloadService.notifyFinished(ctx, item.copy(state = DownloadState.DONE), this)
     }
 
-    /** GET [url] with [headers] (and a Range from [from]), following redirects, including http ⇄ https. */
-    private fun open(url: String, headers: Map<String, String>, from: Long): HttpURLConnection {
+    /**
+     * GET [url] with [headers] for bytes [from] to [to] (to the end when -1), following redirects, including
+     * http ⇄ https. Asking for a range even from byte 0 shows whether the server can send parts (it answers 206).
+     */
+    private fun open(url: String, headers: Map<String, String>, from: Long, to: Long = -1): HttpURLConnection {
         var target = URL(url)
         repeat(8) {
             val c = (target.openConnection() as HttpURLConnection).apply {
                 instanceFollowRedirects = false
                 connectTimeout = 15_000; readTimeout = 30_000
                 headers.forEach { (k, v) -> setRequestProperty(k, v) }
-                if (from > 0) setRequestProperty("Range", "bytes=$from-")
+                setRequestProperty("Range", "bytes=$from-" + if (to >= 0) "$to" else "")
             }
             val code = c.responseCode
             if (code !in 300..399 || code == 304) return c
@@ -207,6 +365,13 @@ class Downloader(context: Context, private val store: DownloadsStore) {
         if (gone.isNotEmpty()) main.post { gone.forEach(store::remove) }
     }
 
+    /** The file opened to be written anywhere in (parts land at their own places), or null if its provider can't. */
+    private fun openRw(item: DownloadItem): ParcelFileDescriptor? = runCatching { ctx.contentResolver.openFileDescriptor(Uri.parse(item.uri), "rw") }.getOrNull()
+
+    /** Room left in Downloads (a full disk fails the download up front, not 9 GB in). */
+    @Suppress("DEPRECATION")
+    private fun freeSpace(): Long = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).usableSpace.takeIf { it > 0 } ?: Long.MAX_VALUE
+
     /** The bytes already in the file (0 if it can't be read: the download then starts over). */
     private fun fileSize(u: Uri): Long = runCatching {
         if (u.scheme == "file") File(u.path!!).length() else ctx.contentResolver.openFileDescriptor(u, "r")?.use { it.statSize }
@@ -215,7 +380,7 @@ class Downloader(context: Context, private val store: DownloadsStore) {
     /** Whether the file is still there. Unknown (no permission any more, say) counts as there: never prune on a guess. */
     private fun exists(u: Uri): Boolean = when {
         u.scheme == "file" -> File(u.path ?: return false).exists()
-        else -> try { ctx.contentResolver.query(u, null, null, null, null)?.use { it.count > 0 } ?: true }
+        else -> try { ctx.contentResolver.query(u, arrayOf(BaseColumns._ID), null, null, null)?.use { it.count > 0 } ?: true }
         catch (_: java.io.FileNotFoundException) { false } catch (_: IllegalArgumentException) { false } catch (_: Exception) { true }
     }
 

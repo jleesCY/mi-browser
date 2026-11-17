@@ -14,7 +14,14 @@ class DownloadsStore(private val store: JsonStore) {
 
     private val serializer = ListSerializer(DownloadItem.serializer())
 
-    fun load() { items = afterRestart(store.read("downloads", serializer) ?: emptyList()) }
+    /** The downloads that were running when mi was last closed (or crashed): Downloader carries them on. */
+    var interrupted = listOf<String>(); private set
+
+    fun load() {
+        val saved = store.read("downloads", serializer) ?: emptyList()
+        interrupted = saved.filter { it.active }.map { it.id }
+        items = afterRestart(saved)
+    }
 
     /** Incognito downloads are kept for the session only (keepsTraces). */
     val savers = listOf(Saver(1000, { items.filterNot { it.incognito } }) { store.write("downloads", serializer, it) })

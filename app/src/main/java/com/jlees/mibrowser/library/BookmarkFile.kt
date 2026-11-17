@@ -30,7 +30,7 @@ fun parseBookmarkFile(html: String): List<BookmarkEntry> {
         when {
             tag == "H3" -> pendingFolder = decodeEntities(stripTags(m.groupValues[3])).trim()
             tag == "A" -> {
-                val url = Regex("""HREF\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE).find(m.groupValues[2])?.groupValues?.get(1)?.let(::decodeEntities)?.trim()
+                val url = HREF.find(m.groupValues[2])?.groupValues?.get(1)?.let(::decodeEntities)?.trim()
                 if (url != null && (url.startsWith("http://", true) || url.startsWith("https://", true))) {
                     val title = decodeEntities(stripTags(m.groupValues[3])).trim().ifEmpty { url }
                     stack.last().second += BookmarkEntry.Link(title, url)
@@ -107,7 +107,9 @@ fun importBookmarks(existing: List<BookmarkNode>, entries: List<BookmarkEntry>, 
     return Triple(all, added, skipped)
 }
 
-private fun stripTags(s: String) = s.replace(Regex("<[^>]*>"), "")
+private fun stripTags(s: String) = s.replace(TAG, "")
+private val TAG = Regex("<[^>]*>")
+private val HREF = Regex("""HREF\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
 
 private fun escape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 

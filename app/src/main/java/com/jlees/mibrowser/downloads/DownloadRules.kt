@@ -30,12 +30,52 @@ data class DownloadItem(
     val error: String? = null,
     /** The folder (a document tree the user picked) the file is created in; null: the Downloads folder. */
     val folder: String? = null,
+    /** Fetched over several connections at once: each part's progress, so a paused download resumes every part. */
+    val parts: List<DownloadPart>? = null,
     @Transient val incognito: Boolean = false,
+    /** Bytes a second while running (smoothed; 0 before it's known). */
+    @Transient val speed: Long = 0,
 ) {
     val active get() = state == DownloadState.QUEUED || state == DownloadState.RUNNING
     /** 0..1, or null while the size is unknown. */
     val fraction get() = if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else null
 }
+
+/** Bytes [start] until [end] (exclusive) of a file fetched in parts; [done] of them are written. */
+@Serializable
+data class DownloadPart(val start: Long, val end: Long, val done: Long = 0) {
+    val finished get() = start + done >= end
+}
+
+/** Connections a large download is fetched over at once (each one's speed is often capped by the server or the route). */
+const val DOWNLOAD_CONNECTIONS = 4
+/** Smaller files aren't worth the extra connections. */
+const val PARTS_FROM = 16L * 1024 * 1024
+private const val MIN_PART = 4L * 1024 * 1024
+
+/**
+ * A [total]-byte file split into parts the connections take turns at: four per connection (at least 4 MB each), so
+ * one that finishes early picks up another part instead of leaving the last one to a single slow connection.
+ * ponytail: fixed parts, no splitting a part in flight; split the largest remaining part if tails still drag.
+ */
+fun planParts(total: Long, connections: Int = DOWNLOAD_CONNECTIONS): List<DownloadPart> {
+    val size = maxOf(MIN_PART, (total + connections * 4 - 1) / (connections * 4))
+    return (0 until total step size).map { DownloadPart(it, minOf(it + size, total)) }
+}
+
+/** What a failure shows under the download's name. */
+fun downloadError(e: Exception): String = when {
+    e.message?.contains("ENOSPC") == true -> "Not enough storage"
+    e is java.io.IOException && e.message in OWN_ERRORS -> e.message!!
+    e is java.net.SocketException || e is java.net.SocketTimeoutException || e is java.net.UnknownHostException || e is java.io.EOFException ||
+        e is java.net.ProtocolException || e.message == CONNECTION_LOST -> CONNECTION_LOST
+    e is java.io.IOException -> e.message?.takeIf { it.length < 60 } ?: "Connection problem"
+    else -> "Connection problem"
+}
+
+const val CONNECTION_LOST = "Connection lost"
+/** Failures of mi's own (the file, the folder, the server's answer): trying again by itself won't help. */
+private val OWN_ERRORS = setOf("Can't open the file", "Can't save to the chosen folder", "Couldn't create the file", "Too many redirects")
 
 /**
  * The file name for a download: the server's (Content-Disposition `filename*=` or `filename=`), else the last part
@@ -74,17 +114,70 @@ fun formatBytes(bytes: Long): String {
     return (if (v >= 100) "%.0f %s" else "%.1f %s").format(java.util.Locale.US, v, units[i])
 }
 
-/** The line under a download's name: progress while it runs, otherwise its state and size. */
-fun downloadStatus(d: DownloadItem): String = when (d.state) {
+/**
+ * The line under a download's name: progress while it runs, otherwise its state and size. [withTimeLeft]: the time
+ * left ends the line (the notification); the Downloads page shows it beside the progress bar instead (see [timeLeftOf]).
+ */
+fun downloadStatus(d: DownloadItem, withTimeLeft: Boolean = true): String = when (d.state) {
     DownloadState.QUEUED -> "Waiting…"
-    DownloadState.RUNNING -> if (d.total > 0) "${formatBytes(d.done)} of ${formatBytes(d.total)} · ${(d.fraction!! * 100).toInt()}%" else formatBytes(d.done)
+    DownloadState.RUNNING -> when {
+        d.speed > 0 -> listOfNotNull(
+            if (d.total > 0) bytesOf(d.done, d.total) else formatBytes(d.done),
+            "${formatBytes(d.speed)}/s",
+            if (withTimeLeft) timeLeftOf(d) else null,
+        ).joinToString(" · ")
+        d.total > 0 -> "${formatBytes(d.done)} of ${formatBytes(d.total)} · ${(d.fraction!! * 100).toInt()}%"
+        else -> formatBytes(d.done)
+    }
     DownloadState.PAUSED -> "Paused · " + if (d.total > 0) "${formatBytes(d.done)} of ${formatBytes(d.total)}" else formatBytes(d.done)
-    DownloadState.FAILED -> "Failed" + (d.error?.let { " · $it" } ?: "")
+    DownloadState.FAILED -> if (d.error == RETRYING) RETRYING else "Failed" + (d.error?.let { " · $it" } ?: "")
     DownloadState.DONE -> formatBytes(if (d.total > 0) d.total else d.done)
 }
 
+/** "40s left", "3 min left", "1h 5m left" (short: it shares a line with the progress and speed): [remaining] bytes at [speed] bytes a second (rounded up). */
+fun timeLeft(remaining: Long, speed: Long): String {
+    val s = (remaining + speed - 1) / speed
+    return when {
+        s < 60 -> "${s}s left"
+        s < 3600 -> "${(s + 59) / 60} min left"
+        else -> "${s / 3600}h ${(s % 3600 + 59) / 60}m left"
+    }
+}
+
+/** A running download's time left, when its size and speed are known. */
+fun timeLeftOf(d: DownloadItem): String? = if (d.state == DownloadState.RUNNING && d.total > 0 && d.speed > 0) timeLeft(d.total - d.done, d.speed) else null
+
+/** "4.4 of 57.2 MB" (one unit when both share it), else "900 KB of 1.2 MB". */
+fun bytesOf(done: Long, total: Long): String {
+    val a = formatBytes(done); val b = formatBytes(total)
+    return if (a.substringAfter(' ') == b.substringAfter(' ')) "${a.substringBefore(' ')} of $b" else "$a of $b"
+}
+
+/** A download's speed from its progress readings, smoothed over a few seconds so it doesn't jump with every one. */
+class Speedometer {
+    private var lastAt = -1L
+    private var lastDone = 0L
+    private var speed = 0.0
+
+    /** [done] bytes at [nowMs]: the speed so far, in bytes a second. */
+    fun reading(nowMs: Long, done: Long): Long {
+        if (lastAt >= 0 && nowMs > lastAt) {
+            val now = (done - lastDone) * 1000.0 / (nowMs - lastAt)
+            speed = if (speed == 0.0) now else speed * 0.8 + now * 0.2
+        }
+        lastAt = nowMs; lastDone = done
+        return speed.toLong()
+    }
+}
+
+/** A download whose connection dropped, waiting to try again by itself. */
+const val RETRYING = "Retrying when connected"
+
+/** A download that stopped with [error] is retried by itself: only when the connection dropped (the network may come back). */
+fun retriesItself(error: String?) = error == CONNECTION_LOST || error == RETRYING
+
 /**
- * After the app was closed mid-download nothing is transferring any more: those downloads load as paused (they can
- * resume where they stopped, if the server allows it).
+ * After the app was closed mid-download nothing is transferring any more: those downloads load as paused, and carry on
+ * by themselves (DownloadsStore.interrupted), where they stopped if the server allows it.
  */
 fun afterRestart(items: List<DownloadItem>) = items.map { if (it.active) it.copy(state = DownloadState.PAUSED) else it }

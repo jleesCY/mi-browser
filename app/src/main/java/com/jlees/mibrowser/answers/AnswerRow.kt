@@ -4,18 +4,18 @@ package com.jlees.mibrowser.answers
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ui.common.LocalHaptics
 import com.jlees.mibrowser.ui.common.LocalUi
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextOverflow
 import com.jlees.mibrowser.ui.common.Txt
 import com.jlees.mibrowser.ui.common.copyText
 import com.jlees.mibrowser.ui.common.touchable
@@ -35,7 +35,7 @@ fun AnswerRow(a: InlineAnswer) {
     val ctx = LocalContext.current
     val haptics = LocalHaptics.current
     // a number (with any unit) is always large and bold, one line, shrinking to fit rather than being cut off
-    val numeric = a.answer.firstOrNull()?.let { it.isDigit() || it == '-' } == true
+    val numeric = isNumber(a.answer)
     val big = a.answer.length <= BIG_ANSWER
     Column(
         Modifier.fillMaxWidth().touchable {
@@ -52,6 +52,10 @@ fun AnswerRow(a: InlineAnswer) {
         else Txt(a.answer, if (big) 32f else 17f, ui.cs.onSurface, if (big) ui.extrabold else ui.semibold, Modifier.padding(top = 2.dp), maxLines = if (big) 1 else 5)
     }
 }
+
+/** "1,024", "-4", "3.10686 miles", "1e20": a number, with any unit after it. Not a time ("5:00 PM") or "0xFF". */
+internal fun isNumber(answer: String) = NUMBER.matches(answer)
+private val NUMBER = Regex("""-?\d[\d,.]*(e-?\d+)?(\s.*)?""")
 
 /** Settings › Pill › While Typing › Inline Answers. */
 fun inlineAnswersRow(vm: BrowserViewModel) = SettingsRow("Inline Answers", "calculator math unit conversion convert time date coin dice answer") {

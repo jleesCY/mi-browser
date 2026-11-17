@@ -3,7 +3,7 @@ package com.jlees.mibrowser
 import com.jlees.mibrowser.answers.engineAnswer
 import com.jlees.mibrowser.answers.formatNumber
 import com.jlees.mibrowser.answers.inlineAnswer
-import com.jlees.mibrowser.answers.keepsAnswer
+import com.jlees.mibrowser.answers.answerDelayMs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -23,7 +23,6 @@ class AnswersTest {
         assertEquals("-4", a("-2^2"))
         assertEquals("30", a("20% of 150"))
         assertEquals("1", a("10 % 3"))
-        assertEquals("0.5", a("50%"))
         assertEquals("120", a("5!"))
         assertEquals("12", a("3 x 4"))
         assertEquals("1,001", a("1,000 + 1"))
@@ -79,12 +78,16 @@ class AnswersTest {
         assertEquals("999,999,999,999 inches =", inlineAnswer("999999999999 in to mm")!!.question) // what was typed, not rounded
     }
 
-    @Test fun anAnswerStaysWhileTypingOnOrBack() {
-        val keeps = ::keepsAnswer
-        assertTrue(keeps("2^1", "2^"))     // backspacing over it
-        assertTrue(keeps("2^1", "2^10"))   // typing on from it
-        assertEquals(false, keeps("2^1", "cats"))
-        assertEquals(false, keeps("2^1", ""))
+    @Test fun numbersThatArentSumsAreLeftAlone() {
+        listOf("1-800", "2024-11-17", "555-1234", "5-10", "11/17/2026", "100%", "50 %").forEach { assertNull(it, a(it)) }
+        assertEquals("-5", a("5 - 10")) // spaced out, it's a sum
+        assertEquals("0.5", a("1/2"))
+    }
+
+    @Test fun aWordStillBeingTypedWaitsLonger() { // "pi" on the way to "pictures"
+        assertTrue(answerDelayMs("pi") > answerDelayMs("2+2"))
+        assertTrue(answerDelayMs("5 km in mi") > answerDelayMs("2^10"))
+        assertTrue(answerDelayMs("2+2") >= 300) // longer than the gap between keystrokes
     }
 
     @Test fun numbersAreRoundedAndShortened() {
@@ -92,5 +95,16 @@ class AnswersTest {
         assertEquals("1e20", formatNumber(1e20))
         assertEquals("1.5e-7", formatNumber(1.5e-7))
         assertEquals("0.3", formatNumber(0.1 + 0.2))
+    }
+
+    @Test fun onlyNumbersGetTheNumberStyle() { // large, bold, shrunk to fit
+        listOf("1,024", "-4", "3.10686 miles", "1e20", "0.5").forEach { assertTrue(it, com.jlees.mibrowser.answers.isNumber(it)) }
+        listOf("5:00 PM", "0xFF", "Heads", "Friday, November 13").forEach { assertEquals(it, false, com.jlees.mibrowser.answers.isNumber(it)) }
+    }
+
+    @Test fun aFormulaStillBeingTypedKeepsItsAnswer() {
+        val may = { t: String -> com.jlees.mibrowser.answers.mayBecomeAnswer(t) }
+        listOf("pi*", "pi *", "2+2*", "(3+4", "2^", "2+2 s", "sqrt(", "5 km in mil", "5 km to", "255 in he", "20% of", "2").forEach { assertTrue(it, may(it)) }
+        listOf("pi* stack overflow", "pictures", "2+2 stack", "5 km in miami", "", "p", "cats", "2+2 #", "pi day").forEach { assertEquals(it, false, may(it)) }
     }
 }

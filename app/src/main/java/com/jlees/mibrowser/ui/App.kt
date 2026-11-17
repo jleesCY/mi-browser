@@ -119,6 +119,14 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         val kbVisible = WindowInsets.isImeVisible
         val fullscreen = host.customView != null
         val focusManager = LocalFocusManager.current
+        // the keyboard closed while the Pill was being typed in (its hide key, Back, a tap outside): the Pill lets go
+        // too, rather than staying focused with its text selected and its suggestions over the page. Only on the
+        // keyboard going away, not before it has opened (focusing comes first, the keyboard a moment later).
+        val kbWasVisible = remember { BooleanArray(1) }
+        LaunchedEffect(kbVisible) {
+            if (!kbVisible && kbWasVisible[0] && vm.isInputFocused) focusManager.clearFocus()
+            kbWasVisible[0] = kbVisible
+        }
 
         // ---- events from VM / WebViews
         LaunchedEffect(Unit) {

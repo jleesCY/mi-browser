@@ -25,6 +25,7 @@ class BackgroundMediaTest {
         val sent = mutableListOf<String>()
         override fun postMessage(message: String) { sent += message }
         override fun postMessage(arrayBuffer: ByteArray) {}
+        override fun executeJavaScript(script: String, callback: androidx.webkit.WebViewOutcomeReceiver<String, androidx.webkit.JavaScriptExecutionException>?) {}
     }
 
     private val ctx = ApplicationProvider.getApplicationContext<Context>()

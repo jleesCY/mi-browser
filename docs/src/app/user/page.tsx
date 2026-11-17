@@ -255,7 +255,7 @@ export default function UserDocs() {
                     </div>
                     <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored only in the app's private storage on your device." />
                     <div id="downloads">
-                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="Beside Bookmarks in the Library, grouped by day. Downloads in progress show their progress, with pause and cancel (they keep going when you leave mi, with a notification); finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. Files you delete elsewhere leave the list." />
+                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="Beside Bookmarks in the Library, grouped by day. Downloads in progress show their progress, speed and time left, with pause and cancel (they keep going when you leave mi, with a notification). Large files come over several connections at once, which is often quicker. A download whose connection drops tries again by itself when you're back online, and one that was running when mi closed carries on when you open it; finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. Files you delete elsewhere leave the list." />
                     </div>
                   </div>
                 </div>

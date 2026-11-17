@@ -18,8 +18,8 @@ android {
         applicationId = "com.jlees.mibrowser"
         minSdk = 26
         targetSdk = 36
-        versionCode = 170
-        versionName = "1.7.0"
+        versionCode = 171
+        versionName = "1.7.1"
     }
 
     signingConfigs {
@@ -62,13 +62,13 @@ dependencies {
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3:1.5.0-alpha29")
-    implementation("com.materialkolor:material-kolor:3.0.0-beta01")
+    implementation("androidx.compose.material3:material3:1.5.0-rc01")
+    implementation("com.materialkolor:material-kolor:5.0.1")
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.webkit:webkit:1.15.0") // WebView features beyond the platform API (see WebViewHost)
+    implementation("androidx.webkit:webkit:1.18.0") // WebView features beyond the platform API (see WebViewHost)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.core:core-splashscreen:1.2.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
     // debug builds only: watches for leaked screens and objects while you use the app, and reports them in a notification
     debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
     implementation("androidx.camera:camera-camera2:1.6.2")

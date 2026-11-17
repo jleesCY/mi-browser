@@ -400,4 +400,13 @@ class LogicTest {
         assertEquals(listOf(null, "Tab Switcher Pill", "Tab Switcher Pill", "Tab Switcher Pill"), placed.map { it.heading })
         assertEquals(listOf(0 to 1, 0 to 0, 0 to 2, 1 to 2), placed.map { it.index to it.count }) // each block is its own rounded group
     }
+
+    @Test fun aDraggedFavoriteLandsInTheSlotUnderIt() { // four across, ten favorites
+        val slot = { col: Float, row: Float -> com.jlees.mibrowser.ui.common.gridSlot(col, row, 4, 10) }
+        assertEquals(0, slot(0f, 0f))
+        assertEquals(5, slot(1.4f, 0.6f))   // nearest slot: second column, second row
+        assertEquals(3, slot(9f, 0f))       // past the right edge: the last column
+        assertEquals(0, slot(-2f, -1f))     // above and left: the first slot
+        assertEquals(9, slot(3f, 5f))       // below the last row: the last favorite
+    }
 }

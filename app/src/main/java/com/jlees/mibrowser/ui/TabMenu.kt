@@ -1,6 +1,7 @@
 // The tab menu (⋮ in the tab switcher): favorite, bookmark, pin; quick tiles; tools; closing tabs.
 package com.jlees.mibrowser.ui
 
+import androidx.compose.animation.core.animateDpAsState
 import com.jlees.mibrowser.search.addSearchShortcutFromPage
 import com.jlees.mibrowser.incognito.closeIncognitoTabs
 import com.jlees.mibrowser.library.toggleFavorite
@@ -57,7 +58,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
     /** The tiles' shared look: accent-filled and rounder when [on], dimmed when disabled. Returns it and the content colour. */
     @Composable
     fun tileStyle(on: Boolean, enabled: Boolean, onPress: () -> Unit): Pair<Modifier, androidx.compose.ui.graphics.Color> {
-        val radius by androidx.compose.animation.core.animateDpAsState(if (on) 28.dp else 18.dp, Motion.spatial(), label = "tile")
+        val radius by animateDpAsState(if (on) 28.dp else 18.dp, Motion.spatial(), label = "tile")
         val bg by androidx.compose.animation.animateColorAsState(if (on) ui.cs.primaryContainer else ui.cs.surfaceContainerHighest, label = "tile bg")
         return Modifier.clip(RoundedCornerShape(radius)).background(bg).alpha(if (enabled) 1f else 0.38f).touchable(enabled, onClick = onPress) to
             (if (on) ui.cs.onPrimaryContainer else ui.cs.onSurface)

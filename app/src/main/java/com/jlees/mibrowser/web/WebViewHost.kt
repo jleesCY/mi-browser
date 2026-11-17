@@ -1,42 +1,17 @@
-// The WebView pool: one WebView per open tab (least recently used ones evicted), their settings, and the WebView
-// callbacks. Each job behind a callback is its own class (SitePermissions, Downloads, ContentBlocker…).
+// The WebView pool: one WebView per open tab (least recently used ones evicted) and their settings. The WebView
+// callbacks are TabWebClient and TabChromeClient; each job behind them is its own class (SitePermissions, HttpsOnly…).
 package com.jlees.mibrowser.web
 
-import com.jlees.mibrowser.data.clearBrowsingTraces
-
-import android.webkit.CookieManager
-
-import android.webkit.WebStorage
-
-import com.jlees.mibrowser.adblock.AdBlock
-
-import com.jlees.mibrowser.ui.common.Haptics
-
-import com.jlees.mibrowser.downloads.DownloadPrompt
-
-import com.jlees.mibrowser.tabs.TabPreviews
-
-import com.jlees.mibrowser.adblock.ContentBlocker
-
-
-import com.jlees.mibrowser.incognito.IncognitoProfiles
-
-import com.jlees.mibrowser.data.ThemeMode
-
-import com.jlees.mibrowser.adblock.stripTracking
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.os.Bundle
-import android.view.ContextThemeWrapper
 import android.graphics.Color
-import android.net.Uri
-import android.net.http.SslError
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
+import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
@@ -45,23 +20,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.jlees.mibrowser.BrowserViewModel
-import com.jlees.mibrowser.ContextMenuData
-import com.jlees.mibrowser.UiEvent
-import com.jlees.mibrowser.WebCmd
-import com.jlees.mibrowser.data.TabItem
-import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.logic.faviconHost
-import com.jlees.mibrowser.data.Favicons
-import com.jlees.mibrowser.logic.uniqueId
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.jlees.mibrowser.BrowserViewModel
+import com.jlees.mibrowser.UiEvent
+import com.jlees.mibrowser.WebCmd
+import com.jlees.mibrowser.adblock.ContentBlocker
+import com.jlees.mibrowser.data.TabItem
+import com.jlees.mibrowser.data.ThemeMode
+import com.jlees.mibrowser.downloads.DownloadPrompt
+import com.jlees.mibrowser.incognito.IncognitoProfiles
+import com.jlees.mibrowser.logic.displayHost
+import com.jlees.mibrowser.logic.uniqueId
+import com.jlees.mibrowser.tabs.TabPreviews
+import com.jlees.mibrowser.ui.common.Haptics
 
 data class WebError(val code: Int, val desc: String, val failingUrl: String?) {
     companion object {
         /** HTTPS Only couldn't connect securely (mi's own code; WebView's are small negatives). */
         const val HTTPS_ONLY = -3001
+        /** The page renderer crashed while this tab was showing. */
+        const val CRASHED = -3002
     }
 }
 
@@ -72,29 +52,31 @@ const val MAX_LIVE_TABS = 4
 
 class WebViewHost(
     private val activity: Activity,
-    private val vm: BrowserViewModel,
+    internal val vm: BrowserViewModel,
     private val requestPermissions: (Array<String>, (Map<String, Boolean>) -> Unit) -> Unit,
     private val launchForResult: (Intent, (ActivityResult) -> Unit) -> Unit,
 ) {
-    private val scripts = PageScripts(activity)
-    private val topInset by lazy { TopInset(scripts.topInset) { vm.settings.showStatusBar } }
+    internal val scripts = PageScripts(activity)
+    internal val topInset by lazy { TopInset(scripts.topInset) { vm.settings.showStatusBar } }
     private val haptics = Haptics(activity.window.decorView) { vm.settings.hapticFeedback }
     // incognito tabs add their own (in-memory) sites with blocking off: never the saved list
-    private val blocker: ContentBlocker = ContentBlocker({ vm.settings }) { id -> if (isIncognito(id)) vm.incognitoAdAllowlist else emptySet() }
+    internal val blocker: ContentBlocker = ContentBlocker({ vm.settings }) { id -> if (isIncognito(id)) vm.incognitoAdAllowlist else emptySet() }
     private val userAgents = UserAgents(activity)
-    private val permissions = SitePermissions(activity, vm, requestPermissions)
-    private val popups = PopupPolicy(vm)
+    internal val permissions = SitePermissions(activity, vm, requestPermissions)
+    internal val popups = PopupPolicy(vm)
     /** Audio and video that keep playing in the background, with the media notification. */
     val media = com.jlees.mibrowser.media.BackgroundMedia(activity.applicationContext, { vm.settings.backgroundAudio }, ::isIncognito,
         { id -> vm.tabs.list.firstOrNull { it.id == id }?.url }) { applyActivity() }
     private val downloads = DownloadPrompt(activity, vm, requestPermissions, launchForResult)
     private val printer = Printer(activity) { id -> destroy(id) }
-    private val externalApps = ExternalApps(activity, vm)
-    private val signIn = SignInChallenges(activity, vm)
-    private val dialogLimit = DialogLimit()
-    private val fileChooser = FileChooser(activity, launchForResult)
+    internal val externalApps = ExternalApps(activity, vm)
+    internal val signIn = SignInChallenges(activity, vm)
+    internal val dialogLimit = DialogLimit()
+    internal val fileChooser = FileChooser(activity, launchForResult)
     private val previews = TabPreviews(activity, vm)
     private val bridge = PageBridge(activity) { id, wv -> printer.print(id, wv) }
+    private val linkMenu = LinkMenu(vm, haptics)
+    internal val httpsOnly = HttpsOnly(vm, ::profileOf)
     private val views = HashMap<String, WebView>()
     private val loaded = HashMap<String, Pair<String?, Int>>()
     /** Live WebViews are capped (each is a full page renderer): least recently viewed tabs are evicted, keeping their
@@ -125,11 +107,12 @@ class WebViewHost(
         },
         serviceWorkers = blocker.profileWorkers,
     )
+    private val browsingData by lazy { BrowsingData(activity, vm, incognito) { signIn.forget(); permissions.forget() } }
     /** Tab [id]'s profile (null: a normal tab); also for Site settings. */
     fun profileOf(id: String) = vm.tabs.list.firstOrNull { it.id == id }?.profile ?: incognito.profileOfView(id)
-    private fun isIncognito(id: String) = profileOf(id) != null
+    internal fun isIncognito(id: String) = profileOf(id) != null
     /** Prefix for session state (permissions, sign-ins, pop-up allowances) so it stays inside one profile. */
-    private fun scope(id: String) = profileOf(id).orEmpty()
+    internal fun scope(id: String) = profileOf(id).orEmpty()
 
     /** Per-tab settings that can change (JS, desktop mode, cookies); applied before any load. */
     private fun configure(wv: WebView, desktop: Boolean) {
@@ -187,7 +170,8 @@ class WebViewHost(
             configure(wv, tab.desktopMode ?: vm.settings.desktopMode)
             // a new WebView for an existing tab (evicted, theme change, activity recreated): restore or reopen its page
             val restored = saved.remove(tab.id)?.let { wv.restoreState(it) != null } == true
-            if (restored || tab.url != null) {
+            if (errors[tab.id]?.code == WebError.CRASHED) loaded[tab.id] = tab.requestedUrl to tab.loadNonce // waits for Try Again
+            else if (restored || tab.url != null) {
                 loaded[tab.id] = tab.requestedUrl to tab.loadNonce
                 if (!restored) wv.loadUrl(tab.url!!)
             }
@@ -216,7 +200,7 @@ class WebViewHost(
             wv.destroy()
         }
         loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id); topInset.reset(id)
-        pausedViews.remove(id); dialogLimit.reset(id); media.forget(id); signIn.forgetTab(id); httpContinued.remove(id)
+        pausedViews.remove(id); dialogLimit.reset(id); media.forget(id); signIn.forgetTab(id); httpsOnly.forget(id)
         // posted: callers destroy a tab's WebView before (or while) removing the tab, and the tab list must be final
         if (wasIncognito || incognito.detach(id, null) || vm.tabs.list.none { it.id == id }) Handler(Looper.getMainLooper()).post { incognito.release() }
     }
@@ -250,30 +234,14 @@ class WebViewHost(
             is WebCmd.CapturePreview -> capturePreview(cmd.tabId)
             is WebCmd.Destroy -> cmd.tabIds.forEach(::destroy)
             WebCmd.WipeWebData -> {
-                clearBrowsingData()
+                browsingData.clearAll(views.values)
                 views.keys.toList().forEach { destroy(it) }
             }
-            WebCmd.ClearBrowsingData -> clearBrowsingData()
+            WebCmd.ClearBrowsingData -> browsingData.clearAll(views.values)
             WebCmd.RecreateAll -> { views.keys.toList().forEach { destroy(it) }; generation++ }
             is WebCmd.Find -> views[vm.tabs.activeId]?.let { if (cmd.query.isEmpty()) it.clearMatches() else it.findAllAsync(cmd.query) }
             is WebCmd.FindNext -> views[vm.tabs.activeId]?.findNext(cmd.forward)
         }
-    }
-
-    /** Cookies, site storage (localStorage, IndexedDB…), HTTP cache and saved form/auth data. */
-    private var cacheClearPending = false
-
-    private fun clearBrowsingData() {
-        CookieManager.getInstance().removeAllCookies(null)
-        CookieManager.getInstance().flush()
-        WebStorage.getInstance().deleteAllData()
-        views.values.forEach { it.clearCache(true); it.clearFormData() }
-        // the HTTP cache is cleared through a WebView: with none open (e.g. at startup), the next one created does it
-        if (views.isEmpty()) cacheClearPending = true
-        @Suppress("DEPRECATION") WebViewDatabase.getInstance(activity).apply { clearHttpAuthUsernamePassword(); clearFormData() }
-        // and what was granted this session: sign-ins, camera/mic/location, certificate exceptions
-        signIn.forget(); permissions.forget()
-        vm.clearBrowsingTraces() // tab snapshots, site icons, mi's own HTTP cache
     }
 
     fun exitFullscreen() { customViewCallback?.onCustomViewHidden() }
@@ -286,10 +254,13 @@ class WebViewHost(
             onPull = { if (id == vm.tabs.activeId) vm.pullProgress = it },
             onRefresh = { errors.remove(id); views[id]?.reload() },
             onThreshold = { haptics.tick() })
-        if (cacheClearPending && profile == null) { wv.clearCache(true); cacheClearPending = false }
+        if (profile == null) browsingData.created(wv)
         if (profile != null) incognito.attach(id, wv, profile)
         wv.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         wv.setBackgroundColor(Color.WHITE)
+        // a tab out of sight lets Android reclaim its page's memory first (the visible one keeps the renderer
+        // important); if the renderer is reclaimed, the pages are rebuilt (TabWebClient.onRenderProcessGone)
+        wv.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
         wv.overScrollMode = View.OVER_SCROLL_NEVER
         with(wv.settings) {
             domStorageEnabled = true
@@ -336,10 +307,10 @@ class WebViewHost(
             WebViewCompat.addDocumentStartJavaScript(wv, scripts.media, setOf("*"))
         }
         if (timersPaused && appVisible) { wv.resumeTimers(); timersPaused = false } // paused while every WebView was gone
-        wv.webViewClient = Client(id)
-        wv.webChromeClient = Chrome(id)
+        wv.webViewClient = TabWebClient(this, id)
+        wv.webChromeClient = TabChromeClient(this, id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
-        wv.setOnLongClickListener { onLongPress(wv) }
+        wv.setOnLongClickListener { linkMenu.onLongPress(wv) }
         // match count and position for the find bar (only the visible tab's search is shown)
         wv.setFindListener { ordinal, matches, done -> if (done && id == vm.tabs.activeId) vm.find.onResult(ordinal, matches) }
         wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> downloads.start(incognito.cookies(wv), isIncognito(id), url, userAgent, contentDisposition, mimetype, length) }
@@ -352,253 +323,57 @@ class WebViewHost(
         ThemeMode.SYSTEM -> (activity.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     }
 
-    private fun nav(id: String, view: WebView, url: String?, loading: Boolean) =
+    internal fun nav(id: String, view: WebView, url: String?, loading: Boolean) =
         vm.onWebNav(id, url, view.title, view.canGoBack(), view.canGoForward(), loading)
 
-    private inner class Client(val id: String) : WebViewClient() {
-        /** Ad, tracker and cookie-banner blocking of sub-resources (runs on a WebView thread). */
-        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest) = blocker.intercept(id, request)
-
-        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-            val original = request.url.toString()
-            // a link carrying tracking parameters (utm_*, fbclid…) is opened without them
-            val url = if (request.isForMainFrame && vm.settings.stripTrackingParams && request.method == "GET") stripTracking(original) else original
-            if (request.isForMainFrame) signIn.navigated(id, url)
-            val gesture = request.hasGesture()
-            if (url.startsWith("blob:") || url.startsWith("data:")) return false
-            if (url.startsWith("mibrowser:")) { if (gesture) vm.handleIncomingUrl(url, incognito = isIncognito(id)); return true }
-            if (vm.settings.httpsOnly && url.startsWith("http://") && request.isForMainFrame && !httpLetThrough(id, displayHost(url))) {
-                vm.loadInTab(id, url.replaceFirst("http://", "https://"))
-                return true
-            }
-            if (url.startsWith("googleapp://")) return true
-            val standard = url.startsWith("http://") || url.startsWith("https://") || url.startsWith("about:")
-            if (standard) {
-                if (url.contains("intent://") || url.contains("#Intent;")) { externalApps.open(url, gesture); return true }
-                if (url != original) { view.loadUrl(url); return true }
-                return false
-            }
-            externalApps.open(url, gesture)
-            return true
-        }
-
-        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-            blocker.pageStarted(id, url?.let { Uri.parse(it).host })
-            // HTTPS Only: the insecure site this tab continued to stays allowed only while the tab stays on it
-            if (httpContinued[id].let { it != null && it != displayHost(url) }) httpContinued.remove(id)
-            errors.remove(id)
-            dialogLimit.reset(id)
-            media.forget(id) // the page that was playing is gone
-            topInset.reset(id); topInset.apply(id, view)
-            nav(id, view, url, true)
-            if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadStart)
-        }
-
-        override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) =
-            signIn.httpAuth(id, scope(id), view.url, handler, host, realm)
-        override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) = signIn.clientCertificate(request)
-
-        override fun onPageFinished(view: WebView, url: String?) {
-            if (id == vm.tabs.activeId) vm.find.refresh() // the page searched while loading may have more now
-            topInset.reset(id); topInset.apply(id, view) // again, now the page's own head is in place
-            fetchTouchIcon(view, url)
-            signIn.pageFinished()
-            if (errors[id] == null) vm.clearHttpFallback(id) // https worked: later failures in this tab are real errors
-            val t = vm.tabs.list.firstOrNull { it.id == id }
-            if (t != null && (t.readerMode ?: vm.settings.readerModeEnabled)) view.evaluateJavascript(scripts.reader, null)
-            nav(id, view, url, false)
-            if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadEnd)
-        }
-
-        override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
-            nav(id, view, url, vm.tabs.list.firstOrNull { it.id == id }?.loading ?: false)
-        }
-
-        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-            if (!request.isForMainFrame) return
-            // like Chrome's HTTPS upgrades: any failure of the automatic https attempt retries over http, except when
-            // the name doesn't resolve (http would fail too) or Safe Browsing blocked the page (never routed around)
-            val httpMightWork = error.errorCode != ERROR_HOST_LOOKUP && error.errorCode != ERROR_UNSAFE_RESOURCE
-            if (httpMightWork && fallBackToHttp(request.url.toString())) return
-            // HTTPS Only: the secure connection failed; warn, with a way to continue over http (like Chrome and Firefox)
-            val failed = request.url.toString()
-            if (httpMightWork && vm.settings.httpsOnly && failed.startsWith("https://")) {
-                errors[id] = WebError(WebError.HTTPS_ONLY, "HTTPS_ONLY", failed)
-                if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadEnd)
-                return
-            }
-            errors[id] = WebError(error.errorCode, error.description?.toString() ?: "Unknown error", request.url.toString())
-            if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadEnd)
-        }
-
-        @SuppressLint("WebViewClientOnReceivedSslError")
-        override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
-            val host = displayHost(error.url)
-            if (vm.certExceptions.has(profileOf(id), host)) { handler.proceed(); return }
-            handler.cancel()
-            val mainFrame = view.url == null || view.url.equals(error.url, ignoreCase = true)
-            if (mainFrame && fallBackToHttp(error.url)) return
-            if (view.url.equals(error.url, ignoreCase = true) || view.url == null) {
-                errors[id] = WebError(-1200, "ERR_SSL_PROTOCOL_ERROR", error.url)
-                if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadEnd)
-            }
-        }
-
-        /**
-         * The page's high-resolution icon (apple-touch-icon / sized icon links), read from its own HTML once it has
-         * loaded. The site it is stored for comes from WebView ([url]), never from the page's script, and the result is
-         * dropped if the tab has navigated away meanwhile, so a page can only ever set its own icon.
-         */
-        private fun fetchTouchIcon(view: WebView, url: String?) {
-            if (isIncognito(id)) return
-            val host = faviconHost(url) ?: return
-            if (view.url != url) return
-            if (!vm.settings.jsEnabled) { Favicons.upgrade(host); return }
-            view.evaluateJavascript(scripts.touchIcon) { result ->
-                if (view.url != url) return@evaluateJavascript
-                val href = runCatching { org.json.JSONTokener(result).nextValue() as? String }.getOrNull()
-                if (href != null) Favicons.fetchFor(host, href) else Favicons.upgrade(host)
-            }
-        }
-
-        /** A typed address (no scheme) failed over https: retry it over http, once, unless HTTPS-Only is on. */
-        private fun fallBackToHttp(url: String?): Boolean {
-            val t = vm.tabs.list.firstOrNull { it.id == id } ?: return false
-            if (!t.httpFallback || vm.settings.httpsOnly || url == null || !url.startsWith("https://")) return false
-            vm.loadInTab(id, "http://" + url.removePrefix("https://")) // also clears the fallback flag: only once
-            return true
-        }
-
-    }
-
-    private inner class Chrome(val id: String) : WebChromeClient() {
-        override fun onProgressChanged(view: WebView, newProgress: Int) {
-            if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.LoadProgress(newProgress / 100f))
-        }
-
-        /**
-         * Site icons come from the page itself and are kept on the device (see Favicons). The icon is paired with the
-         * page through WebView's history entry, not view.url: around a navigation the previous page's icon can arrive
-         * after the address has already changed.
-         */
-        override fun onReceivedIcon(view: WebView, icon: Bitmap?) {
-            if (isIncognito(id)) return
-            val item = view.copyBackForwardList().currentItem ?: return
-            val host = faviconHost(item.url) ?: return
-            item.favicon?.let { Favicons.save(host, it) }
-        }
-
-        override fun onReceivedTitle(view: WebView, title: String?) {
-            nav(id, view, view.url, vm.tabs.list.firstOrNull { it.id == id }?.loading ?: false)
-        }
-
-        /**
-         * window.open / target=_blank: a real window, shown as a new tab linked to this one. The page keeps
-         * window.opener and postMessage to it (sign-in and payment pop-ups such as PayPal depend on that).
-         * Pop-ups without a tap are blocked unless the user allowed the site.
-         */
-        override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
-            val site = displayHost(view.url)
-            if (!isUserGesture && !popups.allowed(profileOf(id), site)) {
-                if (id == vm.tabs.activeId) popups.blocked(profileOf(id), site, view.url)
-                return false
-            }
-            val opener = vm.tabs.list.firstOrNull { it.id == id }
-            val desktop = opener?.desktopMode
-            val popupId = uniqueId()
-            val wv = create(popupId, opener?.profile) // same profile as the opener
-            configure(wv, desktop ?: vm.settings.desktopMode)
-            views[popupId] = wv
-            lastUsed[popupId] = System.nanoTime()
-            (resultMsg.obj as WebView.WebViewTransport).webView = wv
-            resultMsg.sendToTarget()
-            vm.addPopupTab(popupId, openerId = id, desktopMode = desktop)
-            return true
-        }
-
-        /** The page called window.close() (only windows opened by script may): back to the opener. */
-        override fun onCloseWindow(window: WebView) { vm.closeWindow(id) }
-
-        // JS dialogs use WebView's own dialogs (return false) unless the page is spamming them (see dialogAllowed)
-        override fun onJsAlert(view: WebView, url: String?, message: String?, result: JsResult): Boolean {
-            if (dialogLimit.allow(id)) return false
-            result.confirm(); return true
-        }
-
-        override fun onJsConfirm(view: WebView, url: String?, message: String?, result: JsResult): Boolean {
-            if (dialogLimit.allow(id)) return false
-            result.cancel(); return true
-        }
-
-        override fun onJsPrompt(view: WebView, url: String?, message: String?, defaultValue: String?, result: JsPromptResult): Boolean {
-            if (dialogLimit.allow(id)) return false
-            result.cancel(); return true
-        }
-
-        override fun onShowFileChooser(webView: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams) =
-            fileChooser.show(callback, params)
-
-        override fun onShowCustomView(view: View, callback: CustomViewCallback) {
-            customViewCallback?.onCustomViewHidden()
-            customViewCallback = callback
-            customView = view
-        }
-
-        override fun onHideCustomView() {
-            customView = null
-            customViewCallback = null
-        }
-
-        override fun onPermissionRequest(request: PermissionRequest) = permissions.media(scope(id), request)
-        override fun onPermissionRequestCanceled(request: PermissionRequest) { vm.alert = null }
-
-        override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) =
-            permissions.location(scope(id), origin, callback)
-        override fun onGeolocationPermissionsHidePrompt() { vm.alert = null }
-
-    }
-
-    // ---------------------------------------------------------------- context menu (native hit test)
-    private fun onLongPress(wv: WebView): Boolean {
-        val hit = wv.hitTestResult
-        val type = hit.type
-        if (type != WebView.HitTestResult.SRC_ANCHOR_TYPE && type != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE && type != WebView.HitTestResult.IMAGE_TYPE) return false
-        haptics.longPress()
-        val msg = Handler(Looper.getMainLooper()) { m ->
-            val d = m.data
-            val link = when (type) {
-                WebView.HitTestResult.SRC_ANCHOR_TYPE -> hit.extra
-                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> d.getString("url")
-                else -> null
-            }
-            val img = if (type == WebView.HitTestResult.SRC_ANCHOR_TYPE) null else (d.getString("src") ?: hit.extra)
-            val text = if (link != null) (d.getString("title") ?: "").trim().take(50) else "Image"
-            vm.contextMenu = ContextMenuData(link, img, text)
-            true
-        }.obtainMessage()
-        wv.requestFocusNodeHref(msg)
+    /** A window the page in tab [openerId] opened (allowed): a new tab linked to it, in the same profile. */
+    internal fun openPopup(openerId: String, resultMsg: Message): Boolean {
+        val opener = vm.tabs.list.firstOrNull { it.id == openerId }
+        val desktop = opener?.desktopMode
+        val popupId = uniqueId()
+        val wv = create(popupId, opener?.profile) // same profile as the opener
+        configure(wv, desktop ?: vm.settings.desktopMode)
+        views[popupId] = wv
+        lastUsed[popupId] = System.nanoTime()
+        (resultMsg.obj as WebView.WebViewTransport).webView = wv
+        resultMsg.sendToTarget()
+        vm.addPopupTab(popupId, openerId = openerId, desktopMode = desktop)
         return true
     }
 
-    // ---------------------------------------------------------------- error page actions
-    fun retry(id: String) { errors.remove(id); views[id]?.reload() }
+    /** Fullscreen video (onShowCustomView), shown over everything until the page or Back ends it. */
+    internal fun showCustomView(view: View, callback: WebChromeClient.CustomViewCallback) {
+        customViewCallback?.onCustomViewHidden()
+        customViewCallback = callback
+        customView = view
+    }
+
+    internal fun hideCustomView() { customView = null; customViewCallback = null }
 
     /**
-     * HTTPS Only, insecure site the tab continued to (tab → host): its links stay on http while the tab stays on that
-     * site. Leaving the site or closing the tab forgets it, so the next visit asks again; nothing is kept anywhere else.
+     * The renderer every tab shares died (TabWebClient.onRenderProcessGone, once for each WebView): their WebViews are
+     * rebuilt. Reclaimed by Android, the pages simply load again; crashed, the visible tab shows an error page rather
+     * than reloading what may well crash it again (and again).
      */
-    private val httpContinued = HashMap<String, String>()
+    internal fun rendererGone(view: WebView, crashed: Boolean) {
+        if (view !in views.values) return // its WebView is already gone (an earlier callback rebuilt them all)
+        val active = vm.tabs.activeId
+        views.keys.toList().forEach { destroy(it) }
+        if (crashed) errors[active] = WebError(WebError.CRASHED, "CRASHED", vm.tabs.list.firstOrNull { it.id == active }?.url)
+        generation++
+    }
 
-    /** Whether [host] may load over plain http in tab [id]: continued to on this visit, or (Warn Every Time off) this session. */
-    private fun httpLetThrough(id: String, host: String) =
-        httpContinued[id] == host || (!vm.settings.httpsWarnEveryTime && vm.httpAllowed.has(profileOf(id), host))
+    // ---------------------------------------------------------------- error page actions
+    fun retry(id: String) {
+        val crashed = errors.remove(id)?.code == WebError.CRASHED
+        // after a crash the rebuilt WebView has nothing to reload: it opens the tab's page
+        if (crashed) vm.tabs.list.firstOrNull { it.id == id }?.url?.let { views[id]?.loadUrl(it) } else views[id]?.reload()
+    }
 
     /** HTTPS Only's warning: continue to the site over plain http (for this visit, or the session; see Warn Every Time). */
     fun continueOverHttp(id: String) {
         val target = errors[id]?.failingUrl ?: return
-        val host = displayHost(target)
-        // Warn Every Time: this visit only; off: the site is let through for the session (in this profile)
-        if (vm.settings.httpsWarnEveryTime) httpContinued[id] = host else vm.httpAllowed.trust(profileOf(id), host)
+        httpsOnly.continueTo(id, displayHost(target))
         errors.remove(id)
         vm.loadInTab(id, target.replaceFirst("https://", "http://"))
     }
@@ -619,27 +394,8 @@ class WebViewHost(
     fun popupsAllowed(tabId: String, site: String) = popups.allowed(profileOf(tabId), site)
     fun setPopupsAllowed(tabId: String, site: String, allow: Boolean) = popups.setAllowed(profileOf(tabId), site, allow)
 
-    /**
-     * Clears [url]'s site: its cookies (WebView can't delete one site's cookies directly, so each is expired, for the
-     * host and its registrable domain) and its storage (local storage, IndexedDB, caches, service workers), then
-     * reloads. Cookies set on other paths than / can survive.
-     */
-    fun clearSiteData(tabId: String, url: String) {
-        val wv = views[tabId]
-        val u = Uri.parse(url)
-        val host = u.host ?: return
-        val origin = "${u.scheme}://$host"
-        val cm = wv?.let { incognito.cookies(it) } ?: CookieManager.getInstance()
-        val domains = listOf(host, AdBlock.registrable(host)).distinct()
-        cm.getCookie(origin)?.split(';')?.map { it.substringBefore('=').trim() }?.filter { it.isNotEmpty() }?.forEach { name ->
-            cm.setCookie(origin, "$name=; Max-Age=0; Path=/")
-            domains.forEach { d -> cm.setCookie(origin, "$name=; Max-Age=0; Path=/; Domain=$d") }
-        }
-        cm.flush()
-        val storage = if (wv != null && profileOf(tabId) != null) WebViewCompat.getProfile(wv).webStorage else WebStorage.getInstance()
-        storage.deleteOrigin(origin)
-        wv?.reload()
-    }
+    /** Clears [url]'s site in tab [tabId]'s profile, then reloads (see BrowsingData.clearSite). */
+    fun clearSiteData(tabId: String, url: String) = browsingData.clearSite(views[tabId], profileOf(tabId) != null, url)
 
     // ---------------------------------------------------------------- previews
     /** Snapshots tab [id]'s page for its switcher card (see TabPreviews). */

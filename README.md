@@ -66,7 +66,7 @@
 - Sign-in and payment pop-ups (PayPal, Google), passkeys, Google Pay, HTTP sign-in prompts and client certificates.
 - Bookmarks with folders, drag to reorder and search: swipe right to edit, left to delete, and move them with a folder browser. **Import** bookmarks from Chrome, Firefox, Edge or Safari (their bookmarks file, chosen or pasted) and **export** yours to any browser.
 - History grouped by time or site, swipe to delete (with undo).
-- **Downloads** with mi's own downloader: pause, resume, cancel and retry, progress in a notification (tap the finished one to open the file), and a Downloads page beside Bookmarks in the Library, grouped by day, that stays in step with your files. Save to Downloads or any folder, choose where for each download, or hand downloads to Android's download manager.
+- **Downloads** with mi's own downloader: large files come over several connections at once; each shows its speed and time left; pause, resume, cancel and retry, and a dropped connection or a download cut short by closing mi carries on by itself; progress in a notification (tap the finished one to open the file), and a Downloads page beside Bookmarks in the Library, grouped by day, that stays in step with your files. Save to Downloads or any folder, choose where for each download, or hand downloads to Android's download manager.
 - Pages' own Print and Share buttons, and local development sites (`localhost:3000`, LAN IPs, `.local`).
 
 ### Privacy & security

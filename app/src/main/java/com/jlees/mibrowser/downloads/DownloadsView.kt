@@ -119,14 +119,18 @@ private fun DownloadRow(d: DownloadItem, onPress: () -> Unit, actions: @Composab
             Txt(d.fileName, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
             Row {
                 if (d.state == DownloadState.DONE) Txt(smartDate(d.startedAt), 12f, ui.cs.primary, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
-                Txt(downloadStatus(d), 12f, if (d.state == DownloadState.FAILED) ui.cs.error else ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
+                Txt(downloadStatus(d, withTimeLeft = false), 12f, if (d.state == DownloadState.FAILED) ui.cs.error else ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
                 if (d.state == DownloadState.DONE) Txt(displayHost(d.url), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
             }
             if (d.state == DownloadState.RUNNING || d.state == DownloadState.PAUSED || d.state == DownloadState.QUEUED) {
                 val f = d.fraction
-                val m = Modifier.padding(top = 6.dp, end = 8.dp).fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
-                if (f == null && d.state != DownloadState.PAUSED) LinearProgressIndicator(m, color = ui.cs.primary, trackColor = ui.cs.surfaceVariant)
-                else LinearProgressIndicator({ f ?: 0f }, m, color = if (d.state == DownloadState.PAUSED) ui.cs.outline else ui.cs.primary, trackColor = ui.cs.surfaceVariant)
+                // the time left at the bar's end (the line above has no room for it beside the buttons)
+                Row(Modifier.padding(top = 6.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val m = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp))
+                    if (f == null && d.state != DownloadState.PAUSED) LinearProgressIndicator(m, color = ui.cs.primary, trackColor = ui.cs.surfaceVariant)
+                    else LinearProgressIndicator({ f ?: 0f }, m, color = if (d.state == DownloadState.PAUSED) ui.cs.outline else ui.cs.primary, trackColor = ui.cs.surfaceVariant)
+                    timeLeftOf(d)?.let { Txt(it, 11f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(start = 8.dp), maxLines = 1) }
+                }
             }
         }
         actions()

@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +39,10 @@ import com.jlees.mibrowser.search.shortcutName
 import com.jlees.mibrowser.answers.AnswerRow
 import com.jlees.mibrowser.answers.InlineAnswer
 import com.jlees.mibrowser.answers.engineAnswer
-import com.jlees.mibrowser.answers.keepsAnswer
+import com.jlees.mibrowser.answers.ANSWER_LINGER_MS
+import com.jlees.mibrowser.answers.answerDelayMs
+import com.jlees.mibrowser.answers.mayBecomeAnswer
+import kotlinx.coroutines.delay
 import com.jlees.mibrowser.answers.inlineAnswer
 import com.jlees.mibrowser.ui.common.*
 
@@ -60,17 +69,33 @@ fun PillSuggestions(vm: BrowserViewModel, maxHeightDp: Float) {
     val answers = vm.settings.inlineAnswers && !notTyping
     val own = remember(filter, answers) { if (answers) inlineAnswer(filter) else null }
     val fresh = own ?: if (answers) engineAnswer(filter, vm.suggestions.items, vm.suggestions.query) else null
-    // between keystrokes that have no answer of their own ("2^" on the way to "2^10"), the last one stays put rather
-    // than the Pill shrinking and growing back
-    // (a plain holder, not state: remembering it mustn't cause another pass)
-    val kept = remember { arrayOfNulls<Any>(2) } // [0] the text it answered, [1] the answer
-    val answer = fresh ?: (kept[1] as InlineAnswer?)?.takeIf { answers && keepsAnswer(kept[0] as String, filter) }
-    if (fresh != null) { kept[0] = filter; kept[1] = fresh } else if (answer == null) kept.fill(null)
+    // an answer waits until typing pauses ("pi" on the way to "pictures" never shows). While one is showing, the next
+    // text's answer replaces it at once ("2+2" → "2+23"), so editing a sum stays live, and while the text may still
+    // become one ("2+2*") it stays. Once the text can't ("2+2 stack overflow"), it lingers a moment (no flicker between
+    // keystrokes) and then goes: timed from when it stopped fitting, so typing on doesn't keep it there
+    var paused by remember { mutableStateOf("") } // the text typing last paused on
+    // (a new text starts the wait over, even one paused on before: "pi" again on the way to "pictures" mustn't show at once)
+    LaunchedEffect(filter, fresh != null) { paused = ""; if (fresh != null) { delay(answerDelayMs(filter)); paused = filter } }
+    val shown = remember { arrayOfNulls<InlineAnswer>(1) } // on screen last pass (a plain holder: setting it mustn't cause another pass)
+    // the lingering answer whose moment has passed; compared by identity, as two answers to "pi" are equal as data and
+    // the second one's expiring would otherwise be no change at all (it never went)
+    var gone by remember { mutableStateOf<InlineAnswer?>(null, referentialEqualityPolicy()) }
+    val live = fresh?.takeIf { paused == filter || shown[0] != null }
+    // a formula still being typed ("pi" → "pi*" → "pi*2"): the last answer stays until the text can't be one any more
+    val held = if (live == null && shown[0] != null && mayBecomeAnswer(filter)) shown[0] else null
+    val lingering = if (live == null && held == null) shown[0]?.takeIf { it !== gone } else null
+    LaunchedEffect(lingering?.let(System::identityHashCode)) { if (lingering != null) { delay(ANSWER_LINGER_MS); gone = lingering } }
+    val answer = live ?: held ?: lingering
+    shown[0] = answer
+    // it slides open and fades in (and out again), the last one staying drawn while it leaves
+    val answerShown = remember { MutableTransitionState(false) }.apply { targetState = answer != null }
+    val leaving = remember { arrayOfNulls<InlineAnswer>(1) }
+    if (answer != null) leaving[0] = answer
     // typing a search shortcut ("!w"): the shortcuts that match, closest to the field (engine suggestions give way)
     val shortcuts = if (vm.settings.shortcutSuggestions) shortcutMatches(filter, vm.bangs) else emptyList()
     val engineRows = if (shortcuts.isEmpty()) suggestions else emptyList()
     val rows = copied != null || shortcuts.isNotEmpty() || recents.isNotEmpty() || engineRows.isNotEmpty()
-    if (!rows && answer == null) return
+    if (!rows && answer == null && !answerShown.currentState && answerShown.isIdle) return
 
     Column(Modifier.fillMaxWidth().heightIn(max = maxHeightDp.dp).padding(horizontal = 10.dp)) {
         // reverseLayout: the first item sits at the bottom, against the field, and the list grows (and scrolls) upward
@@ -133,10 +158,12 @@ fun PillSuggestions(vm: BrowserViewModel, maxHeightDp: Float) {
                 }
             }
         }
-        if (answer != null) {
-            // a faint line where the rows above end and the answer begins
-            if (rows) Box(Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant.copy(alpha = 0.5f)))
-            AnswerRow(answer)
+        AnimatedVisibility(answerShown, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            Column {
+                // a faint line where the rows above end and the answer begins
+                if (rows) Box(Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant.copy(alpha = 0.5f)))
+                leaving[0]?.let { AnswerRow(it) }
+            }
         }
     }
 }

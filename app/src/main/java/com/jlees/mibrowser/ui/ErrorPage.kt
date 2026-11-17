@@ -30,6 +30,7 @@ fun ErrorPage(err: WebError, tabUrl: String?, onRetry: () -> Unit, onUpgrade: ((
     val isCleartext = desc.contains("ERR_CLEARTEXT_NOT_PERMITTED")
     val httpsOnly = code == WebError.HTTPS_ONLY
     val (title, text, icon) = when {
+        code == WebError.CRASHED -> Triple("This Page Crashed", "Something on this page made it stop working.", "error")
         httpsOnly -> Triple("Secure Connection Not Available", "This site doesn't offer a secure (https) connection. Others on your network could see or change what you send there.", "lock")
         desc.contains("ERR_NAME_NOT_RESOLVED") || code == -2 -> Triple("Site Not Found", "We couldn't find this site. Please check your spelling.", "search")
         desc.contains("ERR_INTERNET_DISCONNECTED") -> Triple("No Internet", "Please check your Wi-Fi or mobile data connection.", "wifi_off")

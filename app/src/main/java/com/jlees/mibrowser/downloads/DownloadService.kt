@@ -26,7 +26,7 @@ class DownloadService : Service() {
             val active = Downloader.items().filter { it.active }
             if (active.isEmpty()) { stopSelf(); return }
             nm.notify(PROGRESS_ID, progress(this@DownloadService, active))
-            handler.postDelayed(this, 500) // twice a second: progress is reported every 250 ms; Android allows ~5 updates/s
+            handler.postDelayed(this, 1000) // once a second: often enough to watch, and half the wake-ups of twice
         }
     }
     private val nm get() = getSystemService(NotificationManager::class.java)

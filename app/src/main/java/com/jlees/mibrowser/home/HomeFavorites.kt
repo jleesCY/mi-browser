@@ -2,33 +2,35 @@
 // for more (Settings › Home Page › Favorites). Favorites are the bookmarks in the Favorites folder (library/).
 package com.jlees.mibrowser.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.ui.graphics.Color
-import com.jlees.mibrowser.logic.displayHost
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
-import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.data.BookmarkNode
+import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.library.FavoriteDialog
+import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.common.*
 
 private const val COLUMNS = 4
 private const val ROWS = 2
 private val TILE_HEIGHT = 74.dp
+private const val MAX_DOTS = 10
 
 /** The favorites the home page shows (none when Settings › Home Page › Favorites is off). */
 fun BrowserViewModel.homeFavorites(): List<BookmarkNode> = if (settings.homeFavorites) bookmarks.favorites else emptyList()
@@ -81,8 +83,9 @@ fun BoxScope.FavoritesGrid(
                 ) { fav -> Tile(fav, Modifier.fillMaxSize(), onOpen = { onOpen(fav) }) }
             }
         }
-        // which page: a dot each, the current one solid
-        if (pages.size > 1) Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // which page: a dot each, the current one solid; past a row's worth of dots, "3 / 12"
+        if (pages.size > MAX_DOTS) Txt("${pager.currentPage + 1} / ${pages.size}", 11f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(top = 4.dp))
+        else if (pages.size > 1) Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             repeat(pages.size) { i ->
                 Box(Modifier.size(6.dp).background(ui.cs.onSurface.copy(alpha = if (i == pager.currentPage) 0.8f else 0.25f), CircleShape))
             }
@@ -94,9 +97,9 @@ fun BoxScope.FavoritesGrid(
 private fun Tile(fav: BookmarkNode, modifier: Modifier, onOpen: () -> Unit) {
     val ui = LocalUi.current
     Column(
-        modifier.height(TILE_HEIGHT).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-            // a hold is the grid's (edit, or drag to move; it gives the buzz): with a long-click of its own, letting go after
-    // one isn't a tap
+        modifier.height(TILE_HEIGHT).clip(RoundedCornerShape(16.dp))
+            // a hold is the grid's (edit, or drag to move; it gives the buzz): with a long-click of its own, letting go
+            // after one isn't a tap
             .combinedClickable(interactionSource = null, indication = ripple(), hapticFeedbackEnabled = false, onLongClick = {}, onClick = onOpen)
             .padding(top = 6.dp, start = 4.dp, end = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
