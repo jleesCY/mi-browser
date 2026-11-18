@@ -47,8 +47,9 @@ import kotlin.math.roundToInt
  * the accent colour with a pencil for edit. Both grow the same way as the row moves, and the icon pops once the swipe
  * has gone far enough to act.
  *
- * @param confirmDelete the delete swipe asks first: the row springs back and [onDelete] runs (it shows the
- *   question and deletes on yes) instead of the row sliding away
+ * @param askDelete the delete swipe asks first: the row is held where it was let go (its red panel solid) and this
+ *   gets the answer's callback. No: the row slides back; yes: it's left for the list to remove. Without it, the row
+ *   slides away and [onDelete] runs.
  * @param rowHeight the row's height, or null to fit its content (rows that grow, like a download with a progress bar)
  * @param slotHeight the row plus the gap below it; when given, it closes up after a delete (lists that
  *   position or animate their rows themselves leave it out)
@@ -56,10 +57,12 @@ import kotlin.math.roundToInt
 @Composable
 fun SwipeActionRow(
     rowHeight: Dp?, onDelete: () -> Unit, modifier: Modifier = Modifier, onEdit: (() -> Unit)? = null,
-    slotHeight: Dp? = null, confirmDelete: Boolean = false, content: @Composable () -> Unit,
+    slotHeight: Dp? = null,
+    askDelete: ((answer: (Boolean) -> Unit) -> Unit)? = null,
+    content: @Composable () -> Unit,
 ) {
     val ui = LocalUi.current
-    val corner = ui.radius.dp // the Library rows' shape (libraryRowShape)
+    val corner = ui.radius.dp // the Library rows' shape (libraryRowShape); a table row's red is rounded the same
     var tx by remember { mutableFloatStateOf(0f) }
     val shrink = remember { Animatable(1f) }
     var deleting by remember { mutableStateOf(false) }
@@ -111,9 +114,9 @@ fun SwipeActionRow(
                     onDragStopped = { v ->
                         armed = false
                         when {
-                            confirmDelete && (tx < -wPx * 0.25f || (v < -1200f && tx < -wPx * 0.08f)) -> {
-                                onDelete()
-                                springBack(v)
+                            askDelete != null && (tx < -wPx * 0.25f || (v < -1200f && tx < -wPx * 0.08f)) -> {
+                                deleting = true // held, and not draggable, while you're asked
+                                askDelete { yes -> if (!yes) { deleting = false; springBack(0f) } }
                             }
                             tx < -wPx * 0.25f || (v < -1200f && tx < -wPx * 0.08f) -> {
                                 deleting = true
@@ -141,7 +144,8 @@ fun SwipeActionRow(
 private suspend fun settle(from: Float, velocity: Float, set: (Float) -> Unit) {
     if (from == 0f) return
     val v = if ((velocity < 0) == (from < 0)) 0f else velocity // a fling away from rest isn't carried into the return
-    animate(from, 0f, v, Motion.spatial()) { value, _ -> set(if (from < 0) value.coerceAtMost(0f) else value.coerceAtLeast(0f)) }
+    // no bounce: a table row is see-through, so any wobble would flicker the red behind it
+    animate(from, 0f, v, Motion.noBounce()) { value, _ -> set(if (from < 0) value.coerceAtMost(0f) else value.coerceAtLeast(0f)) }
 }
 
 /** A swipe action's icon on its panel; [scale] is read at draw time, so swiping never recomposes the row. */

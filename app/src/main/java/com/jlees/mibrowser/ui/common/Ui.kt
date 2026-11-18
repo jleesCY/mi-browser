@@ -1,11 +1,16 @@
 // Shared UI primitives: Material 3 Expressive theme glue (color roles, Google Sans Flex, Material Symbols, motion).
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.background
 
 import androidx.compose.ui.Alignment
 
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.MarqueeSpacing
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.ui.draw.drawBehind
 
 import androidx.compose.foundation.layout.padding
 
@@ -103,8 +108,9 @@ data class UiConfig(
     val fontScale: Float = 1f,
     val padding: Spacing = Spacing.NORMAL,
     val font: FontFamily = sansFlex(false),
-    /** Pure Black (OLED) is on and showing: backgrounds that fill the screen are true black. */
+    /** Pure Black is on and showing: backgrounds that fill the screen are true black. */
     val pureBlack: Boolean = false,
+    val listStyle: com.jlees.mibrowser.data.ListStyle = com.jlees.mibrowser.data.ListStyle.CARDS,
 ) {
     // Type weights
     val regular get() = FontWeight.W400
@@ -115,6 +121,32 @@ data class UiConfig(
 
 val LocalUi = staticCompositionLocalOf { UiConfig() }
 
+/**
+ * Whether one-line text that doesn't fit pans here ([panIfLong]) or ends in "…". Each place that may pan (Settings, the
+ * tab menu, the Library's pages, History, the Pill's suggestions) provides it from Look & Feel › Pan Overflowed Text.
+ */
+val LocalPan = compositionLocalOf { false }
+
+/**
+ * Whether a list's rows pan (Bookmarks, Downloads, Following, History each have their own switch). The page around a
+ * list (its menus, pop-ups, settings) pans as Settings does ([LocalPan]); only its rows ([ListRowPan]) use this.
+ */
+val LocalListPan = compositionLocalOf { false }
+
+/** A list row's text pans as its list's switch says ([LocalListPan]), not as the page around it. */
+@Composable
+fun ListRowPan(content: @Composable () -> Unit) = CompositionLocalProvider(LocalPan provides LocalListPan.current, content = content)
+
+/**
+ * One-line text that doesn't fit pans to show the rest instead of ending in "…": it waits at the start, slides slowly to
+ * the end, carries on round to the start, and waits again. Text that fits stays still (nothing runs).
+ */
+fun Modifier.panIfLong(): Modifier = basicMarquee(
+    iterations = Int.MAX_VALUE, initialDelayMillis = 1500, repeatDelayMillis = 2000,
+    spacing = MarqueeSpacing.fractionOfContainer(1f / 4f), velocity = 30.dp,
+)
+
+/** Text in mi's font and sizes; with [maxLines] 1, text too long for its line pans where that's on ([LocalPan]), else ends in "…". */
 @Composable
 fun Txt(
     text: String,
@@ -128,20 +160,26 @@ fun Txt(
     lineHeight: Float? = null,
     letterSpacing: Float? = null,
     underline: Boolean = false,
+    /** Crossed out (an old price). */
+    strike: Boolean = false,
     font: FontFamily? = null,
+    /** False: never pans, even where panning is on (web addresses: the site is what matters, so "…" is fine). */
+    pan: Boolean = true,
 ) {
     val fs = if (scaled) size * LocalUi.current.fontScale else size
+    val oneLine = maxLines == 1 && LocalPan.current && pan
     BasicText(
         text = text,
-        modifier = modifier,
+        modifier = if (oneLine) modifier.panIfLong() else modifier,
         maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
+        softWrap = !oneLine,
+        overflow = if (oneLine) TextOverflow.Clip else TextOverflow.Ellipsis,
         style = TextStyle(
             color = color, fontSize = fs.sp, fontFamily = font ?: LocalUi.current.font, fontWeight = weight,
             textAlign = align ?: TextAlign.Unspecified,
             lineHeight = lineHeight?.sp ?: TextUnit.Unspecified,
             letterSpacing = letterSpacing?.sp ?: TextUnit.Unspecified,
-            textDecoration = if (underline) TextDecoration.Underline else null,
+            textDecoration = when { underline -> TextDecoration.Underline; strike -> TextDecoration.LineThrough; else -> null },
         ),
     )
 }
@@ -176,6 +214,36 @@ fun rowMargin(padding: Spacing): Float = when (padding) { Spacing.COMPACT -> 8f;
 /** The shape of a row in the Library lists (bookmarks, history, downloads), so all three look alike. */
 @androidx.compose.runtime.Composable
 fun libraryRowShape() = androidx.compose.foundation.shape.RoundedCornerShape(LocalUi.current.radius.dp)
+
+/** Look & Feel › List Style is Table: History, Downloads and Following show as a table of rows, not separate cards. */
+val UiConfig.tableLists get() = listStyle == com.jlees.mibrowser.data.ListStyle.TABLE
+
+/**
+ * A row of History, Downloads or Following: its own rounded card (List Style: Cards), or (Table) flat on the page, edge
+ * to edge, with a thin line under it, flush with the rows around it. Bookmarks keep their cards (folders need the
+ * structure). Swiping a table row reddens the whole row, rounded by the Corners setting like the cards.
+ */
+@Composable
+fun Modifier.listRow(): Modifier {
+    val ui = LocalUi.current
+    if (!ui.tableLists) return clip(libraryRowShape()).background(ui.cs.surfaceContainerHighest)
+    val line = ui.cs.outlineVariant.copy(alpha = 0.6f)
+    // edge to edge, the line too; the row's content comes in a little more, in line with the date headers
+    return drawBehind { drawLine(line, androidx.compose.ui.geometry.Offset(0f, size.height - 0.5f), androidx.compose.ui.geometry.Offset(size.width, size.height - 0.5f), 1f) }
+        .padding(horizontal = 5.dp)
+}
+
+/** The space between those rows: List Spacing's in Cards, none in Table (they meet at their lines). */
+@Composable
+fun listGap(): Float = LocalUi.current.let { if (it.tableLists) 0f else rowMargin(it.padding) }
+
+/** The space either side of those lists: the cards sit in from the edges; a table runs edge to edge. */
+@Composable
+fun listSides() = if (LocalUi.current.tableLists) 0.dp else 20.dp
+
+/** What else is in those lists (date headers, a choice, notes) keeps the cards' margin in a table, off the screen's edges. */
+@Composable
+fun Modifier.listInset(): Modifier = if (LocalUi.current.tableLists) padding(horizontal = 20.dp) else this
 
 /** The Pill's outer bar (and every Pill-shaped bar copying it: the sheets' search Pill, the guide's). */
 val UiConfig.pillBar: Color get() = if (isDark) cs.surfaceContainerHigh else androidx.compose.ui.graphics.lerp(cs.surfaceContainerHighest, cs.primaryContainer, 0.45f)

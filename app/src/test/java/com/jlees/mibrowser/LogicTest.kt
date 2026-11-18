@@ -25,6 +25,7 @@ import com.jlees.mibrowser.search.searchEngine
 import com.jlees.mibrowser.search.searchQueryFromUrl
 import com.jlees.mibrowser.search.typedBangLength
 import com.jlees.mibrowser.search.shortcutMatches
+import com.jlees.mibrowser.data.pans
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -408,5 +409,12 @@ class LogicTest {
         assertEquals(3, slot(9f, 0f))       // past the right edge: the last column
         assertEquals(0, slot(-2f, -1f))     // above and left: the first slot
         assertEquals(9, slot(3f, 5f))       // below the last row: the last favorite
+    }
+
+    @Test fun longTextPansInSettingsAndTheTabMenuToBeginWith() {
+        val s = com.jlees.mibrowser.data.Settings()
+        val on = com.jlees.mibrowser.data.PanArea.entries.filter { s.pans(it) }
+        assertEquals(listOf(com.jlees.mibrowser.data.PanArea.SETTINGS, com.jlees.mibrowser.data.PanArea.TAB_MENU), on)
+        assertEquals(false, s.copy(panLongText = false).pans(com.jlees.mibrowser.data.PanArea.SETTINGS)) // off everywhere
     }
 }

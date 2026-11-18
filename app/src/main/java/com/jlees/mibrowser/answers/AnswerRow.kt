@@ -1,4 +1,4 @@
-// The inline answer above the Pill's field, and its switch in Settings › Pill › While Typing.
+// The inline answer above the Pill's field (its switch is in Settings › Pill › While Typing).
 package com.jlees.mibrowser.answers
 
 import androidx.compose.foundation.layout.Column
@@ -13,14 +13,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ui.common.LocalHaptics
 import com.jlees.mibrowser.ui.common.LocalUi
 import com.jlees.mibrowser.ui.common.Txt
 import com.jlees.mibrowser.ui.common.copyText
 import com.jlees.mibrowser.ui.common.touchable
-import com.jlees.mibrowser.ui.settings.SettingsRow
-import com.jlees.mibrowser.ui.settings.SwitchItem
 
 /** The label on a copied answer: Paste and Go doesn't offer it back (CopiedLink). */
 const val ANSWER_CLIP = "mi answer"
@@ -56,10 +53,3 @@ fun AnswerRow(a: InlineAnswer) {
 /** "1,024", "-4", "3.10686 miles", "1e20": a number, with any unit after it. Not a time ("5:00 PM") or "0xFF". */
 internal fun isNumber(answer: String) = NUMBER.matches(answer)
 private val NUMBER = Regex("""-?\d[\d,.]*(e-?\d+)?(\s.*)?""")
-
-/** Settings › Pill › While Typing › Inline Answers. */
-fun inlineAnswersRow(vm: BrowserViewModel) = SettingsRow("Inline Answers", "calculator math unit conversion convert time date coin dice answer") {
-    SwitchItem("calculate", "Inline Answers", "Math, unit conversions, the time and more, answered above the Pill as you type", vm.settings.inlineAnswers) {
-        vm.updateSettings { copy(inlineAnswers = it) }
-    }
-}

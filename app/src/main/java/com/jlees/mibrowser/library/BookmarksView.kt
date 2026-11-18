@@ -129,7 +129,8 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
                 BookmarkRow(b, rowH, vm.settings.showBookmarkIcons,
                     onPress = { if (b.isFolder) folderStack = folderStack + b else { vm.navigateTab(b.url, b.title); closeOverlay() } },
                     onDelete = { confirmDelete(vm, b) },
-                    onRename = { openEdit(b) })
+                    onRename = { openEdit(b) },
+                    askDelete = { answer -> confirmDelete(vm, b, answer) })
             }
         }
 
@@ -197,10 +198,10 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
 }
 
 @Composable
-private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPress: () -> Unit, onDelete: () -> Unit, onRename: () -> Unit) {
+private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPress: () -> Unit, onDelete: () -> Unit, onRename: () -> Unit, askDelete: (answer: (Boolean) -> Unit) -> Unit) = ListRowPan {
     val ui = LocalUi.current
     // swipe left to delete, right to edit (see SwipeActionRow); the sortable list positions rows itself, so no slot height
-    SwipeActionRow(height.dp, onDelete, onEdit = onRename, confirmDelete = true) {
+    SwipeActionRow(height.dp, onDelete, onEdit = onRename, askDelete = askDelete) {
         Row(
             Modifier.fillMaxWidth().height(height.dp).clip(libraryRowShape()).background(ui.cs.surfaceContainerHighest).touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -218,7 +219,7 @@ private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPre
             }
             Column(Modifier.weight(1f)) {
                 Txt(b.title, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
-                if (!b.isFolder) Txt(b.url, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                if (!b.isFolder) Txt(displayHost(b.url).removePrefix("www."), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false) // the site, not the whole address
             }
             if (b.isFolder) Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
         }
@@ -226,7 +227,7 @@ private fun BookmarkRow(b: BookmarkNode, height: Float, showIcon: Boolean, onPre
 }
 
 /** Deleting a bookmark (or a folder, with everything in it) asks first: it can't be undone. */
-private fun confirmDelete(vm: BrowserViewModel, b: BookmarkNode) {
+private fun confirmDelete(vm: BrowserViewModel, b: BookmarkNode, answer: (Boolean) -> Unit = {}) {
     val inside = descendantsAndSelf(vm.bookmarks.nodes, b.id) - b.id
     val bookmarks = vm.bookmarks.nodes.count { it.id in inside && !it.isFolder }
     val folders = inside.size - bookmarks
@@ -240,7 +241,8 @@ private fun confirmDelete(vm: BrowserViewModel, b: BookmarkNode) {
         return vm.showAlert(
             "Delete All Favorites?",
             if (n == 0) "The Favorites folder will be deleted." else "The Favorites folder holds your favorites. Deleting it removes ${if (n == 1) "your favorite" else "all $n favorites"} from your home page and bookmarks.",
-            listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Delete All", ButtonStyle.DESTRUCTIVE) { vm.bookmarks.delete(b.id) }),
+            listOf(AlertButton("Cancel", ButtonStyle.CANCEL) { answer(false) }, AlertButton("Delete All", ButtonStyle.DESTRUCTIVE) { answer(true); vm.bookmarks.delete(b.id) }),
+            onCancel = { answer(false) },
         )
     }
     vm.showAlert(
@@ -250,6 +252,7 @@ private fun confirmDelete(vm: BrowserViewModel, b: BookmarkNode) {
             contents.isEmpty() -> "The folder \"${b.title}\" will be deleted."
             else -> "The folder \"${b.title}\" and the $contents in it will be deleted."
         },
-        listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Delete", ButtonStyle.DESTRUCTIVE) { vm.bookmarks.delete(b.id) }),
+        listOf(AlertButton("Cancel", ButtonStyle.CANCEL) { answer(false) }, AlertButton("Delete", ButtonStyle.DESTRUCTIVE) { answer(true); vm.bookmarks.delete(b.id) }),
+        onCancel = { answer(false) },
     )
 }

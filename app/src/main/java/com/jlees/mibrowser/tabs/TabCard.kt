@@ -169,7 +169,7 @@ internal fun TabHeader(tab: TabItem, active: Boolean, showLogo: Boolean, modifie
         Column(Modifier.padding(start = 10.dp).weight(1f)) {
             // an incognito tab gives nothing away: no title, site, icon or preview
             Txt(if (tab.incognito) "Incognito tab" else tab.title.ifEmpty { "New Tab" }, 15f, ui.cs.onSurface, ui.semibold, maxLines = 1)
-            if (!tab.incognito) Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+            if (!tab.incognito) Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
         }
         if (tab.pinned) Sym("keep", 18f, ui.cs.primary, Modifier.padding(start = 8.dp))
     }

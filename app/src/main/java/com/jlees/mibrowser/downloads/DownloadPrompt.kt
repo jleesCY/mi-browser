@@ -86,7 +86,7 @@ class DownloadPrompt(
         )
     }
 
-    /** Ask Where to Save: Android's save dialog (opening in the chosen folder); [then] gets the file and its name. */
+    /** Ask Every Time: Android's save dialog (opening in the chosen folder); [then] gets the file and its name. */
     private fun chooseFile(name: String, mime: String?, then: (Uri, String) -> Unit) {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
             .setType(mime?.substringBefore(';')?.trim()?.takeIf { it.isNotEmpty() } ?: "application/octet-stream")

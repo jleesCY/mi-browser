@@ -92,7 +92,7 @@ fun ConfirmDialog(vm: BrowserViewModel) {
     val c = last ?: return
     val message = when (c.action) {
         ConfirmAction.CLEAR_HISTORY -> "This will permanently delete history for: ${c.label}."
-        ConfirmAction.WIPE_DATA -> "This will delete ALL data including history, bookmarks, tabs, and settings. The app will be reset to a fresh state."
+        ConfirmAction.WIPE_DATA -> "This will delete ALL data including history, bookmarks, tabs, followed prices and settings. mi will then close and open again, fresh."
         ConfirmAction.CLEAR_DATA -> "This will delete cookies, site storage, cached files, saved site icons and tab snapshots. You will be signed out of websites."
         ConfirmAction.RESET_SETTINGS -> "This will restore all app settings to their default values. Your history and tabs will be preserved."
     }

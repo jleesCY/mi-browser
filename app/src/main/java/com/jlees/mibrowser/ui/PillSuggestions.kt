@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.ui.unit.sp
@@ -183,7 +182,8 @@ private fun MatchText(text: String, typed: String, modifier: Modifier) {
         }
     }
     BasicText(
-        shown, modifier, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        shown, if (LocalPan.current) modifier.panIfLong() else modifier, maxLines = 1, softWrap = !LocalPan.current,
+        overflow = if (LocalPan.current) androidx.compose.ui.text.style.TextOverflow.Clip else androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         style = TextStyle(color = ui.cs.onSurface, fontSize = (15 * ui.fontScale).sp, fontFamily = ui.font, fontWeight = ui.regular),
     )
 }

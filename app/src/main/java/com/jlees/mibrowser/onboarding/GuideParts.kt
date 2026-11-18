@@ -160,7 +160,7 @@ internal fun GuidePage(
             if (panel != SwitcherPanel.SETTINGS) {
                 val (icon, title, sub) = if (panel == SwitcherPanel.LIBRARY) Triple("bookmarks", "mi browser", "github.com") else Triple("history", "Example Domain", "example.com")
                 // the app's own swipe row: red with a trash can to delete, the accent with a pencil to edit
-                SwipeActionRow(64.dp, onDelete, Modifier.padding(top = 20.dp, end = 12.dp).onGloballyPositioned { onRow(it.boundsInRoot()) }, onEdit = onEdit, confirmDelete = true) {
+                SwipeActionRow(64.dp, onDelete, Modifier.padding(top = 20.dp, end = 12.dp).onGloballyPositioned { onRow(it.boundsInRoot()) }, onEdit = onEdit, askDelete = { answer -> onDelete(); answer(false) }) {
                     Row(
                         Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(ui.radius.dp)).background(ui.cs.surfaceContainerHighest).padding(horizontal = 15.dp),
                         verticalAlignment = Alignment.CenterVertically,

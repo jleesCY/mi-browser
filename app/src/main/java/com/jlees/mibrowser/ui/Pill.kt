@@ -2,6 +2,8 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.data.pans
+import com.jlees.mibrowser.ui.common.LocalPan
 import com.jlees.mibrowser.tabs.switcherLayout
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 
@@ -156,7 +158,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                     // to fit them as they come and go, never jumping. Only this part animates its size: the
                     // morph into the switcher's Pill sizes the field directly, so it keeps pace with the outside
                     Box(Modifier.fillMaxWidth().animateContentSize(Motion.noBounce(), alignment = Alignment.BottomCenter)) {
-                        if (vm.isInputFocused) PillSuggestions(vm, suggestionsMaxDp)
+                        if (vm.isInputFocused) CompositionLocalProvider(LocalPan provides vm.settings.pans(com.jlees.mibrowser.data.PanArea.SUGGESTIONS)) { PillSuggestions(vm, suggestionsMaxDp) }
                     }
                     Box(Modifier.fillMaxWidth().height(PILL_HEIGHT.dp)) {
                         Box(Modifier.fillMaxSize().graphicsLayer {

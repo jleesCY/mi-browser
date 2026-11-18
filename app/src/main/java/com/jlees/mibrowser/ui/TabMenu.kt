@@ -36,6 +36,7 @@ import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.*
+import com.jlees.mibrowser.follow.followThisPage
 
 /**
  * Tab menu (⋮ in the tab switcher), acting on the centred tab. A tall card: the tab at the top, quick tiles for its
@@ -135,7 +136,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Txt(if (incognito) "Incognito tab" else tab?.title?.ifEmpty { null } ?: "New Tab", 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Txt(if (incognito) "Not saved to history" else displayHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                    Txt(if (incognito) "Not saved to history" else displayHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
                     if (hasUrl) Sym("chevron_right", 16f, ui.cs.onSurfaceVariant, label = "Site settings")
                 }
             }
@@ -182,6 +183,8 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 TabTool("qr_code_scanner", "Scan QR", true) { leave(); vm.qrScannerVisible = true },
                 TabTool("qr_code_2", "QR code", hasUrl) { leave(); vm.qrGeneratorVisible = true },
                 TabTool("print", "Print", hasUrl) { leave(); vm.web.tryEmit(WebCmd.Print) },
+                // follow this page's price (Library › Following); not from incognito, which keeps no traces
+                if (!incognito) TabTool("sell", if (url != null && vm.follows.following(url) != null) "Following" else "Follow price", hasUrl) { leave(); vm.followThisPage() } else null,
                 // a search shortcut for this site, found from the page (not from incognito: it'd save the site in Settings)
                 if (!incognito) TabTool("travel_explore", "Add shortcut", hasUrl) { dismiss(); vm.addSearchShortcutFromPage() } else null,
                 // not from incognito: a shortcut would write the page's address into the launcher, outside mi

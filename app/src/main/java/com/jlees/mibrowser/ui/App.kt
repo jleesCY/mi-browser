@@ -1,6 +1,8 @@
 // The one screen: the page, the Pill, the tab switcher, and the sheets and dialogs over them.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.ui.common.LocalPan
+import com.jlees.mibrowser.ui.common.LocalListPan
 import com.jlees.mibrowser.tabs.switcherLayout
 import com.jlees.mibrowser.ui.common.Txt
 
@@ -80,6 +82,9 @@ import com.jlees.mibrowser.library.HistoryView
 import com.jlees.mibrowser.home.HomePage
 import com.jlees.mibrowser.qr.QrGenerator
 import com.jlees.mibrowser.qr.QrScanner
+import com.jlees.mibrowser.follow.FollowOverlays
+import com.jlees.mibrowser.data.PanArea
+import com.jlees.mibrowser.data.pans
 import com.jlees.mibrowser.ui.settings.SettingsView
 import com.jlees.mibrowser.web.MAX_LIVE_TABS
 import com.jlees.mibrowser.web.WebViewHost
@@ -98,7 +103,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         style = if (s.accentColor == GRAY_ACCENT) PaletteStyle.Monochrome else PaletteStyle.Vibrant,
     )
     val scheme = if (dark && s.pureBlack) remember(baseScheme) { pureBlack(baseScheme) } else baseScheme
-    val ui = UiConfig(scheme, dark, s.cornerRadius, s.fontScale, s.uiPadding, appFont(s.font), pureBlack = dark && s.pureBlack)
+    val ui = UiConfig(scheme, dark, s.cornerRadius, s.fontScale, s.uiPadding, appFont(s.font), pureBlack = dark && s.pureBlack, listStyle = s.listStyle)
     MaterialExpressiveTheme(colorScheme = scheme, motionScheme = MotionScheme.expressive(), typography = appTypography(s.font)) {
     CompositionLocalProvider(LocalUi provides ui) {
     IncognitoTextInput(incognito = { vm.tabs.current?.incognito == true }) {
@@ -284,12 +289,25 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
                 // above the tab switcher (zIndex 150) when opened from it; closing returns to the switcher
                 if (vm.activeView != Sheet.NONE) Box(Modifier.fillMaxSize().zIndex(160f)) {
-                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.DOWNLOADS
+                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.DOWNLOADS || vm.activeView == Sheet.FOLLOWING
+                    // the Library page you're on is the one it reopens on
+                    LaunchedEffect(vm.activeView) {
+                        val page = when (vm.activeView) {
+                            Sheet.BOOKMARKS -> com.jlees.mibrowser.data.LibraryPage.BOOKMARKS; Sheet.DOWNLOADS -> com.jlees.mibrowser.data.LibraryPage.DOWNLOADS
+                            Sheet.FOLLOWING -> com.jlees.mibrowser.data.LibraryPage.FOLLOWING; else -> null
+                        }
+                        if (page != null && page != vm.settings.libraryPage) vm.updateSettings { copy(libraryPage = page) }
+                    }
                     val history = vm.activeView == Sheet.HISTORY || vm.activeView == Sheet.RECENTLY_CLOSED
                     val header: (@Composable () -> Unit)? = if (library) { { Txt("Library", 28f, ui.cs.onSurface, ui.extrabold) } } else if (vm.activeView == Sheet.SITE) { { Txt("Site Settings", 28f, ui.cs.onSurface, ui.extrabold) } }
                     else if (history) { { Txt("History", 28f, ui.cs.onSurface, ui.extrabold) } } else null
                     val side = sideOf(vm.activeView)
-                    OverlaySheet(
+                    // the page pans as Settings does (its menus and pop-ups); its list rows as their list's switch says
+                    val panArea = when (vm.activeView) {
+                        Sheet.BOOKMARKS -> PanArea.BOOKMARKS; Sheet.DOWNLOADS -> PanArea.DOWNLOADS; Sheet.FOLLOWING -> PanArea.FOLLOWING
+                        Sheet.HISTORY, Sheet.RECENTLY_CLOSED -> PanArea.HISTORY; else -> PanArea.SETTINGS
+                    }
+                    CompositionLocalProvider(LocalPan provides s.pans(PanArea.SETTINGS), LocalListPan provides s.pans(panArea)) { OverlaySheet(
                         sheetX, statusDp, imeDp, closeOverlay,
                         // swiping the view's search Pill pushes the sheet back out the way it came, with the finger
                         backTowardEnd = side > 0,
@@ -302,7 +320,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                         header = header,
                         // the page's two sections, under its title
                         belowHeader = when {
-                            library -> { { ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.DOWNLOADS.name to "Downloads"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
+                            library -> { { ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.DOWNLOADS.name to "Downloads", Sheet.FOLLOWING.name to "Following"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
                             history -> { { ConnectedChoice(listOf(Sheet.HISTORY.name to "History", Sheet.RECENTLY_CLOSED.name to "Recently Closed"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
                             else -> null
                         },
@@ -312,11 +330,12 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                             Sheet.RECENTLY_CLOSED -> com.jlees.mibrowser.library.RecentlyClosedView(vm, closeOverlay)
                             Sheet.BOOKMARKS -> BookmarksView(vm, kbVisible, closeOverlay)
                             Sheet.DOWNLOADS -> DownloadsView(vm)
+                            Sheet.FOLLOWING -> com.jlees.mibrowser.follow.FollowingView(vm)
                             Sheet.SETTINGS -> SettingsView(vm, closeOverlay)
                             Sheet.SITE -> SiteSettingsView(vm, host, closeOverlay)
                             Sheet.NONE -> {}
                         }
-                    }
+                    } }
                 }
             }
 
@@ -335,6 +354,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
 
             QrScanner(vm)
             QrGenerator(vm)
+            CompositionLocalProvider(LocalPan provides s.pans(PanArea.SETTINGS)) { FollowOverlays(vm) } // follow price: its sheets and the "tap the price" banner
             ConfirmDialog(vm)
             RenameDialog(vm)
             com.jlees.mibrowser.search.ShortcutDraftDialog(vm)

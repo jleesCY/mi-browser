@@ -65,10 +65,9 @@ fun moveBookmark(all: List<BookmarkNode>, id: String, newParent: String?): List<
 }
 
 fun reorderBookmarks(all: List<BookmarkNode>, parentId: String?, from: Int, to: Int): List<BookmarkNode> {
-    val siblings = all.filter { it.parentId == parentId }.sortedBy { it.order }.toMutableList()
+    val siblings = all.filter { it.parentId == parentId }.sortedBy { it.order }
     if (from !in siblings.indices || to !in siblings.indices) return all
-    siblings.add(to, siblings.removeAt(from))
-    return all.filter { it.parentId != parentId } + siblings.mapIndexed { i, b -> b.copy(order = i) }
+    return all.filter { it.parentId != parentId } + moved(siblings, from, to).mapIndexed { i, b -> b.copy(order = i) }
 }
 
 /** The folders directly inside [parent] (null: the top level), in their order, leaving out [excluded]. */

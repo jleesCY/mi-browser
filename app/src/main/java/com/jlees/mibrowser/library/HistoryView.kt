@@ -60,12 +60,12 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
 
     var undo by remember { mutableStateOf<Undo?>(null) } // the last swipe-deleted entry, for a few seconds
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = SheetPillSpace)) {
+        LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = listSides(), end = listSides(), top = 16.dp, bottom = SheetPillSpace)) {
             if (sections.isEmpty()) item { EmptyState("history", if (searching) "No matches" else "No History Yet") }
             sections.forEach { sec ->
                 item(key = "h_" + sec.title) {
                     Row(
-                        Modifier.fillMaxWidth().touchable { collapsed = if (sec.title in collapsed) collapsed - sec.title else collapsed + sec.title }.padding(vertical = 10.dp),
+                        Modifier.fillMaxWidth().listInset().touchable { collapsed = if (sec.title in collapsed) collapsed - sec.title else collapsed + sec.title }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (vm.settings.historyGrouping == HistoryGrouping.SITE) NetImage(Favicons.src(sec.title), Modifier.padding(end = 8.dp).size(16.dp).clip(RoundedCornerShape(2.dp)))
@@ -114,15 +114,15 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
 }
 
 @Composable
-private fun HistoryRow(item: HistoryItem, modifier: Modifier, icon: String = "history", onPress: () -> Unit, onDelete: () -> Unit) {
+private fun HistoryRow(item: HistoryItem, modifier: Modifier, icon: String = "history", onPress: () -> Unit, onDelete: () -> Unit) = ListRowPan {
     val ui = LocalUi.current
     val height = rowHeight(ui.padding, ui.fontScale)
-    val margin = rowMargin(ui.padding)
+    val margin = listGap()
     // swipe left to delete (see SwipeActionRow)
     SwipeActionRow(height.dp, onDelete, modifier, slotHeight = (height + margin).dp) {
         Row(
             Modifier.fillMaxWidth().height(height.dp)
-                .clip(libraryRowShape()).background(ui.cs.surfaceContainerHighest)
+                .listRow()
                 .touchable(onClick = onPress).padding(horizontal = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -131,7 +131,7 @@ private fun HistoryRow(item: HistoryItem, modifier: Modifier, icon: String = "hi
                 Txt(item.title.ifEmpty { "Untitled" }, 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
                 Row {
                     Txt(smartDate(item.timestamp), 12f, ui.cs.primary, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
-                    Txt(displayHost(item.url), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                    Txt(displayHost(item.url), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
                 }
             }
             Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
@@ -192,12 +192,12 @@ fun RecentlyClosedView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         }
         // ⋮: clear them all (asks first, as History's Clear does)
         SheetSearchPill(search, { search = it }) { close ->
-            SheetMenuItem("delete", "Clear Recently Closed") { close(); vm.confirmClearRecentlyClosed() }
+            SheetMenuItem("delete", "Clear Recently Closed Tabs") { close(); vm.confirmClearRecentlyClosed() }
         }
     }
 }
 
-/** Clear Recently Closed (History's ⋮ menu, Settings › History): asks first, then empties the list. History stays. */
+/** Clear Recently Closed Tabs (History's ⋮ menu, Settings › History): asks first, then empties the list. History stays. */
 fun BrowserViewModel.confirmClearRecentlyClosed() = showAlert(
     "Clear recently closed?", "The tabs you closed are removed from this list. Your history stays.",
     listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Clear", ButtonStyle.DESTRUCTIVE) { tabs.forgetClosed() }),

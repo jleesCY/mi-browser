@@ -5,6 +5,10 @@ import com.jlees.mibrowser.R
 
 val SymbolRes: Map<String, Int> = mapOf(
     "add" to R.drawable.sym_add,
+    "sell" to R.drawable.sym_sell,
+    "percent" to R.drawable.sym_percent,
+    "trending_down" to R.drawable.sym_trending_down,
+    "notifications" to R.drawable.sym_notifications,
     "apps" to R.drawable.sym_apps,
     "arrow_back" to R.drawable.sym_arrow_back,
     "arrow_forward" to R.drawable.sym_arrow_forward,
@@ -78,6 +82,7 @@ val SymbolRes: Map<String, Int> = mapOf(
     "upload" to R.drawable.sym_upload,
     "wallpaper" to R.drawable.sym_wallpaper,
     "warning" to R.drawable.sym_warning,
+    "wifi" to R.drawable.sym_wifi,
     "wifi_off" to R.drawable.sym_wifi_off,
     "add_to_home_screen" to R.drawable.sym_add_to_home_screen,
     "library_books" to R.drawable.sym_library_books,

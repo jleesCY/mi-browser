@@ -58,6 +58,8 @@ val LocalSettingsNav = androidx.compose.runtime.staticCompositionLocalOf { Setti
 fun Item(
     icon: String, title: String, subtitle: String? = null, danger: Boolean = false,
     onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null, below: (@Composable () -> Unit)? = null,
+    /** Larger for a row that leads (the likeliest price in the follow menu). */
+    titleSize: Float = 16f,
 ) {
     val ui = LocalUi.current
     Column(Modifier.fillMaxWidth()) {
@@ -71,7 +73,7 @@ fun Item(
                 contentAlignment = Alignment.Center,
             ) { Sym(icon, 22f, if (danger) ui.cs.onErrorContainer else ui.cs.onSecondaryContainer) }
             Column(Modifier.weight(1f).padding(start = 16.dp, end = 8.dp)) {
-                Txt(title, 16f, if (danger) ui.cs.error else ui.cs.onSurface, ui.semibold)
+                Txt(title, titleSize, if (danger) ui.cs.error else ui.cs.onSurface, if (titleSize > 16f) ui.extrabold else ui.semibold)
                 if (subtitle != null) Txt(subtitle, 13f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 2.dp), lineHeight = 18f)
             }
             trailing?.invoke()
@@ -128,14 +130,18 @@ fun ExpandItem(icon: String, title: String, subtitle: String?, value: String?, d
 
 /** An option inside an [ExpandItem], indented to line up with the row's title. */
 @Composable
-fun OptionRow(label: String, selected: Boolean, leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
+fun OptionRow(label: String, selected: Boolean, leading: (@Composable () -> Unit)? = null, detail: String? = null, strike: Boolean = false, onClick: () -> Unit) {
     val ui = LocalUi.current
     Row(
         Modifier.fillMaxWidth().touchable(onClick = onClick).heightIn(min = 48.dp).padding(start = 72.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) Box(Modifier.padding(end = 12.dp)) { leading() }
-        Txt(label, 15f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f))
+        // [detail]: a second line under it; [strike]: crossed out (an old price)
+        Column(Modifier.weight(1f).padding(vertical = if (detail != null) 6.dp else 0.dp)) {
+            Txt(label, 15f, if (strike) ui.cs.onSurfaceVariant else ui.cs.onSurface, ui.semibold, strike = strike)
+            detail?.let { Txt(it, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 2) }
+        }
         if (selected) Sym("check", 20f, ui.cs.primary)
     }
 }

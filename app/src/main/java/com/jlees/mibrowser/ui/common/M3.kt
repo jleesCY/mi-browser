@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.blockTouches
@@ -80,7 +79,10 @@ fun ConnectedChoice(options: List<Pair<String, String>>, value: String, modifier
                 },
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             ) {
-                Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
+                // a long choice pans where that's on, else ends in "…"
+                val pan = LocalPan.current
+                Text(label, if (pan) Modifier.panIfLong() else Modifier, maxLines = 1, softWrap = !pan,
+                    overflow = if (pan) androidx.compose.ui.text.style.TextOverflow.Clip else androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
             }
         }
     }

@@ -11,7 +11,6 @@ import com.jlees.mibrowser.library.groupByDate
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -55,12 +54,12 @@ fun DownloadsView(vm: BrowserViewModel) {
     var collapsed by remember { mutableStateOf(setOf<String>()) }
     val sections = groupByDate(items) { it.startedAt }
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = SheetPillSpace), verticalArrangement = Arrangement.spacedBy(rowMargin(ui.padding).dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = listSides(), end = listSides(), top = 16.dp, bottom = SheetPillSpace), verticalArrangement = Arrangement.spacedBy(listGap().dp)) {
             if (items.isEmpty()) item { EmptyState("download", if (q.isEmpty()) "No Downloads Yet" else "No matches") }
             sections.forEach { (title, group) ->
                 item(key = "h_$title") {
                     Row(
-                        Modifier.fillMaxWidth().touchable { collapsed = if (title in collapsed) collapsed - title else collapsed + title }.padding(vertical = 4.dp),
+                        Modifier.fillMaxWidth().listInset().touchable { collapsed = if (title in collapsed) collapsed - title else collapsed + title }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Txt(title, 14f, ui.cs.onSurfaceVariant, ui.bold, Modifier.weight(1f))
@@ -70,7 +69,7 @@ fun DownloadsView(vm: BrowserViewModel) {
                 if (q.isNotEmpty() || title !in collapsed) items(group, key = { it.id }) { d ->
                     // swipe left: delete a finished download from the phone, or cancel one in progress (its partial
                     // file goes); either asks first, like bookmarks (the row springs back until confirmed)
-                    SwipeActionRow(null, onDelete = { confirmDelete(vm, d) }, Modifier.animateItem(), confirmDelete = true) {
+                    SwipeActionRow(null, onDelete = { confirmDelete(vm, d) }, Modifier.animateItem(), askDelete = { answer -> confirmDelete(vm, d, answer) }) {
                         DownloadRow(
                             d,
                             onPress = { if (d.state == DownloadState.DONE) open(d) },
@@ -106,11 +105,11 @@ fun DownloadsView(vm: BrowserViewModel) {
 }
 
 @Composable
-private fun DownloadRow(d: DownloadItem, onPress: () -> Unit, actions: @Composable RowScope.() -> Unit) {
+private fun DownloadRow(d: DownloadItem, onPress: () -> Unit, actions: @Composable RowScope.() -> Unit) = ListRowPan {
     val ui = LocalUi.current
     Row(
         Modifier.fillMaxWidth().heightIn(min = rowHeight(ui.padding, ui.fontScale).dp)
-            .clip(libraryRowShape()).background(ui.cs.surfaceContainerHighest)
+            .listRow()
             .touchable(onClick = onPress).padding(start = 15.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -120,7 +119,7 @@ private fun DownloadRow(d: DownloadItem, onPress: () -> Unit, actions: @Composab
             Row {
                 if (d.state == DownloadState.DONE) Txt(smartDate(d.startedAt), 12f, ui.cs.primary, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
                 Txt(downloadStatus(d, withTimeLeft = false), 12f, if (d.state == DownloadState.FAILED) ui.cs.error else ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(end = 6.dp), maxLines = 1)
-                if (d.state == DownloadState.DONE) Txt(displayHost(d.url), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                if (d.state == DownloadState.DONE) Txt(displayHost(d.url), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
             }
             if (d.state == DownloadState.RUNNING || d.state == DownloadState.PAUSED || d.state == DownloadState.QUEUED) {
                 val f = d.fraction
@@ -143,14 +142,15 @@ private fun RowAction(icon: String, label: String, onClick: () -> Unit) {
 }
 
 /** Deleting a download asks first: a finished one's file is deleted from the phone, a running one is cancelled. */
-private fun confirmDelete(vm: BrowserViewModel, d: DownloadItem) {
+private fun confirmDelete(vm: BrowserViewModel, d: DownloadItem, answer: (Boolean) -> Unit = {}) {
     val done = d.state == DownloadState.DONE
     vm.showAlert(
         if (done) "Delete Download?" else "Cancel Download?",
         if (done) "\"${d.fileName}\" will be deleted from your phone." else "\"${d.fileName}\" stops downloading and what was saved of it is deleted.",
         listOf(
-            AlertButton(if (done) "Cancel" else "Keep Downloading", ButtonStyle.CANCEL),
-            AlertButton(if (done) "Delete" else "Cancel Download", ButtonStyle.DESTRUCTIVE) { vm.downloader.cancel(d.id) },
+            AlertButton(if (done) "Cancel" else "Keep Downloading", ButtonStyle.CANCEL) { answer(false) },
+            AlertButton(if (done) "Delete" else "Cancel Download", ButtonStyle.DESTRUCTIVE) { answer(true); vm.downloader.cancel(d.id) },
         ),
+        onCancel = { answer(false) },
     )
 }

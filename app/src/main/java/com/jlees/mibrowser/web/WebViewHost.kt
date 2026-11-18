@@ -199,7 +199,7 @@ class WebViewHost(
             wasIncognito = incognito.detach(id, wv)
             wv.destroy()
         }
-        loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id); topInset.reset(id)
+        loaded.remove(id); errors.remove(id); lastUsed.remove(id); saved.remove(id); topInset.reset(id); com.jlees.mibrowser.follow.FollowPage.detach(id)
         pausedViews.remove(id); dialogLimit.reset(id); media.forget(id); signIn.forgetTab(id); httpsOnly.forget(id)
         // posted: callers destroy a tab's WebView before (or while) removing the tab, and the tab list must be final
         if (wasIncognito || incognito.detach(id, null) || vm.tabs.list.none { it.id == id }) Handler(Looper.getMainLooper()).post { incognito.release() }
@@ -311,6 +311,7 @@ class WebViewHost(
         wv.webChromeClient = TabChromeClient(this, id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
         wv.setOnLongClickListener { linkMenu.onLongPress(wv) }
+        if (profile == null) com.jlees.mibrowser.follow.FollowPage.attach(id, wv) // following prices (never from incognito)
         // match count and position for the find bar (only the visible tab's search is shown)
         wv.setFindListener { ordinal, matches, done -> if (done && id == vm.tabs.activeId) vm.find.onResult(ordinal, matches) }
         wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> downloads.start(incognito.cookies(wv), isIncognito(id), url, userAgent, contentDisposition, mimetype, length) }

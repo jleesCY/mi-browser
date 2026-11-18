@@ -34,6 +34,7 @@ import {
   Trash2,
   Zap,
   Pin,
+  Tag,
 } from "lucide-react";
 
 const getAssetPath = (path: string) => {
@@ -135,7 +136,7 @@ export default function UserDocs() {
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                     <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to zoom back into it. Swipe a card up to close it (with undo). Pinned tabs show a pin and can't be swiped away." />
-                    <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button (or swiping the Pill right) opens Bookmarks and Downloads on top of the switcher; swiping the Pill up (or its clock button) opens History and Recently Closed. Each searches from a Pill at the bottom; swipe that Pill back the way the page came to return to the switcher." />
+                    <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button (or swiping the Pill right) opens Bookmarks, Downloads and Following on top of the switcher; swiping the Pill up (or its clock button) opens History and Recently Closed. Each searches from a Pill at the bottom; swipe that Pill back the way the page came to return to the switcher." />
                     <GuideItem icon={<History size={18} />} title="New Tab" desc="The + button opens a fresh tab and zooms into it." />
                     <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button (or swiping the Pill left) opens Settings on top of the switcher. Search from the Pill at the bottom; swipe it right to go back up a level, and from the top level back to the switcher." />
                   </div>
@@ -163,7 +164,7 @@ export default function UserDocs() {
                     <GuideItem icon={<Calculator size={18} />} title="Inline Answers" desc="Math, unit conversions, number bases, the time in a city, coin flips and dice are answered right above the field as you type, worked out on your phone. Tap an answer to copy it." />
                     <GuideItem icon={<Clock size={18} />} title="Recent Searches" desc="Your past searches appear as soon as you tap the Pill. Tap one to put it back in the field; tap its ✕ to forget it." />
                     <GuideItem icon={<Search size={18} />} title="Search Suggestions" desc="Suggestions from your search engine appear as you type, with the part you typed in bold. Tap ↖ to fill one in and keep typing." />
-                    <GuideItem icon={<Zap size={18} />} title="Shortcut Suggestions" desc="Type ! and your search shortcuts appear, narrowing as you type. Tap one to put it in the Pill." />
+                    <GuideItem icon={<Zap size={18} />} title="Shortcuts" desc="Type ! and your search shortcuts appear, narrowing as you type. Tap one to put it in the Pill." />
                     <GuideItem icon={<FolderHeart size={18} />} title="Favorites" desc="Your favorites sit at the bottom of every new tab, four across and two down, swiped sideways for more. Add one with the star in the tab menu, or hold a link and choose Add to Favorites." />
                     <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and hold a favorite, then drag it to its new place." />
                     <GuideItem icon={<Trash2 size={18} />} title="Edit or Remove a Favorite" desc="Touch and hold a favorite and let go without moving it to edit its name and address; Delete is in there too. Favorites also live in a Favorites folder in your bookmarks; deleting that folder deletes them all (mi asks first)." />
@@ -257,6 +258,9 @@ export default function UserDocs() {
                     <div id="downloads">
                       <GuideItem icon={<Layers size={18} />} title="Downloads" desc="Beside Bookmarks in the Library, grouped by day. Downloads in progress show their progress, speed and time left, with pause and cancel (they keep going when you leave mi, with a notification). Large files come over several connections at once, which is often quicker. A download whose connection drops tries again by itself when you're back online, and one that was running when mi closed carries on when you open it; finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. Files you delete elsewhere leave the list." />
                     </div>
+                    <div id="following">
+                      <GuideItem icon={<Tag size={18} />} title="Following Prices" desc="On a product page, open the tab menu and tap Follow Price. mi finds the price (the shop's product data, or the likeliest price shown, with any others it found under Other Prices Found) and any sale beside it, so a crossed-out price, '-33%' or 'Save $100' shows as 'Was … · N% off'. Not right? Tap Pick It Myself, then tap the price on the page. You can rename the product before following. Library › Following lists everything you follow with its price, sale and stock (out of stock in red); products with a change you haven't seen are pinned at the top with a dot, and you can hold and drag the rest into any order. Tap one for its price graph (press and drag along it to read any day), its lowest and highest prices, Check Now, its alerts (drops or any change, the smallest change worth one, stock changes, right away, daily or never), how often it's checked, Use My Login for member prices, and Pause Checking. Checks run in the background on your phone, with no account or server; a check that keeps failing tells you why." />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -290,10 +294,10 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Web Pages" icon={<Monitor size={20} />}>
-                  <SettingItem title="Page Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
-                  <SettingItem title="Darken Web Pages" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
-                  <SettingItem title="Desktop Site by Default" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
-                  <SettingItem title="Reader Mode by Default" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
+                  <SettingItem title="Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
+                  <SettingItem title="Darken" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
+                  <SettingItem title="Desktop Mode" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
+                  <SettingItem title="Reader Mode" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
                 </SettingsSection>
 
                 <SettingsSection title="Media" icon={<CirclePlay size={20} />}>
@@ -309,17 +313,19 @@ export default function UserDocs() {
                   <SettingItem title="Font Size" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
                   <SettingItem title="Font" desc="Standard (Google Sans Flex), Rounded (its rounded stroke ends) or System (your phone's own font). The mi. logo is always rounded." />
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
-                  <SettingItem title="Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
+                  <SettingItem title="List Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look. With it hidden, pages (sticky headers included) still start below the camera cutout and scroll behind it." />
-                  <SettingItem title="Haptic Feedback" desc="A light tap when a gesture is about to act: a swipe on a list row, the Pill opening the tab switcher or going back and forward, pull to refresh, closing a tab card, and long presses. On by default." />
+                  <SettingItem title="List Style" desc="Table (rows edge to edge, the default) or Cards (each row its own card) for Downloads, Following and History." />
+                  <SettingItem title="Pan Overflowed Text" desc="One-line text too long to fit slides slowly to show the rest instead of ending in '…'. On by default for Settings and the tab menu; each other place has its own switch. Web addresses never pan." />
+                  <SettingItem title="Gesture Haptics" desc="A light tap when a gesture is about to act: a swipe on a list row, the Pill opening the tab switcher or going back and forward, pull to refresh, closing a tab card, and long presses. On by default." />
                 </SettingsSection>
 
                 <SettingsSection title="Pill" icon={<Navigation size={20} />}>
-                  <SettingItem title="Hide on Scroll" desc="On (the default), scrolling down a page tucks the Pill into the recall button and scrolling up brings it back. Off, it stays put; you can still swipe it down." />
+                  <SettingItem title="Auto Hide" desc="On (the default), scrolling down a page tucks the Pill into the recall button and scrolling up brings it back. Off, it stays put; you can still swipe it down." />
                   <SettingItem title="Loading Bar" desc="Choose the progress bar style: Standard (Left-to-Right), Center Out, or Hidden." />
                   <SettingItem title="Quick Actions" desc="While typing: actions like Paste and Go, offered above the Pill when you tap it. On by default." />
                   <SettingItem title="Inline Answers" desc="While typing: math, unit conversions, number bases, the time and date (here or in a city), coin flips and dice, worked out on your phone and shown right above the field. Tap an answer to copy it. On by default." />
-                  <SettingItem title="Shortcut Suggestions" desc="While typing: start with ! and your search shortcuts appear, narrowing as you type; tap one to put it in the Pill. On by default." />
+                  <SettingItem title="Shortcuts" desc="While typing: start with ! and your search shortcuts appear, narrowing as you type; tap one to put it in the Pill. On by default." />
                   <SettingItem title="Recent Searches" desc="While typing: your past searches, above the Pill when you tap it. Never in incognito tabs. On by default." />
                   <SettingItem title="Search Suggestions" desc="While typing: suggestions from your search engine. Turn off to keep keystrokes from being sent before you search. On by default." />
                   <SettingItem title="Suggestions in Incognito" desc="Off by default: in an incognito tab, nothing you type is sent to your search engine until you search." />
@@ -355,7 +361,7 @@ export default function UserDocs() {
 
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
-                  <SettingItem title="Site Icons on Tabs" desc="Shows each website's icon on its tab card in the tab switcher. When off, a globe is shown." />
+                  <SettingItem title="Site Icons" id="setting-site-icons-tabs" desc="Shows each website's icon on its tab card in the tab switcher. When off, a globe is shown." />
                 </SettingsSection>
 
                 <SettingsSection title="Gestures" icon={<Hand size={20} />}>
@@ -365,20 +371,23 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Library" icon={<Bookmark size={20} />}>
-                  <SettingItem title="Site Icons on Bookmarks" desc="Shows each website's icon in your bookmarks. When off, a letter avatar is shown." />
+                  <SettingItem title="Site Icons" id="setting-site-icons-bookmarks" desc="Shows each website's icon in your bookmarks. When off, a letter avatar is shown." />
                   <SettingItem title="Import Bookmarks" desc="Bring bookmarks from Chrome, Firefox, Edge, Safari or a mi export: choose the browser's exported bookmarks file (.html), or paste its contents. Folders are kept, pages you already have are skipped, and another browser's bookmarks go into a dated Imported folder. Chrome's file can also come from Google Takeout." />
                   <SettingItem title="Export Bookmarks" desc="Save all your bookmarks to a standard bookmarks file that mi and any other browser can import." />
-                  <SettingItem title="Download With" desc="mi (its own downloader: pause, resume, notifications and the Downloads list) or Android's download manager (saves to Downloads; not listed in mi). Incognito tabs always use mi." />
-                  <SettingItem title="Download Location" desc="Where mi saves downloads: the Downloads folder, or any folder you choose." />
-                  <SettingItem title="Ask Where to Save" desc="Choose the folder and file name for each download in Android's save dialog." />
+                  <SettingItem title="Download Manager" desc="mi (its own downloader: pause, resume, notifications and the Downloads list) or Android's download manager (saves to Downloads; not listed in mi). Incognito tabs always use mi." />
+                  <SettingItem title="Location" desc="Where mi saves downloads: the Downloads folder, or any folder you choose." />
+                  <SettingItem title="Ask Every Time" desc="Choose the folder and file name for each download in Android's save dialog." />
                   <SettingItem title="Confirm Downloads" desc="Ask before a download starts. On by default." />
+                  <SettingItem title="Background Checks" desc="Check followed prices while mi is closed, about every hour (each product at its own interval, only with a network and the battery not low). On by default." />
+                  <SettingItem title="Wi-Fi Only" desc="Background checks wait for Wi-Fi, so they don't use mobile data. Check Now still works anywhere." />
+                  <SettingItem title="Notifications" id="setting-notifications-following" desc="Turns every Following notification on or off. Each product still chooses its own: right away, in a daily summary, or never." />
                 </SettingsSection>
 
                 <SettingsSection title="History" icon={<History size={20} />}>
                   <SettingItem title="Group History By" desc="Organize your history by Time (Today, Yesterday) or by Site (hostname)." />
                   <SettingItem title="Clear History" desc="Wipe your browsing history for the last hour, 24 hours, 7 days, 4 weeks, or all time." />
                   <SettingItem title="Keep Recently Closed" desc="How long tabs you close stay in History's Recently Closed: Session (the default, until mi closes), 1 Day or 1 Week. Longer than a session, they're saved on your device so they outlast a restart. Incognito tabs are never kept." />
-                  <SettingItem title="Clear Recently Closed" desc="Forget the tabs you've closed." />
+                  <SettingItem title="Clear Recently Closed Tabs" desc="Forget the tabs you've closed." />
                 </SettingsSection>
 
                 <SettingsSection title="Backup & Reset" icon={<RefreshCw size={20} />}>
@@ -503,8 +512,9 @@ function SettingsSection({ title, icon, children }: { title: string, icon: React
   );
 }
 
-function SettingItem({ title, desc }: { title: string, desc: string }) {
-  const id = `setting-${title.toLowerCase().replace(/\s+/g, '-')}`;
+function SettingItem({ title, desc, id: given }: { title: string, desc: string, id?: string }) {
+  // its link (#setting-…) from its name; settings sharing a name (Site Icons, for bookmarks and for tabs) pass their own
+  const id = given ?? `setting-${title.toLowerCase().replace(/\s+/g, '-')}`;
   return (
     <div id={id} className="p-6 rounded-2xl bg-white/5 border border-white/5 shadow-sm hover:border-blue-500/30 transition-colors scroll-mt-28">
       <h4 className="font-bold text-sm mb-2">{title}</h4>

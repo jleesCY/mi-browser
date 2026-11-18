@@ -1,72 +1,47 @@
-// Settings → Search: the search engine (or your own), suggestions, and search shortcuts.
-package com.jlees.mibrowser.search
+// Settings › Search: the search engine (or your own), and search shortcuts (yours, and the ones mi comes with).
+package com.jlees.mibrowser.ui.settings
 
-import com.jlees.mibrowser.ui.settings.SwitchItem
-
-import com.jlees.mibrowser.ui.settings.ExpandItem
-import com.jlees.mibrowser.ui.settings.Item
-import com.jlees.mibrowser.ui.settings.OptionRow
-import com.jlees.mibrowser.ui.settings.SettingsRow
-import com.jlees.mibrowser.ui.settings.SettingsSection
-
-import com.jlees.mibrowser.search.SearchEngine
-import com.jlees.mibrowser.search.searchEngine
-import androidx.compose.material3.IconButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
-import com.jlees.mibrowser.data.Settings
-import com.jlees.mibrowser.search.SEARCH_ENGINES
 import com.jlees.mibrowser.logic.displayHost
-import com.jlees.mibrowser.search.isValidBangKey
+import com.jlees.mibrowser.search.AddBangDialog
 import com.jlees.mibrowser.search.BANGS
+import com.jlees.mibrowser.search.SEARCH_ENGINES
 import com.jlees.mibrowser.search.SEARCH_ENGINE_BANG
+import com.jlees.mibrowser.search.SearchEngine
 import com.jlees.mibrowser.search.isValidSearchTemplate
+import com.jlees.mibrowser.search.searchEngine
 import com.jlees.mibrowser.ui.common.*
 
-/** Settings → Search: the engine and search shortcuts (yours and the built-ins). What the Pill suggests is in Settings › Pill (pillSearchRows). */
+/** Settings › Search. (What shows above the Pill as you type is in Settings › Pill.) */
 fun searchSection(vm: BrowserViewModel) =
-    SettingsSection("search", "Search", "search", "Search engine, !shortcuts", listOf(
+    SettingsSection("search", "Search", "search", "Search engine and shortcuts", listOf(
         SettingsRow("Search Engine", "google bing duckduckgo brave ecosia yahoo") { SearchEngineSetting(vm) },
         SettingsRow("Your Shortcuts", "bang custom add search shortcut help what") { CustomBangsItem(vm) },
         SettingsRow("Built-in Shortcuts", "bang se search engine " + BANGS.values.joinToString(" ") { it.name.lowercase() }) { BuiltInBangsItem(vm) },
     ))
 
-/** Settings › Pill's search rows: what shows above the Pill as you type (your past searches, your engine's suggestions). */
-fun pillSearchRows(vm: BrowserViewModel) = listOf(
-    SettingsRow("Shortcut Suggestions", "bang shortcut autocomplete !") {
-        SwitchItem("bolt", "Shortcut Suggestions", "Matching search shortcuts as you type one (\"!w\")", vm.settings.shortcutSuggestions) { vm.updateSettings { copy(shortcutSuggestions = it) } }
-    },
-    SettingsRow("Recent Searches", "history past searches suggestions") {
-        SwitchItem("history", "Recent Searches", "Your past searches, above the Pill when you tap it", vm.settings.recentSearches) { vm.updateSettings { copy(recentSearches = it) } }
-    },
-    SettingsRow("Search Suggestions", "autocomplete") {
-        SwitchItem("search", "Search Suggestions", "Suggestions from your search engine as you type", vm.settings.searchSuggestions) { vm.updateSettings { copy(searchSuggestions = it) } }
-    },
-    SettingsRow("Suggestions in Incognito", "autocomplete private incognito") {
-        SwitchItem("incognito", "Suggestions in Incognito", "Suggestions from your search engine in incognito tabs too", vm.settings.incognitoSuggestions) { vm.updateSettings { copy(incognitoSuggestions = it) } }
-    },
-)
-
 /** The search engine row in Settings → Search, with the custom engine dialog. */
 @Composable
-fun SearchEngineSetting(vm: BrowserViewModel) {
+private fun SearchEngineSetting(vm: BrowserViewModel) {
     val s = vm.settings
     var editing by remember { mutableStateOf(false) }
-    ExpandItem("search", "Search Engine", "Used for searches and suggestions", vm.searchEngine.name) { close ->
+    ExpandItem("search", "Search Engine", "The engine used for searches and suggestions", vm.searchEngine.name) { close ->
         SEARCH_ENGINES.forEachIndexed { i, e ->
             OptionRow(e.name, s.searchEngineIndex == i, leading = { EngineIcon(e, 20f) }) { vm.updateSettings { copy(searchEngineIndex = i) }; close() }
         }
         // your own engine: picking it (or "Custom…") opens its editor
         val custom = isValidSearchTemplate(s.customSearchUrl)
         OptionRow(if (custom) s.customSearchName.ifBlank { "Custom" } else "Custom…", s.searchEngineIndex == SEARCH_ENGINES.size,
-            leading = { EngineIcon(vm.searchEngine.takeIf { s.searchEngineIndex == SEARCH_ENGINES.size } ?: com.jlees.mibrowser.search.SearchEngine("Custom", s.customSearchUrl), 20f) }) {
+            leading = { EngineIcon(vm.searchEngine.takeIf { s.searchEngineIndex == SEARCH_ENGINES.size } ?: SearchEngine("Custom", s.customSearchUrl), 20f) }) {
             if (custom && s.searchEngineIndex != SEARCH_ENGINES.size) { vm.updateSettings { copy(searchEngineIndex = SEARCH_ENGINES.size) }; close() } else editing = true
         }
     }
@@ -92,7 +67,7 @@ private fun CustomBangsItem(vm: BrowserViewModel) {
     var adding by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
         // the "i" explains shortcuts, for anyone who hasn't met "!w" before
-        Item("add", "Add a shortcut", onClick = { adding = true }, trailing = {
+        Item("add", "Create a new shortcut", onClick = { adding = true }, trailing = {
             IconButton(onClick = { explainShortcuts(vm) }) { Sym("info", 22f, LocalUi.current.cs.onSurfaceVariant, label = "What are shortcuts?") }
         })
         if (vm.settings.customBangs.isNotEmpty()) BangListLabel("Yours")
@@ -118,35 +93,6 @@ private fun BuiltInBangsItem(vm: BrowserViewModel) {
 private fun BangListLabel(text: String) {
     val ui = LocalUi.current
     Txt(text, 13f, ui.cs.onSurfaceVariant, ui.bold, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp))
-}
-
-/** A new shortcut: its key and the site's search address (%s = the search). */
-@Composable
-private fun AddBangDialog(vm: BrowserViewModel, visible: Boolean, initialKey: String = "", initialUrl: String = "https://", onClose: () -> Unit) {
-    val ui = LocalUi.current
-    var key by remember(visible) { mutableStateOf(initialKey) }
-    var url by remember(visible) { mutableStateOf(initialUrl) }
-    val k = key.trim().removePrefix("!").lowercase()
-    val keyOk = isValidBangKey(k)
-    val urlOk = isValidSearchTemplate(url)
-    com.jlees.mibrowser.ui.ModalFrame(visible, onClose) {
-        DialogCard("Add search shortcut", actions = {
-            DialogAction("Cancel", onClick = onClose)
-            DialogAction("Add") { if (keyOk && urlOk) { vm.updateSettings { copy(customBangs = customBangs + (k to url.trim())) }; onClose() } }
-        }) {
-            LabeledField("Shortcut", key, { key = it }, Modifier.padding(bottom = 4.dp), placeholder = "e.g. ebay")
-            Txt(
-                when { k.isNotEmpty() && !keyOk -> "Use up to 12 letters or numbers"; k in BANGS -> "Replaces the built-in !$k (${BANGS[k]!!.name})"; k == SEARCH_ENGINE_BANG -> "Replaces the built-in !se (your search engine)"; k.isNotEmpty() -> "You'll type !$k"; else -> " " },
-                12f, if (k.isNotEmpty() && !keyOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 12.dp),
-            )
-            // a pasted results page is turned into the search address: its search becomes %s
-            LabeledField("Search address", url, { v -> url = if (v.length - url.length > 1 && "%s" !in v) searchTemplateFrom(v) ?: v else v }, uri = true, placeholder = "https://www.ebay.com/sch/i.html?_nkw=%s")
-            Txt(
-                if (url.length > 8 && !urlOk) "Enter a web address starting with https://" else "Easiest: search the site, then tap ⋮ › Add shortcut. Or paste the address of one of its results pages here.",
-                12f, if (url.length > 8 && !urlOk) ui.cs.error else ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp), lineHeight = 16f,
-            )
-        }
-    }
 }
 
 /** Name and address (%s = the search) of your own search engine. Saving selects it; it gets no suggestions. */
@@ -176,16 +122,8 @@ private fun CustomEngineDialog(vm: BrowserViewModel, visible: Boolean, onClose: 
 /** What search shortcuts are, with an example (the "i" beside Add a shortcut). */
 private fun explainShortcuts(vm: BrowserViewModel) = vm.showAlert(
     "Search shortcuts",
-    "Start a search with a shortcut to search one site instead of your search engine. " +
-        "For example, \"!w mars\" searches Wikipedia for \"mars\", and \"!yt cats\" searches YouTube.\n\n" +
-        "To add your own, search the site as usual, then tap ⋮ › Add shortcut: mi finds the site's search for you. " +
-        "Or tap Add a shortcut here and paste the address of one of the site's results pages.\n\n" +
-        "Built-in Shortcuts lists the ones mi comes with.",
+    "Use shortcuts to send searches directly to the shortcut's site, rather than your selected search engine.\n\n" +
+        "To add your own, search a site as usual, then open the tab menu and select \"Add shortcut\".\n\n" +
+        "Or manually add one by tapping \"Create a new shortcut\" here and paste the address of a site's search results page.",
 )
 
-/** The Add dialog for a shortcut found on a page (tab menu › Add shortcut), filled in and ready to save. */
-@Composable
-fun ShortcutDraftDialog(vm: BrowserViewModel) {
-    val draft = vm.shortcutDraft
-    AddBangDialog(vm, draft != null, draft?.first.orEmpty(), draft?.second ?: "https://") { vm.shortcutDraft = null }
-}

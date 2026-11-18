@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jlees.mibrowser.data.*
+import com.jlees.mibrowser.follow.scheduleChecks
 import com.jlees.mibrowser.logic.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -61,8 +62,11 @@ data class ConfirmData(val action: ConfirmAction, val ms: Long = 0, val label: S
 enum class LaunchAction { NEW_TAB, NEW_INCOGNITO_TAB, SEARCH }
 
 /** The full-screen sheet over the browser, if any. */
-/** The full-screen pages. The Library is BOOKMARKS / DOWNLOADS; History is HISTORY / RECENTLY_CLOSED. */
-enum class Sheet { NONE, BOOKMARKS, HISTORY, RECENTLY_CLOSED, DOWNLOADS, SETTINGS, SITE }
+/** Where Settings opens: section [section] (its id), scrolled to the row [row] under [heading]. */
+data class SettingsTarget(val section: String, val heading: String?, val row: String)
+
+/** The full-screen pages. The Library is BOOKMARKS / DOWNLOADS / FOLLOWING; History is HISTORY / RECENTLY_CLOSED. */
+enum class Sheet { NONE, BOOKMARKS, HISTORY, RECENTLY_CLOSED, DOWNLOADS, FOLLOWING, SETTINGS, SITE }
 
 /** A site asked for a username and password (HTTP authentication). */
 data class AuthRequest(val host: String, val realm: String, val insecure: Boolean, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
@@ -114,6 +118,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     val bookmarks = BookmarksStore(store)
     val downloads = DownloadsStore(store)
     val downloader = Downloader(app, downloads)
+    /** Followed prices (one store per process: the background check uses it too, see FollowStore.get). */
+    val follows = com.jlees.mibrowser.follow.FollowStore.get(app)
     var ready by mutableStateOf(false)
 
     // ---- UI state ----
@@ -137,6 +143,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var authRequest by mutableStateOf<AuthRequest?>(null)
     var contextMenu by mutableStateOf<ContextMenuData?>(null)
     var settingsSearch by mutableStateOf("")
+    /** A setting to open Settings at (from elsewhere, like a followed product's sheet): its section, heading and row. */
+    var settingsTarget by mutableStateOf<SettingsTarget?>(null)
     var historySearch by mutableStateOf("")
 
     val updater = Updater(this)
@@ -159,11 +167,13 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 history.load()
                 bookmarks.load()
                 downloads.load()
+                follows.load()
                 downloader.pruneMissing()
                 tabs.load(parseDeepLink(deepLink), settings.startupTabMode)
                 sweepFiles()
             }
             downloader.resumeInterrupted() // downloads running when mi was last closed carry on
+            scheduleChecks()
             // Clear on Exit: mi may have been ended (swiped away) without closing, so it clears at the start too
             if (settings.clearDataOnExit) {
                 clearOnExit { web.tryEmit(WebCmd.ClearBrowsingData) }
@@ -206,7 +216,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         history.savers + bookmarks.savers + downloads.savers
 
     /** Writes everything now (before mi ends its process after incognito use). */
-    fun saveNow() = savers.forEach { it.writeNow() }
+    fun saveNow() { savers.forEach { it.writeNow() }; follows.saveNow() }
 
     fun updateSettings(f: Settings.() -> Settings) { settings = settings.f() }
 

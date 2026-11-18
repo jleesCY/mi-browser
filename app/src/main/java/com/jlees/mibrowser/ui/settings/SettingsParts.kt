@@ -1,16 +1,11 @@
-// Settings' building blocks: the top bar lists scroll under, search-result headers, segmented rows, and the About items.
+// Settings' screen parts: the top bar lists scroll under, search-result headers, the default-browser banner, segmented rows.
 package com.jlees.mibrowser.ui.settings
 
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.layout.onSizeChanged
-import android.os.Build
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.*
@@ -18,13 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.Settings
-import com.jlees.mibrowser.logic.ACCENTS
-import com.jlees.mibrowser.logic.DYNAMIC_ACCENT
-import com.jlees.mibrowser.logic.hexColor
 import com.jlees.mibrowser.ui.common.*
 
 /**
@@ -56,55 +46,6 @@ internal fun SectionHeader(icon: String?, title: String) {
     }
 }
 
-// ---------------------------------------------------------------- specific rows
-
-@Composable
-internal fun AccentItem(vm: BrowserViewModel) {
-    val ui = LocalUi.current
-    // adaptive (wallpaper colors, Android 12+), gray, blue, green, red, orange, yellow, purple — horizontally scrollable
-    val dynamicOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val list = (if (dynamicOk) listOf(DYNAMIC_ACCENT) else emptyList()) + ACCENTS
-    Item("palette", "Accent Color", if (dynamicOk) "Your wallpaper's colors, or pick one" else null, below = {
-        LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(list) { hex ->
-                val selected = vm.settings.accentColor == hex
-                val scale by animateFloatAsState(if (selected) 0.86f else 1f, Motion.fastSpatial(), label = "swatch")
-                val isDyn = hex == DYNAMIC_ACCENT
-                Box(
-                    Modifier.size(48.dp).graphicsLayer { scaleX = scale; scaleY = scale }
-                        .clip(if (selected) RoundedCornerShape(30) else CircleShape)
-                        .background(if (isDyn) ui.cs.tertiaryContainer else Color(hexColor(hex)))
-                        .touchable { vm.updateSettings { copy(accentColor = hex) } },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isDyn) Sym("wallpaper", 22f, ui.cs.onTertiaryContainer)
-                    if (selected && !isDyn) Sym("check", 22f, Color.White)
-                }
-            }
-        }
-    })
-}
-
-@Composable
-internal fun CreditsItem() {
-    val ui = LocalUi.current
-    ExpandItem("info", "Credits", "Open-source projects mi is built with", null) { _ ->
-        listOf(
-            "Ad & tracker blocklist" to "StevenBlack/hosts, MIT License",
-            "Font" to "Google Sans Flex, © Google LLC",
-            "Icons" to "Material Symbols, Apache License 2.0",
-            "UI" to "Jetpack Compose & Material 3, Apache License 2.0",
-            "QR codes" to "ZXing, Apache License 2.0",
-            "Image cropping" to "Android Image Cropper, Apache License 2.0",
-        ).forEach { (what, who) ->
-            Column(Modifier.fillMaxWidth().padding(start = 72.dp, end = 20.dp, top = 6.dp, bottom = 6.dp)) {
-                Txt(what, 14f, ui.cs.onSurface, ui.semibold)
-                Txt(who, 13f, ui.cs.onSurfaceVariant, ui.regular)
-            }
-        }
-    }
-}
-
 /** Shown at the top until mi is the default browser. */
 @Composable
 internal fun DefaultBrowserCard(onSet: () -> Unit) {
@@ -116,7 +57,7 @@ internal fun DefaultBrowserCard(onSet: () -> Unit) {
         Sym("public", 28f, ui.cs.onPrimaryContainer, Modifier.padding(end = 14.dp))
         Column(Modifier.weight(1f)) {
             Txt("Make mi your default browser", 16f, ui.cs.onPrimaryContainer, ui.bold)
-            Txt("Open links from other apps in mi", 13f, ui.cs.onPrimaryContainer, ui.regular, Modifier.padding(top = 2.dp))
+            Txt("Use mi to open links by default", 13f, ui.cs.onPrimaryContainer, ui.regular, Modifier.padding(top = 2.dp))
         }
         FilledTonalButton(onClick = onSet, modifier = Modifier.padding(start = 8.dp)) { Txt("Set", 14f, ui.cs.onSecondaryContainer, ui.bold) }
     }

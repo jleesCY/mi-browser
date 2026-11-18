@@ -12,6 +12,7 @@ import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.tabs.tabsToClear
 import com.jlees.mibrowser.ui.common.clearImageCache
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -34,16 +35,28 @@ fun BrowserViewModel.resetSettings() {
 }
 internal fun BrowserViewModel.wipeData() {
     resetSettings()
-    history.clear(); bookmarks.clear(); downloads.clear()
+    history.clear(); bookmarks.clear(); downloads.clear(); follows.clear()
+    com.jlees.mibrowser.follow.FollowJob.schedule(getApplication(), false, false)
+    com.jlees.mibrowser.follow.FollowImages.clear(getApplication())
     resetTabs(keepPinned = false) // erasing everything: pinned tabs go too
     tabs.dismissUndo(); tabs.forgetClosed() // after closing them, or the wiped tabs would show as recently closed
-    viewModelScope.launch(Dispatchers.IO) {
-        delay(1200) // let the debounced savers flush the empty state first, then remove the files
-        store.clear()
-        cacheDir.listFiles()?.forEach { it.deleteRecursively() }
-    }
     web.tryEmit(WebCmd.WipeWebData)
     activeView = Sheet.NONE
+    // then mi closes and opens again, fresh: nothing of the old session is left running (pages, downloads, notifications)
+    viewModelScope.launch {
+        delay(1200) // the web data's clearing finishes (it runs on its own threads)
+        android.webkit.CookieManager.getInstance().flush() // the cookies' removal reaches the disk
+        com.jlees.mibrowser.follow.PriceChecker.forgetProfile() // price checks' own browser profile (its cookies)
+        withContext(Dispatchers.IO) {
+            saveNow() // the empty state written over the old files, then the files themselves removed
+            store.clear()
+            cacheDir.listFiles()?.forEach { it.deleteRecursively() }
+        }
+        val app = getApplication<android.app.Application>()
+        app.getSystemService(android.app.NotificationManager::class.java)?.cancelAll()
+        app.packageManager.getLaunchIntentForPackage(app.packageName)?.component?.let { app.startActivity(android.content.Intent.makeRestartActivityTask(it)) }
+        Runtime.getRuntime().exit(0)
+    }
 }
 /**
  * Clear Browsing Data, beyond what WebView holds: tab snapshots (screenshots of pages), stored site icons and mi's

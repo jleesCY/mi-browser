@@ -1,39 +1,34 @@
-// Settings → Ad Blocking: what to block, allowed sites and the filter lists.
-package com.jlees.mibrowser.adblock
+// Settings › Ad Blocking: what to block, sites where blocking is off, and the filter lists.
+package com.jlees.mibrowser.ui.settings
 
-import com.jlees.mibrowser.ui.settings.Item
-import com.jlees.mibrowser.ui.settings.SettingsRow
-import com.jlees.mibrowser.ui.settings.SettingsSection
-import com.jlees.mibrowser.ui.settings.SwitchItem
-
-import androidx.compose.runtime.rememberCoroutineScope
-import com.jlees.mibrowser.adblock.AdBlock
-import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
+import com.jlees.mibrowser.adblock.AdBlock
 import com.jlees.mibrowser.data.Settings
 import com.jlees.mibrowser.ui.common.*
 import kotlinx.coroutines.launch
 
 /** The Ad Blocking section of Settings. */
-fun adBlockSection(vm: BrowserViewModel) =
-    SettingsSection("adblock", "Ad Blocking", "block", "Ads, trackers, cookie banners, allowed sites", listOf(
+fun adBlockingSection(vm: BrowserViewModel) =
+    SettingsSection("adblock", "Ad Blocking", "block", "How unwanted content is handled", listOf(
         SettingsRow("Block Ads", "adblock easylist banner ads malware") {
             SwitchItem("block", "Block Ads", "Block ads and ad networks", vm.settings.blockAds) { vm.updateSettings { copy(blockAds = it) } }
         },
         SettingsRow("Block Trackers", "tracking analytics easyprivacy fingerprint") {
-            SwitchItem("travel_explore", "Block Trackers", "Block analytics and tracking scripts that follow you across sites", vm.settings.blockTrackers) { vm.updateSettings { copy(blockTrackers = it) } }
+            SwitchItem("travel_explore", "Block Trackers", "Block tracking scripts that follow you across sites", vm.settings.blockTrackers) { vm.updateSettings { copy(blockTrackers = it) } }
         },
         SettingsRow("Hide Cookie Banners", "consent gdpr popup cookie") {
             SwitchItem("cookie", "Hide Cookie Banners", "Hide cookie-consent pop-ups", vm.settings.hideCookieBanners) { vm.updateSettings { copy(hideCookieBanners = it) } }
         },
         SettingsRow("Remove Tracking from Links", "utm fbclid gclid parameters clean url") {
-            SwitchItem("content_copy", "Remove Tracking from Links", "Removes tracking tags from links you open, copy, or share", vm.settings.stripTrackingParams) { vm.updateSettings { copy(stripTrackingParams = it) } }
+            SwitchItem("content_copy", "Remove Tracking from Links", "Remove tracking tags from links you open, copy, or share", vm.settings.stripTrackingParams) { vm.updateSettings { copy(stripTrackingParams = it) } }
         },
         SettingsRow("Allowed Sites", "whitelist exception allow ads site") { AllowedSitesItem(vm) },
         SettingsRow("Update Filter Lists", "adblock update easylist") { FilterListsItem(vm) },
@@ -44,7 +39,7 @@ fun adBlockSection(vm: BrowserViewModel) =
 private fun AllowedSitesItem(vm: BrowserViewModel) {
     val sites = vm.settings.adAllowlist
     Column(Modifier.fillMaxWidth()) {
-        Item("public", "Allowed Sites", if (sites.isEmpty()) "None. To turn blocking off on a site, open the tab menu there and switch off Block ads here"
+        Item("public", "Allowed Sites", if (sites.isEmpty()) "None"
             else "Blocking is off on ${sites.size} site${if (sites.size == 1) "" else "s"}")
         sites.forEach { site ->
             val ui = LocalUi.current

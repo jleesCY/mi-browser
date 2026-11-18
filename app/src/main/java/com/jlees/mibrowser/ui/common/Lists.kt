@@ -77,7 +77,9 @@ fun <T> SortableSlots(
                         // always there (flat when not held): adding it on pick-up would change the item's modifiers
                         // mid-gesture, which can restart the touch handler below and lose the rest of the drag
                         .shadow(if (isDragging) 8.dp else 0.dp, RoundedCornerShape(LocalUi.current.radius.dp))
-                        .pointerInput(k, count) {
+                        // started again whenever the list's order or sizes change: a handler kept from before would move
+                        // its row through the old order (the other rows wouldn't make way) and report the wrong place
+                        .pointerInput(k, keys, wPx, hPx) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
                                 // raw screen position of the touch-down (the dragged item moves under the finger)

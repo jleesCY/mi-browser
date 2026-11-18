@@ -19,116 +19,36 @@
   <img src="docs/public/images/incognito.jpg" width="200" alt="A new incognito tab" />
 </p>
 
-**mi.** (pronounced "my") replaces the usual toolbar with one floating **Pill**: tap it to search, swipe up for your tabs, swipe sideways to go back and forward, swipe down to hide it. It's written natively in Kotlin with Jetpack Compose, weighs under 5 MB, and keeps all of your data on your device.
+**mi.** (pronounced "my") replaces the usual toolbar with one floating **Pill**: tap it to search, swipe up for your tabs, swipe sideways to go back and forward. It's written natively in Kotlin, weighs about 5 MB, and keeps all of your data on your phone.
 
-**[Website](https://jleescy.github.io/mi-browser)** · **[User Guide](https://jleescy.github.io/mi-browser/user)** · **[Developer Guide](https://jleescy.github.io/mi-browser/developer)** · **[Privacy Policy](https://jleescy.github.io/mi-browser/privacy)** · **[Download](https://github.com/jleescy/mi-browser/releases/latest)**
+**[Website](https://jleescy.github.io/mi-browser)** · **[User Guide](https://jleescy.github.io/mi-browser/user)** · **[Download](https://github.com/jleescy/mi-browser/releases/latest)**
 
-## Features
+## Highlights
+- **One Pill for everything**: search with suggestions, inline answers (`20% of 150`, `5 km in mi`) and `!` shortcuts, plus back, forward and the tab switcher, all by swipe.
+- **Tab switcher** with live previews, pinned tabs, tab search and undo.
+- **Follow prices**: follow a product from the tab menu and mi tells you when it drops, goes on sale or comes back in stock, checked on your phone.
+- **Built-in blocking** of ads, trackers and cookie banners, tracking-free links and HTTPS Only.
+- **Incognito tabs**, each with its own private storage, erased when closed.
+- **Fast downloads**, bookmarks with import and export, history, picture-in-picture and background playback.
+- **Material 3 Expressive**: colours from your wallpaper, pure black dark mode, haptics and smooth motion.
+- **No accounts, no tracking.** Everything stays on your device.
 
-### The Pill
-- One control for everything: search, the tab switcher, back/forward and hiding the bar.
-- **Suggestions inside the Pill**: tap it and the Pill grows upward with your recent searches, your search engine's suggestions and matching shortcuts, the best match closest to your thumb. The part matching what you typed is in bold; tap ↖ to fill a suggestion in and keep typing. Each kind is a switch in **Settings › Pill › While Typing**.
-- **Inline answers**, worked out on your phone as you type: math (`2^10`, `20% of 150`, `sqrt(2)`), unit conversions (`5 km in mi`, `98.6 f to c`), number bases (`255 in hex`), the time and date here or in a city (`time in tokyo`), coin flips and dice. Tap an answer to copy it.
-- **Search shortcuts**: start a search with `!w`, `!yt`, `!r`, `!a`, `!m` or `!i` to search Wikipedia, YouTube, Reddit, Amazon, Maps or Images, or `!se` to always search your search engine. The shortcut turns into a small pill as you type. Add your own in one tap: search a site, then ⋮ › **Add shortcut** (or paste a results page's address in Settings). You can also set a custom search engine.
-- **Pull down to refresh**, only ever from the very top of a page.
-- A loading-progress fill and a "Not secure" marker on unencrypted pages.
-- **Paste and go**: a link you just copied is offered when you tap the Pill.
-- Scrolling down (or a swipe down) tucks the Pill into a small recall button that brings it back; pin it left, centre or right, or turn **Hide on Scroll** off.
-- A **Gesture Walkthrough** shows every swipe hands-on the first time you open mi (and any time from Settings).
+See everything mi does in the **[User Guide](https://jleescy.github.io/mi-browser/user)**.
 
-### Home page
-- **Favorites** sit at the bottom of a new tab, four across and two down, swiped sideways for more. Hold one and drag it to rearrange, or hold and let go to edit it. A site without an icon gets its first letter on a colour of its own.
-- Favorite a page with the tab menu's star, or hold a link and choose **Add to Favorites**. Favorites live in a **Favorites** folder in your bookmarks, so you can manage them there too.
-- Logo, clock and date, each optional in **Settings › Home Page**.
+## Install
+Download the APK from the **[latest release](https://github.com/jleescy/mi-browser/releases/latest)** and open it on your phone (Android 8.0 or newer). mi checks for updates itself.
 
-### Tab switcher
-- Swipe up and the page zooms out into its card, like your phone's recent apps. The card's title and icon follow it from the first moment.
-- Tabs are ordered by when you last used them, with live previews, on a soft gradient of your accent colour.
-- Swipe a card up to close it (with undo); Undo puts you back on it. Swipe the switcher's Pill up (or tap its clock button) for **History**, with your **Recently Closed** tabs beside it; swipe it right for the Library (Bookmarks and Downloads) and left for Settings, or down to open the tab you're looking at. Prefer another arrangement? **Settings › Gestures** lets you choose which page each swipe (and button) opens. Library, History and Settings search from a Pill at the bottom too: swipe it to go back (in Settings, up a level first); its ⋮ menu opens inside it. **Pin** a tab to keep it from being swiped away or closed by "Close all tabs".
-- **Search your tabs**: hold the switcher's Pill and it turns into a search field; the cards narrow to the tabs whose title or address matches.
-- The **tab menu** (⋮) has Favorite, Bookmark, Pin and Share; quick tiles for Desktop site, Reader mode and Find in page; and tools for QR codes, printing and home-screen shortcuts.
-- **Site settings**: tap the site at the top of the tab menu for its camera, microphone and location access, pop-ups, ad blocking, and to clear its data.
-- **Find in page**: the Pill turns into a find bar that counts the matches (`2/14`) as you step through them.
-
-### Media
-- **Picture-in-picture**: a fullscreen video keeps playing in a small window when you leave mi, shaped to the video.
-- **Background playback**: audio and video keep playing when you leave mi or lock your phone (YouTube included), with controls in a notification and on the lock screen: play/pause, a seek bar, and back/forward 10 seconds. The site's icon shows with it.
-- Playback pauses when your headphones disconnect, a call comes in or another app starts playing, and stays paused until you press play.
-- Each is a switch in **Settings › Media**, beside **Block Video Autoplay**.
-
-### Incognito
-- Switch any new tab to incognito with the mask in the Pill, or long-press a link and choose **Open in Incognito Tab**.
-- Every incognito tab has its own private storage. Logins and cookies never move between normal and incognito tabs, or between two incognito tabs.
-- Nothing is recorded: no history, no recent searches, no restored tabs, no previews. Screenshots are blocked and the keyboard is asked not to learn what you type.
-- Closing a tab erases its cookies, logins, site data and cache. A silent notification closes every incognito tab at once.
-
-### A complete browser
-- Sign-in and payment pop-ups (PayPal, Google), passkeys, Google Pay, HTTP sign-in prompts and client certificates.
-- Bookmarks with folders, drag to reorder and search: swipe right to edit, left to delete, and move them with a folder browser. **Import** bookmarks from Chrome, Firefox, Edge or Safari (their bookmarks file, chosen or pasted) and **export** yours to any browser.
-- History grouped by time or site, swipe to delete (with undo).
-- **Downloads** with mi's own downloader: large files come over several connections at once; each shows its speed and time left; pause, resume, cancel and retry, and a dropped connection or a download cut short by closing mi carries on by itself; progress in a notification (tap the finished one to open the file), and a Downloads page beside Bookmarks in the Library, grouped by day, that stays in step with your files. Save to Downloads or any folder, choose where for each download, or hand downloads to Android's download manager.
-- Pages' own Print and Share buttons, and local development sites (`localhost:3000`, LAN IPs, `.local`).
-
-### Privacy & security
-- **Ad, tracker and cookie-banner blocking**, each switchable on its own, with EasyList, EasyPrivacy and the EasyList Cookie List (the lists most ad blockers use) plus a malware and ad domain list. It blocks requests, hides leftover ad spaces and consent pop-ups, and updates itself weekly. Turn it off for a single site from the tab menu.
-- **Clean links**: tracking tags (`utm_*`, `fbclid`, `gclid`…) are removed from links you open, copy or share.
-- **HTTPS Only** by default: a site that can't connect securely shows a warning page, with a way to continue for that visit.
-- **Clear on Exit**: clear all browsing data when you leave mi. Optional third-party cookie blocking and Safe Browsing.
-- Per-site camera, microphone and location prompts; pop-up blocking; confirmation before downloads or opening other apps; punycode display for look-alike domains.
-- No tracking and no accounts. Site icons come from the sites themselves, never a third-party service.
-
-### Material 3 Expressive
-- Colours from your accent or your wallpaper (Material You) in light, dark or system theme, with a **pure black (OLED)** option. Hide the status bar and pages still keep clear of the camera cutout, sticky headers included.
-- Google Sans Flex (rounded, or your phone's own font if you prefer), Material Symbols, and spring-based motion that uses your display's full refresh rate.
-- **Haptic feedback** at each gesture's point of no return (swipes, the tab switcher, pull to refresh), which you can turn off.
-- Settings in headed groups (Browsing, Appearance, Protection, Navigation, Saved, General), each section on its own page; search across all of them takes you straight to the setting.
-- **Report a bug or suggest a feature** from Settings › About, straight to a new GitHub issue.
-- **Accessible**: every icon button has a label for screen readers, and every gesture (the Pill's swipes, swipe-to-delete, closing a tab) is also an action TalkBack can perform.
-
-## Installation
-Download the latest APK from the **[Releases page](https://github.com/jleescy/mi-browser/releases/latest)** and open it on your phone. Requires Android 8.0 or newer. mi checks for new releases itself and offers to install them.
-
-Long-press mi's icon for shortcuts to a new tab, a new incognito tab or the QR scanner, and add the **mi search widget** to your home screen.
-
-## Building from source
-Requirements: Android Studio (latest stable), or JDK 17+ with the Android SDK (compile SDK 37).
+## Build from source
+Requires Android Studio, or JDK 17+ with the Android SDK.
 
 ```bash
 git clone https://github.com/jleescy/mi-browser.git
 cd mi-browser
-./gradlew installDebug          # build and install on a connected device (installs alongside the release app)
-./gradlew testDebugUnitTest     # run the unit tests
-./gradlew assembleRelease       # minified release APK → app/build/outputs/apk/release/
+./gradlew installDebug         # build and install on a connected device
+./gradlew testDebugUnitTest    # run the unit tests
 ```
 
-To sign release builds, add a git-ignored `keystore.properties` in the project root with `storeFile`, `storePassword`, `keyAlias` and `keyPassword`.
-
-### Project layout
-```
-app/src/main/java/com/jlees/mibrowser/
-├── MainActivity.kt       # edge-to-edge host, intents, permissions
-├── BrowserViewModel.kt   # holds the feature stores, coordinates actions across them
-├── tabs/                 # tab list & rules, tab switcher, previews
-├── library/              # history and bookmarks: stores, rules, screens
-├── search/               # engines, ! shortcuts, suggestions
-├── adblock/              # filter engine, content blocking, link cleaning
-├── incognito/            # WebView profiles, screen and keyboard protection
-├── media/                # picture-in-picture, background playback, media notification
-├── answers/              # inline answers in the Pill: calculator, units, time, coin and dice
-├── home/  qr/  launcher/  update/
-├── data/  logic/         # shared models, storage, URL parsing
-├── web/                  # WebViewHost and one class per WebView job
-└── ui/                   # app shell: Pill, sheets, dialogs, Settings, shared widgets
-docs/                     # project website (Next.js, deployed to GitHub Pages)
-```
-Each feature lives in its own package with its rules (unit tested), state store, Settings section and screens. The full standard is in [CLAUDE.md](CLAUDE.md).
-
-### Versioning
-Releases follow `MAJOR.MINOR.PATCH`: major for ground-up changes (1.0 was the native rewrite), minor for significant new features, patch for fixes and smaller improvements.
-
-The 0.x releases were built with React Native; their source is on the [`legacy`](https://github.com/jleescy/mi-browser/tree/legacy) branch.
+How the code is organized is in the **[Developer Guide](https://jleescy.github.io/mi-browser/developer)** and [CLAUDE.md](CLAUDE.md).
 
 ## License
-mi. is released under the [MIT License](LICENSE). The bundled filter lists (EasyList, EasyPrivacy, EasyList Cookie List; GPL-3.0 / CC BY-SA 3.0), the StevenBlack hosts list (MIT), and the Google Sans Flex font and Material Symbols keep their own licenses.
-
-mi. collects no personal data; see the [Privacy Policy](https://jleescy.github.io/mi-browser/privacy).
+[MIT](LICENSE). The bundled filter lists, hosts list, font and icons keep their own licenses. mi. collects no personal data: see the [Privacy Policy](https://jleescy.github.io/mi-browser/privacy).

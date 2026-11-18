@@ -17,6 +17,19 @@ interface Choice { val label: String }
     @SerialName("light") LIGHT("Light"), @SerialName("dark") DARK("Dark"), @SerialName("system") SYSTEM("System")
 }
 
+/** The Library page you were last on: it opens there again. */
+@Serializable enum class LibraryPage { @SerialName("bookmarks") BOOKMARKS, @SerialName("downloads") DOWNLOADS, @SerialName("following") FOLLOWING }
+
+/** Look & Feel › List Style: History, Downloads and Following as separate rounded cards, or as one table of rows. */
+@Serializable enum class ListStyle(override val label: String) : Choice { @SerialName("cards") CARDS("Cards"), @SerialName("table") TABLE("Table") }
+
+/** Where long text pans (Look & Feel › Pan Overflowed Text); everywhere else it ends in "…". */
+@Serializable enum class PanArea(override val label: String) : Choice {
+    @SerialName("settings") SETTINGS("Settings"), @SerialName("tabMenu") TAB_MENU("Tab Menu"), @SerialName("bookmarks") BOOKMARKS("Bookmarks"),
+    @SerialName("downloads") DOWNLOADS("Downloads"), @SerialName("following") FOLLOWING("Following"), @SerialName("history") HISTORY("History"),
+    @SerialName("suggestions") SUGGESTIONS("Pill Suggestions"),
+}
+
 @Serializable enum class Spacing(override val label: String) : Choice {
     @SerialName("compact") COMPACT("Compact"), @SerialName("normal") NORMAL("Normal"), @SerialName("airy") AIRY("Airy")
 }
@@ -101,6 +114,12 @@ data class Settings(
     val customBangs: Map<String, String> = emptyMap(),
     val cornerRadius: Int = 28, // 0 | 12 | 28
     val uiPadding: Spacing = Spacing.NORMAL,
+    val listStyle: ListStyle = ListStyle.TABLE,
+    /** Not a setting you see: the Library page last shown, which the Library reopens on. */
+    val libraryPage: LibraryPage = LibraryPage.BOOKMARKS,
+    /** Look & Feel › Pan Overflowed Text, and where: only Settings and the tab menu to begin with. */
+    val panLongText: Boolean = true,
+    val panAreas: Set<PanArea> = setOf(PanArea.SETTINGS, PanArea.TAB_MENU),
     val fontScale: Float = 1f,
     val font: AppFont = AppFont.STANDARD,
     /** Before 1.6 (replaced by [font]); read once by the v4 migration. */
@@ -155,6 +174,12 @@ data class Settings(
     val homeDateType: HomeDate = HomeDate.NONE,
     val homeLogoType: HomeLogo = HomeLogo.FIDGET,
     val homeFavorites: Boolean = true,
+    /** Settings › Following › Background Checks: followed prices checked about hourly while mi is closed. */
+    val followChecks: Boolean = true,
+    /** Settings › Following › Notifications: off, followed products never notify (each still picks how, in its sheet). */
+    val followNotifications: Boolean = true,
+    /** Settings › Following › Wi-Fi Only: background checks wait for Wi-Fi (or another network that isn't metered). */
+    val followWifiOnly: Boolean = false,
     /** Sites allowed to open pop-ups without a tap (pop-ups opened by a tap are always allowed). */
     val popupSites: List<String> = emptyList(),
     /** Text size on web pages, in percent (WebSettings.textZoom). Separate from the app's own font size. */
@@ -184,3 +209,6 @@ fun Settings.migrated(): Settings {
     if (m.settingsVersion < 4) m = m.copy(font = if (m.roundedFont) AppFont.ROUNDED else m.font, settingsVersion = 4)
     return m
 }
+
+/** Whether long text pans in [area] (Pan Overflowed Text on, and that place picked). */
+fun Settings.pans(area: PanArea) = panLongText && area in panAreas

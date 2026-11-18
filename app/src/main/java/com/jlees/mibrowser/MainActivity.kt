@@ -67,8 +67,9 @@ class MainActivity : ComponentActivity() {
         LauncherShortcuts.publish(this)
         if (intent?.action == ACTION_SCAN_QR) vm.qrScannerVisible = true
         if (intent?.action == ACTION_OPEN_DOWNLOADS) vm.openView(Sheet.DOWNLOADS)
+        if (intent?.action == ACTION_OPEN_FOLLOWING) openFollowing(intent)
 
-        // one Haptics for the whole UI, following the Haptic Feedback setting
+        // one Haptics for the whole UI, following the Gesture Haptics setting
         val haptics = Haptics(window.decorView) { vm.settings.hapticFeedback }
         setContent { if (vm.ready) CompositionLocalProvider(LocalHaptics provides haptics) { App(vm, host, this) } }
     }
@@ -161,13 +162,22 @@ class MainActivity : ComponentActivity() {
             ACTION_SCAN_QR -> vm.qrScannerVisible = true
             ACTION_CLOSE_INCOGNITO -> vm.closeIncognitoTabs()
             ACTION_OPEN_DOWNLOADS -> vm.openView(Sheet.DOWNLOADS)
+            ACTION_OPEN_FOLLOWING -> openFollowing(intent)
             // the media notification: back to the tab that's playing
             ACTION_SHOW_TAB -> intent.getStringExtra(EXTRA_TAB)?.takeIf { id -> vm.tabs.list.any { it.id == id } }?.let { vm.setActiveTab(it); vm.switcherVisible = false }
             ACTION_NEW_TAB, ACTION_NEW_INCOGNITO, ACTION_SEARCH -> shortcutOf(intent)?.let(vm::openFromShortcut)
         }
     }
 
+    /** A Following notification: Library › Following, with the product's sheet open when it's about one. */
+    private fun openFollowing(intent: Intent) {
+        vm.openView(Sheet.FOLLOWING)
+        com.jlees.mibrowser.follow.FollowFlow.open = intent.getStringExtra(EXTRA_FOLLOW)
+    }
+
     companion object {
+        const val ACTION_OPEN_FOLLOWING = "com.jlees.mibrowser.OPEN_FOLLOWING"
+        const val EXTRA_FOLLOW = "follow"
         const val ACTION_SCAN_QR = "com.jlees.mibrowser.SCAN_QR"
         const val ACTION_CLOSE_INCOGNITO = "com.jlees.mibrowser.CLOSE_INCOGNITO"
         const val ACTION_OPEN_DOWNLOADS = "com.jlees.mibrowser.OPEN_DOWNLOADS"

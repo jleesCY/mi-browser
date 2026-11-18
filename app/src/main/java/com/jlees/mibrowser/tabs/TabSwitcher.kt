@@ -3,6 +3,8 @@
 // vm.switcher.anim: the live page shrinks into its card under the finger (switcherZoom); tapping a card zooms it back.
 package com.jlees.mibrowser.tabs
 
+import com.jlees.mibrowser.data.pans
+import com.jlees.mibrowser.ui.common.LocalPan
 import com.jlees.mibrowser.home.homeFavorites
 
 
@@ -294,7 +296,7 @@ fun TabSwitcher(
             // full width as the edge buttons shrink away
             Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
                 Slot(!searching, Modifier.align(Alignment.CenterStart), fadeIn() + scaleIn(), fadeOut() + scaleOut()) { // shrinks away while searching
-                    SwitcherEdgeButton(layout.left.icon, { vm.openView(layout.left.sheet) }, label = layout.left.label, modifier = edgeIn)
+                    SwitcherEdgeButton(layout.left.icon, { vm.openView(layout.left.sheet(vm.settings.libraryPage)) }, label = layout.left.label, modifier = edgeIn)
                 }
                 // a Box rather than a Surface: its shape, shadow and colour sit outside the size animation, so the
                 // Pill stays round at every width while it grows into the search field
@@ -310,7 +312,7 @@ fun TabSwitcher(
                             onSearch = { vm.isSubMenuVisible = false; searching = true },
                             onDrag = { dir, p ->
                                 vm.isSubMenuVisible = false
-                                dragSheet(layout.at(dir).sheet, p)
+                                dragSheet(layout.at(dir).sheet(vm.settings.libraryPage), p)
                             },
                             onRelease = { dir, open ->
                                 releaseSheet(open)
@@ -327,14 +329,14 @@ fun TabSwitcher(
                         SwitcherSearchBar(query, { query = it }, ::endSearch, onFocus = { focused -> if (!focused && !leaving) endSearch() })
                     }
                     Slot(!searching, enter = PILL_IN, exit = PILL_OUT) {
-                        SwitcherPillButtons(onNew = { vm.addNewTab(); close(null) }, up = layout.up, onUp = { vm.openView(layout.up.sheet) }, onMenu = {
+                        SwitcherPillButtons(onNew = { vm.addNewTab(); close(null) }, up = layout.up, onUp = { vm.openView(layout.up.sheet(vm.settings.libraryPage)) }, onMenu = {
                             centered?.let { vm.setActiveTab(it.id) } // the tab menu acts on the centered tab
                             vm.isSubMenuVisible = !vm.isSubMenuVisible
                         })
                     }
                 }
                 Slot(!searching, Modifier.align(Alignment.CenterEnd), fadeIn() + scaleIn(), fadeOut() + scaleOut()) {
-                    SwitcherEdgeButton(layout.right.icon, { vm.openView(layout.right.sheet) }, label = layout.right.label, modifier = edgeIn)
+                    SwitcherEdgeButton(layout.right.icon, { vm.openView(layout.right.sheet(vm.settings.libraryPage)) }, label = layout.right.label, modifier = edgeIn)
                 }
             }
         }
@@ -346,7 +348,9 @@ fun TabSwitcher(
             enter = fadeIn(tween(120)) + scaleIn(Motion.noBounce(), initialScale = 0.85f, transformOrigin = TransformOrigin(0.5f, 1f)),
             exit = fadeOut(tween(120)) + scaleOut(tween(150), targetScale = 0.9f, transformOrigin = TransformOrigin(0.5f, 1f)),
         ) {
-            TabMenu(vm, Modifier.fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 88.dp, start = 12.dp, end = 12.dp))
+            CompositionLocalProvider(LocalPan provides vm.settings.pans(com.jlees.mibrowser.data.PanArea.TAB_MENU)) { // long tool names pan, if picked
+                TabMenu(vm, Modifier.fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 88.dp, start = 12.dp, end = 12.dp))
+            }
         }
     }
 }
