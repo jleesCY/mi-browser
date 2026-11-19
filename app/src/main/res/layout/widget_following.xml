@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Following widget: a heading (opens Library › Following; its refresh button checks every price) over every followed product, scrolling (rows from
+     FollowWidgetService, each a widget_following_row); with none followed (and while it loads), the empty list as the app shows it. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:id="@+id/widget_following_header"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="@drawable/widget_touch"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/sym_sell"
+            android:tint="@color/widget_accent" />
+
+        <!-- it takes the room left, pushing the refresh button to the end (a widget can't hold a plain View as a spacer) -->
+        <TextView
+            android:id="@+id/widget_following_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/widget_following"
+            android:textColor="@color/widget_text"
+            android:textSize="15sp" />
+
+        <ImageView
+            android:id="@+id/widget_following_refresh"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/widget_touch"
+            android:contentDescription="@string/widget_following_refresh"
+            android:padding="10dp"
+            android:src="@drawable/sym_refresh"
+            android:tint="@color/widget_text" />
+
+        <ProgressBar
+            android:id="@+id/widget_following_progress"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/widget_accent"
+            android:padding="10dp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/widget_following_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="40dp"
+        android:divider="@null"
+        android:scrollbars="none" />
+
+    <!-- while the list loads, or with nothing followed: the app's empty Following list (its tag, "Nothing Followed Yet"),
+         smaller, centred in the whole widget -->
+    <LinearLayout
+        android:id="@+id/widget_following_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/sym_sell"
+            android:tint="@color/widget_subtext" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/widget_following_empty"
+            android:textColor="@color/widget_subtext"
+            android:textSize="13sp" />
+    </LinearLayout>
+</FrameLayout>

@@ -27,7 +27,7 @@ const PROJECT_STRUCTURE = `
 │       │   ├── incognito/           # WebView profiles, screen & keyboard protection
 │       │   ├── media/               # Picture-in-picture, background playback
 │       │   ├── answers/             # Inline answers: calculator, units, time
-│       │   ├── follow/              # Following prices: store, rules, checks, sheets
+│       │   ├── follow/              # Following prices: store, rules, checks, sheets, widget
 │       │   ├── downloads/           # mi's downloader, Downloads page
 │       │   ├── home/ qr/ launcher/ update/
 │       │   ├── data/ logic/         # Shared models, JSON storage, URL parsing

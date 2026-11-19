@@ -266,6 +266,7 @@ class FollowTest {
         assertEquals(1, store.restore(listOf(follow(1.0), other)))
         assertEquals(listOf(100.0, 5.0), store.follows.map { it.current }) // yours kept as they were
         assertNull(store["g"]!!.image) // fetched again on its next check
+        assertTrue(isDue(store["g"]!!, System.currentTimeMillis())) // which is now, not whenever the old phone last checked
     }
 
     @Test fun amazonsPriceAndItsListPrice() {
@@ -324,5 +325,37 @@ class FollowTest {
         assertNull(options[0].extraction.label?.takeIf { it.length < 3 })
         assertEquals(listOf("b", "c", "a"), moved(listOf("a", "b", "c"), 0, 2))
         assertEquals(listOf("a", "b"), moved(listOf("a", "b"), 0, 5)) // out of range: unchanged
+    }
+
+    @Test fun whatTheWidgetShows() {
+        val f = follow(100.0).let { it.copy(history = it.history + PricePoint(2, 80.0, true)) }
+        // a change you haven't seen: a dot and the change, in place of the site; down 20% since followed
+        val drop = FollowUpdate("1", "f", at = 2, kind = UpdateKind.DROP, text = "Down to $80.00")
+        val l = productLine(f, listOf(drop))
+        assertTrue(l.changed); assertEquals("Down to $80.00", l.detail); assertEquals(Tone.GOOD, l.tone)
+        assertEquals("↓ 20%" to Tone.GOOD, l.since); assertNull(l.off)
+        // seen: its site; a sale shows how much off instead
+        val seen = productLine(f.copy(was = 160.0), listOf(drop.copy(read = true)))
+        assertEquals(false, seen.changed); assertEquals("In stock · shop.test", seen.detail); assertEquals("50% off", seen.off)
+        // what needs you comes before the site; no price yet is a dash
+        val lost = productLine(f.copy(status = FollowStatus.NEEDS_ATTENTION, history = emptyList()), emptyList())
+        assertEquals(Tone.BAD, lost.tone); assertEquals("—", lost.price); assertNull(lost.since)
+        assertEquals("Out of stock · shop.test", productLine(follow(5.0, inStock = false), emptyList()).detail)
+    }
+
+    @Test fun theWidgetsHeading() {
+        assertEquals("Following", heading(null))
+        assertEquals("Checking…", heading(Progress(0, 0))) // asked for, waiting for a network
+        assertEquals("Checking 1 of 12", heading(Progress(0, 12)))
+        assertEquals("Checking 12 of 12", heading(Progress(12, 12))) // the last one done, a moment before it clears
+    }
+
+    @Test fun whatAHiddenCheckSkips() {
+        // the price is text: no fonts, video or sound
+        assertTrue(PriceChecker.checkSkips("https://cdn.shop.test/f/inter.woff2", null, "shop.test"))
+        assertTrue(PriceChecker.checkSkips("https://cdn.shop.test/promo.mp4", null, "shop.test"))
+        // the page's own scripts and data load (they may be what shows the price)
+        assertEquals(false, PriceChecker.checkSkips("https://shop.test/app.js", null, "shop.test"))
+        assertEquals(false, PriceChecker.checkSkips("https://shop.test/api/price", "application/json", "shop.test"))
     }
 }

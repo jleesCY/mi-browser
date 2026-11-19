@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 /** Applies an imported .midata. */
-fun BrowserViewModel.applyImport(newSettings: Settings) { settings = newSettings.sanitized().migrated() }
+fun BrowserViewModel.applyImport(newSettings: Settings) { settings = newSettings.importedOver(settings) }
 // ---------------------------------------------------------------- confirm actions
 fun BrowserViewModel.confirmAction(c: ConfirmData) {
     when (c.action) {
@@ -50,6 +50,7 @@ internal fun BrowserViewModel.wipeData() {
         withContext(Dispatchers.IO) {
             saveNow() // the empty state written over the old files, then the files themselves removed
             store.clear()
+            com.jlees.mibrowser.follow.FollowWidget.update(getApplication()) // emptied before mi restarts (its own redraw waits a second)
             cacheDir.listFiles()?.forEach { it.deleteRecursively() }
         }
         val app = getApplication<android.app.Application>()

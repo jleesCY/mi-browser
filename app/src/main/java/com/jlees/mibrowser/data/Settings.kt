@@ -196,6 +196,9 @@ data class Settings(
     fun sanitized() = copy(searchEngineIndex = if (searchEngineIndex in SEARCH_ENGINES.indices || (searchEngineIndex == SEARCH_ENGINES.size && isValidSearchTemplate(customSearchUrl))) searchEngineIndex else 0)
 }
 
+/** A backup's settings, in place of [current], except what belongs to this phone: its download folder (access to a folder is given per phone) and when it last checked for updates. */
+fun Settings.importedOver(current: Settings) = copy(downloadFolder = current.downloadFolder, lastUpdateCheck = current.lastUpdateCheck).sanitized().migrated()
+
 /** Defaults changed for existing installs. v1: third-party cookies allowed (payment/sign-in iframes need them). */
 fun Settings.migrated(): Settings {
     var m = this

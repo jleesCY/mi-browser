@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.DownloadHandler
+import com.jlees.mibrowser.follow.rememberNotifyAsk
 import com.jlees.mibrowser.follow.scheduleChecks
 import com.jlees.mibrowser.library.bookmarkImportPage
 import com.jlees.mibrowser.ui.common.*
@@ -52,7 +53,9 @@ fun librarySection(vm: BrowserViewModel) = SettingsSection("library", "Library",
         }
     } else null,
     SettingsRow("Notifications", "follow price notification alert summary digest") {
-        SwitchItem("notifications", "Notifications", "Get notified when a followed price changes", vm.settings.followNotifications) { vm.updateSettings { copy(followNotifications = it) } }
+        val askNotify = rememberNotifyAsk()
+        // turned on: Android's permission too, if mi hasn't got it (else the switch would be on and nothing would come)
+        SwitchItem("notifications", "Notifications", "Get notified when a followed price changes", vm.settings.followNotifications) { vm.updateSettings { copy(followNotifications = it) }; if (it) askNotify(true) }
     },
 ))
 

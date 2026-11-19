@@ -261,6 +261,9 @@ export default function UserDocs() {
                     <div id="following">
                       <GuideItem icon={<Tag size={18} />} title="Following Prices" desc="On a product page, open the tab menu and tap Follow Price. mi finds the price (the shop's product data, or the likeliest price shown, with any others it found under Other Prices Found) and any sale beside it, so a crossed-out price, '-33%' or 'Save $100' shows as 'Was … · N% off'. Not right? Tap Pick It Myself, then tap the price on the page. You can rename the product before following. Library › Following lists everything you follow with its price, sale and stock (out of stock in red); products with a change you haven't seen are pinned at the top with a dot, and you can hold and drag the rest into any order. Tap one for its price graph (press and drag along it to read any day), its lowest and highest prices, Check Now, its alerts (drops or any change, the smallest change worth one, stock changes, right away, daily or never), how often it's checked, Use My Login for member prices, and Pause Checking. Checks run in the background on your phone, with no account or server; a check that keeps failing tells you why." />
                     </div>
+                    <div id="following-widget">
+                      <GuideItem icon={<Tag size={18} />} title="Following Widget" desc="Add mi's Following widget to your home screen to see every product you follow, scrolling, with its picture, price and how it moved; those that changed since you last looked come first with a dot. Tap one to open it in mi, or the refresh button to check every price now (it shows 'Checking 3 of 12' as it goes)." />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -380,7 +383,7 @@ export default function UserDocs() {
                   <SettingItem title="Confirm Downloads" desc="Ask before a download starts. On by default." />
                   <SettingItem title="Background Checks" desc="Check followed prices while mi is closed, about every hour (each product at its own interval, only with a network and the battery not low). On by default." />
                   <SettingItem title="Wi-Fi Only" desc="Background checks wait for Wi-Fi, so they don't use mobile data. Check Now still works anywhere." />
-                  <SettingItem title="Notifications" id="setting-notifications-following" desc="Turns every Following notification on or off. Each product still chooses its own: right away, in a daily summary, or never." />
+                  <SettingItem title="Notifications" id="setting-notifications-following" desc="Turns every Following notification on or off (turning it on asks for Android's permission if mi doesn't have it). Each product still chooses its own: right away, in a daily summary, or never." />
                 </SettingsSection>
 
                 <SettingsSection title="History" icon={<History size={20} />}>
@@ -391,10 +394,10 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Backup & Reset" icon={<RefreshCw size={20} />}>
-                  <SettingItem title="Export Settings" desc="Save all your settings to a shareable file for backup or device migration." />
-                  <SettingItem title="Import Settings" desc="Restore settings from a previously exported file. This replaces your current configuration." />
+                  <SettingItem title="Export Settings" desc="Save all your settings and followed prices to a file, for a backup or a new phone. History, downloads and other browsing data are left out." />
+                  <SettingItem title="Import Settings" desc="Restore from an exported file: its settings replace yours (this phone keeps its own download folder), and followed prices you don't already have are added." />
                   <SettingItem title="Reset All Settings" desc="Revert every setting to factory defaults without affecting your bookmarks, history, or tabs." />
-                  <SettingItem title="Wipe All Data" desc="Permanently delete all app data including bookmarks, history, tabs, favorites, and settings." />
+                  <SettingItem title="Wipe All Data" desc="Permanently delete all app data including bookmarks, history, tabs, followed prices, downloads and settings, then restart mi." />
                 </SettingsSection>
 
                 <SettingsSection title="About" icon={<BookOpen size={20} />}>

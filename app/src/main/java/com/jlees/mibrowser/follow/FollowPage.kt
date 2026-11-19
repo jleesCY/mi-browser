@@ -6,15 +6,18 @@ import android.webkit.WebView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.jlees.mibrowser.data.json
+import java.lang.ref.WeakReference
+import java.util.Locale
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.lang.ref.WeakReference
 
 /**
  * A spot on a page: where a price is (follow-detect.js `describe`). As a candidate it also says what makes it likely or
@@ -84,7 +87,7 @@ object FollowPage {
         while (System.currentTimeMillis() < end) {
             val wv = views[tabId]?.get()
             if (wv != null && wv.progress == 100 && wv.url.let { it != null && it.startsWith("http") }) return true
-            kotlinx.coroutines.delay(300)
+            delay(300)
         }
         return false
     }
@@ -105,9 +108,9 @@ object FollowPage {
 
     /** How the script finds [o]'s price on the page: its spot, or (a price from the product data) the amount it reads. */
     private fun ruleOf(o: PriceOption): String = json.encodeToString(JsonObject.serializer(), JsonObject(buildMap {
-        o.extraction.selector?.let { put("selector", kotlinx.serialization.json.JsonPrimitive(it)) }
-        o.extraction.classes?.let { put("classes", kotlinx.serialization.json.JsonPrimitive(it)) }
-        o.reading.amount?.let { put("text", kotlinx.serialization.json.JsonPrimitive("%.2f".format(java.util.Locale.US, it))) }
+        o.extraction.selector?.let { put("selector", JsonPrimitive(it)) }
+        o.extraction.classes?.let { put("classes", JsonPrimitive(it)) }
+        o.reading.amount?.let { put("text", JsonPrimitive("%.2f".format(Locale.US, it))) }
     }))
 
     /** A sale around [o]'s price on tab [tabId]'s page ([done] gets null if the price isn't found there). */
@@ -119,11 +122,11 @@ object FollowPage {
     }
 
     /** Whether the page itself says it's in stock (follow-detect.js `stock()`; null: it can't tell). */
-    fun stockIn(d: JsonObject): Boolean? = (d["stock"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toBooleanStrictOrNull()
+    fun stockIn(d: JsonObject): Boolean? = (d["stock"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
 
     /** The page's picture for a product without product data: where a shop mi knows keeps it, its share picture (og:image), or its largest near the top. */
     fun imageIn(d: JsonObject): String? {
-        fun str(key: String) = (d[key] as? kotlinx.serialization.json.JsonPrimitive)?.content?.takeIf { it != "null" }
+        fun str(key: String) = (d[key] as? JsonPrimitive)?.content?.takeIf { it != "null" }
         return str("image") ?: d["meta"]?.jsonObject?.get("og:image")?.jsonPrimitive?.content ?: str("bigImage")
     }
 

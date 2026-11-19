@@ -5,19 +5,29 @@ package com.jlees.mibrowser.follow
 import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import androidx.webkit.ProfileStore
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.jlees.mibrowser.adblock.AdBlock
+import com.jlees.mibrowser.adblock.ContentBlocker
+import com.jlees.mibrowser.adblock.FilterEngine
+import com.jlees.mibrowser.data.Settings
 import com.jlees.mibrowser.data.json
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Locale
+import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -28,9 +38,6 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.coroutines.resume
 
 /** A check's result: what was read (null: the price couldn't be found, for [problem]), and whether the shop needed a full page load. */
 data class Checked(val reading: Reading?, val rendered: Boolean, val extraction: Extraction, val problem: Problem = Problem.NO_PRICE, val guessed: Boolean = false)
@@ -84,7 +91,7 @@ class PriceChecker(private val ctx: Context) {
                 connectTimeout = 15_000; readTimeout = 20_000
                 setRequestProperty("User-Agent", userAgent(ctx))
                 setRequestProperty("Accept", "text/html,application/xhtml+xml")
-                setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
+                setRequestProperty("Accept-Language", Locale.getDefault().toLanguageTag())
                 if (f.useLogin) CookieManager.getInstance().getCookie(f.url)?.let { setRequestProperty("Cookie", it) }
             }
             try {
@@ -116,6 +123,8 @@ class PriceChecker(private val ctx: Context) {
          */
         @SuppressLint("SetJavaScriptEnabled")
         suspend fun render(ctx: Context, url: String, useLogin: Boolean, extraction: Extraction): Rendered = rendering.withLock {
+            // the ad and tracker lists, if mi hasn't been opened in this process (a background check) to load them
+            if (AdBlock.ads == null) AdBlock.load(ctx)
             withContext(Dispatchers.Main) {
                 if (!useLogin && !WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) return@withContext Rendered(null, 0, false) // can't be anonymous
                 val wv = WebView(ctx.applicationContext)
@@ -156,12 +165,17 @@ class PriceChecker(private val ctx: Context) {
                                     }
                                 }
                             }
+                            val pageHost = Uri.parse(url).host
                             wv.webViewClient = object : WebViewClient() {
+                                // less to download, so the price shows sooner (and uses less data)
+                                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                                    if (!request.isForMainFrame && checkSkips(request.url.toString(), request.requestHeaders["Accept"], pageHost))
+                                        ContentBlocker.blocked() else null
                                 override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
                                     if (request.isForMainFrame) status = response.statusCode
                                 }
                                 override fun onPageFinished(view: WebView, u: String?) { if (!started) { started = true; main.postDelayed(::poll, 1000) } }
-                                override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean { if (cont.isActive) cont.resume(null); return true }
+                                override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean { if (cont.isActive) cont.resume(null); return true }
                             }
                             wv.loadUrl(url)
                         }
@@ -173,6 +187,20 @@ class PriceChecker(private val ctx: Context) {
                     wv.destroy()
                 }
             }
+        }
+
+        /** Settings for the lists a check uses: mi's defaults (ads, trackers, cookie banners), whatever you allow while browsing. */
+        private val CHECK_LISTS = Settings()
+
+        /**
+         * What a hidden check doesn't fetch (pictures aren't fetched either): fonts, video and sound, as the price is text;
+         * and ads and trackers, which only slow the page down.
+         */
+        fun checkSkips(url: String, accept: String?, pageHost: String?): Boolean {
+            val type = FilterEngine.typeOf(url, accept)
+            if (type == FilterEngine.FONT || type == FilterEngine.MEDIA) return true
+            val host = Uri.parse(url).host ?: return false
+            return AdBlock.shouldBlock(url, host, pageHost, accept, CHECK_LISTS)
         }
 
         private fun inForeground() = ActivityManager.RunningAppProcessInfo().also(ActivityManager::getMyMemoryState).importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND

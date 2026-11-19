@@ -7,10 +7,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import com.jlees.mibrowser.BrowserViewModel
+import com.jlees.mibrowser.data.json
 import com.jlees.mibrowser.logic.uniqueId
-import kotlinx.coroutines.launch
 import java.util.Currency
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 /** A follow being set up: its tab and page, the prices it offers to choose from (best first; see [priceOptions]), and its picture. */
 data class Draft(val tabId: String, val url: String, val title: String, val options: List<PriceOption>, val image: String? = null)
@@ -124,7 +131,7 @@ internal fun BrowserViewModel.follow(d: Draft, choice: PriceOption, o: Options) 
 
 /** Fetches follow [id]'s picture to keep on the phone. */
 internal fun BrowserViewModel.keepImage(id: String, image: String, pageUrl: String) = viewModelScope.launch {
-    val path = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { FollowImages.save(getApplication(), id, image, pageUrl) }
+    val path = withContext(Dispatchers.IO) { FollowImages.save(getApplication(), id, image, pageUrl) }
     if (path != null) { if (follows[id] != null) follows.update(id) { copy(image = path) } else FollowImages.delete(getApplication(), id) } // unfollowed meanwhile
 }
 
@@ -180,18 +187,18 @@ fun BrowserViewModel.repick(id: String) {
         val loaded = FollowPage.waitUntilLoaded(pending.tabId)
         if (FollowFlow.repickPending != pending) return@launch // cancelled meanwhile
         FollowFlow.repickPending = null
-        if (loaded) { kotlinx.coroutines.delay(400); startPick(pending.tabId, id) } // the page's own scripts settle first
+        if (loaded) { delay(400); startPick(pending.tabId, id) } // the page's own scripts settle first
         else showAlert("Page Didn't Load", "The product page didn't finish loading. Open it and try Pick the Price Again.")
     }
 }
 
 /** For a backup (Export Settings): your followed products, with their price history and settings. */
-fun BrowserViewModel.followsBackup(): kotlinx.serialization.json.JsonElement =
-    com.jlees.mibrowser.data.json.encodeToJsonElement(kotlinx.serialization.builtins.ListSerializer(Follow.serializer()), follows.follows)
+fun BrowserViewModel.followsBackup(): JsonElement =
+    json.encodeToJsonElement(ListSerializer(Follow.serializer()), follows.follows)
 
 /** The followed products in a backup's [data] (none in one from before they were saved). */
-fun backedUpFollows(data: kotlinx.serialization.json.JsonObject): List<Follow> = data["follows"]?.let {
-    runCatching { com.jlees.mibrowser.data.json.decodeFromJsonElement(kotlinx.serialization.builtins.ListSerializer(Follow.serializer()), it) }.getOrNull()
+fun backedUpFollows(data: JsonObject): List<Follow> = data["follows"]?.let {
+    runCatching { json.decodeFromJsonElement(ListSerializer(Follow.serializer()), it) }.getOrNull()
 }.orEmpty()
 
 /** A backup's followed products join yours (see FollowStore.restore); how many did. */

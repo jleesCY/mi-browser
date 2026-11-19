@@ -2,30 +2,48 @@
 // (its price history, settings and actions), and the banner while you tap the price on the page.
 package com.jlees.mibrowser.follow
 
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.app.NotificationManagerCompat
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.ModalFrame
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.settings.ChoiceItem
-import com.jlees.mibrowser.ui.settings.SwitchItem
-import com.jlees.mibrowser.ui.settings.SectionHeader
-import com.jlees.mibrowser.ui.settings.segment
-import com.jlees.mibrowser.ui.settings.Item
 import com.jlees.mibrowser.ui.settings.ExpandItem
+import com.jlees.mibrowser.ui.settings.Item
 import com.jlees.mibrowser.ui.settings.OptionRow
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
+import com.jlees.mibrowser.ui.settings.SectionHeader
+import com.jlees.mibrowser.ui.settings.SwitchItem
+import com.jlees.mibrowser.ui.settings.segment
+import java.net.URL
 
 /** All of Following's sheets and banners; App draws this once, over everything. */
 @Composable
@@ -77,10 +95,10 @@ internal fun Group(title: String?, rows: List<@Composable () -> Unit>) {
 
 /** The product's picture (fitted, on white, as shops show them), or a price tag while there's none. */
 @Composable
-fun ProductImage(src: String?, size: androidx.compose.ui.unit.Dp) {
+fun ProductImage(src: String?, size: Dp) {
     val ui = LocalUi.current
-    Box(Modifier.size(size).clip(RoundedCornerShape(size / 5)).background(if (src != null) androidx.compose.ui.graphics.Color.White else ui.cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
-        NetImage(src, Modifier.fillMaxSize().padding(size / 16), contentScale = androidx.compose.ui.layout.ContentScale.Fit) {
+    Box(Modifier.size(size).clip(RoundedCornerShape(size / 5)).background(if (src != null) Color.White else ui.cs.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+        NetImage(src, Modifier.fillMaxSize().padding(size / 16), contentScale = ContentScale.Fit) {
             Box(Modifier.fillMaxSize().background(ui.cs.surfaceContainerHighest), contentAlignment = Alignment.Center) { Sym("sell", size.value * 0.4f, ui.cs.onSurfaceVariant) }
         }
     }
@@ -119,8 +137,8 @@ private fun BoxScope.FollowSheet(vm: BrowserViewModel) {
     // the last one shown stays drawn while the panel slides away
     val last = remember { arrayOfNulls<Draft>(1) }
     if (d != null) last[0] = d
-    val slide = remember { androidx.compose.animation.core.Animatable(1f) } // 1: below the screen, 0: in place
-    LaunchedEffect(d != null) { slide.animateTo(if (d != null) 0f else 1f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
+    val slide = remember { Animatable(1f) } // 1: below the screen, 0: in place
+    LaunchedEffect(d != null) { slide.animateTo(if (d != null) 0f else 1f, tween(320, easing = FastOutSlowInEasing)) }
     LaunchedEffect(d == null) { if (d == null) FollowFlow.renamingDraft = false } // closed mid-rename: not carried to the next one
     val shown = d ?: last[0] ?: return
     if (d == null && slide.value >= 1f) { last[0] = null; return }
@@ -137,17 +155,17 @@ private fun BoxScope.FollowPanel(vm: BrowserViewModel, d: Draft, hidden: Float) 
     LaunchedEffect(d.url, chosen) { vm.checkAround(d, chosen) }
     // alerts need notification permission on Android 13+: asked at the first follow that would notify (Android stops
     // asking after two refusals); the follow goes ahead whatever the answer
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    val askNotify = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
+    val ctx = LocalContext.current
+    val askNotify = rememberNotifyAsk()
     val cancel = { FollowFlow.draft = null }
-    androidx.activity.compose.BackHandler(FollowFlow.draft != null) { cancel() }
+    BackHandler(FollowFlow.draft != null) { cancel() }
 
     val choice = d.options[chosen.coerceIn(d.options.indices)]
     val currency = choice.reading.currency ?: "USD"
-    val image = (d.image ?: choice.reading.image)?.let { runCatching { java.net.URL(java.net.URL(d.url), it).toString() }.getOrNull() }
+    val image = (d.image ?: choice.reading.image)?.let { runCatching { URL(URL(d.url), it).toString() }.getOrNull() }
 
     // behind it, the page dims; a tap there cancels
-    Box(Modifier.fillMaxSize().zIndex(300f).graphicsLayer { alpha = 1f - hidden }.background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f)).blockTouches { cancel() })
+    Box(Modifier.fillMaxSize().zIndex(300f).graphicsLayer { alpha = 1f - hidden }.background(Color.Black.copy(alpha = 0.5f)).blockTouches { cancel() })
     Column(
         Modifier.align(Alignment.BottomCenter).zIndex(301f).fillMaxWidth().statusBarsPadding().padding(top = 24.dp)
             .graphicsLayer { translationY = hidden * size.height }
@@ -180,14 +198,32 @@ private fun BoxScope.FollowPanel(vm: BrowserViewModel, d: Draft, hidden: Float) 
         // pinned: Cancel and Follow, side by side, the same width
         Row(Modifier.fillMaxWidth().background(ui.cs.surfaceContainerLow).navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            androidx.compose.material3.OutlinedButton(cancel, Modifier.weight(1f).height(48.dp)) { Txt("Cancel", 15f, ui.cs.primary, ui.bold) }
+            OutlinedButton(cancel, Modifier.weight(1f).height(48.dp)) { Txt("Cancel", 15f, ui.cs.primary, ui.bold) }
             // Follow stands out: filled with the accent color (Cancel stays an outline)
-            androidx.compose.material3.Button({
+            Button({
                 vm.follow(d, choice, o)
-                if (o.notify != NotifyMode.OFF && vm.settings.followNotifications && android.os.Build.VERSION.SDK_INT >= 33 &&
-                    ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-                ) askNotify.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                if (o.notify != NotifyMode.OFF && vm.settings.followNotifications) askNotify(false)
             }, Modifier.weight(1f).height(48.dp)) { Txt("Follow", 15f, ui.cs.onPrimary, ui.bold) }
+        }
+    }
+}
+
+/**
+ * Asks for Android's permission to notify when mi lacks it (Android 13+; before that it's only ever turned off in
+ * Android's settings). Given true: if it's refused, or was for good (Android stops asking after twice), Android's
+ * notification settings for mi open instead; that's for when you've just turned Notifications on yourself.
+ */
+@Composable
+fun rememberNotifyAsk(): (thenSettings: Boolean) -> Unit {
+    val ctx = LocalContext.current
+    var thenSettings by remember { mutableStateOf(false) }
+    val openSettings = { ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (!granted && thenSettings) openSettings() }
+    return { orSettings ->
+        if (!NotificationManagerCompat.from(ctx).areNotificationsEnabled()) {
+            if (Build.VERSION.SDK_INT >= 33 && ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                thenSettings = orSettings; launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            } else if (orSettings) openSettings()
         }
     }
 }

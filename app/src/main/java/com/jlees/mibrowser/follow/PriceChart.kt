@@ -24,6 +24,9 @@ import androidx.compose.ui.unit.sp
 import com.jlees.mibrowser.library.smartDate
 import com.jlees.mibrowser.ui.common.LocalHaptics
 import com.jlees.mibrowser.ui.common.LocalUi
+import java.text.NumberFormat
+import java.util.Currency
+import kotlin.math.abs
 
 /** Where a price sits between the graph's guide lines (0: the lower, 1: the upper). A price that never changed sits a little above the lower third. */
 internal fun chartLevel(price: Double, lo: Double, hi: Double): Float =
@@ -31,7 +34,7 @@ internal fun chartLevel(price: Double, lo: Double, hi: Double): Float =
 
 /** The check nearest [x] across a graph [width] wide, for times [t0]…[t1]. */
 internal fun nearestPoint(times: List<Long>, x: Float, width: Float, t0: Long, t1: Long): Int =
-    times.indices.minByOrNull { kotlin.math.abs((times[it] - t0).toFloat() / (t1 - t0).coerceAtLeast(1) * width - x) } ?: 0
+    times.indices.minByOrNull { abs((times[it] - t0).toFloat() / (t1 - t0).coerceAtLeast(1) * width - x) } ?: 0
 
 @Composable
 fun PriceChart(history: List<PricePoint>, currency: String, modifier: Modifier) {
@@ -122,5 +125,5 @@ private val CHART_LEFT = 44.dp
 
 /** "$39" or "$39.99" ("39 €", "39,99 €"), short enough for the graph's side: whole amounts lose their cents. */
 private fun compactPrice(p: Double, currency: String): String = if (p % 1.0 != 0.0) formatPrice(p, currency) else runCatching {
-    java.text.NumberFormat.getCurrencyInstance().apply { this.currency = java.util.Currency.getInstance(currency); maximumFractionDigits = 0 }.format(p)
+    NumberFormat.getCurrencyInstance().apply { this.currency = Currency.getInstance(currency); maximumFractionDigits = 0 }.format(p)
 }.getOrDefault(formatPrice(p, currency))

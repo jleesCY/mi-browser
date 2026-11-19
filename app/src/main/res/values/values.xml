@@ -18,4 +18,8 @@
     <string name="widget_incognito">New incognito tab</string>
     <string name="widget_qr">Scan QR code</string>
     <string name="widget_description">Search the web with mi</string>
+    <string name="widget_following">Following</string>
+    <string name="widget_following_description">Prices you follow, at a glance</string>
+    <string name="widget_following_empty">Nothing Followed Yet</string>
+    <string name="widget_following_refresh">Check all prices now</string>
 </resources>

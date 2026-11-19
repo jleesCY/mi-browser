@@ -71,5 +71,8 @@ class ContentBlocker(private val settings: () -> Settings, private val sessionAl
         WebViewCompat.addDocumentStartJavaScript(wv, script, setOf("*"))
     }
 
-    private fun blocked() = WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+    companion object {
+        /** An empty answer for a request that's dropped (price checks drop requests with it too). */
+        fun blocked() = WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+    }
 }

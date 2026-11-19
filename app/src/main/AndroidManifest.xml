@@ -80,6 +80,14 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_search_info" />
         </receiver>
 
+        <receiver android:name=".follow.FollowWidget" android:exported="false" android:label="@string/widget_following">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_following_info" />
+        </receiver>
+
+        <service android:name=".follow.FollowWidgetService" android:exported="false" android:permission="android.permission.BIND_REMOTEVIEWS" />
         <service android:name=".downloads.DownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name=".media.MediaService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <service android:name=".follow.FollowJob" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />

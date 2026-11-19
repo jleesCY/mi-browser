@@ -15,6 +15,7 @@ import com.jlees.mibrowser.data.ImportError
 import com.jlees.mibrowser.data.applyImport
 import com.jlees.mibrowser.follow.backedUpFollows
 import com.jlees.mibrowser.follow.followsBackup
+import com.jlees.mibrowser.follow.rememberNotifyAsk
 import com.jlees.mibrowser.follow.restoreFollows
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -30,7 +31,7 @@ fun backupSection(vm: BrowserViewModel) = SettingsSection("data", "Backup & Rese
         Item("restart_alt", "Reset All Settings", "Back to defaults; bookmarks, history and tabs are kept", danger = true, onClick = { vm.confirm = ConfirmData(ConfirmAction.RESET_SETTINGS) })
     },
     SettingsRow("Wipe All Data", "erase delete everything") {
-        Item("delete", "Wipe All Data", "Delete bookmarks, history, tabs, favorites and settings", danger = true, onClick = { vm.confirm = ConfirmData(ConfirmAction.WIPE_DATA) })
+        Item("delete", "Wipe All Data", "Delete bookmarks, history, tabs, followed prices, downloads and settings", danger = true, onClick = { vm.confirm = ConfirmData(ConfirmAction.WIPE_DATA) })
     },
 ))
 
@@ -46,7 +47,7 @@ private fun ExportSettingsItem(vm: BrowserViewModel) {
             if (err == null) vm.showAlert("Success", "Data exported successfully!") else vm.showAlert("Export Failed", err.message ?: "Unknown error occurred")
         }
     }
-    Item("upload", "Export Settings", "Save your settings and followed prices to a file", onClick = { exporter.launch("settings_${System.currentTimeMillis()}.midata") })
+    Item("upload", "Export Settings", "Save your settings and followed prices to a file", onClick = { exporter.launch("mi-backup-${java.time.LocalDate.now()}.midata") })
 }
 
 /** Restores settings from an exported file, after asking. */
@@ -54,6 +55,7 @@ private fun ExportSettingsItem(vm: BrowserViewModel) {
 private fun ImportSettingsItem(vm: BrowserViewModel) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val askNotify = rememberNotifyAsk()
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
@@ -67,6 +69,8 @@ private fun ImportSettingsItem(vm: BrowserViewModel) {
                     AlertButton("Restore") {
                         vm.applyImport(backup.settings)
                         val added = vm.restoreFollows(follows)
+                        // prices followed, notifications on, but not allowed on this phone yet: Android's prompt
+                        if (vm.settings.followNotifications && vm.follows.follows.isNotEmpty()) askNotify(false)
                         val more = if (added > 0) " $added followed ${if (added == 1) "price" else "prices"} added." else ""
                         scope.launch { delay(300); vm.showAlert("Success", "Settings restored successfully.$more") }
                     },

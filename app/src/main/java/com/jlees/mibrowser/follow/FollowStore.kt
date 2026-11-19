@@ -8,9 +8,10 @@ import androidx.compose.runtime.setValue
 import com.jlees.mibrowser.data.JsonStore
 import com.jlees.mibrowser.data.Saver
 import com.jlees.mibrowser.logic.uniqueId
+import java.io.File
+import kotlin.math.abs
 import kotlinx.coroutines.MainScope
 import kotlinx.serialization.builtins.ListSerializer
-import java.io.File
 
 /**
  * One per process ([get]): the background check (FollowJob) runs with or without mi open, so the store is created by
@@ -43,7 +44,6 @@ class FollowStore(private val store: JsonStore) {
 
     operator fun get(id: String) = follows.firstOrNull { it.id == id }
     fun following(url: String) = follows.firstOrNull { it.url == url }
-    val unread get() = updates.count { !it.read }
 
     fun add(f: Follow) { follows = listOf(f) + follows.filterNot { it.url == f.url } }
     fun update(id: String, change: Follow.() -> Follow) { follows = follows.map { if (it.id == id) it.change() else it } }
@@ -59,7 +59,7 @@ class FollowStore(private val store: JsonStore) {
     fun record(id: String, r: Reading, now: Long, trusted: Boolean = false, guessed: Boolean = false): List<FollowUpdate> {
         val f = get(id) ?: return emptyList()
         // a price found only by guessing (nothing left where it was): any change waits for you to confirm it
-        val guessedChange = guessed && f.current != null && r.amount != null && kotlin.math.abs(r.amount - f.current!!) >= 0.005
+        val guessedChange = guessed && f.current != null && r.amount != null && abs(r.amount - f.current!!) >= 0.005
         if (!trusted && (isSuspicious(f, r) || guessedChange)) {
             val p = PricePoint(now, r.amount, r.inStock)
             // already waiting for you on this same price: not asked again on every check
@@ -91,7 +91,7 @@ class FollowStore(private val store: JsonStore) {
 
     /** A backup's follows ([restored]) join yours: those you don't already follow (by address), pictures fetched again on their next check. Returns how many joined. */
     fun restore(restored: List<Follow>): Int {
-        val new = restored.filter { r -> follows.none { it.url == r.url } }.map { it.copy(image = null) }
+        val new = restored.filter { r -> follows.none { it.url == r.url } }.map { it.copy(image = null, lastChecked = 0) } // its picture is fetched again, at its first check (due now)
         follows = follows + new
         return new.size
     }
@@ -125,6 +125,8 @@ class FollowStore(private val store: JsonStore) {
                 instance = s
                 val scope = MainScope()
                 s.savers.forEach { it.launchIn(scope) }
+                // the home-screen widget redraws with every change (a check, a follow, opening it to read): debounced as the saves are
+                Saver(1000, { s.follows to s.updates }) { FollowWidget.update(ctx.applicationContext) }.launchIn(scope)
             }
         }
     }

@@ -1,13 +1,15 @@
 // Library › Following: every product you follow, searchable, those that changed since you last looked pinned at the top with a dot.
 package com.jlees.mibrowser.follow
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.Favicons
@@ -21,7 +23,6 @@ fun FollowingView(vm: BrowserViewModel) {
     var search by remember { mutableStateOf("") }
     val q = search.trim().lowercase()
     // one list: what changed since you last looked pinned at the top (with a dot and the change), the rest under it
-    val unread = vm.follows.updates.filter { !it.read }
     val follows = pinnedFirst(vm.follows.follows, vm.follows.updates).filter { q.isEmpty() || it.title.lowercase().contains(q) || displayHost(it.url).contains(q) }
     // opening Following checks whatever is due (the background check may be off, or a shop may only answer mi in front)
     LaunchedEffect(Unit) {
@@ -37,7 +38,7 @@ fun FollowingView(vm: BrowserViewModel) {
             when {
                 vm.follows.follows.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     EmptyState("sell", "Nothing Followed Yet", top = 30.dp)
-                    Txt("On a product page, open the tab menu and tap \"Follow Price\". mi alerts you when it changes.", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp), align = androidx.compose.ui.text.style.TextAlign.Center)
+                    Txt("On a product page, open the tab menu and tap \"Follow Price\". mi alerts you when it changes.", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp), align = TextAlign.Center)
                 }
                 follows.isEmpty() -> EmptyState("sell", "No matches", top = 30.dp)
                 // hold and drag to rearrange (not while searching: the order is of the whole list)
@@ -46,9 +47,8 @@ fun FollowingView(vm: BrowserViewModel) {
                     onReorder = { from, to -> if (q.isEmpty()) vm.follows.reorder(moved(follows, from, to).map { it.id }) },
                 ) { f ->
                     // swipe right to rename, left to unfollow (it asks first: the price history goes with it)
-                    val change = unread.filter { it.followId == f.id }.maxByOrNull { it.at }
                     SwipeActionRow(null, onDelete = { confirmUnfollow(vm, f) }, Modifier, onEdit = { FollowFlow.renaming = f.id }, askDelete = { answer -> confirmUnfollow(vm, f, answer) }) {
-                        ProductRow(f, change, rowH) { FollowFlow.open = f.id }
+                        ProductRow(f, productLine(f, vm.follows.updates), rowH) { FollowFlow.open = f.id }
                     }
                 }
             }
@@ -61,9 +61,10 @@ fun FollowingView(vm: BrowserViewModel) {
 }
 
 @Composable
-/** A followed product: picture, name, and its latest unseen [change] (with a dot) or its stock and site; the price, sale and change since followed. */
-private fun ProductRow(f: Follow, change: FollowUpdate?, height: Float, onPress: () -> Unit) = ListRowPan {
+/** A followed product: picture, name (with a dot when it changed since you last looked) and its line (productLine, as the widget shows it); price, sale and change since followed. */
+private fun ProductRow(f: Follow, line: ProductLine, height: Float, onPress: () -> Unit) = ListRowPan {
     val ui = LocalUi.current
+    fun color(t: Tone) = when (t) { Tone.PLAIN -> ui.cs.onSurfaceVariant; Tone.GOOD -> ui.cs.primary; Tone.BAD -> ui.cs.error }
     Row(
         Modifier.fillMaxWidth().height(height.dp).listRow()
             .touchable(onClick = onPress).padding(horizontal = 15.dp, vertical = 10.dp),
@@ -73,33 +74,16 @@ private fun ProductRow(f: Follow, change: FollowUpdate?, height: Float, onPress:
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // changed since you last looked: a dot, until you open it (or Mark All Read)
-                if (change != null) Box(Modifier.padding(end = 6.dp).size(8.dp).background(ui.cs.primary, androidx.compose.foundation.shape.CircleShape))
-                Txt(f.title.ifBlank { displayHost(f.url) }, 15f, ui.cs.onSurface, ui.bold, Modifier.weight(1f, fill = false), maxLines = 1)
+                if (line.changed) Box(Modifier.padding(end = 6.dp).size(8.dp).background(ui.cs.primary, CircleShape))
+                Txt(line.title, 15f, ui.cs.onSurface, ui.bold, Modifier.weight(1f, fill = false), maxLines = 1)
             }
-            // the change itself, in place of the site (out of stock and "needs attention" in red)
-            if (change != null) {
-                val red = change.kind == UpdateKind.OUT_OF_STOCK || change.kind == UpdateKind.NEEDS_ATTENTION || change.kind == UpdateKind.CONFIRM
-                Txt(change.text, 12f, if (red) ui.cs.error else ui.cs.primary, ui.bold, maxLines = 1)
-                return@Column
-            }
-            val status = when (f.status) {
-                FollowStatus.NEEDS_ATTENTION -> "Needs attention: pick the price again"
-                FollowStatus.CONFIRM -> "Check this price"
-                FollowStatus.OK -> if (f.paused) "Paused · ${displayHost(f.url)}" else displayHost(f.url)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // in or out of stock, when the shop says (its product data, or its buy button)
-                if (f.status == FollowStatus.OK) f.inStock?.let { inStock ->
-                    Txt(if (inStock) "In stock" else "Out of stock", 12f, if (inStock) ui.cs.primary else ui.cs.error, ui.bold, Modifier.padding(end = 6.dp), maxLines = 1)
-                }
-                Txt(status, 12f, if (f.status == FollowStatus.OK) ui.cs.onSurfaceVariant else ui.cs.error, ui.semibold, maxLines = 1, pan = f.status != FollowStatus.OK) // its site never pans
-            }
+            // a change or what needs you pans to be read; a line ending in the site never does
+            Txt(line.detail, 12f, color(line.tone), if (line.tone == Tone.PLAIN) ui.semibold else ui.bold, maxLines = 1, pan = line.changed || f.status != FollowStatus.OK)
         }
         Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 8.dp)) {
-            Txt(f.current?.let { (if (f.startingPrice) "From " else "") + formatPrice(it, f.currency) } ?: "—", 16f, ui.cs.onSurface, ui.extrabold, maxLines = 1)
-            percentOff(f.was, f.current)?.let { Txt("$it% off", 12f, ui.cs.primary, ui.bold, maxLines = 1) } // on sale
-            val change = f.first?.let { first -> f.current?.let { (it - first) / first * 100 } }
-            if (change != null && kotlin.math.abs(change) >= 0.5) Txt((if (change < 0) "↓ " else "↑ ") + "${kotlin.math.abs(change).toInt()}%", 12f, if (change < 0) ui.cs.primary else ui.cs.error, ui.bold)
+            Txt(line.price, 16f, ui.cs.onSurface, ui.extrabold, maxLines = 1)
+            line.off?.let { Txt(it, 12f, ui.cs.primary, ui.bold, maxLines = 1) } // on sale
+            line.since?.let { (text, tone) -> Txt(text, 12f, color(tone), ui.bold) }
         }
     }
 }

@@ -24,6 +24,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Paste and Go", type: "User Guide", href: "/user#the-pill", excerpt: "Open a link you just copied from the Pill." },
   { title: "Downloads", type: "User Guide", href: "/user#downloads", excerpt: "Fast downloads with speed and time left that carry on by themselves, beside Bookmarks in the Library." },
   { title: "Following Prices", type: "User Guide", href: "/user#following", excerpt: "Follow a product's price and sale, with alerts, a price graph and background checks." },
+  { title: "Following Widget", type: "User Guide", href: "/user#following-widget", excerpt: "Your followed prices on the home screen, with a refresh button." },
   { title: "Find in Page", type: "User Guide", href: "/user#find-in-page", excerpt: "Find text on the page, with a match count." },
   // Settings (the app's sections: Search, Web Pages, Media, Look & Feel, Pill, Home Page, Ad Blocking, Privacy & Security, Tabs, Gestures, Library, History, Backup & Reset, About)
   { title: "Theme", type: "Settings", href: "/user#setting-theme", excerpt: "Light, Dark, or System." },
@@ -91,7 +92,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Ask Every Time", type: "Settings", href: "/user#setting-ask-every-time", excerpt: "Choose the folder and name for each download." },
   { title: "Clear on Exit", type: "Settings", href: "/user#setting-clear-on-exit", excerpt: "Erase history, site data or tabs when mi closes." },
   { title: "Clear Browsing Data", type: "Settings", href: "/user#setting-clear-browsing-data", excerpt: "Delete cookies, site storage and cache." },
-  { title: "Export Settings", type: "Settings", href: "/user#setting-export-settings", excerpt: "Save all settings to a file for backup." },
+  { title: "Export Settings", type: "Settings", href: "/user#setting-export-settings", excerpt: "Save settings and followed prices to a file for backup." },
   { title: "Import Settings", type: "Settings", href: "/user#setting-import-settings", excerpt: "Restore settings from an exported file." },
   { title: "Reset All Settings", type: "Settings", href: "/user#setting-reset-all-settings", excerpt: "Revert all settings to their defaults." },
   { title: "Wipe All Data", type: "Settings", href: "/user#setting-wipe-all-data", excerpt: "Permanently delete all app data." },

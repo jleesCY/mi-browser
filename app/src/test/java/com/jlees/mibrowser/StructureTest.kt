@@ -6,6 +6,7 @@ import com.jlees.mibrowser.data.StartupTabs
 import com.jlees.mibrowser.data.ThemeMode
 import com.jlees.mibrowser.data.json
 import com.jlees.mibrowser.data.migrated
+import com.jlees.mibrowser.data.importedOver
 import com.jlees.mibrowser.data.newIncognitoProfile
 import com.jlees.mibrowser.data.newTab
 import com.jlees.mibrowser.tabs.TabsState
@@ -161,6 +162,14 @@ class StructureTest {
         // current settings are left alone
         val current = Settings(settingsVersion = 4, blockAds = false)
         assertEquals(current, current.migrated())
+    }
+
+    @Test fun importedSettingsKeepThisPhonesOwn() {
+        val phone = Settings(downloadFolder = "content://this-phone/tree", lastUpdateCheck = 5)
+        val backup = Settings(settingsVersion = 0, downloadFolder = "content://old-phone/tree", lastUpdateCheck = 1, pureBlack = true, searchEngineIndex = 99)
+        val r = backup.importedOver(phone)
+        assertEquals("content://this-phone/tree", r.downloadFolder); assertEquals(5L, r.lastUpdateCheck) // the old phone's folder isn't open to mi here
+        assertTrue(r.pureBlack); assertEquals(0, r.searchEngineIndex); assertEquals(4, r.settingsVersion) // the rest comes over, repaired and migrated
     }
 
     @Test fun fontMigrationAndWalkthrough() {

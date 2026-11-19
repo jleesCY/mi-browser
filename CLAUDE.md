@@ -23,7 +23,7 @@ one line in BrowserViewModel and its rows in the Settings section files) should 
 | `downloads/` | mi's downloader (engine, foreground service, notifications), DownloadsStore, the download prompt and other handlers, Downloads page |
 | `sites/` | Site settings page (one site's permissions, pop-ups, ad blocking, data), opened from the tab menu |
 | `answers/` | inline answers in the Pill (math, unit conversions, number bases, time and date, coin and dice): the rules, the answer row |
-| `follow/` | Following prices: FollowStore (follows, price history, the changes found), FollowRules (price parsing, product data, alerts), PriceChecker (quick fetch, else a hidden page load in its own profile), FollowJob (background checks via JobScheduler), FollowNotifier, the page hook (follow-detect.js), Library › Following, the follow and product sheets |
+| `follow/` | Following prices: FollowStore (follows, price history, the changes found), FollowRules (price parsing, product data, alerts), PriceChecker (quick fetch, else a hidden page load in its own profile), FollowJob (background checks via JobScheduler), FollowNotifier, FollowWidget (home-screen widget), the page hook (follow-detect.js), Library › Following, the follow and product sheets |
 | `find/` | find in page: FindInPage state (query, match count) and the Pill's find content |
 | `home/` | new-tab page and its favorites grid |
 | `qr/` | scanner and generator |

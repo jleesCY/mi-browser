@@ -9,11 +9,11 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,15 +36,17 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
-import com.jlees.mibrowser.Sheet
 import com.jlees.mibrowser.SettingsTarget
+import com.jlees.mibrowser.Sheet
 import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.library.smartDate
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.settings.Item
 import com.jlees.mibrowser.ui.settings.SwitchItem
+import kotlin.math.abs
 import kotlin.math.min
+import kotlinx.coroutines.launch
 
 @Composable
 fun BoxScope.ProductPanel(vm: BrowserViewModel) {
@@ -97,7 +99,7 @@ private fun BoxScope.Panel(vm: BrowserViewModel, f: Follow, hidden: Float) {
             }
             if (target != heightPx) animate(heightPx, target, animationSpec = tween(220)) { v, _ -> heightPx = v }
         }
-        val scroll = remember(f.id) { androidx.compose.foundation.ScrollState(0) }
+        val scroll = remember(f.id) { ScrollState(0) }
         // scrolling up grows the panel to the whole screen before the page scrolls; at the top, scrolling down shrinks it
         val grow = remember(f.id) {
             object : NestedScrollConnection {
@@ -186,8 +188,8 @@ private fun Top(vm: BrowserViewModel, f: Follow, checking: Boolean) {
     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.Bottom) {
         Txt(f.current?.let { (if (f.startingPrice) "From " else "") + formatPrice(it, f.currency) } ?: "No price", 30f, ui.cs.onSurface, ui.extrabold)
         val change = f.first?.let { first -> f.current?.let { it - first } }
-        if (change != null && kotlin.math.abs(change) >= 0.005)
-            Txt((if (change < 0) "↓ " else "↑ ") + formatPrice(kotlin.math.abs(change), f.currency), 14f, if (change < 0) ui.cs.primary else ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(start = 10.dp, bottom = 5.dp))
+        if (change != null && abs(change) >= 0.005)
+            Txt((if (change < 0) "↓ " else "↑ ") + formatPrice(abs(change), f.currency), 14f, if (change < 0) ui.cs.primary else ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(start = 10.dp, bottom = 5.dp))
     }
     // on sale: the price the shop shows crossed out beside it
     percentOff(f.was, f.current)?.let { off -> Txt("Was ${formatPrice(f.was!!, f.currency)} · $off% off", 13f, ui.cs.primary, ui.semibold, maxLines = 1) }

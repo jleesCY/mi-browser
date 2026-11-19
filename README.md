@@ -26,7 +26,7 @@
 ## Highlights
 - **One Pill for everything**: search with suggestions, inline answers (`20% of 150`, `5 km in mi`) and `!` shortcuts, plus back, forward and the tab switcher, all by swipe.
 - **Tab switcher** with live previews, pinned tabs, tab search and undo.
-- **Follow prices**: follow a product from the tab menu and mi tells you when it drops, goes on sale or comes back in stock, checked on your phone.
+- **Follow prices**: follow a product from the tab menu and mi tells you when it drops, goes on sale or comes back in stock, checked on your phone, with a home-screen widget.
 - **Built-in blocking** of ads, trackers and cookie banners, tracking-free links and HTTPS Only.
 - **Incognito tabs**, each with its own private storage, erased when closed.
 - **Fast downloads**, bookmarks with import and export, history, picture-in-picture and background playback.

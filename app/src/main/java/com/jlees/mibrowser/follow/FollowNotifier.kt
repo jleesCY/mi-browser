@@ -82,8 +82,8 @@ object FollowNotifier {
         return nm
     }
 
-    /** Tapping opens Library › Following (on the product, when there's one). */
-    private fun open(ctx: Context, followId: String?) = PendingIntent.getActivity(ctx, followId?.hashCode() ?: 0,
+    /** Tapping opens Library › Following (on the product, when there's one). The widget's rows and heading open the same. */
+    fun open(ctx: Context, followId: String?) = PendingIntent.getActivity(ctx, followId?.hashCode() ?: 0,
         Intent(ctx, MainActivity::class.java).setAction(MainActivity.ACTION_OPEN_FOLLOWING).putExtra(MainActivity.EXTRA_FOLLOW, followId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 }
