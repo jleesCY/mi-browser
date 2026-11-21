@@ -11,6 +11,7 @@ import com.jlees.mibrowser.adblock.cleanLink
 import com.jlees.mibrowser.adblock.toggleAdsHere
 
 import com.jlees.mibrowser.launcher.LauncherShortcuts
+import com.jlees.mibrowser.launcher.toggleAppMode
 
 import com.jlees.mibrowser.Sheet
 import androidx.compose.foundation.shape.CircleShape
@@ -68,7 +69,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
     fun RowScope.Tile(icon: String, label: String, sub: String?, on: Boolean?, enabled: Boolean = true, onPress: () -> Unit) {
         val (style, fg) = tileStyle(on == true, enabled, onPress)
         Row(
-            Modifier.weight(1f).height(68.dp).then(style).padding(horizontal = 14.dp),
+            Modifier.weight(1f).height(62.dp).then(style).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Sym(icon, 22f, fg, Modifier.padding(end = 12.dp))
@@ -82,18 +83,19 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
     @Composable
     fun RowScope.Round(icon: String, label: String, enabled: Boolean = true, onPress: () -> Unit) {
         Column(
-            Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f).clip(RoundedCornerShape(16.dp)).touchable(enabled, onClick = onPress).padding(vertical = 6.dp),
+            Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f).clip(RoundedCornerShape(16.dp)).touchable(enabled, onClick = onPress).padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(Modifier.size(52.dp).clip(CircleShape).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) { Sym(icon, 22f, ui.cs.onSecondaryContainer) }
-            Txt(label, 12f, ui.cs.onSurface, ui.semibold, Modifier.padding(top = 6.dp), maxLines = 1)
+            // the circle snug around a big icon: compact enough for two rows of tools on a smaller phone
+            Box(Modifier.size(50.dp).clip(CircleShape).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) { Sym(icon, 24f, ui.cs.onSecondaryContainer) }
+            Txt(label, 12f, ui.cs.onSurface, ui.semibold, Modifier.padding(top = 4.dp), maxLines = 1)
         }
     }
     @Composable
     fun MenuRow(icon: String, label: String, color: androidx.compose.ui.graphics.Color = ui.cs.onSurface, enabled: Boolean = true, onPress: () -> Unit) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).alpha(if (enabled) 1f else 0.38f).touchable(enabled, onClick = onPress)
-                .heightIn(min = 52.dp).padding(horizontal = 12.dp),
+                .heightIn(min = 44.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Sym(icon, 22f, if (color == ui.cs.onSurface) ui.cs.onSurfaceVariant else color, Modifier.padding(end = 16.dp))
@@ -120,7 +122,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
         }
     }
     @Composable
-    fun Section(title: String) = Txt(title, 13f, ui.cs.primary, ui.bold, Modifier.padding(start = 6.dp, top = 18.dp, bottom = 8.dp))
+    fun Section(title: String) = Txt(title, 13f, ui.cs.primary, ui.bold, Modifier.padding(start = 6.dp, top = 14.dp, bottom = 8.dp))
 
     Column(modifier.zIndex(10f).shadow(10.dp, shape).clip(shape).background(ui.cs.surfaceContainer).blockTouches().padding(16.dp)) {
         // the tab this menu acts on; tapping its site opens Site settings
@@ -179,6 +181,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             }
 
             Section("Tools")
+            val askNotify = rememberNotifyAsk() // app mode's way out is a notification
             val tools = listOfNotNull(
                 TabTool("qr_code_scanner", "Scan QR", true) { leave(); vm.qrScannerVisible = true },
                 TabTool("qr_code_2", "QR code", hasUrl) { leave(); vm.qrGeneratorVisible = true },
@@ -188,7 +191,9 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 // a search shortcut for this site, found from the page (not from incognito: it'd save the site in Settings)
                 if (!incognito) TabTool("travel_explore", "Add shortcut", hasUrl) { dismiss(); vm.addSearchShortcutFromPage() } else null,
                 // not from incognito: a shortcut would write the page's address into the launcher, outside mi
-                if (!incognito) TabTool("add_to_home_screen", "Home screen", hasUrl) { dismiss(); tab?.let { LauncherShortcuts.pinSite(ctx, it.title, it.url ?: return@let) } } else null,
+                if (!incognito) TabTool("add_to_home_screen", "Home screen", hasUrl) { dismiss(); tab?.let { t -> t.url?.let { com.jlees.mibrowser.launcher.PinFlow.draft = com.jlees.mibrowser.launcher.PinDraft(t.title, it) } } } else null,
+                // app mode: the Pill hides (launcher/AppMode); it's turned off here or from its notification
+                if (!incognito) TabTool("fullscreen", if (tab?.appStart != null) "Exit immersive" else "Immersive", hasUrl) { if (tab?.appStart == null) askNotify(false); leave(); vm.toggleAppMode() } else null,
             )
             // At most four to a row. The rows stack while the menu has room for them; only when they'd overflow do they
             // become pages swiped sideways, with dots for which page shows.

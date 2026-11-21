@@ -167,7 +167,7 @@ private fun BoxScope.FollowPanel(vm: BrowserViewModel, d: Draft, hidden: Float) 
     // behind it, the page dims; a tap there cancels
     Box(Modifier.fillMaxSize().zIndex(300f).graphicsLayer { alpha = 1f - hidden }.background(Color.Black.copy(alpha = 0.5f)).blockTouches { cancel() })
     Column(
-        Modifier.align(Alignment.BottomCenter).zIndex(301f).fillMaxWidth().statusBarsPadding().padding(top = 24.dp)
+        Modifier.align(Alignment.BottomCenter).zIndex(301f).widthIn(max = COMFORTABLE_WIDTH.dp).fillMaxWidth().statusBarsPadding().padding(top = 24.dp)
             .graphicsLayer { translationY = hidden * size.height }
             .background(ui.cs.surfaceContainerLow, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp))
             .blockTouches(),
@@ -204,26 +204,6 @@ private fun BoxScope.FollowPanel(vm: BrowserViewModel, d: Draft, hidden: Float) 
                 vm.follow(d, choice, o)
                 if (o.notify != NotifyMode.OFF && vm.settings.followNotifications) askNotify(false)
             }, Modifier.weight(1f).height(48.dp)) { Txt("Follow", 15f, ui.cs.onPrimary, ui.bold) }
-        }
-    }
-}
-
-/**
- * Asks for Android's permission to notify when mi lacks it (Android 13+; before that it's only ever turned off in
- * Android's settings). Given true: if it's refused, or was for good (Android stops asking after twice), Android's
- * notification settings for mi open instead; that's for when you've just turned Notifications on yourself.
- */
-@Composable
-fun rememberNotifyAsk(): (thenSettings: Boolean) -> Unit {
-    val ctx = LocalContext.current
-    var thenSettings by remember { mutableStateOf(false) }
-    val openSettings = { ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (!granted && thenSettings) openSettings() }
-    return { orSettings ->
-        if (!NotificationManagerCompat.from(ctx).areNotificationsEnabled()) {
-            if (Build.VERSION.SDK_INT >= 33 && ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                thenSettings = orSettings; launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-            } else if (orSettings) openSettings()
         }
     }
 }

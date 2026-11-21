@@ -1,6 +1,8 @@
 // A tab's page events: what may load (blocking, HTTPS Only, other apps), progress, errors and certificates.
 package com.jlees.mibrowser.web
 
+import com.jlees.mibrowser.launcher.appColorOf
+import com.jlees.mibrowser.launcher.leavesApp
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
@@ -35,6 +37,9 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
         if (standard) {
             if (url.contains("intent://") || url.contains("#Intent;")) { webHost.externalApps.open(url, gesture); return true }
             if (url != original) { view.loadUrl(url); return true }
+            // app mode: a link you tapped to another site opens in an ordinary tab, so the app stays on its own site
+            val appStart = webHost.vm.tabs.list.firstOrNull { it.id == id }?.appStart
+            if (request.isForMainFrame && appStart != null && leavesApp(appStart, url, gesture, request.isRedirect)) { webHost.vm.addNewTab(url); return true }
             return false
         }
         webHost.externalApps.open(url, gesture)
@@ -61,6 +66,9 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
         if (id == webHost.vm.tabs.activeId) webHost.vm.find.refresh() // the page searched while loading may have more now
         webHost.topInset.reset(id); webHost.topInset.apply(id, view) // again, now the page's own head is in place
         fetchTouchIcon(view, url)
+        readAppColor(view, url)
+        // Darken: WebView darkens most pages itself; this catches the bright ones that opt out of it
+        if (webHost.vm.settings.darkenPages && webHost.vm.settings.jsEnabled) view.evaluateJavascript(webHost.scripts.darkFallback, null)
         webHost.signIn.pageFinished()
         if (webHost.errors[id] == null) webHost.vm.clearHttpFallback(id) // https worked: later failures in this tab are real errors
         val t = webHost.vm.tabs.list.firstOrNull { it.id == id }
@@ -114,6 +122,15 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
      * loaded. The site it is stored for comes from WebView ([url]), never from the page's script, and the result is
      * dropped if the tab has navigated away meanwhile, so a page can only ever set its own icon.
      */
+    /** The page's colour, for the status bar if its tab is (or becomes) an app (launcher/AppMode). */
+    private fun readAppColor(view: WebView, url: String?) {
+        if (!webHost.vm.settings.jsEnabled) return
+        view.evaluateJavascript(webHost.scripts.appColor) { result ->
+            if (view.url != url) return@evaluateJavascript
+            webHost.vm.tabs.update(id) { copy(appColor = appColorOf(result)) }
+        }
+    }
+
     private fun fetchTouchIcon(view: WebView, url: String?) {
         if (webHost.isIncognito(id)) return
         val host = faviconHost(url) ?: return

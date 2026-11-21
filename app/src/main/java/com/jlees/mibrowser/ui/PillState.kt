@@ -78,17 +78,22 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
         if (vm.isInputFocused || vm.activeView != Sheet.NONE || y < 0) return
         // a new tab's page doesn't scroll: a late scroll from the page just left mustn't hide the Pill over it
         if (vm.tabs.current?.isFresh == true) { lastScrollY = y; return }
-        if (!vm.settings.hidePillOnScroll) { lastScrollY = y; return }
         val dy = y - lastScrollY
+        // app mode: scrolling the page puts the Pill away again (whatever Auto Hide says), and never brings it back
+        if (appMode) { if (dy > 1 && !isBarHidden) hideBar(); lastScrollY = y; return }
+        if (!vm.settings.hidePillOnScroll) { lastScrollY = y; return }
         if (abs(dy) > 1) {
             if (dy > 0 && !isBarHidden) hideBar() else if (dy < 0 && isBarHidden) showBar()
         }
         lastScrollY = y
     }
 
+    /** The tab showing is immersive (launcher/AppMode): the Pill stays hidden (its notification brings it back). */
+    private val appMode get() = vm.tabs.current?.appStart != null
+
     fun loadStart() {
         ignoreNextScroll = true
-        showBar()
+        if (!appMode) showBar()
         scope.launch { progress.snapTo(0f); progress.animateTo(0.1f, timing(300)) }
     }
 

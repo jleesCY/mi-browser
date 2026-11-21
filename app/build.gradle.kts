@@ -18,8 +18,8 @@ android {
         applicationId = "com.jlees.mibrowser"
         minSdk = 26
         targetSdk = 36
-        versionCode = 181
-        versionName = "1.8.1"
+        versionCode = 190
+        versionName = "1.9.0"
     }
 
     signingConfigs {

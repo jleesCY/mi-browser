@@ -87,9 +87,15 @@ fun HomePage(vm: BrowserViewModel) {
 
         }
 
-        // centre: a fidgetable mask on incognito tabs, the logo otherwise; they pop in and out with the wave
+        // centre: a fidgetable mask on incognito tabs, the logo otherwise; they pop in and out with the wave. On a short
+        // screen (a phone sideways) the centre would land on the favorites: then it's centred in the space above them
+        var gridTop by remember { mutableStateOf<Float?>(null) }
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        val half = with(density) { maxHeight.toPx() / 2 + 70.dp.toPx() }
+        val above = gridTop?.takeIf { s.homeFavorites && !vm.isInputFocused && it < half }
         AnimatedContent(
-            incognito, Modifier.fillMaxSize(),
+            incognito, if (above != null) Modifier.fillMaxWidth().height(with(density) { above.toDp() }) else Modifier.fillMaxSize(),
             transitionSpec = {
                 (fadeIn(tween(180, delayMillis = 60)) + scaleIn(Motion.fastSpatial(), initialScale = 0.4f)) togetherWith
                     (fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 0.4f))
@@ -103,8 +109,9 @@ fun HomePage(vm: BrowserViewModel) {
             }
         }
 
+        }
         // favorites, at the bottom above the Pill
-        HomeFavorites(vm)
+        HomeFavorites(vm) { gridTop = it }
     }
 }
 

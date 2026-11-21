@@ -68,6 +68,9 @@ fun lookAndFeelSection(vm: BrowserViewModel): SettingsSection {
             ChoiceItem("list", "List Style", "How History, Downloads and Following look", s.listStyle) { set { copy(listStyle = it) } }
         },
         SettingsRow("Status Bar", "clock battery immersive") { SwitchItem("battery_charging_full", "Status Bar", null, s.showStatusBar) { set { copy(showStatusBar = it) } } },
+        SettingsRow("Rotate Screen", "landscape portrait orientation sideways auto rotate lock") {
+            SwitchItem("screen_rotation", "Rotate Screen", "Turn mi sideways with your phone", s.rotateScreen) { set { copy(rotateScreen = it) } }
+        },
         SettingsHeading("Feedback"),
         SettingsRow("Gesture Haptics", "haptic feedback vibration vibrate haptics touch feel") {
             SwitchItem("vibration", "Gesture Haptics", "Haptic feedback when gestures are performed", s.hapticFeedback) { set { copy(hapticFeedback = it) } }

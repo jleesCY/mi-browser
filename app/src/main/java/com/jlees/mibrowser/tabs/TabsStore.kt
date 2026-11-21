@@ -129,6 +129,9 @@ class TabsStore(
 
     fun togglePinned(id: String) = update(id) { copy(pinned = !pinned) }
 
+    /** App mode on (opening at [start]) or off (null). */
+    fun setApp(id: String, start: String?) = update(id) { copy(appStart = start) }
+
     /** A blank [text] gives the tab its page's name back. */
     fun rename(id: String, text: String) {
         val t = text.trim()

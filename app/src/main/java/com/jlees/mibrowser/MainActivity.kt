@@ -28,7 +28,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.jlees.mibrowser.ui.App
 import com.jlees.mibrowser.web.WebViewHost
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.jlees.mibrowser.launcher.exitAppMode
 
 class MainActivity : ComponentActivity() {
     private val vm: BrowserViewModel by viewModels()
@@ -63,11 +65,14 @@ class MainActivity : ComponentActivity() {
         watchPictureInPicture()
 
         IncognitoNotice.update(this, 0) // left over if the process ended while incognito tabs were open
+        com.jlees.mibrowser.launcher.AppModeNotice.update(this, null) // the same for immersive's
         vm.start(if (intent?.action == Intent.ACTION_VIEW) intent.dataString else null, shortcutOf(intent))
         LauncherShortcuts.publish(this)
         if (intent?.action == ACTION_SCAN_QR) vm.qrScannerVisible = true
         if (intent?.action == ACTION_OPEN_DOWNLOADS) vm.openView(Sheet.DOWNLOADS)
         if (intent?.action == ACTION_OPEN_FOLLOWING) openFollowing(intent)
+        // immersive's notification, tapped after mi was closed: out of immersive once the tabs have loaded
+        if (intent?.action == ACTION_EXIT_APP_MODE) intent.getStringExtra(EXTRA_TAB)?.let { id -> lifecycleScope.launch { snapshotFlow { vm.ready }.first { it }; vm.exitAppMode(id) } }
 
         // one Haptics for the whole UI, following the Gesture Haptics setting
         val haptics = Haptics(window.decorView) { vm.settings.hapticFeedback }
@@ -161,6 +166,7 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> vm.handleIncomingUrl(intent.dataString)
             ACTION_SCAN_QR -> vm.qrScannerVisible = true
             ACTION_CLOSE_INCOGNITO -> vm.closeIncognitoTabs()
+            ACTION_EXIT_APP_MODE -> intent.getStringExtra(EXTRA_TAB)?.let { vm.exitAppMode(it) }
             ACTION_OPEN_DOWNLOADS -> vm.openView(Sheet.DOWNLOADS)
             ACTION_OPEN_FOLLOWING -> openFollowing(intent)
             // the media notification: back to the tab that's playing
@@ -180,6 +186,7 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_FOLLOW = "follow"
         const val ACTION_SCAN_QR = "com.jlees.mibrowser.SCAN_QR"
         const val ACTION_CLOSE_INCOGNITO = "com.jlees.mibrowser.CLOSE_INCOGNITO"
+        const val ACTION_EXIT_APP_MODE = "com.jlees.mibrowser.EXIT_APP_MODE"
         const val ACTION_OPEN_DOWNLOADS = "com.jlees.mibrowser.OPEN_DOWNLOADS"
         const val ACTION_NEW_TAB = "com.jlees.mibrowser.NEW_TAB"
         const val ACTION_NEW_INCOGNITO = "com.jlees.mibrowser.NEW_INCOGNITO"

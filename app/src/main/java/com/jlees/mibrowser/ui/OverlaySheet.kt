@@ -54,7 +54,8 @@ fun OverlaySheet(
         Column(
             Modifier.fillMaxSize().graphicsLayer { if (fromBottom) translationY = slide.value * size.height else translationX = slide.value * size.width }
                 .background(ui.cs.surfaceContainerLow).blockTouches().padding(top = topInsetDp.dp),
-        ) {
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) { Column(Modifier.widthIn(max = COMFORTABLE_WIDTH.dp).fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (header != null) Box(Modifier.weight(1f).padding(end = 12.dp)) { header() }
                 else Txt("Settings", 28f, ui.cs.onSurface, ui.extrabold, Modifier.weight(1f))
@@ -67,7 +68,7 @@ fun OverlaySheet(
             Box(Modifier.fillMaxWidth().weight(1f).paddingDp(bottom = imeDp).pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } }) {
                 CompositionLocalProvider(LocalSheetBack provides back) { content() }
             }
-        }
+        } }
     }
 }
 

@@ -28,7 +28,7 @@ one line in BrowserViewModel and its rows in the Settings section files) should 
 | `home/` | new-tab page and its favorites grid |
 | `qr/` | scanner and generator |
 | `media/` | background playback (page media script, media notification service), picture-in-picture |
-| `launcher/` | launcher shortcuts, search widget |
+| `launcher/` | launcher shortcuts, search widget, home-screen pins (opened as apps: AppWindow, a window and Recents card of their own), app mode for a tab (no Pill; a notification turns it off) |
 | `update/` | GitHub release checks and installs |
 | `onboarding/` | the Gesture Walkthrough (hands-on gesture tour, shown once to every user) |
 

@@ -33,14 +33,15 @@ object LauncherShortcuts {
         runCatching { sm.dynamicShortcuts = list }
     }
 
-    /** Pins a home-screen shortcut that opens [url] in mi (uses the site's favicon when cached). */
-    fun pinSite(ctx: Context, title: String, url: String) {
+    /** Pins a home-screen shortcut that opens [url] in mi (uses the site's favicon when cached); [asApp]: in its own app window (AppWindow). */
+    fun pinSite(ctx: Context, title: String, url: String, asApp: Boolean) {
         val icon = Favicons.bitmapFor(url)?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
             ?: androidx.core.graphics.drawable.IconCompat.createWithResource(ctx, com.jlees.mibrowser.R.mipmap.ic_launcher)
-        val info = androidx.core.content.pm.ShortcutInfoCompat.Builder(ctx, "site_" + url.hashCode())
+        val info = androidx.core.content.pm.ShortcutInfoCompat.Builder(ctx, (if (asApp) "app_" else "site_") + url.hashCode())
             .setShortLabel(title.ifBlank { displayHost(url) }.take(25))
             .setIcon(icon)
-            .setIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).setClass(ctx, com.jlees.mibrowser.MainActivity::class.java))
+            .setIntent(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).setClass(ctx, if (asApp) AppWindow::class.java else com.jlees.mibrowser.MainActivity::class.java)
+                .putExtra(AppWindow.EXTRA_TITLE, title.ifBlank { displayHost(url) }))
             .build()
         androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(ctx, info, null)
     }

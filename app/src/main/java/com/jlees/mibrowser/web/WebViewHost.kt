@@ -2,10 +2,10 @@
 // callbacks are TabWebClient and TabChromeClient; each job behind them is its own class (SitePermissions, HttpsOnly…).
 package com.jlees.mibrowser.web
 
+import com.jlees.mibrowser.data.darkFor
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -28,7 +28,6 @@ import com.jlees.mibrowser.UiEvent
 import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.adblock.ContentBlocker
 import com.jlees.mibrowser.data.TabItem
-import com.jlees.mibrowser.data.ThemeMode
 import com.jlees.mibrowser.downloads.DownloadPrompt
 import com.jlees.mibrowser.incognito.IncognitoProfiles
 import com.jlees.mibrowser.logic.displayHost
@@ -45,6 +44,9 @@ data class WebError(val code: Int, val desc: String, val failingUrl: String?) {
     }
 }
 
+
+/** After a page crashed: reopen it by itself, unless it already did so in the last minute ([lastReload], elapsed ms). */
+fun reloadAfterCrash(lastReload: Long?, now: Long) = lastReload == null || now - lastReload > 60_000
 
 /** Live WebViews kept in memory: the active tab and three in the background. Older tabs are rebuilt from saved state
  *  when opened (each live WebView holds tens of MB; background ones are paused, so they cost memory, not battery). */
@@ -133,7 +135,6 @@ class WebViewHost(
 
     // ---- battery: only the visible tab runs freely; everything pauses while mi is in the background
     private var appVisible = true
-    private var timersPaused = false
     private val pausedViews = HashSet<String>()
 
     /**
@@ -147,9 +148,9 @@ class WebViewHost(
             if (run && id in pausedViews) { wv.onResume(); pausedViews -= id }
             else if (!run && id !in pausedViews) { wv.onPause(); pausedViews += id }
         }
-        // instance methods, but they act on every WebView in the process; with none alive, create() catches up
-        val timers = appVisible || playing != null
-        if (timers == timersPaused) views.values.firstOrNull()?.let { if (timers) it.resumeTimers() else it.pauseTimers(); timersPaused = !timers }
+        // process-wide (app windows' pages too: PageTimers); with no WebView alive, create() catches up
+        PageTimers.mainNeeds = appVisible || playing != null
+        views.values.firstOrNull()?.let(PageTimers::apply)
     }
 
     /** Activity started/stopped. */
@@ -249,7 +250,7 @@ class WebViewHost(
     @SuppressLint("SetJavaScriptEnabled")
     private fun create(id: String, profile: String?): WebView {
         // Pages see prefers-color-scheme from the creating context's theme, so match the app's light/dark setting.
-        val themed = ContextThemeWrapper(activity, if (isDark()) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)
+        val themed = ContextThemeWrapper(activity, if (vm.settings.darkFor(activity.resources.configuration)) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)
         val wv = MiWebView(themed, incognito = profile != null, pullEnabled = { vm.settings.pullToRefresh },
             onPull = { if (id == vm.tabs.activeId) vm.pullProgress = it },
             onRefresh = { errors.remove(id); views[id]?.reload() },
@@ -306,7 +307,8 @@ class WebViewHost(
             WebViewCompat.addWebMessageListener(wv, "miMedia", setOf("*"), media.listener(id))
             WebViewCompat.addDocumentStartJavaScript(wv, scripts.media, setOf("*"))
         }
-        if (timersPaused && appVisible) { wv.resumeTimers(); timersPaused = false } // paused while every WebView was gone
+        PageTimers.mainNeeds = appVisible || media.playingTab != null
+        PageTimers.apply(wv) // paused while every WebView was gone
         wv.webViewClient = TabWebClient(this, id)
         wv.webChromeClient = TabChromeClient(this, id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
@@ -316,12 +318,6 @@ class WebViewHost(
         wv.setFindListener { ordinal, matches, done -> if (done && id == vm.tabs.activeId) vm.find.onResult(ordinal, matches) }
         wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> downloads.start(incognito.cookies(wv), isIncognito(id), url, userAgent, contentDisposition, mimetype, length) }
         return wv
-    }
-
-    private fun isDark() = when (vm.settings.themeMode) {
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK -> true
-        ThemeMode.SYSTEM -> (activity.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     }
 
     internal fun nav(id: String, view: WebView, url: String?, loading: Boolean) =
@@ -356,11 +352,20 @@ class WebViewHost(
      * rebuilt. Reclaimed by Android, the pages simply load again; crashed, the visible tab shows an error page rather
      * than reloading what may well crash it again (and again).
      */
+    /** When each tab last reopened its page after a crash (elapsed ms). */
+    private val crashReloads = HashMap<String, Long>()
+
     internal fun rendererGone(view: WebView, crashed: Boolean) {
         if (view !in views.values) return // its WebView is already gone (an earlier callback rebuilt them all)
         val active = vm.tabs.activeId
         views.keys.toList().forEach { destroy(it) }
-        if (crashed) errors[active] = WebError(WebError.CRASHED, "CRASHED", vm.tabs.list.firstOrNull { it.id == active }?.url)
+        // a crash reopens the page by itself (the rebuilt WebView loads it: sync); a second within a minute shows the
+        // error page instead, so a page that keeps crashing can't loop
+        if (crashed) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (reloadAfterCrash(crashReloads[active], now)) crashReloads[active] = now
+            else errors[active] = WebError(WebError.CRASHED, "CRASHED", vm.tabs.list.firstOrNull { it.id == active }?.url)
+        }
         generation++
     }
 

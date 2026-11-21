@@ -22,6 +22,9 @@ data class TabItem(
     val pinned: Boolean = false,
     /** When it was closed (ms), for History's Recently Closed; 0 for an open tab. */
     val closedAt: Long = 0,
+    /** Immersive (launcher/AppMode, turned on from the tab menu): the page it was turned on at; the Pill stays hidden
+     *  and a notification turns it off. Null for an ordinary tab. */
+    val appStart: String? = null,
     // runtime only
     @Transient val url: String? = null,
     @Transient val requestedUrl: String? = null,
@@ -29,6 +32,8 @@ data class TabItem(
     @Transient val canGoBack: Boolean = false,
     @Transient val canGoForward: Boolean = false,
     @Transient val hasLoadedOnce: Boolean = false,
+    /** The page's own colour (ARGB), read after it loads: the status bar's in app mode (launcher/AppMode). */
+    @Transient val appColor: Int? = null,
     /** Set for a window a page opened (window.open / target=_blank): the tab that opened it. Its page talks to the
      *  opener (window.opener, postMessage) and window.close() returns there. Not kept across restarts. */
     @Transient val openerId: String? = null,

@@ -85,6 +85,8 @@ val SymbolRes: Map<String, Int> = mapOf(
     "wifi" to R.drawable.sym_wifi,
     "wifi_off" to R.drawable.sym_wifi_off,
     "add_to_home_screen" to R.drawable.sym_add_to_home_screen,
+    "fullscreen" to R.drawable.sym_fullscreen,
+    "screen_rotation" to R.drawable.sym_screen_rotation,
     "library_books" to R.drawable.sym_library_books,
     "shield" to R.drawable.sym_shield,
     "incognito" to R.drawable.sym_incognito,

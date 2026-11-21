@@ -98,6 +98,15 @@ export default function UserDocs() {
                       <div id="search-widget">
                         <GuideItem icon={<Search size={18} />} title="Search Widget" desc="Add the mi widget to your home screen: tap the bar to open a new tab ready to type, or its buttons for a new incognito tab or the QR scanner. Long-press mi's icon for the same shortcuts." />
                       </div>
+                      <div id="home-screen-apps">
+                        <GuideItem icon={<Maximize size={18} />} title="Sites as Apps" desc="In the tab menu, tap Home screen and keep Open as App on: the site goes on your home screen as an app. It opens in a window of its own, with its own card in Recents, the site's colour in the status bar and no Pill, and you're signed in as in mi. Tapping it again comes back to the same window. Links to other sites and downloads open in mi; Back on its first page leaves it in Recents, as an app does." />
+                      </div>
+                      <div id="immersive">
+                        <GuideItem icon={<Maximize size={18} />} title="Immersive" desc="Tap Immersive in the tab menu to hide the Pill on the tab you're on, the status bar taking the site's colour. A quiet notification, 'Tap to exit immersive mode', brings the Pill back (with notifications off for mi, Back on the page's first page does). Links to other sites open in a new tab." />
+                      </div>
+                      <div id="big-screens">
+                        <GuideItem icon={<Monitor size={18} />} title="Landscape, Tablets and Foldables" desc="mi turns with your phone (Rotate Screen in Settings › Look & Feel keeps it in portrait). On a wide screen the Pill, Settings, the Library and other pages keep a comfortable width, centred, and a new tab moves its logo above your favorites when the screen is short. mi works in split screen too." />
+                      </div>
                       <div id="search-engine-only">
                         <GuideItem icon={<Search size={18} />} title="Search, Never Open" desc="Start with !se to always search your search engine, even for something that looks like an address: !se example.com searches for it instead of opening the site." />
                       </div>
@@ -141,7 +150,7 @@ export default function UserDocs() {
                     <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button (or swiping the Pill left) opens Settings on top of the switcher. Search from the Pill at the bottom; swipe it right to go back up a level, and from the top level back to the switcher." />
                   </div>
                   <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
-                    <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; tools (Scan QR, QR code, Print, Add shortcut, Home screen: four to a row, swiped sideways if the menu runs out of room); copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
+                    <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; tools (Scan QR, QR code, Print, Follow price, Add shortcut, Home screen, Immersive: four to a row, swiped sideways if the menu runs out of room); copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
                   </div>
                 </div>
               </div>
@@ -298,7 +307,7 @@ export default function UserDocs() {
 
                 <SettingsSection title="Web Pages" icon={<Monitor size={20} />}>
                   <SettingItem title="Text Size" desc="Text size on websites, from 50% to 200%, separate from the app's own Font Size." />
-                  <SettingItem title="Darken" desc="In dark theme, darkens websites that don't have a dark mode of their own." />
+                  <SettingItem title="Darken" desc="In dark theme, darkens websites that don't have a dark mode of their own, including bright ones that ask not to be darkened (their pictures keep their colours)." />
                   <SettingItem title="Desktop Mode" desc="Request desktop versions of websites. Each tab can still switch from the tab menu." />
                   <SettingItem title="Reader Mode" desc="Simplify pages for reading. Each tab can still switch from the tab menu." />
                 </SettingsSection>
@@ -318,6 +327,7 @@ export default function UserDocs() {
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="List Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look. With it hidden, pages (sticky headers included) still start below the camera cutout and scroll behind it." />
+                  <SettingItem title="Rotate Screen" desc="mi turns sideways with your phone when Android's auto-rotate is on. Off, it stays in portrait (full-screen video still turns)." />
                   <SettingItem title="List Style" desc="Table (rows edge to edge, the default) or Cards (each row its own card) for Downloads, Following and History." />
                   <SettingItem title="Pan Overflowed Text" desc="One-line text too long to fit slides slowly to show the rest instead of ending in '…'. On by default for Settings and the tab menu; each other place has its own switch. Web addresses never pan." />
                   <SettingItem title="Gesture Haptics" desc="A light tap when a gesture is about to act: a swipe on a list row, the Pill opening the tab switcher or going back and forward, pull to refresh, closing a tab card, and long presses. On by default." />

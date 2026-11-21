@@ -11,7 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.DownloadHandler
-import com.jlees.mibrowser.follow.rememberNotifyAsk
+import com.jlees.mibrowser.ui.common.rememberNotifyAsk
 import com.jlees.mibrowser.follow.scheduleChecks
 import com.jlees.mibrowser.library.bookmarkImportPage
 import com.jlees.mibrowser.ui.common.*

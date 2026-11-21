@@ -15,7 +15,7 @@ import com.jlees.mibrowser.data.ImportError
 import com.jlees.mibrowser.data.applyImport
 import com.jlees.mibrowser.follow.backedUpFollows
 import com.jlees.mibrowser.follow.followsBackup
-import com.jlees.mibrowser.follow.rememberNotifyAsk
+import com.jlees.mibrowser.ui.common.rememberNotifyAsk
 import com.jlees.mibrowser.follow.restoreFollows
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

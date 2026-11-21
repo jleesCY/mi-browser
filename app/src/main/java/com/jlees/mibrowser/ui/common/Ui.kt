@@ -88,6 +88,13 @@ fun appTypography(font: AppFont) = typographyCache.getOrPut(font) { androidx.com
 } }
 
 /** Material 3 Expressive motion scheme springs (MotionScheme.expressive()). */
+/**
+ * The widest the Pill, pages and panels get (dp): on a tablet, a foldable opened up, or a phone turned sideways they keep
+ * a comfortable width, centred, instead of stretching edge to edge.
+ */
+const val COMFORTABLE_WIDTH = 720
+const val PILL_MAX_WIDTH = 600
+
 object Motion {
     /** Page ⇄ tab switcher: quick and settles fast (no long spring tail). */
     val switcher = spring(dampingRatio = 0.9f, stiffness = 900f, visibilityThreshold = 0.001f)

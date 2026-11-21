@@ -109,7 +109,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
 
     Box(Modifier.fillMaxSize()) {
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            Modifier.align(Alignment.BottomCenter).widthIn(max = PILL_MAX_WIDTH.dp).fillMaxWidth()
                 .paddingDp(start = padH, end = padH, bottom = padB)
                 // hiding morphs the Pill into the recall button (below); once it's there, the button takes over
                 .graphicsLayer { alpha = if (hidden() >= 1f) 0f else 1f },

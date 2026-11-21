@@ -28,9 +28,10 @@
 - **Tab switcher** with live previews, pinned tabs, tab search and undo.
 - **Follow prices**: follow a product from the tab menu and mi tells you when it drops, goes on sale or comes back in stock, checked on your phone, with a home-screen widget.
 - **Built-in blocking** of ads, trackers and cookie banners, tracking-free links and HTTPS Only.
+- **Sites as apps**: pin any site to your home screen as an app with its own window, or make a tab immersive, without the Pill.
 - **Incognito tabs**, each with its own private storage, erased when closed.
 - **Fast downloads**, bookmarks with import and export, history, picture-in-picture and background playback.
-- **Material 3 Expressive**: colours from your wallpaper, pure black dark mode, haptics and smooth motion.
+- **Material 3 Expressive**: colours from your wallpaper, pure black dark mode, haptics and smooth motion, at home in landscape and on tablets.
 - **No accounts, no tracking.** Everything stays on your device.
 
 See everything mi does in the **[User Guide](https://jleescy.github.io/mi-browser/user)**.

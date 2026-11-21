@@ -1,6 +1,8 @@
 // The one screen: the page, the Pill, the tab switcher, and the sheets and dialogs over them.
 package com.jlees.mibrowser.ui
 
+import androidx.compose.ui.graphics.luminance
+import com.jlees.mibrowser.launcher.exitAppMode
 import com.jlees.mibrowser.ui.common.LocalPan
 import com.jlees.mibrowser.ui.common.LocalListPan
 import com.jlees.mibrowser.tabs.switcherLayout
@@ -149,9 +151,12 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         }
 
         // ---- system bars / orientation (StatusBar + onFullScreen)
-        LaunchedEffect(s.showStatusBar, fullscreen, ui.isDark) {
+        // app mode: the status bar in the page's own colour (launcher/AppMode), its icons dark or light to read on it
+        val appBar = vm.tabs.current?.takeIf { it.appStart != null }?.appColor?.let { androidx.compose.ui.graphics.Color(it).copy(alpha = 1f) }
+        val lightBar = appBar?.let { it.luminance() > 0.5f } ?: !ui.isDark
+        LaunchedEffect(s.showStatusBar, fullscreen, ui.isDark, s.rotateScreen, lightBar) {
             val ctl = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-            ctl.isAppearanceLightStatusBars = !ui.isDark
+            ctl.isAppearanceLightStatusBars = lightBar
             ctl.isAppearanceLightNavigationBars = !ui.isDark
             ctl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             if (fullscreen) ctl.hide(WindowInsetsCompat.Type.systemBars())
@@ -159,7 +164,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 ctl.show(WindowInsetsCompat.Type.navigationBars())
                 if (s.showStatusBar) ctl.show(WindowInsetsCompat.Type.statusBars()) else ctl.hide(WindowInsetsCompat.Type.statusBars())
             }
-            activity.requestedOrientation = if (fullscreen) ActivityInfo.SCREEN_ORIENTATION_FULL_USER else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            // with the phone (as Android's auto-rotate says), unless Rotate Screen is off; full-screen video always turns
+            activity.requestedOrientation = if (fullscreen || s.rotateScreen) ActivityInfo.SCREEN_ORIENTATION_FULL_USER else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
 
         IncognitoEffects(vm, activity)
@@ -170,6 +176,15 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         // ---- pages read light/dark when their WebView is created: rebuild them when the theme flips
         var lastDark by remember { mutableStateOf(dark) }
         LaunchedEffect(dark) { if (dark != lastDark) { lastDark = dark; vm.reloadAllTabs() } }
+
+        // ---- app mode (launcher/AppMode): its tab hides the Pill; leaving it (another tab, or turned off) shows it again
+        val appMode = vm.tabs.current?.appStart != null
+        LaunchedEffect(appMode, vm.tabs.activeId) { if (appMode) pill.hideBar() }
+        var wasApp by remember { mutableStateOf(appMode) }
+        LaunchedEffect(appMode) { if (wasApp && !appMode) pill.showBar(); wasApp = appMode }
+        // its notification, while an app-mode tab is the one showing (the title follows the page)
+        val appTab = vm.tabs.current?.takeIf { appMode }
+        LaunchedEffect(appTab?.id, appTab?.title) { com.jlees.mibrowser.launcher.AppModeNotice.update(activity, appTab) }
 
         // ---- pill focus animations
         LaunchedEffect(vm.isInputFocused) { pill.focusAnim.animateTo(if (vm.isInputFocused) 1f else 0f, timing(200)) }
@@ -213,13 +228,19 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             }
 
             val popup = vm.tabs.current?.openerId != null
-            BackHandler(enabled = fullscreen || vm.activeView != Sheet.NONE || vm.isInputFocused || (vm.tabs.current?.currentIndex ?: 0) > 0 || popup) {
+            val immersive = vm.tabs.current?.appStart != null
+            BackHandler(enabled = fullscreen || vm.activeView != Sheet.NONE || vm.isInputFocused || (vm.tabs.current?.currentIndex ?: 0) > 0 || popup || immersive) {
                 when {
                     fullscreen -> host.exitFullscreen()
                     vm.activeView != Sheet.NONE -> closeOverlay()
                     vm.isInputFocused -> focusManager.clearFocus()
                     // a popup window with nothing to go back to closes and returns to the page that opened it
                     !vm.goBack() && popup -> vm.closeWindow(vm.tabs.activeId)
+                    // immersive, on its first page: mi goes to the background as usual; but with notifications off for mi
+                    // (no notification to exit by), Back is the way out of immersive (asked here: it's a system call)
+                    immersive && (vm.tabs.current?.currentIndex ?: 0) <= 0 ->
+                        if (androidx.core.app.NotificationManagerCompat.from(activity).areNotificationsEnabled()) activity.moveTaskToBack(true)
+                        else vm.tabs.current?.let { vm.exitAppMode(it.id) }
                 }
             }
             // remote debugging (chrome://inspect): always in dev builds, a setting in releases
@@ -277,7 +298,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             // status bar backdrop: keeps page content from showing behind the (transparent) status bar
             // fade the browser chrome out as the page zooms into the switcher
             val chromeFade = Modifier.graphicsLayer { alpha = if (vm.switcherVisible) 1f - vm.switcher.anim.value else 1f }
-            if (s.showStatusBar && !fullscreen) Box(chromeFade.fillMaxWidth().height(statusDp.dp).background(ui.cs.surface))
+            if (s.showStatusBar && !fullscreen) Box(chromeFade.fillMaxWidth().height(statusDp.dp).background(appBar ?: ui.cs.surface))
 
             if (!fullscreen) {
                 val screenW = maxWidth.value
@@ -285,7 +306,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     if (vm.activeView == Sheet.NONE) {
                         BottomArea(vm, pill, imeDp, navDp, suggestionsMaxDp)
                     }
-                    RecallButton(vm, pill, navDp, screenW, Modifier.align(Alignment.BottomStart).zIndex(3f))
+                    // app mode: no recall button either (its notification brings the Pill back)
+                    if (vm.tabs.current?.appStart == null) RecallButton(vm, pill, navDp, screenW, Modifier.align(Alignment.BottomStart).zIndex(3f))
                 }
                 // above the tab switcher (zIndex 150) when opened from it; closing returns to the switcher
                 if (vm.activeView != Sheet.NONE) Box(Modifier.fillMaxSize().zIndex(160f)) {
@@ -357,6 +379,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             CompositionLocalProvider(LocalPan provides s.pans(PanArea.SETTINGS)) { FollowOverlays(vm) } // follow price: its sheets and the "tap the price" banner
             ConfirmDialog(vm)
             RenameDialog(vm)
+            com.jlees.mibrowser.launcher.PinDialog()
             com.jlees.mibrowser.search.ShortcutDraftDialog(vm)
             AuthDialog(vm)
             ContextMenu(vm, onSaveImage = { url -> saveImageFromUrl(activity, vm, url) })

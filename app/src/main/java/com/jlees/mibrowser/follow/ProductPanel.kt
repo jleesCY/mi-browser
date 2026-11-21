@@ -126,7 +126,7 @@ private fun BoxScope.Panel(vm: BrowserViewModel, f: Follow, hidden: Float) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - hidden }.background(Color.Black.copy(alpha = 0.5f)).blockTouches { close() })
 
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            Modifier.align(Alignment.BottomCenter).widthIn(max = COMFORTABLE_WIDTH.dp).fillMaxWidth()
                 .then(if (heightPx > 0f) Modifier.height(with(density) { heightPx.toDp() }) else Modifier.heightIn(max = with(density) { maxPx.toDp() }))
                 .graphicsLayer { translationY = hidden * size.height }
                 .background(ui.cs.surfaceContainerLow, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp))

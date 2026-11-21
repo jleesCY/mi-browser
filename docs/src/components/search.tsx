@@ -24,6 +24,9 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Paste and Go", type: "User Guide", href: "/user#the-pill", excerpt: "Open a link you just copied from the Pill." },
   { title: "Downloads", type: "User Guide", href: "/user#downloads", excerpt: "Fast downloads with speed and time left that carry on by themselves, beside Bookmarks in the Library." },
   { title: "Following Prices", type: "User Guide", href: "/user#following", excerpt: "Follow a product's price and sale, with alerts, a price graph and background checks." },
+  { title: "Sites as Apps", type: "User Guide", href: "/user#home-screen-apps", excerpt: "Pin a site to your home screen as an app with its own window." },
+  { title: "Immersive", type: "User Guide", href: "/user#immersive", excerpt: "Hide the Pill on a tab; a notification brings it back." },
+  { title: "Landscape, Tablets and Foldables", type: "User Guide", href: "/user#big-screens", excerpt: "mi turns with your phone and fits wide screens." },
   { title: "Following Widget", type: "User Guide", href: "/user#following-widget", excerpt: "Your followed prices on the home screen, with a refresh button." },
   { title: "Find in Page", type: "User Guide", href: "/user#find-in-page", excerpt: "Find text on the page, with a match count." },
   // Settings (the app's sections: Search, Web Pages, Media, Look & Feel, Pill, Home Page, Ad Blocking, Privacy & Security, Tabs, Gestures, Library, History, Backup & Reset, About)
@@ -35,6 +38,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Corners", type: "Settings", href: "/user#setting-corners", excerpt: "Square, Soft, or Round." },
   { title: "List Spacing", type: "Settings", href: "/user#setting-list-spacing", excerpt: "Compact, Normal, or Airy." },
   { title: "Status Bar", type: "Settings", href: "/user#setting-status-bar", excerpt: "Show or hide the system status bar." },
+  { title: "Rotate Screen", type: "Settings", href: "/user#setting-rotate-screen", excerpt: "Turn mi sideways with your phone." },
   { title: "List Style", type: "Settings", href: "/user#setting-list-style", excerpt: "Table or Cards for Downloads, Following and History." },
   { title: "Pan Overflowed Text", type: "Settings", href: "/user#setting-pan-overflowed-text", excerpt: "Slide text that doesn't fit, place by place." },
   { title: "Background Checks", type: "Settings", href: "/user#setting-background-checks", excerpt: "Check followed prices while mi is closed." },

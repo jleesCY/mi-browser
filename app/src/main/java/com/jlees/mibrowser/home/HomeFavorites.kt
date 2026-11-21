@@ -2,6 +2,8 @@
 // for more (Settings › Home Page › Favorites). Favorites are the bookmarks in the Favorites folder (library/).
 package com.jlees.mibrowser.home
 
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -37,7 +39,7 @@ fun BrowserViewModel.homeFavorites(): List<BookmarkNode> = if (settings.homeFavo
 
 /** Tap a favorite to open it; hold it to rename, change or delete it. Nothing shows without favorites. */
 @Composable
-fun BoxScope.HomeFavorites(vm: BrowserViewModel) {
+fun BoxScope.HomeFavorites(vm: BrowserViewModel, onTop: (Float) -> Unit = {}) {
     var editing by remember { mutableStateOf<BookmarkNode?>(null) }
     FavoriteDialog(vm.bookmarks, editing) { editing = null }
     // while typing in the Pill they step aside (fading out): the page shrinks above the keyboard, and the grid would
@@ -46,7 +48,7 @@ fun BoxScope.HomeFavorites(vm: BrowserViewModel) {
         Box(Modifier.fillMaxSize()) {
             FavoritesGrid(
                 vm.homeFavorites(), onOpen = { vm.navigateTab(it.url, it.title) }, onHold = { editing = it },
-                onReorder = { from, to -> vm.bookmarks.reorderFavorites(from, to) },
+                onReorder = { from, to -> vm.bookmarks.reorderFavorites(from, to) }, onTop = onTop,
             )
         }
     }
@@ -60,9 +62,10 @@ fun BoxScope.HomeFavorites(vm: BrowserViewModel) {
 fun BoxScope.FavoritesGrid(
     favorites: List<BookmarkNode>, onOpen: (BookmarkNode) -> Unit = {}, onHold: (BookmarkNode) -> Unit = {},
     onReorder: (Int, Int) -> Unit = { _, _ -> },
+    onTop: (Float) -> Unit = {},
 ) {
     val ui = LocalUi.current
-    if (favorites.isEmpty()) return
+    if (favorites.isEmpty()) { SideEffect { onTop(Float.MAX_VALUE) }; return } // none: nothing for the logo to keep clear of
     val pages = favorites.chunked(COLUMNS * ROWS)
     val pager = rememberPagerState { pages.size }
     // every page is as tall as the fullest one, so swiping between them never shifts the grid
@@ -71,7 +74,9 @@ fun BoxScope.FavoritesGrid(
     // it (inside the tab switcher's card it has already been taken up, which dropped the grid lower there)
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Column(
-        Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = navBar + 112.dp),
+        // a phone's width at most: on a tablet or sideways the tiles stay together instead of spreading to the edges
+        Modifier.align(Alignment.BottomCenter).widthIn(max = 480.dp).fillMaxWidth().padding(bottom = navBar + 112.dp)
+            .onGloballyPositioned { onTop(it.positionInParent().y) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         HorizontalPager(pager, Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) { p ->

@@ -46,7 +46,6 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:supportsPictureInPicture="true"
-            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|density"
             android:theme="@style/Theme.Mi.Splash">
@@ -72,6 +71,15 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- a home-screen pin opened as an app: its own window and Recents card, one per address (launcher/AppWindow) -->
+        <activity
+            android:name=".launcher.AppWindow"
+            android:exported="false"
+            android:documentLaunchMode="intoExisting"
+            android:autoRemoveFromRecents="false"
+            android:theme="@style/Theme.Mi"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|density" />
 
         <receiver android:name=".launcher.SearchWidget" android:exported="false" android:label="@string/widget_search_hint">
             <intent-filter>

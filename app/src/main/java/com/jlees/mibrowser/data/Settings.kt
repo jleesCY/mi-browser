@@ -127,6 +127,8 @@ data class Settings(
     /** The Quick Guide was shown (or skipped). Until then it shows at start, for new and existing users alike. */
     @SerialName("quickGuideSeen") val walkthroughSeen: Boolean = false, // its saved name from before the rename
     val showStatusBar: Boolean = true,
+    /** Rotate Screen: mi turns with the phone (when Android's auto-rotate is on); off, it stays in portrait. */
+    val rotateScreen: Boolean = true,
     val progressBarMode: LoadingBar = LoadingBar.STANDARD,
     val recallPosition: RecallPosition = RecallPosition.CENTER, // set by swiping the recall handle sideways
     val startupTabMode: StartupTabs = StartupTabs.NEW,
@@ -194,6 +196,13 @@ data class Settings(
 
     /** Load-time sanitising. */
     fun sanitized() = copy(searchEngineIndex = if (searchEngineIndex in SEARCH_ENGINES.indices || (searchEngineIndex == SEARCH_ENGINES.size && isValidSearchTemplate(customSearchUrl))) searchEngineIndex else 0)
+}
+
+/** Light or dark, as the Theme setting says ([config]: the phone's own, for System). */
+fun Settings.darkFor(config: android.content.res.Configuration) = when (themeMode) {
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
+    ThemeMode.SYSTEM -> (config.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
 }
 
 /** A backup's settings, in place of [current], except what belongs to this phone: its download folder (access to a folder is given per phone) and when it last checked for updates. */

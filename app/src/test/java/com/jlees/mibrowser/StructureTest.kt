@@ -24,6 +24,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.jlees.mibrowser.launcher.cssColor
+import com.jlees.mibrowser.launcher.leavesApp
 
 /** Tab rules, settings migration and the incognito recording rule. */
 class StructureTest {
@@ -231,5 +233,32 @@ class StructureTest {
         val day = 86_400_000L
         val times = listOf(now - 3_600_000, now - day, now - 3 * day, now - 30 * day)
         assertEquals(listOf("Today", "Yesterday", "Last 7 Days", "Older"), com.jlees.mibrowser.library.groupByDate(times, now) { it }.map { it.first })
+    }
+
+    @Test fun appModeIsKeptWithTheTab() {
+        val t = newTab("https://mail.test").copy(id = "a", appStart = "https://mail.test")
+        assertEquals("https://mail.test", json.decodeFromString(com.jlees.mibrowser.data.TabItem.serializer(), json.encodeToString(com.jlees.mibrowser.data.TabItem.serializer(), t)).appStart)
+    }
+
+    @Test fun aPagesColourForTheStatusBar() {
+        assertEquals(0xFF1A73E8.toInt(), cssColor("#1a73e8")) // a theme-color
+        assertEquals(0xFFFFFFFF.toInt(), cssColor("#fff"))
+        assertEquals(0xFF102030.toInt(), cssColor("rgb(16, 32, 48)")) // what getComputedStyle gives
+        assertEquals(0x80102030.toInt(), cssColor("rgba(16, 32, 48, 0.5)"))
+        assertEquals(0xFF102030.toInt(), cssColor("rgb(16 32 48)")) // the newer space-separated form
+        assertEquals(null, cssColor("rgba(0, 0, 0, 0)")) // see-through: no colour of its own
+        assertEquals(null, cssColor("#00000000"))
+        assertEquals(null, cssColor("var(--brand)")); assertEquals(null, cssColor("#12"))
+    }
+
+    @Test fun anAppKeepsToItsOwnSite() {
+        val app = "https://mail.example.com/inbox"
+        assertTrue(leavesApp(app, "https://news.site/story", gesture = true, redirect = false)) // a link out: an ordinary tab
+        assertFalse(leavesApp(app, "https://help.example.com/faq", true, false)) // the same site's other parts stay
+        assertFalse(leavesApp(app, "https://news.site/story", gesture = false, redirect = false)) // the page itself moving on
+        assertFalse(leavesApp(app, "https://news.site/story", gesture = true, redirect = true))
+        // signing in goes elsewhere and comes back: it stays in the app
+        assertFalse(leavesApp(app, "https://accounts.google.com/o/oauth2/auth?client_id=x", true, false))
+        assertFalse(leavesApp(app, "https://github.com/login?return_to=x", true, false))
     }
 }

@@ -21,4 +21,8 @@ class PageScripts(ctx: Context) {
     val topInset by lazy { load("top-inset") }
     /** After load: the page's largest touch icon, for its site icon. */
     val touchIcon by lazy { load("touch-icon") }
+    /** After load: the page's own colour, for the status bar in app mode (launcher/AppMode). */
+    val appColor by lazy { load("app-color") }
+    /** After load, with Darken on: darkens a bright page that opts out of WebView's own darkening. */
+    val darkFallback by lazy { load("dark-fallback") }
 }

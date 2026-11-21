@@ -349,7 +349,7 @@ fun TabSwitcher(
             exit = fadeOut(tween(120)) + scaleOut(tween(150), targetScale = 0.9f, transformOrigin = TransformOrigin(0.5f, 1f)),
         ) {
             CompositionLocalProvider(LocalPan provides vm.settings.pans(com.jlees.mibrowser.data.PanArea.TAB_MENU)) { // long tool names pan, if picked
-                TabMenu(vm, Modifier.fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 88.dp, start = 12.dp, end = 12.dp))
+                TabMenu(vm, Modifier.widthIn(max = COMFORTABLE_WIDTH.dp).fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 88.dp, start = 12.dp, end = 12.dp))
             }
         }
     }

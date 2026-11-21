@@ -417,4 +417,10 @@ class LogicTest {
         assertEquals(listOf(com.jlees.mibrowser.data.PanArea.SETTINGS, com.jlees.mibrowser.data.PanArea.TAB_MENU), on)
         assertEquals(false, s.copy(panLongText = false).pans(com.jlees.mibrowser.data.PanArea.SETTINGS)) // off everywhere
     }
+
+    @Test fun aCrashedPageReopensOnceAMinute() {
+        assertTrue(com.jlees.mibrowser.web.reloadAfterCrash(null, 5_000)) // the first crash: the page comes back by itself
+        assertFalse(com.jlees.mibrowser.web.reloadAfterCrash(5_000, 30_000)) // again so soon: the error page, no loop
+        assertTrue(com.jlees.mibrowser.web.reloadAfterCrash(5_000, 70_000)) // a minute on, it's a new crash
+    }
 }
