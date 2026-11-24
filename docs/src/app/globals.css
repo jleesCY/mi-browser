@@ -1,20 +1,19 @@
+@import "./theme.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* The page is the app's background (surfaceContainerLow, as mi's own pages and sheets); text in onSurface. */
 html {
   scroll-behavior: smooth;
 }
 
-:root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+body {
+  @apply bg-surface-container-low text-on-surface;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+::selection {
+  @apply bg-primary-container text-on-primary-container;
 }
 
 /* Ensure sections don't hide under fixed header and center better */
@@ -24,8 +23,8 @@ body {
 
 @keyframes highlight-fade {
   0% {
-    background-color: rgba(59, 130, 246, 0.2);
-    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.2);
+    background-color: rgb(var(--md-primary) / 0.16);
+    box-shadow: 0 0 0 8px rgb(var(--md-primary) / 0.16);
   }
   100% {
     background-color: transparent;

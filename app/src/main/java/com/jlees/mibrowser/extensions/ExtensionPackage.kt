@@ -1,17 +1,13 @@
-// An extension's files: a Firefox .xpi or a Chrome .crx (both zips; a .crx has a signed header in front), unpacked into
+// An extension's files: a Firefox .xpi (a zip), unpacked into
 // mi's storage, and read: its manifest (with its own words in the phone's language), its messages for chrome.i18n, and
 // what its code uses, for the rating shown before installing.
 package com.jlees.mibrowser.extensions
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import java.io.ByteArrayInputStream
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.Locale
 import java.util.zip.ZipInputStream
 
@@ -25,23 +21,11 @@ class ExtensionInfo(val id: String, val dir: File, val manifest: Manifest, val m
 object ExtensionPackage {
     private val lenient = Json { ignoreUnknownKeys = true; isLenient = true; allowTrailingComma = true; allowComments = true }
 
-    /** The zip inside [bytes]: a .crx's header (versions 2 and 3) is skipped; anything else is taken as a zip already. */
-    fun zipOf(bytes: ByteArray): ByteArray {
-        if (bytes.size < 16 || String(bytes, 0, 4, Charsets.US_ASCII) != "Cr24") return bytes
-        val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-        val start = when (b.getInt(4)) {
-            2 -> 16 + b.getInt(8) + b.getInt(12) // public key and signature
-            3 -> 12 + b.getInt(8) // a protobuf header
-            else -> error("unknown .crx version")
-        }
-        return bytes.copyOfRange(start, bytes.size)
-    }
-
-    /** Unpacks [bytes] (.xpi, .crx or .zip) into [dir], replacing what was there. Paths that would leave [dir] are refused. */
+    /** Unpacks [bytes] (an .xpi, a zip) into [dir], replacing what was there. Paths that would leave [dir] are refused. */
     fun unpack(bytes: ByteArray, dir: File) {
         dir.deleteRecursively(); dir.mkdirs()
         val root = dir.canonicalFile
-        ZipInputStream(ByteArrayInputStream(zipOf(bytes))).use { zip ->
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
             while (true) {
                 val e = zip.nextEntry ?: break
                 val out = File(dir, e.name).canonicalFile
@@ -66,10 +50,10 @@ object ExtensionPackage {
             val o = runCatching { lenient.parseToJsonElement(f.readText().removePrefix("﻿")).jsonObject }.getOrNull() ?: continue
             for ((k, v) in o) {
                 val entry = v as? JsonObject ?: continue
-                var msg = (entry["message"] as? JsonPrimitive)?.contentOrNull ?: continue
+                var msg = entry["message"].str() ?: continue
                 // named placeholders ($name$) become their content ($1 or text)
                 (entry["placeholders"] as? JsonObject)?.forEach { (pk, pv) ->
-                    val content = ((pv as? JsonObject)?.get("content") as? JsonPrimitive)?.contentOrNull ?: return@forEach
+                    val content = pv.objOrNull()?.get("content").str() ?: return@forEach
                     msg = msg.replace("$$pk$", content, ignoreCase = true)
                 }
                 out[k.lowercase()] = msg
@@ -78,15 +62,15 @@ object ExtensionPackage {
         return out
     }
 
-    /** Reads an unpacked extension in [dir]: its manifest, words and rating. [chromeId]: when it came from the Chrome Web Store. */
-    fun inspect(dir: File, chromeId: String? = null, id: String? = null): ExtensionInfo {
+    /** Reads an unpacked extension in [dir]: its manifest, words and rating. */
+    fun inspect(dir: File, id: String? = null): ExtensionInfo {
         val raw = lenient.parseToJsonElement(File(dir, "manifest.json").readText().removePrefix("﻿")).jsonObject
         val manifest = parseManifest(raw)
         val messages = messages(dir, manifest.defaultLocale)
         val (apis, flags) = scanned(dir, manifest)
         val name = localize(manifest.name, messages); val description = localize(manifest.description, messages)
         val compat = compatibility(manifest, apis, flags, looksLikePasswordManager(name, description))
-        return ExtensionInfo(id ?: extensionId(manifest.geckoId, chromeId, name), dir, manifest, messages, compat)
+        return ExtensionInfo(id ?: extensionId(manifest.geckoId, name), dir, manifest, messages, compat)
     }
 
     /** Where an extension's scan is kept, in its own folder (gone with it; a new version is a new folder's files). */

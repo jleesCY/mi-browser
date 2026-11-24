@@ -35,6 +35,9 @@ import {
   Zap,
   Pin,
   Tag,
+  Puzzle,
+  Star,
+  EyeOff,
 } from "lucide-react";
 
 const getAssetPath = (path: string) => {
@@ -54,16 +57,16 @@ export default function UserDocs() {
   };
 
   return (
-    <main className="min-h-screen bg-[#050505] text-[#ededed] transition-colors duration-300 overflow-x-hidden">
+    <main className="min-h-screen bg-surface-container-low text-on-surface transition-colors duration-300 overflow-x-hidden">
       <Navbar />
 
       <div className="pt-24 sm:pt-32 pb-20 px-6">
         <div className="max-w-4xl mx-auto">
           <motion.div {...fadeInUp} className="mb-16 text-center sm:text-left">
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter mb-6">
-              The Complete <span className="text-blue-600 italic">User Guide</span>
+              The Complete <span className="text-primary italic">User Guide</span>
             </h1>
-            <p className="text-lg sm:text-xl text-white/60 leading-relaxed font-medium">
+            <p className="text-lg sm:text-xl text-on-surface-variant leading-relaxed font-medium">
               A comprehensive deep-dive into every feature, setting, and interaction within mi. Browser.
             </p>
           </motion.div>
@@ -73,14 +76,14 @@ export default function UserDocs() {
             {/* 1. Pill Interactions - IMAGE RIGHT */}
             <motion.div id="the-pill" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                <div className="p-2 rounded-xl bg-primary-container text-on-primary-container">
                   <Navigation size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Pill Interactions</h2>
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
-                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
                     mi. Browser is designed for one-handed use. Everything centers around &quot;The Pill&quot; at the bottom of your screen.
                   </p>
                   <div className="space-y-6 inline-block text-left w-full">
@@ -112,13 +115,13 @@ export default function UserDocs() {
                       </div>
                     </div>
 
-                    <div id="gestures" className="pt-4 space-y-4 border-t border-white/5">
-                      <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-blue-500 mb-4">Navigation Gestures</h4>
+                    <div id="gestures" className="pt-4 space-y-4 border-t border-outline-variant">
+                      <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-4">Navigation Gestures</h4>
                       <GuideItem icon={<ChevronRight size={18} />} title="Swipe Right" desc="Go back to the previous page in your history." />
                       <GuideItem icon={<ChevronRight size={18} className="rotate-180" />} title="Swipe Left" desc="Go forward to the next page if you've navigated back." />
                     </div>
 
-                    <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                    <div className="p-4 rounded-xl border border-outline-variant bg-surface-container-high text-[10px] sm:text-xs text-on-surface-variant">
                       <p><strong>Pro Tip:</strong> These gestures work directly on the Pill area, allowing for effortless one-handed browsing.</p>
                     </div>
                   </div>
@@ -130,7 +133,7 @@ export default function UserDocs() {
             {/* 2. The Tab Switcher - IMAGE LEFT */}
             <motion.div id="dashboard" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600">
+                <div className="p-2 rounded-xl bg-secondary-container text-on-secondary-container">
                   <Layout size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">The Tab Switcher</h2>
@@ -140,16 +143,16 @@ export default function UserDocs() {
                   <DeviceMockup src="/images/tab_switcher.jpg" color="orange" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
                     Swipe up on the Pill from any page to open the Tab Switcher. Your current tab sits on the far right; swipe right to go back through the tabs you used before. The card's title and icon appear as soon as you start swiping. The bar at the bottom has a new tab button (+) and the ⋮ tab menu, with Bookmarks on the left and Settings on the right. Swipe that Pill right to open the Library, left to open Settings, or up for History and Recently Closed (Settings › Gestures lets you choose which page each swipe opens). Hold it to search your open tabs.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                     <GuideItem icon={<Layers size={18} />} title="Tabs" desc="Swipe between cards and tap one to zoom back into it. Swipe a card up to close it (with undo). Pinned tabs show a pin and can't be swiped away." />
-                    <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button (or swiping the Pill right) opens Bookmarks, Downloads and Following on top of the switcher; swiping the Pill up (or its clock button) opens History and Recently Closed. Each searches from a Pill at the bottom; swipe that Pill back the way the page came to return to the switcher." />
+                    <GuideItem icon={<Bookmark size={18} />} title="Library" desc="The left button (or swiping the Pill right) opens Bookmarks, Downloads, Following and Extensions on top of the switcher; swiping the Pill up (or its clock button) opens History and Recently Closed. Each searches from a Pill at the bottom; swipe that Pill back the way the page came to return to the switcher." />
                     <GuideItem icon={<History size={18} />} title="New Tab" desc="The + button opens a fresh tab and zooms into it." />
                     <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button (or swiping the Pill left) opens Settings on top of the switcher. Search from the Pill at the bottom; swipe it right to go back up a level, and from the top level back to the switcher." />
                   </div>
-                  <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                  <div className="p-4 rounded-xl border border-outline-variant bg-surface-container-high text-[10px] sm:text-xs text-on-surface-variant">
                     <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; tools (Scan QR, QR code, Print, Follow price, Add shortcut, Home screen, Immersive: four to a row, swiped sideways if the menu runs out of room); copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
                   </div>
                 </div>
@@ -159,14 +162,14 @@ export default function UserDocs() {
             {/* 3. Search & Favorites - IMAGE RIGHT */}
             <motion.div id="recent-history" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                <div className="p-2 rounded-xl bg-primary-container text-on-primary-container">
                   <Maximize size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Search &amp; Favorites</h2>
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
-                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
                     Tap the Pill and it grows upward with what you need, the best match closest to your thumb. Your favorites wait on every new tab.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
@@ -178,7 +181,7 @@ export default function UserDocs() {
                     <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and hold a favorite, then drag it to its new place." />
                     <GuideItem icon={<Trash2 size={18} />} title="Edit or Remove a Favorite" desc="Touch and hold a favorite and let go without moving it to edit its name and address; Delete is in there too. Favorites also live in a Favorites folder in your bookmarks; deleting that folder deletes them all (mi asks first)." />
                   </div>
-                  <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                  <div className="p-4 rounded-xl border border-outline-variant bg-surface-container-high text-[10px] sm:text-xs text-on-surface-variant">
                     <p><strong>Configurable:</strong> Settings › Pill › While Typing switches each kind of suggestion on or off, and Settings › Home Page › Favorites shows or hides the favorites.</p>
                   </div>
                 </div>
@@ -189,7 +192,7 @@ export default function UserDocs() {
             {/* 4. Visual Tab Management - IMAGE LEFT */}
             <motion.div id="tabs" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600">
+                <div className="p-2 rounded-xl bg-tertiary-container text-on-tertiary-container">
                   <Layers size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Tab Management</h2>
@@ -199,7 +202,7 @@ export default function UserDocs() {
                   <DeviceMockup src="/images/tab_zoom.jpg" color="purple" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
                     Moving between tabs feels like switching apps: the live page zooms out into its card under your finger, and zooms back in when you pick a tab.
                   </p>
                   <div className="space-y-4 inline-block text-left">
@@ -216,14 +219,14 @@ export default function UserDocs() {
             {/* 5. Bookmark Management - IMAGE RIGHT */}
             <motion.div id="bookmarks" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-pink-500/10 text-pink-600">
+                <div className="p-2 rounded-xl bg-tertiary-container text-on-tertiary-container">
                   <FolderHeart size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Bookmark Management</h2>
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
-                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
                     Keep your favorite corners of the web organized. mi. Browser provides a flexible bookmarking system with folder support.
                   </p>
                   <div className="space-y-4 inline-block text-left w-full">
@@ -243,7 +246,7 @@ export default function UserDocs() {
             {/* 6. History Management - IMAGE LEFT */}
             <motion.div id="history" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-green-500/10 text-green-600">
+                <div className="p-2 rounded-xl bg-secondary-container text-on-secondary-container">
                   <Clock size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">History Management</h2>
@@ -253,7 +256,7 @@ export default function UserDocs() {
                   <DeviceMockup src="/images/history.jpg" color="green" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
                     Never lose a page you&apos;ve visited. mi. keeps a local-only record of your browsing activity that stays entirely on your device.
                   </p>
                   <div className="space-y-4 inline-block text-left">
@@ -281,7 +284,7 @@ export default function UserDocs() {
             {/* 7. Detailed Settings Reference - IMAGE RIGHT */}
             <motion.div id="customization" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600">
+                <div className="p-2 rounded-xl bg-secondary-container text-on-secondary-container">
                   <Settings2 size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h2>
@@ -289,10 +292,10 @@ export default function UserDocs() {
 
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
-                  <p className="text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-lg text-on-surface-variant leading-relaxed font-medium">
                     Every aspect of mi. Browser can be customized. Settings opens on a list of sections; tap one to open its page, or search to find any setting from any section. Here is a breakdown of every available setting:
                   </p>
-                  <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-[10px] sm:text-xs text-white/50">
+                  <div className="p-4 rounded-xl border border-outline-variant bg-surface-container-high text-[10px] sm:text-xs text-on-surface-variant">
                     <p><strong>Pro Tip:</strong> Most settings apply in real-time. You can change your accent color or UI spacing and see the results instantly without restarting the app.</p>
                   </div>
                 </div>
@@ -302,7 +305,7 @@ export default function UserDocs() {
               <div className="grid gap-12">
                 <SettingsSection title="Search" icon={<Search size={20} />}>
                   <SettingItem title="Search Engine" desc="Support for Google, Bing, DuckDuckGo, Brave, Ecosia, and Yahoo. Pick Custom… to use any other search site: enter a name and an address with %s where your search goes (for example https://www.startpage.com/do/search?q=%s)." />
-                  <SettingItem title="Search Shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Your Shortcuts lists yours and lets you add more (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority. To add one, search a site as usual, then tap ⋮ › Add shortcut: mi finds the site's search for you." />
+                  <SettingItem title="Your Shortcuts and Built-in Shortcuts" id="setting-search-shortcuts" desc="Start a search with a shortcut to search one site: !w Wikipedia, !yt YouTube, !r Reddit, !a Amazon, !m Maps, !i Images, and !se your search engine. Only one shortcut, at the very start. It turns into a small pill in the Pill once you type a space after it. Your Shortcuts lists yours and lets you add more (a short name plus the site&apos;s search address, with %s where the search goes); yours take priority. To add one, search a site as usual, then tap ⋮ › Add shortcut: mi finds the site's search for you." />
                 </SettingsSection>
 
                 <SettingsSection title="Web Pages" icon={<Monitor size={20} />}>
@@ -352,7 +355,7 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Ad Blocking" icon={<ShieldCheck size={20} />}>
-                  <SettingItem title="Block Ads" desc="Blocks ads and ad networks with EasyList and the StevenBlack malware and ad domain list: matching requests are dropped and leftover ad spaces are hidden. On by default." />
+                  <SettingItem title="Block Ads" desc="Blocks ads and ad networks with EasyList and the StevenBlack malware and ad domain list: matching requests are dropped and leftover ad spaces are hidden, and small page scripts from uBlock Origin's lists defuse ads served with a site's own content (as on YouTube), anti-adblock walls and pop-unders. On by default." />
                   <SettingItem title="Block Trackers" desc="Blocks analytics and tracking scripts that follow you across sites (EasyPrivacy). On by default." />
                   <SettingItem title="Hide Cookie Banners" desc="Hides cookie-consent pop-ups with the EasyList Cookie List. Turn it off if a site won't let you continue without answering its banner." />
                   <SettingItem title="Remove Tracking from Links" desc="Strips tracking tags such as utm_source, fbclid and gclid from links you open, copy or share. On by default." />
@@ -411,12 +414,16 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="About" icon={<BookOpen size={20} />}>
-                  <SettingItem title="Check for Updates" desc="Look for a new release now. mi also checks on its own, at most twice a day." />
+                  <SettingItem title="Check for Updates" desc="Look for a new release now. mi also checks on its own, at most twice a day. After an update, What's New shows that version's release notes once." />
                   <SettingItem title="Default Browser" desc="Make mi. the app that opens links on your phone." />
                   <SettingItem title="Gesture Walkthrough" desc="A hands-on tour of every gesture, shown once on first launch or after updating: the Pill, your tabs, the Library, Settings and History. Open it here to go through it again." />
-                  <SettingItem title="Report a Bug or Suggest a Feature" desc="Opens a new issue on mi's GitHub page." />
+                  <SettingItem title="Report a Bug" desc="Opens a new bug report on mi's GitHub page, with your mi version filled in." />
+                  <SettingItem title="Suggest a Feature" desc="Opens a new feature request on mi's GitHub page, with your mi version filled in." />
+                  <SettingItem title="Request Extension Support" desc="Ask for an extension to work in mi: opens a request on GitHub with your mi and Android System WebView versions filled in, labelled so it's easy to find." />
+                  <SettingItem title="Source Code" desc="mi is open source: its code is on GitHub." />
                   <SettingItem title="Privacy Policy" desc="mi collects no personal data. The full policy is on this site." />
-                  <SettingItem title="Credits" desc="The open-source projects and filter lists mi is built with, and their licenses." />
+                  <SettingItem title="Credits" desc="The open-source projects mi is built with, and their licenses." />
+                  <SettingItem title="Filter List Credits" desc="The filter lists mi blocks with (EasyList, EasyPrivacy, the EasyList Cookie List, StevenBlack hosts) and their licenses." />
                 </SettingsSection>
               </div>
             </motion.div>
@@ -424,7 +431,7 @@ export default function UserDocs() {
             {/* 8. Power Tools - IMAGE LEFT */}
             <motion.div id="power-tools" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
-                <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600">
+                <div className="p-2 rounded-xl bg-primary-container text-on-primary-container">
                   <QrCode size={24} />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Power Tools</h2>
@@ -434,7 +441,7 @@ export default function UserDocs() {
                   <DeviceMockup src="/images/power_tools.jpg" color="cyan" />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <p className="text-base sm:text-lg text-white/60 leading-relaxed font-medium">
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
                     Tap ⋮ in the Tab Switcher for the centered tab's actions, modes and tools.
                   </p>
                   <div className="grid grid-cols-1 gap-4 inline-block text-left w-full">
@@ -461,14 +468,41 @@ export default function UserDocs() {
               </div>
             </motion.div>
 
-            {/* 9. Privacy Commitment - IMAGE RIGHT */}
-            <motion.div id="privacy" {...fadeInUp} className="bg-blue-600 rounded-[2rem] p-12 text-white relative overflow-hidden">
+            {/* 9. Extensions */}
+            <motion.div id="extensions" {...fadeInUp} className="space-y-12">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-tertiary-container text-on-tertiary-container">
+                  <Puzzle size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Extensions</h2>
+              </div>
+              <div className="space-y-6">
+                <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium text-center sm:text-left">
+                  mi runs extensions made for Firefox on Android: dark modes, ad blockers, price trackers, YouTube helpers and more. Find them in the Library under Extensions.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
+                  <GuideItem icon={<Puzzle size={18} />} title="Get Extensions" desc="Library › Extensions › Get Extensions: browse by category or search Firefox Add-ons from the Pill. Only extensions made for phones are offered; tap one, check what it can do, and Add. On Firefox Add-ons' own site, an 'Add to mi.' bar offers the page's extension too." />
+                  <div id="tested-in-mi">
+                    <GuideItem icon={<Star size={18} />} title="Tested in mi" desc="Extensions checked by hand in mi, at the top of Get Extensions: Dark Reader, uBlock Origin, uBlock Origin Lite, Keepa, SponsorBlock, Privacy Badger and ClearURLs. If your phone's Android System WebView is too old for one, mi says so and how to update it." />
+                  </div>
+                  <GuideItem icon={<ShieldCheck size={18} />} title="How Well It Works" desc="Before you add an extension, mi reads its code and rates it: Works, Might Have Problems (with what may not work) or Not Recommended. Extensions made only for desktop, and password managers, can't be added: mi says why." />
+                  <GuideItem icon={<Layers size={18} />} title="In the Tab Menu" desc="An extension with a button shows it under Extensions in the tab menu, with its badge (a count of blocked ads, for example). Tap it for its popup; hold and drag to rearrange; hold and let go for its page in the Library." />
+                  <GuideItem icon={<Settings2 size={18} />} title="Its Page" desc="Tap an extension in the Library for its page: turn it on or off, Show in Tab Menu, Allow in Incognito (off by default), the sites it's turned off on, its permissions, Options, Clear Data and Remove." />
+                  <GuideItem icon={<Trash2 size={18} />} title="Remove" desc="Remove from its page, or swipe it away in the Library. Undo puts it back with its settings." />
+                  <GuideItem icon={<EyeOff size={18} />} title="With mi's Ad Blocking" desc="mi's own ad blocking keeps running beside an ad-blocking extension, so both block. If a site breaks, turn one of them off for that site." />
+                  <GuideItem icon={<Search size={18} />} title="Missing One?" desc="Settings › About › Request Extension Support asks for an extension to be made to work in mi." />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 10. Privacy Commitment - IMAGE RIGHT */}
+            <motion.div id="privacy" {...fadeInUp} className="bg-primary-container rounded-[2rem] p-12 text-on-primary-container relative overflow-hidden">
               <div className="absolute top-0 right-0 p-12 opacity-10">
                 <ShieldCheck size={200} />
               </div>
               <div className="relative z-10 max-w-2xl">
                 <h2 className="text-3xl font-extrabold mb-6 tracking-tight">Privacy by Design</h2>
-                <p className="text-xl text-blue-50 font-medium leading-relaxed mb-8">
+                <p className="text-xl text-on-primary-container font-medium leading-relaxed mb-8">
                   mi. Browser is not just minimal in design, but minimal in data collection. Your browsing remains yours.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-8">
@@ -476,13 +510,13 @@ export default function UserDocs() {
                     <div className="flex items-center gap-2 font-bold">
                       <Lock size={18} /> No Tracking
                     </div>
-                    <p className="text-sm text-blue-100/80">We do not track your history, cookies, or search patterns. No data is sent to our servers.</p>
+                    <p className="text-sm text-on-primary-container/80">We do not track your history, cookies, or search patterns. No data is sent to our servers.</p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 font-bold">
                       <RefreshCw size={18} /> Local Storage
                     </div>
-                    <p className="text-sm text-blue-100/80">Bookmarks, history, and tabs are stored only in the app&apos;s private storage on your device. Sites you allow past certificate warnings, and camera, microphone or location permissions you grant, last only until you close the app.</p>
+                    <p className="text-sm text-on-primary-container/80">Bookmarks, history, and tabs are stored only in the app&apos;s private storage on your device. Sites you allow past certificate warnings, and camera, microphone or location permissions you grant, last only until you close the app.</p>
                   </div>
                 </div>
               </div>
@@ -499,12 +533,12 @@ export default function UserDocs() {
 function GuideItem({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
     <div className="flex gap-4">
-      <div className="shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40">
+      <div className="shrink-0 w-10 h-10 rounded-xl bg-surface-container-high border border-outline-variant flex items-center justify-center text-on-surface-variant/80">
         {icon}
       </div>
       <div>
         <h4 className="font-bold text-lg leading-tight mb-1">{title}</h4>
-        <p className="text-white/50 font-medium leading-relaxed">{desc}</p>
+        <p className="text-on-surface-variant font-medium leading-relaxed">{desc}</p>
       </div>
     </div>
   );
@@ -514,8 +548,8 @@ function SettingsSection({ title, icon, children }: { title: string, icon: React
   const id = title.toLowerCase().replace(/\s+/g, '-');
   return (
     <div id={id} className="space-y-6 scroll-mt-28">
-      <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-        <div className="text-blue-400">{icon}</div>
+      <div className="flex items-center gap-2 pb-2 border-b border-outline-variant">
+        <div className="text-primary">{icon}</div>
         <h3 className="font-bold text-xl tracking-tight uppercase text-xs tracking-[0.2em] opacity-50">{title}</h3>
       </div>
       <div className="grid sm:grid-cols-2 gap-6">
@@ -529,24 +563,24 @@ function SettingItem({ title, desc, id: given }: { title: string, desc: string, 
   // its link (#setting-…) from its name; settings sharing a name (Site Icons, for bookmarks and for tabs) pass their own
   const id = given ?? `setting-${title.toLowerCase().replace(/\s+/g, '-')}`;
   return (
-    <div id={id} className="p-6 rounded-2xl bg-white/5 border border-white/5 shadow-sm hover:border-blue-500/30 transition-colors scroll-mt-28">
+    <div id={id} className="p-6 rounded-2xl bg-surface-container-high border border-outline-variant shadow-sm hover:border-primary/40 transition-colors scroll-mt-28">
       <h4 className="font-bold text-sm mb-2">{title}</h4>
-      <p className="text-xs text-white/50 leading-relaxed font-medium">{desc}</p>
+      <p className="text-xs text-on-surface-variant leading-relaxed font-medium">{desc}</p>
     </div>
   );
 }
 
 function DeviceMockup({ src, color }: { src: string, color?: string }) {
   const glowStyles: any = {
-    blue: "bg-blue-500/20 shadow-blue-500/40",
-    purple: "bg-purple-500/20 shadow-purple-500/40",
-    pink: "bg-pink-500/20 shadow-pink-500/40",
-    orange: "bg-orange-500/20 shadow-orange-500/40",
-    cyan: "bg-cyan-500/20 shadow-cyan-500/40",
-    green: "bg-green-500/20 shadow-green-500/40",
+    blue: "bg-primary/20 shadow-primary/30",
+    purple: "bg-tertiary/20 shadow-tertiary/30",
+    pink: "bg-tertiary/20 shadow-tertiary/30",
+    orange: "bg-secondary/20 shadow-secondary/30",
+    cyan: "bg-secondary/20 shadow-secondary/30",
+    green: "bg-secondary/20 shadow-secondary/30",
   };
 
-  const glowClass = (color && glowStyles[color]) ? glowStyles[color].split(' ')[0] : 'bg-blue-500/10';
+  const glowClass = (color && glowStyles[color]) ? glowStyles[color].split(' ')[0] : 'bg-primary-container';
 
   return (
     <div className="relative group flex justify-center">

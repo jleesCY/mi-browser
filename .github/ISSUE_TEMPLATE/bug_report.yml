@@ -1,0 +1,32 @@
+name: Report a Bug
+description: Something in mi. Browser isn't working right.
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: mi version
+      description: Filled in when you report from mi (Settings › About). Otherwise, it's shown under Check for Updates there.
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What went wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The steps, and the site if it happens on one.
+      placeholder: |
+        1. Open …
+        2. Tap …
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+      placeholder: "Pixel 8, Android 16"

@@ -32,9 +32,8 @@ import com.jlees.mibrowser.ui.settings.ChoiceItem
 import com.jlees.mibrowser.ui.settings.ExpandItem
 import com.jlees.mibrowser.ui.settings.Item
 import com.jlees.mibrowser.ui.settings.OptionRow
-import com.jlees.mibrowser.ui.settings.SectionHeader
 import com.jlees.mibrowser.ui.settings.SwitchItem
-import com.jlees.mibrowser.ui.settings.segment
+import com.jlees.mibrowser.ui.settings.SegmentedGroup
 import java.net.URL
 
 /** All of Following's sheets and banners; App draws this once, over everything. */
@@ -77,13 +76,6 @@ internal fun checkingRows(o: Options): List<@Composable () -> Unit> = listOf(
     { ChoiceItem("history", "Check the price every", null, o.every) { o.every = it } },
     { SwitchItem("lock", "Use My Login", "For member or local prices", o.useLogin) { o.useLogin = it } },
 )
-
-/** A heading (or, without one, the same space) over its rows, in one segmented card: the way Settings groups its rows. */
-@Composable
-internal fun Group(title: String?, rows: List<@Composable () -> Unit>) {
-    if (title != null) SectionHeader(null, title) else Spacer(Modifier.height(20.dp))
-    rows.forEachIndexed { i, row -> Box(Modifier.segment(i, rows.size)) { row() } }
-}
 
 /** The product's picture (fitted, on white, as shops show them), or a price tag while there's none. */
 @Composable
@@ -170,7 +162,7 @@ private fun BoxScope.FollowPanel(vm: BrowserViewModel, d: Draft, hidden: Float) 
                 percentOff(choice.reading.was, choice.reading.amount)?.let { "Was ${formatPrice(choice.reading.was!!, currency)} · $it% off" }, choice.reading.inStock) { FollowFlow.renamingDraft = true }
             // the prices found, best first: the likeliest large; the others opening under a row, as Settings' choices do
             val rest = d.options.drop(1)
-            Group("Price", listOf<@Composable () -> Unit>({ Item("sell", priceText(d.options[0], currency), d.options[0].note, onClick = { chosen = 0 }, titleSize = 22f,
+            SegmentedGroup("Price", listOf<@Composable () -> Unit>({ Item("sell", priceText(d.options[0], currency), d.options[0].note, onClick = { chosen = 0 }, titleSize = 22f,
                     trailing = { if (chosen == 0) Sym("check", 20f, ui.cs.primary) }) }) +
                 if (rest.isEmpty()) emptyList() else listOf<@Composable () -> Unit>({
                     ExpandItem("sell", "Other Prices Found", "${rest.size} more on this page",
@@ -178,9 +170,9 @@ private fun BoxScope.FollowPanel(vm: BrowserViewModel, d: Draft, hidden: Float) 
                         rest.forEachIndexed { j, opt -> OptionRow(priceText(opt, currency), chosen == j + 1, detail = opt.note, strike = opt.old) { chosen = j + 1; close() } }
                     }
                 }))
-            Group(null, listOf { Item("refresh", "Pick It Myself", "Tap the price on the page yourself", onClick = { vm.startPick(d.tabId, null, d.image) }) })
+            SegmentedGroup(null, listOf { Item("refresh", "Pick It Myself", "Tap the price on the page yourself", onClick = { vm.startPick(d.tabId, null, d.image) }) })
             // the one choice up front; the rest opening under More Options, as Settings' rows do
-            Group("Alerts", listOf(alertRows(o).first()) + listOf<@Composable () -> Unit>({
+            SegmentedGroup("Alerts", listOf(alertRows(o).first()) + listOf<@Composable () -> Unit>({
                 ExpandItem("settings", "More Options", "Percentage change, stock, notifications, checking", value = null) {
                     (alertRows(o).drop(1) + checkingRows(o)).forEach { it() }
                 }

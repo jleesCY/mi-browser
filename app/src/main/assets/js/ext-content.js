@@ -13,6 +13,9 @@ try { delete window.miExt; } catch (_) {}
 const top = window === window.top;
 // the extensions' native addresses (moz-extension://…) load from mi's, in this page too (ext-address.js)
 const fixAddr = installAddresses(EXTS.map((e) => e.id));
+// import() in a content script (code-split extensions load their parts this way): its address is switched the same way
+// (ExtensionRules.isolatedWorld turns their `import(` into this); if it fails, the extension's own fallback runs
+try { Object.defineProperty(window, '__miImport', { configurable: true, value: (u) => import(fixAddr(u instanceof URL ? u.href : String(u))) }); } catch (_) {}
 const post = (o) => { try { chan.postMessage(JSON.stringify(o)); } catch (_) {} };
 const pending = {}, handlers = {}, tokens = {};
 let seq = 0;
@@ -93,18 +96,16 @@ const bind = function bind(t) {
 };
 Object.defineProperty(bind, 'toString', { value: () => 'function bind() { [native code] }' });
 Object.defineProperty(Function.prototype, 'bind', { configurable: true, writable: true, value: bind });
-const globalFor = (api, ws) => new Proxy(window, {
+const globalFor = (api) => new Proxy(window, {
   get(w, k) {
     if (k === 'chrome' || k === 'browser') return api;
-    if (k === 'WebSocket' && ws) return ws;
     const v = Reflect.get(w, k);
     return typeof v === 'function' && !/^[A-Z]/.test(String(k)) ? v.bind(w) : v;
   },
   set(w, k, v) { w[k] = v; return true; },
   has(w, k) { return k === 'chrome' || k === 'browser' || k in w; },
 });
-const sockets = {}; // extension id → its WebSocket (ext-api.js), the one its content scripts see
-const standIn = (api, id) => { const g = globalFor(api, sockets[id]); standIns.add(g); return g; };
+const standIn = (api) => { const g = globalFor(api); standIns.add(g); return g; };
 
 const apis = {}, lazy = {};
 Object.defineProperty(window, '__miExtRunEntry', {
@@ -113,6 +114,9 @@ Object.defineProperty(window, '__miExtRunEntry', {
     const run = lazy[nonce]; delete lazy[nonce]; run(fn);
   },
 });
+// mi learns of this frame first: a call made before it knows the frame would go unanswered (a document_start script
+// that asks for storage at once, as uBlock Origin Lite's do, would wait forever)
+post({ t: 'hello', u: location.href, top, x: EXTS.map((e) => [e.id, e.token]) });
 for (const ext of EXTS) {
   tokens[ext.id] = ext.token;
   const channel = {
@@ -121,9 +125,7 @@ for (const ext of EXTS) {
   };
   calls[ext.id] = channel.call;
   const api = (apis[ext.id] = makeApi(Object.assign({}, ext.cfg, { kind: 'content' }), channel));
-  sockets[ext.id] = channel.WebSocket;
-  const g = standIn(api, ext.id);
-  const ws = channel.WebSocket;
+  const g = standIn(api);
   // turned off on this site in Settings (and its subdomains): none of its scripts run here
   const host = location.hostname.replace(/^www\./, '');
   if ((ext.offSites || []).some((h) => host === h || host.endsWith('.' + h))) continue;
@@ -135,20 +137,27 @@ for (const ext of EXTS) {
     // a big one mi runs in the page when it's time (extensions/ExtensionTabs.runEntry), with a nonce only this page knows
     if (code === 0) whenReady(s.runAt, () => {
       const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      lazy[nonce] = (fn) => { try { fn.call(window, api, api, g, g, ws); } catch (e) { console.error('[' + ext.cfg.name + ']', e); } };
+      lazy[nonce] = (fn) => { try { fn.call(window, api, api, g, g); } catch (e) { console.error('[' + ext.cfg.name + ']', e); } };
       channel.call('content.run', [i, nonce]).catch((e) => { delete lazy[nonce]; console.error('[' + ext.cfg.name + ']', e); });
     });
     else if (code) whenReady(s.runAt, () => {
-      try { s.mainWorld ? code.call(window) : code.call(window, api, api, g, g, ws); } catch (e) { console.error('[' + ext.cfg.name + ']', e); }
+      try { s.mainWorld ? code.call(window) : code.call(window, api, api, g, g); } catch (e) { console.error('[' + ext.cfg.name + ']', e); }
     });
   });
 }
-post({ t: 'hello', u: location.href, top, x: EXTS.map((e) => [e.id, e.token]) });
 // the page's security policy refused one of the extensions' files (a browser exempts them): mi is told, once, and
 // fetches this site's pages with them allowed from then on (extensions/ExtensionRequests)
 let cspTold = false;
 document.addEventListener('securitypolicyviolation', (ev) => {
-  if (cspTold || !/\.ext\.mi\.invalid\//.test(ev.blockedURI || '')) return;
+  // an extension's file (at mi's address or its native one), or an inline style (what Dark Reader and others add)
+  const ext = /\.ext\.mi\.invalid\/|^moz-extension:/.test(ev.blockedURI || '');
+  // an inline style from extension code (mi runs it from no address); the site's own report its page or script
+  const style = ev.blockedURI === 'inline' && /^style-src/.test(ev.effectiveDirective || ev.violatedDirective || '') &&
+    !/^https?:/.test(ev.sourceFile || '');
+  // Trusted Types refusing a plain string from extension code (YouTube's: SponsorBlock sets innerHTML)
+  const types = /^require-trusted-types-for/.test(ev.effectiveDirective || ev.violatedDirective || '') &&
+    (!/^https?:/.test(ev.sourceFile || '') || /\.ext\.mi\.invalid\//.test(ev.sourceFile));
+  if (cspTold || ev.disposition === 'report' || !(ext || style || types)) return;
   cspTold = true; post({ t: 'csp', u: location.href, top });
 }, true);
 // the page's DOM is ready: for chrome.webNavigation.onDOMContentLoaded
@@ -159,7 +168,7 @@ if (top) whenReady('document_end', () => post({ t: 'nav', u: location.href, top:
 Object.defineProperty(window, '__miExtExec', {
   value: (id, token, callId, fn) => {
     if (!tokens[id] || tokens[id] !== token) return false;
-    Promise.resolve().then(() => { const g = standIn(apis[id], id); return fn(apis[id], apis[id], g, g, sockets[id]); })
+    Promise.resolve().then(() => { const g = standIn(apis[id]); return fn(apis[id], apis[id], g, g); })
       .then((v) => post({ t: 'exec', x: id, k: token, c: callId, ok: true, v: v === undefined ? null : JSON.parse(JSON.stringify(v)) }),
         (e) => post({ t: 'exec', x: id, k: token, c: callId, ok: false, e: String((e && e.message) || e) }));
     return true; // taken: its answer comes over the channel, however long it runs

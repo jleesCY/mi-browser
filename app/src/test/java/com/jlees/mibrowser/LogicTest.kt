@@ -32,6 +32,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LogicTest {
+    @Test fun folderContentsLabels() {
+        assertEquals("2 folders · 1 bookmark", com.jlees.mibrowser.library.contentsLabel(2, 1))
+        assertEquals("1 folder and 3 bookmarks", com.jlees.mibrowser.library.contentsLabel(1, 3, " and "))
+        assertEquals("", com.jlees.mibrowser.library.contentsLabel(0, 0)) // the picker shows "Empty" for this
+    }
+
+    @Test fun extensionPagesShowTheirSiteAsAHost() {
+        // without a running engine (or for any web page), the shown host is the page's host
+        assertEquals("example.com", com.jlees.mibrowser.extensions.shownHost("https://example.com/a"))
+        assertEquals("abc.ext.mi.invalid", com.jlees.mibrowser.extensions.shownHost("https://abc.ext.mi.invalid/p.html"))
+    }
+
     @Test fun inputParsing() {
         assertEquals(null, inputToUrl("  ", false, SEARCH_ENGINES[0]))
         assertEquals("https://example.com", inputToUrl("example.com", false, SEARCH_ENGINES[0]))
@@ -433,5 +445,16 @@ class LogicTest {
         // not long after, and never in a tab no app opened
         assertFalse(com.jlees.mibrowser.web.mayOpenAppUntapped(opened, opened + com.jlees.mibrowser.web.APP_HANDBACK_MS + 1))
         assertFalse(com.jlees.mibrowser.web.mayOpenAppUntapped(0, opened))
+    }
+
+    @Test fun feedbackFormsSayWhatTheyWereMadeOn() {
+        val f = com.jlees.mibrowser.logic.Feedback
+        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=bug_report.yml&version=2.0.0", f.bugReport("2.0.0"))
+        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=feature_request.yml&version=2.0.0-dev", f.featureRequest("2.0.0-dev"))
+        // spaces and symbols encoded; an unknown WebView version left out
+        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=extension_support.yml&version=2.0.0&extension=Dark%20Reader%20%26%20more",
+            f.extensionSupport("2.0.0", null, "Dark Reader & more"))
+        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=extension_support.yml&version=2.0.0&webview=133.0.6943.137",
+            f.extensionSupport("2.0.0", "133.0.6943.137"))
     }
 }

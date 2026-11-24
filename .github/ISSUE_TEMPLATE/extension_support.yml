@@ -1,0 +1,38 @@
+name: Request Extension Support
+description: Ask for an extension to work in mi. Browser, or to work better.
+labels: ["extension-support"]
+body:
+  - type: input
+    id: extension
+    attributes:
+      label: Extension
+      description: Its name.
+      placeholder: "Dark Reader"
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Store link
+      description: Its page on Firefox Add-ons or the Chrome Web Store.
+      placeholder: "https://addons.mozilla.org/firefox/addon/…"
+  - type: textarea
+    id: problem
+    attributes:
+      label: What doesn't work?
+      description: What you tried, and what happened (or "it won't install"). The sites, if it's on certain ones.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: mi version
+      description: Filled in when you request from mi. Otherwise, it's shown under Settings › About › Check for Updates.
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: webview
+    attributes:
+      label: Android System WebView version
+      description: Filled in when you request from mi (extensions run on it, and it updates separately from mi).

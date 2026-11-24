@@ -53,7 +53,7 @@ fun PillSuggestions(vm: BrowserViewModel, maxHeightDp: Float) {
     val ctx = LocalContext.current
     val filter = vm.inputUrl
     val activeUrl = vm.activeUrl
-    val notTyping = filter.isEmpty() || (activeUrl != null && (filter == activeUrl || filter == displayHost(activeUrl)))
+    val notTyping = filter.isEmpty() || (activeUrl != null && (filter == activeUrl || filter == displayHost(activeUrl) || filter == com.jlees.mibrowser.extensions.shownHost(activeUrl)))
     // Paste and go: a link copied in the last few minutes, offered before anything is typed (see CopiedLink)
     val copied = remember(vm.isInputFocused) { if (vm.isInputFocused) CopiedLink.peek(ctx) else null }?.takeIf { notTyping && vm.settings.quickActions }
     // incognito doesn't show (or add to) your normal recent searches

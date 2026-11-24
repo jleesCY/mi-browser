@@ -30,15 +30,36 @@ import com.jlees.mibrowser.ui.common.*
 @Composable
 fun fitAmber(): Color = if (LocalUi.current.isDark) Color(0xFFF2B84B) else Color(0xFF9A5B00)
 
+/** A rating's colour (the badge, the Library list). */
+@Composable
+internal fun fitColor(fit: Fit): Color = when (fit) { Fit.WORKS -> LocalUi.current.cs.primary; Fit.MAYBE -> fitAmber(); Fit.NO -> LocalUi.current.cs.error }
+
 /** What a rating says, its symbol and its colour. */
 @Composable
-private fun fitLook(fit: Fit): Triple<String, String, Color> {
-    val cs = LocalUi.current.cs
-    return when (fit) {
-        Fit.WORKS -> Triple("Works", "check", cs.primary)
-        Fit.MAYBE -> Triple("Might Have Problems", "warning", fitAmber())
-        Fit.NO -> Triple("Not Recommended", "block", cs.error)
+private fun fitLook(fit: Fit): Triple<String, String, Color> =
+    Triple(fit.label, when (fit) { Fit.WORKS -> "check"; Fit.MAYBE -> "warning"; Fit.NO -> "block" }, fitColor(fit))
+
+/** "Tested in mi": tested by hand (VerifiedExtensions), shown in place of the rating worked out from its code. */
+@Composable
+fun VerifiedBadge(modifier: Modifier = Modifier, small: Boolean = false) {
+    val ui = LocalUi.current
+    val color = ui.cs.primary
+    Row(modifier.clip(CircleShape).background(color.copy(alpha = 0.16f)).padding(horizontal = if (small) 8.dp else 10.dp, vertical = if (small) 2.dp else 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Sym("check", if (small) 13f else 16f, color, Modifier.padding(end = if (small) 4.dp else 6.dp))
+        Txt("Tested in mi", if (small) 11f else 13f, color, ui.bold, maxLines = 1)
     }
+}
+
+/** For a verified extension: a warning when this phone's WebView is older than it suits (VerifiedExtensions). */
+@Composable
+fun WebViewWarning(v: VerifiedExtension?) {
+    v ?: return
+    val ui = LocalUi.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val major = remember { webViewMajor(ctx) }
+    val text = webViewWarning(v, major) ?: return
+    val bad = webViewFit(v, major) == WebViewFit.WONT_WORK
+    Txt(text, 13f, if (bad) ui.cs.error else fitAmber(), ui.semibold, Modifier.padding(top = 8.dp), lineHeight = 18f)
 }
 
 /** The rating as a small pill: its symbol and words, in its colour. */
@@ -128,7 +149,9 @@ fun ExtensionInstallDialog(vm: BrowserViewModel) {
     val p = if (open) pending else lastPending
     val l = if (open) listing else lastListing
     val name = p?.info?.name ?: l?.name ?: fetching ?: "extension"
-    val fit = p?.info?.compatibility?.fit
+    val verified = verifiedFor(storeSource(p?.source)) != null
+    // a verified extension was tested in mi: no "Add Anyway" for it, whatever its code scan says
+    val fit = p?.info?.compatibility?.fit?.let { if (verified) Fit.WORKS else it }
     ModalFrame(open, onDismiss = { vm.cancelExtension() }) {
         DialogCard(if (p?.replacing != null) "Update $name?" else "Add $name?", actions = {
             // as in the app's other sheets (Follow price): Cancel outlined, the action filled, side by side; Add waits for the check
@@ -153,7 +176,8 @@ fun ExtensionInstallDialog(vm: BrowserViewModel) {
                     NetImage(iconFile?.path ?: p?.iconUrl ?: l?.iconUrl, Modifier.size(36.dp)) { Sym("extension", 28f, ui.cs.onSurfaceVariant) }
                 }
                 Column(Modifier.padding(start = 14.dp).weight(1f)) {
-                    if (fit != null) FitBadge(fit)
+                    if (fit != null) { if (verified) VerifiedBadge() else FitBadge(fit) }
+                    if (fit != null) WebViewWarning(verifiedFor(storeSource(p?.source)))
                     else {
                         // still on its way: how far the download is, then the check
                         val pr = ExtensionFlow.progress
@@ -251,13 +275,13 @@ fun ExtensionOfferBar(vm: BrowserViewModel, modifier: Modifier = Modifier) {
     }
 }
 
-/** Keeps the "Add to mi." bar in step with the page showing: offered on an extension's store page, unless it's installed. */
+/** Keeps the "Add to mi." bar in step with the page showing: offered on an extension's Firefox Add-ons page, unless it's installed. */
 fun BrowserViewModel.updateExtensionOffer() {
     val t = tabs.current
-    val source = if (t == null || t.incognito || t.loading) null else storeSource(t.url)
+    val source = if (t == null || t.incognito || t.loading) null else storeSource(t.url) as? InstallSource.Amo
     if (source == null || t == null || t.url in ExtensionFlow.dismissed) { ExtensionFlow.offer = null; return }
     val name = storeTitleName(t.title).ifBlank { "this extension" }
     // already installed from this page: nothing to offer
-    if (extensions.list.any { e -> e.source != null && (source is InstallSource.Chrome && e.id == source.id || source is InstallSource.Amo && e.source.contains("/addon/${source.slug}/")) }) { ExtensionFlow.offer = null; return }
+    if (extensions.list.any { e -> e.source?.contains("/addon/${source.slug}/") == true }) { ExtensionFlow.offer = null; return }
     ExtensionFlow.offer = StoreOffer(name, source, t.url!!)
 }

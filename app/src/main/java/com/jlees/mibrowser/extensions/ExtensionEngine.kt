@@ -31,7 +31,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import java.io.File
 import java.security.SecureRandom
@@ -40,14 +39,18 @@ import java.security.SecureRandom
 const val EXT_HOST = ".ext.mi.invalid"
 fun extOrigin(id: String) = "https://$id$EXT_HOST"
 
-/** Extension [id]'s address as its browser gives it: chrome-extension:// for a Chrome Web Store id, else moz-extension://. */
-fun nativeBase(id: String) = if (id.matches(Regex("[a-p]{32}"))) "chrome-extension://$id/" else "moz-extension://$id/"
+/** Extension [id]'s address as Firefox gives it (moz-extension://). */
+fun nativeBase(id: String) = "moz-extension://$id/"
 
 /** mi's address for an extension's page ([extOrigin]) as the extension knows it ([nativeBase]); anything else unchanged. */
 fun toNative(url: String?): String? = url?.let { u -> extIdOf(u)?.let { id -> nativeBase(id) + u.removePrefix(extOrigin(id)).trimStart('/') } ?: u }
 
 /** An extension's native address (moz-extension://<id>/…) as the address mi serves it at, or null if it isn't one. */
-fun fromNative(url: String?): String? = url?.let { Regex("""^(?:moz|chrome)-extension://([a-z0-9-]+)/(.*)$""", RegexOption.IGNORE_CASE).find(it) }
+/** Whether this WebView can run extensions (message listeners and document-start scripts). */
+internal val extensionsSupported get() = androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER) &&
+    androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)
+
+fun fromNative(url: String?): String? = url?.let { Regex("""^moz-extension://([a-z0-9-]+)/(.*)$""", RegexOption.IGNORE_CASE).find(it) }
     ?.let { m -> "${extOrigin(m.groupValues[1].lowercase())}/${m.groupValues[2]}" }
 
 /** The extension behind an address at its origin, or null. */
@@ -92,8 +95,8 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
     internal val scripting = ExtensionScripting(this)
     val navigation = ExtensionNavigation(this)
     internal val platform = ExtensionPlatform(this)
-    internal val sockets = ExtensionSockets(this)
     val menus = ExtensionMenus(this)
+    internal val alarms = ExtensionAlarms(this)
 
     /** Registered content scripts changed: every tab's script is rebuilt (in order with other changes). */
     internal fun rebuildTabScripts() { vm.viewModelScope.launch { lock.withLock { tabs.rebuild() } } }
@@ -134,6 +137,17 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
 
     private var started = false
 
+    /**
+     * mi is closing (its window finished, its ViewModel going): extensions' pages and alarms stop. The engine lives as long
+     * as the ViewModel, not each window: a window rebuilt (rotation, a theme change) keeps using it (WebViewHost).
+     */
+    fun shutdown() {
+        pages.stopAll()
+        alarms.clearEverything()
+        tabView = { null }
+        if (ExtensionFlow.engine === this) ExtensionFlow.engine = null
+    }
+
     /** Reads the installed extensions and starts the enabled ones (after the stores have loaded). */
     fun start() {
         if (started) return
@@ -147,9 +161,11 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
                     store.list.map { it.id to inspect(it.id) }
                 }
                 read.forEach { (id, info) -> info?.let { apply(id, it) } }
-                tabs.rebuild()
-                withContext(Dispatchers.IO) { requests.reindex() }
+                // backgrounds first: they need only what was just read, and uBlock Origin blocks nothing until its own has
+                // started; the tab script (megabytes of content scripts to bundle) and the rule index follow
                 store.list.filter { it.enabled }.forEach { pages.startBackground(it.id, reason = "startup") }
+                tabs.rebuild()
+                withContext(requests.indexing) { requests.reindex() }
             }
             observeTabs()
             platform.observeDownloads()
@@ -184,7 +200,7 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
     fun refresh(id: String, reason: String? = null) {
         pages.stopBackground(id)
         removeContexts { it.ext == id }
-        alarms.keys.filter { it.startsWith("$id/") }.forEach { cancelAlarm(it) }
+        alarms.clearAll(id)
         requests.forgetExtension(id)
         if (store[id] == null) scripting.forget(id) else scripting.keepPersistent(id)
         menus.forget(id)
@@ -198,13 +214,16 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
                     info?.let { apply(id, it) }
                 }
                 tabs.rebuild()
-                withContext(Dispatchers.IO) { requests.dropRulesetCache(id); requests.reindex() }
+                withContext(requests.indexing) { requests.dropRulesetCache(id); requests.reindex() }
                 if (e != null && e.enabled) pages.startBackground(id, reason = reason ?: "startup")
             }
         }
     }
 
     /** Whether extension [id] runs in a tab of [scope] (an incognito profile, or null for normal tabs). */
+    /** Whether extension [ext]'s host permissions cover [url]. */
+    internal fun mayReach(ext: String, url: String) = infos[ext]?.manifest?.hostPermissions?.any { matchesPattern(it, url) } == true
+
     internal fun runsIn(id: String, scope: String?): Boolean {
         val e = store[id] ?: return false
         return e.enabled && (scope == null || e.incognito)
@@ -224,15 +243,15 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
 
     fun onMessage(source: Source, data: String?, proxy: JavaScriptReplyProxy) {
         val m = runCatching { json.parseToJsonElement(data ?: return).let { it as JsonObject } }.getOrNull() ?: return
-        val t = (m["t"] as? JsonPrimitive)?.contentOrNull
+        val t = m["t"].str()
         if (t == "hello" && source is Source.Tab) { if (m["x"] is JsonPrimitive) pageInTab(source, m, proxy) else helloFromTab(source, m, proxy); return }
         // a page's DOM is ready (told by the content-script loader; harmless if a page fakes it)
         // the page's policy blocked an extension's file (told by the content-script loader; a page faking it only gets its
         // own policy loosened for extensions' files)
-        if (t == "csp" && source is Source.Tab) { requests.siteBlocksExtensions(source.tabId, (m["u"] as? JsonPrimitive)?.contentOrNull); return }
-        if (t == "nav" && source is Source.Tab) { if ((m["top"] as? JsonPrimitive)?.contentOrNull == "true") navigation.domReady(source.tabId, (m["u"] as? JsonPrimitive)?.contentOrNull); return }
-        val ext = (m["x"] as? JsonPrimitive)?.contentOrNull ?: return
-        if (tokens[ext] == null || (m["k"] as? JsonPrimitive)?.contentOrNull != tokens[ext]) return // not from the extension
+        if (t == "csp" && source is Source.Tab) { requests.sites.siteBlocksExtensions(source.tabId, m["u"].str()); return }
+        if (t == "nav" && source is Source.Tab) { if (m["top"].str() == "true") navigation.domReady(source.tabId, m["u"].str()); return }
+        val ext = m["x"].str() ?: return
+        if (tokens[ext] == null || m["k"].str() != tokens[ext]) return // not from the extension
         val ctx = when (source) {
             is Source.Page -> source.ctx.also { it.proxy = proxy }
             is Source.Tab -> contexts.firstOrNull { it.ext == ext && it.proxy == proxy } ?: return
@@ -241,37 +260,41 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
             "hello" -> { ctx.proxy = proxy; if (ctx.kind != Kind.BACKGROUND) { ctx.ready = true; ctx.flush() } }
             "ready" -> pages.backgroundReady(ctx)
             "call" -> {
-                val callId = (m["c"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: return
-                val name = (m["n"] as? JsonPrimitive)?.contentOrNull ?: return
+                val callId = m["c"].str()?.toIntOrNull() ?: return
+                val name = m["n"].str() ?: return
                 api.handle(ctx, name, (m["a"] as? JsonArray) ?: JsonArray(emptyList())) { ok, value, error ->
                     respond(proxy, callId, ok, value, error)
                 }
             }
-            "reply" -> answer((m["r"] as? JsonPrimitive)?.contentOrNull ?: return, m["v"], (m["ok"] as? JsonPrimitive)?.contentOrNull?.toBooleanStrictOrNull())
-            "exec" -> pendingExec.remove((m["c"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: return)
-                ?.invoke((m["ok"] as? JsonPrimitive)?.contentOrNull == "true", m["v"], (m["e"] as? JsonPrimitive)?.contentOrNull)
+            "reply" -> answer(m["r"].str() ?: return, m["v"], m["ok"].str()?.toBooleanStrictOrNull())
+            "exec" -> pendingExec.remove(m["c"].str()?.toIntOrNull() ?: return)
+                ?.invoke(m["ok"].str() == "true", m["v"], m["e"].str())
         }
     }
 
     /** One of an extension's own pages started in a tab: a page context for it, if it really is that extension's (origin and token). */
     private fun pageInTab(source: Source.Tab, m: JsonObject, proxy: JavaScriptReplyProxy) {
-        val id = (m["x"] as? JsonPrimitive)?.contentOrNull ?: return
-        if (tokens[id] == null || (m["k"] as? JsonPrimitive)?.contentOrNull != tokens[id]) return
+        val id = m["x"].str() ?: return
+        if (tokens[id] == null || m["k"].str() != tokens[id]) return
         if (source.origin != extOrigin(id) || !runsIn(id, source.scope)) return
-        removeContexts { (it.kind == Kind.CONTENT || it.kind == Kind.TAB) && it.tabId == source.tabId }
-        contexts += Ctx(id, Kind.TAB, source.tabId, true, (m["u"] as? JsonPrimitive)?.contentOrNull.orEmpty(), source.scope).also { it.proxy = proxy; it.ready = true }
+        // a new page in the tab replaces what ran there; one of its frames (uBlock Origin's dashboard holds its panes in
+        // one) only replaces what that frame had, beside the page's own
+        val top = m["top"].str() != "false"
+        if (top) removeContexts { (it.kind == Kind.CONTENT || it.kind == Kind.TAB) && it.tabId == source.tabId }
+        else removeContexts { it.proxy == proxy }
+        contexts += Ctx(id, Kind.TAB, source.tabId, top, m["u"].str().orEmpty(), source.scope).also { it.proxy = proxy; it.ready = true }
     }
 
     private fun helloFromTab(source: Source.Tab, m: JsonObject, proxy: JavaScriptReplyProxy) {
-        val top = (m["top"] as? JsonPrimitive)?.contentOrNull == "true"
-        val url = (m["u"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+        val top = m["top"].str() == "true"
+        val url = m["u"].str().orEmpty()
         // a new page in the tab: the contexts of the page it replaced are gone
-        if (top) removeContexts { (it.kind == Kind.CONTENT || it.kind == Kind.TAB) && it.tabId == source.tabId }
+        if (top) { removeContexts { (it.kind == Kind.CONTENT || it.kind == Kind.TAB) && it.tabId == source.tabId }; tabs.greeted(source.tabId) }
         val accepted = HashSet<String>()
         (m["x"] as? JsonArray)?.forEach { pair ->
             val a = pair as? JsonArray ?: return@forEach
-            val id = (a.getOrNull(0) as? JsonPrimitive)?.contentOrNull ?: return@forEach
-            val token = (a.getOrNull(1) as? JsonPrimitive)?.contentOrNull
+            val id = a.getOrNull(0).str() ?: return@forEach
+            val token = a.getOrNull(1).str()
             if (tokens[id] == null || tokens[id] != token || !runsIn(id, source.scope)) return@forEach
             contexts += Ctx(id, Kind.CONTENT, source.tabId, top, url, source.scope).also { it.proxy = proxy }
             accepted += id
@@ -287,7 +310,7 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
     // ---------------------------------------------------------------- events and answers
 
     /** Waiting for an answer from any of several contexts: the first real answer wins. */
-    private class Route(var waiting: Int, val done: (JsonElement?, Boolean?) -> Unit)
+    private class Route(var waiting: Int, val done: (JsonElement?, Boolean?) -> Unit) { var timeout: Runnable? = null }
     private val routes = HashMap<String, Route>()
 
     /**
@@ -299,13 +322,15 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
         if (onAnswer != null && targets.isEmpty()) { routes.remove(r); onAnswer(null, null); return }
         for (c in targets) c.send(buildJsonObject { put("t", "ev"); put("x", c.ext); put("n", name); put("d", data); if (r != null) put("r", r) })
         // a context that never answers (closed, or busy forever) doesn't keep the caller waiting past a minute
-        if (r != null) main.postDelayed({ routes.remove(r)?.done?.invoke(null, null) }, 60_000)
+        // (the timer goes once it's answered: a webRequest listener is asked for every request)
+        if (r != null) routes[r]?.timeout = Runnable { routes.remove(r)?.done?.invoke(null, null) }.also { main.postDelayed(it, 60_000) }
     }
 
     private fun answer(routeId: String, value: JsonElement?, ok: Boolean?) {
         val route = routes[routeId] ?: return
-        if (ok != null) { routes.remove(routeId); route.done(value, ok); return }
-        if (--route.waiting <= 0) { routes.remove(routeId); route.done(null, null) }
+        if (ok == null && --route.waiting > 0) return
+        routes.remove(routeId); route.timeout?.let(main::removeCallbacks)
+        route.done(if (ok != null) value else null, ok)
     }
 
     /** Sends event [name] to every one of extension [ext]'s own pages (its background first of all). */
@@ -331,7 +356,7 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
         // its own pages by their native address, as its browser would say (a page in a tab: the page's own)
         val url = toNative(c.url)!!
         put("url", url)
-        put("origin", if (extIdOf(c.url) != null) nativeBase(c.ext).trimEnd('/') else runCatching { java.net.URI(url).let { u -> "${u.scheme}://${u.authority}" } }.getOrNull().orEmpty())
+        put("origin", if (extIdOf(c.url) != null) nativeBase(c.ext).trimEnd('/') else originOf(url).orEmpty())
         // from a page in a tab (a content script, or one of the extension's own pages opened in a tab): that tab, as in Chrome
         if ((c.kind == Kind.CONTENT || c.kind == Kind.TAB) && c.tabId != null) {
             vm.tabs.list.firstOrNull { it.id == c.tabId }?.let { put("tab", tabJson(it)) }
@@ -363,15 +388,11 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
         emit(to, "port.disconnect", buildJsonObject { put("portId", portId) })
     }
 
-    /** Context [c] went away (a page closed, a tab navigated): its ports close. */
-    /** The contexts matching [gone] are over (a page replaced, an extension stopped): their sockets close with them. */
-    private fun removeContexts(gone: (Ctx) -> Boolean) {
-        contexts.filter(gone).forEach { sockets.dropped(it) }
-        contexts.removeAll(gone)
-    }
+    /** The contexts matching [gone] are over (a page replaced, an extension stopped): each is dropped as below. */
+    private fun removeContexts(gone: (Ctx) -> Boolean) = contexts.filter(gone).forEach(::drop)
 
+    /** Context [c] went away (a page closed or was replaced, a tab closed): its listeners and ports close with it. */
     internal fun drop(c: Ctx) {
-        sockets.dropped(c)
         contexts.remove(c)
         requests.forget(c)
         ports.entries.filter { it.value.a === c || c in it.value.b }.forEach { (id, p) ->
@@ -405,7 +426,6 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
     private val tabIds = java.util.concurrent.ConcurrentHashMap<String, Int>()
     private val nextTab = java.util.concurrent.atomic.AtomicInteger(1)
     fun tabInt(id: String) = tabIds.getOrPut(id) { nextTab.getAndIncrement() }
-    internal fun tabIntSafe(id: String) = tabInt(id)
     fun tabOf(n: Int): String? = tabIds.entries.firstOrNull { it.value == n }?.key
 
     fun tabJson(t: TabItem): JsonObject = buildJsonObject {
@@ -419,20 +439,23 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
     }
 
     /** Tabs opening, closing, loading and switching: told to every running background as chrome.tabs events. */
-    private fun observeTabs() = vm.viewModelScope.launch {
-        var before = emptyMap<String, Triple<String?, String, Boolean>>()
+    internal fun observeTabs() = vm.viewModelScope.launch {
+        var before: Map<String, Triple<String?, String, Boolean>>? = null
         var activeBefore: String? = null
         snapshotFlow { vm.tabs.list.associate { it.id to Triple(it.url, it.title, it.loading) } to vm.tabs.activeId }.collect { (now, active) ->
+            // the tabs already open when the engine starts aren't news (as in a browser, which only reports tabs opened
+            // while it runs): telling every one as created reached uBlock Origin while it was still starting up, and broke it
+            val prev = before ?: run { before = now; activeBefore = active; return@collect }
             val running = store.list.filter { it.enabled }.map { it.id }
             fun all(name: String, data: JsonElement) = running.forEach { emitToPages(it, name, data) }
-            for (id in now.keys - before.keys) vm.tabs.list.firstOrNull { it.id == id }?.let { all("tabs.onCreated", JsonArray(listOf(tabJson(it)))) }
-            for (id in before.keys - now.keys) {
+            for (id in now.keys - prev.keys) vm.tabs.list.firstOrNull { it.id == id }?.let { all("tabs.onCreated", JsonArray(listOf(tabJson(it)))) }
+            for (id in prev.keys - now.keys) {
                 all("tabs.onRemoved", JsonArray(listOf(JsonPrimitive(tabInt(id)), buildJsonObject { put("windowId", 1); put("isWindowClosing", false) })))
                 contexts.filter { it.tabId == id }.forEach { drop(it) }
                 navigation.forget(id)
             }
             for ((id, v) in now) {
-                val old = before[id] ?: continue
+                val old = prev[id] ?: continue
                 if (old == v) continue
                 val change = buildJsonObject {
                     if (old.third != v.third) put("status", if (v.third) "loading" else "complete")
@@ -445,28 +468,6 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
             before = now; activeBefore = active
         }
     }
-
-    // ---------------------------------------------------------------- alarms
-
-    internal class Alarm(val ext: String, val name: String, var at: Long, val period: Double?, val run: Runnable)
-    internal val alarms = HashMap<String, Alarm>()
-
-    internal fun setAlarm(ext: String, name: String, at: Long, periodMinutes: Double?) {
-        cancelAlarm("$ext/$name")
-        lateinit var alarm: Alarm
-        val run = Runnable {
-            emitToPages(ext, "alarms.onAlarm", alarmJson(alarm))
-            if (alarm.period != null) { alarm.at = System.currentTimeMillis() + (alarm.period!! * 60_000).toLong(); main.postDelayed(alarm.run, (alarm.period!! * 60_000).toLong()) }
-            else alarms.remove("$ext/$name")
-        }
-        alarm = Alarm(ext, name, at, periodMinutes, run)
-        alarms["$ext/$name"] = alarm
-        main.postDelayed(run, (at - System.currentTimeMillis()).coerceAtLeast(0))
-    }
-
-    internal fun cancelAlarm(key: String): Boolean = alarms.remove(key)?.also { main.removeCallbacks(it.run) } != null
-
-    internal fun alarmJson(a: Alarm) = buildJsonObject { put("name", a.name); put("scheduledTime", a.at); a.period?.let { put("periodInMinutes", it) } }
 
     // ---------------------------------------------------------------- the toolbar button
 
@@ -483,7 +484,7 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
     fun badgeOf(id: String): String = actions[id]?.let { a -> vm.tabs.activeId?.let { a.tabBadges[it] } ?: a.badge }.orEmpty()
 
     /** Optional permissions the person allowed (permissions.request), kept with the extension's data. */
-    internal fun grantedOf(id: String): Set<String> = (store.savedValue(id, "PERM", "granted") as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty().toSet()
+    internal fun grantedOf(id: String): Set<String> = store.savedValue(id, "PERM", "granted").strings().toSet()
     internal fun granted(id: String, perm: String) = perm in grantedOf(id)
     internal fun setGranted(id: String, perms: Set<String>) = store.setSavedValue(id, "PERM", "granted", JsonArray(perms.sorted().map(::JsonPrimitive)))
 
@@ -492,8 +493,8 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
         val a = actions[id]
         if (a?.panelEnabled == false) return null
         val raw = infos[id]?.manifest?.raw ?: return a?.panel
-        return a?.panel ?: (raw["side_panel"] as? JsonObject)?.get("default_path")?.let { (it as? JsonPrimitive)?.contentOrNull }
-            ?: (raw["sidebar_action"] as? JsonObject)?.get("default_panel")?.let { (it as? JsonPrimitive)?.contentOrNull }
+        return a?.panel ?: (raw["side_panel"] as? JsonObject)?.get("default_path")?.let { it.str() }
+            ?: (raw["sidebar_action"] as? JsonObject)?.get("default_panel")?.let { it.str() }
     }
 
     internal fun updateAction(id: String, change: ActionState.() -> ActionState) {

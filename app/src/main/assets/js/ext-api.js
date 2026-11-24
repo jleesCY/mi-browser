@@ -62,18 +62,18 @@
     // ---- storage
     const area = (name) => {
       const a = {
+        // only the keys asked for are read (an extension may keep megabytes here)
         get: api(async (keys) => {
-          const all = await call('storage.get', [name]);
-          if (keys == null) return all;
-          if (typeof keys === 'string') return keys in all ? { [keys]: all[keys] } : {};
-          if (Array.isArray(keys)) { const o = {}; for (const k of keys) if (k in all) o[k] = all[k]; return o; }
-          const o = {}; for (const k of Object.keys(keys)) o[k] = k in all ? all[k] : keys[k]; return o;
+          const list = keys == null ? null : typeof keys === 'string' ? [keys] : Array.isArray(keys) ? keys : Object.keys(keys);
+          const got = await call('storage.get', [name, list]);
+          if (keys == null || typeof keys === 'string' || Array.isArray(keys)) return got;
+          const o = {}; for (const k of Object.keys(keys)) o[k] = k in got ? got[k] : keys[k]; return o;
         }),
         set: api((items) => call('storage.set', [name, JSON.parse(JSON.stringify(items || {}))]).then(() => undefined)),
         remove: api((keys) => call('storage.remove', [name, typeof keys === 'string' ? [keys] : keys || []]).then(() => undefined)),
         clear: api(() => call('storage.clear', [name]).then(() => undefined)),
         getBytesInUse: api(() => call('storage.bytes', [name])),
-        getKeys: api(async () => Object.keys(await call('storage.get', [name]))),
+        getKeys: api(() => call('storage.keys', [name])),
         setAccessLevel: api(() => undefined),
         onChanged: event('storage.' + name + '.onChanged'),
         QUOTA_BYTES: name === 'sync' ? 102400 : 10485760,
@@ -149,64 +149,9 @@
 
     const out = { runtime, storage, i18n, extension };
 
-    // ---- WebSocket, as the extension's code sees it: mi makes the connection (extensions/ExtensionSockets), so it says it
-    // comes from the extension, as a browser's would (sites like Grammarly's only take those). Pages get it as their
-    // WebSocket; content scripts as theirs, never the page's.
-    const sockets = {};
-    let socketSeq = 0;
+    // base64 for binary bodies crossing the channel (ext-page.js's requests)
     const toB64 = (buf) => { let s = ''; const a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
     const fromB64 = (s) => { const bin = atob(s || ''); const a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; };
-    class MiWebSocket extends EventTarget {
-      constructor(address, protocols) {
-        super();
-        let u;
-        try { u = new URL(String(address), location.href); } catch (_) { throw new DOMException("Failed to construct 'WebSocket': The URL '" + address + "' is invalid.", 'SyntaxError'); }
-        if (u.protocol === 'https:') u.protocol = 'wss:'; else if (u.protocol === 'http:') u.protocol = 'ws:';
-        if (u.protocol !== 'ws:' && u.protocol !== 'wss:') throw new DOMException("Failed to construct 'WebSocket': The URL's scheme must be either 'ws' or 'wss'.", 'SyntaxError');
-        this._id = 's' + (++socketSeq) + Math.random().toString(36).slice(2, 8);
-        this._queue = Promise.resolve();
-        Object.assign(this, { url: u.href, readyState: 0, protocol: '', extensions: '', bufferedAmount: 0, binaryType: 'blob', onopen: null, onmessage: null, onerror: null, onclose: null });
-        sockets[this._id] = this;
-        call('ws.open', [this._id, u.href, protocols == null ? [] : [].concat(protocols).map(String)]).catch(() => {
-          this._event({ type: 'error' }); this._event({ type: 'close', code: 1006, reason: '', clean: false });
-        });
-      }
-      send(data) {
-        if (this.readyState === 0) throw new DOMException("Failed to execute 'send' on 'WebSocket': Still in CONNECTING state.", 'InvalidStateError');
-        if (this.readyState !== 1) return;
-        // in order, also when a Blob has to be read first
-        this._queue = this._queue.then(async () => {
-          if (typeof data === 'string') return call('ws.send', [this._id, data, null]);
-          const buf = data instanceof Blob ? await data.arrayBuffer() : ArrayBuffer.isView(data) ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) : data;
-          return call('ws.send', [this._id, null, toB64(buf)]);
-        }).catch(() => {});
-      }
-      close(code, reason) {
-        if (this.readyState >= 2) return;
-        this.readyState = 2;
-        this._queue.then(() => call('ws.close', [this._id, code == null ? 1000 : code, reason == null ? '' : String(reason)])).catch(() => {});
-      }
-      _fire(ev) {
-        const h = this['on' + ev.type];
-        if (typeof h === 'function') { try { h.call(this, ev); } catch (e) { console.error(e); } }
-        this.dispatchEvent(ev);
-      }
-      _event(d) {
-        if (d.type === 'open') { this.readyState = 1; this.protocol = d.protocol || ''; this._fire(new Event('open')); }
-        else if (d.type === 'message') {
-          const data = d.text != null ? d.text : this.binaryType === 'arraybuffer' ? fromB64(d.b64).buffer : new Blob([fromB64(d.b64)]);
-          this._fire(new MessageEvent('message', { data, origin: new URL(this.url).origin }));
-        } else if (d.type === 'error') this._fire(new Event('error'));
-        else if (d.type === 'close') {
-          if (this.readyState === 3) return;
-          this.readyState = 3; delete sockets[this._id];
-          this._fire(new CloseEvent('close', { code: d.code, reason: d.reason || '', wasClean: !!d.clean }));
-        }
-      }
-    }
-    Object.entries({ CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 }).forEach(([k, v]) => { MiWebSocket[k] = v; MiWebSocket.prototype[k] = v; });
-    Object.defineProperty(MiWebSocket, 'name', { value: 'WebSocket' });
-    channel.WebSocket = MiWebSocket;
     channel.base64 = { b64: toB64, unb64: fromB64 }; // for ext-page.js's requests
 
     if (privileged) {
@@ -551,7 +496,6 @@
       if (name === 'port.message') { if (ports[data.portId]) fire('port.' + data.portId + '.message', data.message, ports[data.portId]); return; }
       if (name === 'port.disconnect') { const p = ports[data.portId]; if (p) { delete ports[data.portId]; fire('port.' + data.portId + '.disconnect', p); } return; }
       if (name.startsWith('webNavigation.')) { if (channel.navigation) channel.navigation(name.slice(14), Array.isArray(data) ? data[0] : data); return; }
-      if (name === 'ws.event') { const s = sockets[data.id]; if (s) s._event(data); return; }
       if (name === 'menus.onClicked') { if (channel.menuClicked) channel.menuClicked(data[0], data[1]); return; }
       if (name === 'privacy.changed') { fire('privacy.' + data.key, { value: data.value, levelOfControl: 'controlled_by_this_extension' }); return; }
       if (name === 'storage.changed') { fire('storage.' + data.area + '.onChanged', data.changes); fire('storage.onChanged', data.changes, data.area); return; }

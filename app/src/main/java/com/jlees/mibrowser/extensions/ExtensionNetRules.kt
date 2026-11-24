@@ -16,7 +16,12 @@ data class NetRequest(
     val type: String,
     val initiator: String?,
     val tabId: Int,
-)
+) {
+    // worked out once per request, not once per rule tried (a list has tens of thousands)
+    val host by lazy { hostOf(url) }
+    val initiatorHost by lazy { hostOf(initiator) }
+    val thirdParty by lazy { isThirdParty(url, initiator) }
+}
 
 /** A request's type, from the headers WebView gives (Sec-Fetch-Dest, Accept) and, failing those, its address. */
 fun requestType(mainFrame: Boolean, fetchDest: String?, accept: String?, url: String): String {
@@ -47,30 +52,24 @@ fun requestType(mainFrame: Boolean, fetchDest: String?, accept: String?, url: St
 }
 
 /** The host of [url], lowercased, or null. */
-fun hostOf(url: String?): String? = url?.let { Regex("""^[a-z][a-z0-9+.-]*://(?:[^@/?#]*@)?([^:/?#]+)""", RegexOption.IGNORE_CASE).find(it)?.groupValues?.get(1)?.lowercase() }
-
-/**
- * The site [host] belongs to (its registrable domain): the last two labels, or three under a two-part public suffix
- * (co.uk, com.au…). Good enough to tell first- from third-party; mi's ad blocker has the full list for blocking.
- */
-fun siteOf(host: String): String {
-    val parts = host.trimEnd('.').split('.')
-    if (parts.size <= 2 || host.matches(Regex("""\d+\.\d+\.\d+\.\d+"""))) return host
-    val two = parts.takeLast(2).joinToString(".")
-    val secondLevel = parts[parts.size - 2]
-    val shortCc = parts.last().length == 2 && secondLevel in setOf("co", "com", "net", "org", "gov", "edu", "ac", "or", "ne", "go", "gob", "nic")
-    return if (shortCc) parts.takeLast(3).joinToString(".") else two
-}
+fun hostOf(url: String?): String? = url?.let { HOST.find(it)?.groupValues?.get(1)?.lowercase() }
+/** [url]'s origin ("https://a.com:8080"), or null. */
+fun originOf(url: String): String? = runCatching { java.net.URI(url).let { u -> u.authority?.let { "${u.scheme}://$it" } } }.getOrNull()
+private val HOST = Regex("""^[a-z][a-z0-9+.-]*://(?:[^@/?#]*@)?([^:/?#]+)""", RegexOption.IGNORE_CASE)
 
 /** Whether [url] is a third-party request for a page at [initiator] (a different site). */
 fun isThirdParty(url: String, initiator: String?): Boolean {
     val a = hostOf(url) ?: return false
     val b = hostOf(initiator) ?: return false
-    return siteOf(a) != siteOf(b)
+    return com.jlees.mibrowser.adblock.AdBlock.registrable(a) != com.jlees.mibrowser.adblock.AdBlock.registrable(b)
 }
 
 /** Whether [host] is [domain] or one of its subdomains. */
-fun hostIn(host: String, domain: String) = host == domain.lowercase() || host.endsWith("." + domain.lowercase())
+/** Whether [host] is [domain] or under it ("a.example.com" in "example.com"); case aside. Allocates nothing: rules list thousands. */
+fun hostIn(host: String, domain: String): Boolean {
+    val n = domain.length; val at = host.length - n
+    return at >= 0 && host.regionMatches(at, domain, 0, n, ignoreCase = true) && (at == 0 || host[at - 1] == '.')
+}
 
 // ---------------------------------------------------------------- declarativeNetRequest
 
@@ -133,11 +132,14 @@ fun urlFilterRegex(filter: String, caseSensitive: Boolean): Regex {
 /** Resource types a rule applies to when it names none: everything but the main frame (as Chrome does). */
 private val DEFAULT_TYPES_EXCLUDE = setOf("main_frame")
 
-/** Whether [rule]'s condition matches [r]. [regex]: the rule's compiled url pattern (cached by the caller), if it has one. */
-fun dnrMatches(rule: DnrRule, r: NetRequest, regex: Regex?): Boolean {
+/**
+ * Whether [rule]'s condition matches [r]. [regex]: the rule's compiled url pattern (cached by the caller), if it has one.
+ * [domainKnown]: the request's host is already known to be in the rule's requestDomains (the index found it there).
+ */
+fun dnrMatches(rule: DnrRule, r: NetRequest, regex: Regex?, domainKnown: Boolean = false): Boolean {
     val c = rule.condition
-    val host = hostOf(r.url) ?: return false
-    val initiatorHost = hostOf(r.initiator)
+    val host = r.host ?: return false
+    val initiatorHost = r.initiatorHost
     if (c.resourceTypes != null) { if (r.type !in c.resourceTypes) return false }
     else if (r.type in DEFAULT_TYPES_EXCLUDE && rule.action.type != "allowAllRequests") return false
     if (c.excludedResourceTypes?.contains(r.type) == true) return false
@@ -145,15 +147,15 @@ fun dnrMatches(rule: DnrRule, r: NetRequest, regex: Regex?): Boolean {
     if (c.excludedRequestMethods?.any { it.equals(r.method, true) } == true) return false
     if (c.tabIds != null && r.tabId !in c.tabIds) return false
     if (c.excludedTabIds?.contains(r.tabId) == true) return false
-    if (c.requestDomains != null && c.requestDomains.none { hostIn(host, it) }) return false
+    if (!domainKnown && c.requestDomains != null && c.requestDomains.none { hostIn(host, it) }) return false
     if (c.excludedRequestDomains?.any { hostIn(host, it) } == true) return false
     val initiators = c.initiatorDomains ?: c.domains
     if (initiators != null && (initiatorHost == null || initiators.none { hostIn(initiatorHost, it) })) return false
     val excludedInitiators = c.excludedInitiatorDomains ?: c.excludedDomains
     if (initiatorHost != null && excludedInitiators?.any { hostIn(initiatorHost, it) } == true) return false
     when (c.domainType) {
-        "firstParty" -> if (isThirdParty(r.url, r.initiator)) return false
-        "thirdParty" -> if (!isThirdParty(r.url, r.initiator)) return false
+        "firstParty" -> if (r.thirdParty) return false
+        "thirdParty" -> if (!r.thirdParty) return false
     }
     if (regex != null && !regex.containsMatchIn(r.url)) return false
     return true
@@ -255,11 +257,22 @@ fun applyHeaderOps(headers: List<Pair<String, String>>, ops: List<DnrHeader>): L
 
 /**
  * Rules indexed for speed: a rule anchored to a domain ("||ads.example.com^") or limited to request domains is only
- * tried for requests to that domain; the rest are tried for every request. Large lists (tens of thousands of rules) stay fast.
+ * tried for requests to that domain; any other url filter only for addresses containing one of its words ("/ads/banner"
+ * needs the word "banner" in the address, as uBlock Origin indexes its filters); the rest are tried for every request.
+ * Large lists (uBlock Origin Lite's are tens of thousands of rules) stay fast.
  */
 class DnrIndex(rules: List<Pair<String, DnrRule>>) {
-    private class Entry(val ext: String, val rule: DnrRule) { val regex by lazy { dnrRegex(rule) } }
-    private val byDomain = HashMap<String, MutableList<Entry>>()
+    /** A rule and its compiled pattern (made the first time the rule is tried; most never are). */
+    private class Entry(val ext: String, val rule: DnrRule) {
+        private var compiled: Any? = UNSET
+        val regex: Regex? get() { if (compiled === UNSET) compiled = dnrRegex(rule); return compiled as Regex? }
+        /** Indexed under one of its requestDomains, so a request found through that key needn't search the list again. */
+        var byRequestDomain = false
+    }
+    // a key holds its one Entry itself, or a list when several share it: lists do have tens of thousands of domains, and
+    // almost every one belongs to a single rule, so a list per key used to cost tens of megabytes
+    private val byDomain = HashMap<String, Any>()
+    private val byWord = HashMap<String, Any>()
     private val generic = ArrayList<Entry>()
     val size = rules.size
 
@@ -269,12 +282,24 @@ class DnrIndex(rules: List<Pair<String, DnrRule>>) {
             val anchor = rule.condition.urlFilter?.takeIf { it.startsWith("||") }?.drop(2)?.takeWhile { it.isLetterOrDigit() || it == '.' || it == '-' }?.lowercase()?.trimEnd('.')
             val domains = rule.condition.requestDomains
             when {
-                !anchor.isNullOrEmpty() && anchor.contains('.') -> byDomain.getOrPut(anchor) { ArrayList() } += e
-                domains != null && domains.isNotEmpty() -> domains.forEach { byDomain.getOrPut(it.lowercase()) { ArrayList() } += e }
-                else -> generic += e
+                !anchor.isNullOrEmpty() && anchor.contains('.') -> add(byDomain, anchor, e)
+                domains != null && domains.isNotEmpty() -> { e.byRequestDomain = true; domains.forEach { add(byDomain, lower(it), e) } }
+                else -> rule.condition.urlFilter?.takeIf { rule.condition.regexFilter == null }?.let(::filterWord)?.let { add(byWord, it, e) } ?: run { generic += e }
             }
         }
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun add(map: HashMap<String, Any>, key: String, e: Entry) {
+        when (val had = map[key]) {
+            null -> map[key] = e
+            is Entry -> map[key] = arrayListOf(had, e)
+            else -> (had as ArrayList<Entry>) += e
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private inline fun each(v: Any?, f: (Entry) -> Unit) { when (v) { null -> {}; is Entry -> f(v); else -> (v as List<Entry>).forEach(f) } }
 
     /** Every rule matching [r], as (extension id, rule). */
     fun matches(r: NetRequest): List<Pair<String, DnrRule>> {
@@ -283,13 +308,40 @@ class DnrIndex(rules: List<Pair<String, DnrRule>>) {
         // the host and each domain above it ("a.b.example.com", "b.example.com", "example.com")
         var h = host
         while (true) {
-            byDomain[h]?.forEach { if (dnrMatches(it.rule, r, it.regex)) out += it.ext to it.rule }
+            each(byDomain[h]) { if (dnrMatches(it.rule, r, it.regex, domainKnown = it.byRequestDomain)) out += it.ext to it.rule }
             val dot = h.indexOf('.'); if (dot < 0) break
             h = h.substring(dot + 1)
         }
+        if (byWord.isNotEmpty()) for (w in r.url.lowercase().split(NOT_WORD).toSet()) each(byWord[w]) { if (dnrMatches(it.rule, r, it.regex)) out += it.ext to it.rule }
         generic.forEach { if (dnrMatches(it.rule, r, it.regex)) out += it.ext to it.rule }
         return out.distinctBy { it.first to it.second.id }
     }
+
+    private companion object {
+        val UNSET = Any()
+        /** [s] lowercased, the same string when it already is (so a rule's domains and the keys share their text). */
+        fun lower(s: String) = if (s.any { it.isUpperCase() }) s.lowercase() else s
+    }
+}
+
+private val NOT_WORD = Regex("[^a-z0-9]+")
+private val WORD = Regex("[a-z0-9]+")
+
+/**
+ * The longest word (letters and digits, 3 or more) a url filter's matches always contain whole: one with a plain
+ * character, a separator (^) or an anchor (|, ||) on both sides, so it's a whole word of the address too ("banner" in
+ * "/ads/banner.js"; not "ads" in "*ads/" nor "js" at an open end). Null: none, the rule is tried for every request.
+ */
+internal fun filterWord(filter: String): String? {
+    val f = filter.lowercase()
+    var best: String? = null
+    for (m in WORD.findAll(f)) {
+        val before = f.getOrNull(m.range.first - 1); val after = f.getOrNull(m.range.last + 1)
+        val startOk = if (before == null) false else before != '*'      // a filter's start (no |) may begin mid-word
+        val endOk = if (after == null) false else after != '*' && !(after == '|' && m.range.last + 2 < f.length)
+        if (startOk && endOk && m.value.length >= 3 && m.value.length > (best?.length ?: 0)) best = m.value
+    }
+    return best
 }
 
 // ---------------------------------------------------------------- a site's Content Security Policy
@@ -297,22 +349,62 @@ class DnrIndex(rules: List<Pair<String, DnrRule>>) {
 /** The sources mi serves extensions' files from, as a CSP source. */
 const val EXT_CSP_SOURCE = "https://*.ext.mi.invalid"
 
-/** Directives that load what extensions add to pages (styles, fonts, pictures, media, frames, requests). */
-private val EXT_DIRECTIVES = setOf("default-src", "style-src", "style-src-elem", "font-src", "img-src", "media-src", "frame-src", "child-src", "connect-src")
+/** Directives that load what extensions add to pages (scripts, styles, fonts, pictures, media, frames, requests). */
+private val EXT_DIRECTIVES = setOf("default-src", "script-src", "script-src-elem", "style-src", "style-src-elem", "style-src-attr",
+    "font-src", "img-src", "media-src", "frame-src", "child-src", "connect-src")
+private val STYLE_DIRECTIVES = setOf("style-src", "style-src-elem", "style-src-attr")
+/** Nonces and hashes: where a style directive has one, 'unsafe-inline' is ignored, so they give way to it. */
+private val NONCE_OR_HASH = Regex("""^'(nonce-|sha256-|sha384-|sha512-)""")
 
 /**
- * [policy] (a Content-Security-Policy header's value) with extensions' files allowed wherever it limits what loads, as a
- * browser exempts extensions from a site's policy. Scripts are left alone (mi runs extensions' scripts itself), and so
- * is everything else in it. Several policies (comma-separated) are each changed.
+ * [policy] (a Content-Security-Policy header's value) with what extensions add to a page allowed, as a browser exempts
+ * extensions from a site's policy: their files load from mi's address (scripts too; a 'strict-dynamic' script policy
+ * ignores addresses, so there extensions fall back to running their files through mi), and their inline styles apply
+ * (Dark Reader's), so style directives allow 'unsafe-inline' without the nonces and hashes that would cancel
+ * it; a policy limiting styles only through default-src gets a style-src of its own. Trusted Types are no longer required
+ * (YouTube's): extensions set innerHTML and script text with plain strings, which their own world allows in a browser.
+ * Everything else stays as it is. Several policies (comma-separated) are each changed.
  */
 fun allowExtensionsIn(policy: String): String = policy.split(',').joinToString(",") { one ->
-    one.split(';').joinToString(";") { part ->
+    val parts = one.split(';').filterNot { it.trim().substringBefore(' ').equals("require-trusted-types-for", true) }
+    val names = parts.map { it.trim().substringBefore(' ').lowercase() }
+    val changed = parts.map { part ->
         val d = part.trim()
         val name = d.substringBefore(' ').lowercase()
-        if (name !in EXT_DIRECTIVES || d.contains(EXT_CSP_SOURCE)) part
-        else {
-            val sources = d.substringAfter(' ', "").split(' ').filter { it.isNotBlank() && it != "'none'" }
-            (if (part.startsWith(" ")) " " else "") + (listOf(name) + sources + EXT_CSP_SOURCE).joinToString(" ")
-        }
+        if (name !in EXT_DIRECTIVES) return@map part
+        var sources = d.substringAfter(' ', "").split(' ').filter { it.isNotBlank() && it != "'none'" }
+        if (name in STYLE_DIRECTIVES) sources = sources.filterNot { NONCE_OR_HASH.containsMatchIn(it) } + listOf("'unsafe-inline'").filter { it !in sources }
+        if (EXT_CSP_SOURCE !in sources) sources = sources + EXT_CSP_SOURCE
+        // extensions read data: addresses (Dark Reader fetches a page's inline SVG pictures to see how dark they are)
+        if (name == "connect-src" && "data:" !in sources) sources = sources + "data:"
+        (if (part.startsWith(" ")) " " else "") + (listOf(name) + sources).joinToString(" ")
+    }
+    // styles or requests limited only by default-src: a directive of their own with the same sources, relaxed as above
+    val defaultSrc = changed.firstOrNull { it.trim().startsWith("default-src") }?.trim()
+    val added = if (defaultSrc == null) emptyList() else listOfNotNull(
+        "style-src".takeIf { "style-src" !in names && "style-src-elem" !in names },
+        "connect-src".takeIf { it !in names },
+    ).map { " " + allowExtensionsIn(defaultSrc.replaceFirst("default-src", it)) }
+    (changed + added).joinToString(";")
+}
+
+private val META_CSP = Regex("""<meta\b[^>]*http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>""", RegexOption.IGNORE_CASE)
+private val META_CONTENT = Regex("""(content\s*=\s*)(["'])(.*?)\2""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+
+/** A page's own policies, set in its HTML (`<meta http-equiv="Content-Security-Policy">`, as addons.mozilla.org does), relaxed as [allowExtensionsIn] does a header's. */
+fun relaxMetaPolicies(html: String): String = META_CSP.replace(html) { tag ->
+    META_CONTENT.replace(tag.value) { m ->
+        val policy = m.groupValues[3].replace("&#39;", "'").replace("&apos;", "'")
+        m.groupValues[1] + m.groupValues[2] + allowExtensionsIn(policy).let { if (m.groupValues[2] == "'") it.replace("'", "&#39;") else it } + m.groupValues[2]
     }
 }
+
+/** A bot check's answer to a request (Cloudflare's challenge, a 403/429/503 from an edge that checks browsers). */
+fun isBotCheck(code: Int, headers: List<Pair<String, String>>): Boolean =
+    headers.any { (k, v) -> k.equals("cf-mitigated", true) && v.equals("challenge", true) } ||
+        (code in setOf(403, 429, 503) && headers.any { (k, v) -> k.equals("Server", true) && Regex("cloudflare|akamai|fastly|ddos-guard|sucuri", RegexOption.IGNORE_CASE).containsMatchIn(v) })
+
+/** A bot check's page served in place of the real one (it shows "Client Challenge", "Just a moment…"). */
+fun isBotCheckPage(html: String): Boolean =
+    Regex("""<title>\s*(Client Challenge|Just a moment\.*|Attention Required!|Access denied|DDoS-Guard)""", RegexOption.IGNORE_CASE).containsMatchIn(html.take(4000))
+

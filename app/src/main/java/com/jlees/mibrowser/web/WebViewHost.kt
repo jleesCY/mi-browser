@@ -85,11 +85,16 @@ class WebViewHost(
     private val linkMenu = LinkMenu(vm, haptics)
     internal val httpsOnly = HttpsOnly(vm, ::profileOf)
     private val views = HashMap<String, WebView>()
-    /** Installed extensions, running in tabs and in pages of their own (extensions/). */
-    val extensions = com.jlees.mibrowser.extensions.ExtensionEngine(activity.applicationContext, vm).also {
-        it.tabView = { id -> views[id] }
-        com.jlees.mibrowser.extensions.ExtensionFlow.engine = it
-    }
+    /**
+     * Installed extensions, running in tabs and in pages of their own (extensions/). One engine for as long as the
+     * ViewModel lives: a window rebuilt (rotation, a theme change) takes the running one over rather than starting
+     * extensions a second time; it only reaches this window's tabs through [ExtensionEngine.tabView], let go in destroyAll.
+     */
+    val extensions = (com.jlees.mibrowser.extensions.ExtensionFlow.engine?.takeIf { it.vm === vm }
+        ?: com.jlees.mibrowser.extensions.ExtensionEngine(activity.applicationContext, vm).also {
+            com.jlees.mibrowser.extensions.ExtensionFlow.engine?.shutdown() // one left from a ViewModel that's gone
+            com.jlees.mibrowser.extensions.ExtensionFlow.engine = it
+        }).also { it.tabView = { id -> views[id] } }
     private val loaded = HashMap<String, Pair<String?, Int>>()
     /** Live WebViews are capped (each is a full page renderer): least recently viewed tabs are evicted, keeping their
      *  back/forward state here so they come back where they were when opened again. */
@@ -234,6 +239,8 @@ class WebViewHost(
     fun destroyAll(finishing: Boolean) {
         views.keys.toList().forEach { destroy(it) }
         media.release()
+        // the engine outlives this window (unless mi is closing): it lets go of this window's tabs
+        if (finishing) extensions.shutdown() else extensions.tabView = { null }
         if (finishing) incognito.release(all = true) // wipe now; folders go at the next launch
     }
 
@@ -334,8 +341,8 @@ class WebViewHost(
         wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length ->
             // a file the page made itself: the page hands it over (BlobDownloads); anything else, mi's downloader
             if (url.startsWith("blob:") || url.startsWith("data:")) blobDownloads.fetch(wv, url, isIncognito(id))
-            // an extension package (Firefox .xpi, Chrome .crx): offered to install, not saved as a file
-            else if (mimetype == "application/x-xpinstall" || mimetype == "application/x-chrome-extension" || Regex("""\.(xpi|crx)([?#]|$)""").containsMatchIn(url))
+            // an extension package (a Firefox .xpi): offered to install, not saved as a file
+            else if (mimetype == "application/x-xpinstall" || Regex("""\.xpi([?#]|$)""").containsMatchIn(url))
                 vm.fetchExtension(com.jlees.mibrowser.extensions.InstallSource.File(url), android.webkit.URLUtil.guessFileName(url, contentDisposition, mimetype).substringBeforeLast('.'))
             else downloads.start(incognito.cookies(wv), isIncognito(id), url, userAgent, contentDisposition, mimetype, length)
         }

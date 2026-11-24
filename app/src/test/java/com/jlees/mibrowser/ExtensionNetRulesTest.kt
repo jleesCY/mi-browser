@@ -4,6 +4,7 @@ import com.jlees.mibrowser.extensions.DnrAction
 import com.jlees.mibrowser.extensions.DnrCondition
 import com.jlees.mibrowser.extensions.DnrHeader
 import com.jlees.mibrowser.extensions.DnrIndex
+import com.jlees.mibrowser.extensions.filterWord
 import com.jlees.mibrowser.extensions.DnrOutcome
 import com.jlees.mibrowser.extensions.DnrParam
 import com.jlees.mibrowser.extensions.DnrQueryTransform
@@ -16,7 +17,6 @@ import com.jlees.mibrowser.extensions.dnrDecide
 import com.jlees.mibrowser.extensions.isThirdParty
 import com.jlees.mibrowser.extensions.redirectTarget
 import com.jlees.mibrowser.extensions.requestType
-import com.jlees.mibrowser.extensions.siteOf
 import com.jlees.mibrowser.extensions.urlFilterRegex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,11 +40,11 @@ class ExtensionNetRulesTest {
     }
 
     @Test fun sites() {
-        assertEquals("example.com", siteOf("a.b.example.com"))
-        assertEquals("bbc.co.uk", siteOf("www.bbc.co.uk"))
+        assertFalse(isThirdParty("https://cdn.bbc.co.uk/p.js", "https://www.bbc.co.uk/")) // a two-part suffix: one site
         assertTrue(isThirdParty("https://ads.tracker.net/p.js", "https://news.example.com/"))
         assertFalse(isThirdParty("https://cdn.example.com/p.js", "https://news.example.com/"))
         assertFalse(isThirdParty("https://a.com/", null)) // no page: not third-party
+        assertEquals("https://a.com:8080", com.jlees.mibrowser.extensions.originOf("https://a.com:8080/p?q=1"))
     }
 
     @Test fun urlFilters() {
@@ -59,6 +59,27 @@ class ExtensionNetRulesTest {
         assertFalse(urlFilterRegex("/ad-*.gif|", false).containsMatchIn("https://a.com/ad-123.gif?x"))
         assertTrue(urlFilterRegex("BANNER", false).containsMatchIn("https://a.com/banner"))
         assertFalse(urlFilterRegex("BANNER", true).containsMatchIn("https://a.com/banner"))
+    }
+
+    @Test fun hostsInDomains() {
+        fun hostIn(h: String, d: String) = com.jlees.mibrowser.extensions.hostIn(h, d)
+        assertTrue(hostIn("example.com", "example.com"))
+        assertTrue(hostIn("a.b.example.com", "Example.COM"))
+        assertFalse(hostIn("badexample.com", "example.com"))
+        assertFalse(hostIn("example.com", "a.example.com"))
+        assertFalse(hostIn("com", "example.com"))
+    }
+
+    @Test fun rulesFoundByTheirRequestDomains() {
+        // a rule listing request domains is indexed under each one (a list can hold thousands): a request to any of them,
+        // or below one, matches; one elsewhere doesn't; its other conditions still apply
+        val many = rule(1, "block", DnrCondition(requestDomains = listOf("Ads.one.com", "two.net"), resourceTypes = listOf("script")))
+        val alsoTwo = rule(2, "block", DnrCondition(requestDomains = listOf("two.net")))
+        val index = DnrIndex(listOf("e" to many, "e" to alsoTwo))
+        assertEquals(listOf(1), index.matches(req("https://x.ads.one.com/a.js")).map { it.second.id })
+        assertEquals(setOf(1, 2), index.matches(req("https://two.net/a.js")).map { it.second.id }.toSet())
+        assertEquals(listOf(2), index.matches(req("https://two.net/a.png", type = "image")).map { it.second.id })
+        assertTrue(index.matches(req("https://one.com/a.js")).isEmpty())
     }
 
     @Test fun decisions() {
@@ -89,6 +110,21 @@ class ExtensionNetRulesTest {
         assertEquals(0, ci.matches(NetRequest("https://img.cdn.com/x", "POST", "xmlhttprequest", "https://other.com/", 1)).size)
     }
 
+    @Test fun genericFiltersAreIndexedByAWholeWord() {
+        assertEquals("banner", filterWord("/ads/banner.js"))
+        assertEquals("com", filterWord("||com/|"))
+        assertEquals(null, filterWord("*ads/"))          // open at the start
+        assertEquals(null, filterWord(".jpg"))           // open at the end
+        assertEquals("jpg", filterWord(".jpg|"))         // anchored at the end
+        assertEquals(null, filterWord("/ma.js^"))
+        assertEquals("vast", filterWord("/vast?"))
+        // indexed rules still match (case-insensitively) and only where their word is
+        val idx = DnrIndex(listOf("e" to rule(1, "block", DnrCondition(urlFilter = "/ads/Banner.js")), "e" to rule(2, "block", DnrCondition(urlFilter = ".gif"))))
+        assertEquals(listOf(1), idx.matches(req("https://a.com/ads/BANNER.js?x")).map { it.second.id })
+        assertEquals(emptyList<Int>(), idx.matches(req("https://a.com/ads/bannerx.js")).map { it.second.id })
+        assertEquals(listOf(2), idx.matches(req("https://a.com/p.gif")).map { it.second.id })
+    }
+
     @Test fun redirectsAndHeaders() {
         val up = rule(1, "upgradeScheme", DnrCondition(urlFilter = "||a.com^"))
         val r = req("http://a.com/x")
@@ -106,25 +142,43 @@ class ExtensionNetRulesTest {
     }
 
     @Test fun sitePoliciesAllowExtensionsFiles() {
-        val p = "default-src 'self'; script-src 'nonce-x' 'strict-dynamic'; style-src 'self' 'unsafe-inline' data:; font-src 'self' data:; object-src 'none'; frame-src 'none'"
+        val p = "default-src 'self'; script-src 'nonce-x' 'strict-dynamic'; style-src 'self' 'nonce-y' data:; font-src 'self' data:; object-src 'none'; frame-src 'none'"
         val out = com.jlees.mibrowser.extensions.allowExtensionsIn(p)
-        // what loads styles, fonts, frames (and the default) gets mi's extension address; 'none' gives way to it
-        assertEquals("default-src 'self' https://*.ext.mi.invalid; script-src 'nonce-x' 'strict-dynamic'; style-src 'self' 'unsafe-inline' data: https://*.ext.mi.invalid; " +
-            "font-src 'self' data: https://*.ext.mi.invalid; object-src 'none'; frame-src https://*.ext.mi.invalid", out)
+        // what loads extensions' files gets mi's address; 'none' gives way to it; styles allow inline ones (the nonce,
+        // which would cancel that, goes); everything else is left alone
+        assertEquals("default-src 'self' https://*.ext.mi.invalid; script-src 'nonce-x' 'strict-dynamic' https://*.ext.mi.invalid; " +
+            "style-src 'self' data: 'unsafe-inline' https://*.ext.mi.invalid; font-src 'self' data: https://*.ext.mi.invalid; object-src 'none'; frame-src https://*.ext.mi.invalid; " +
+            "connect-src 'self' https://*.ext.mi.invalid data:", out)
         // once is enough
         assertEquals(out, com.jlees.mibrowser.extensions.allowExtensionsIn(out))
         // several policies, each changed
         assertEquals("img-src 'self' https://*.ext.mi.invalid, img-src https: https://*.ext.mi.invalid", com.jlees.mibrowser.extensions.allowExtensionsIn("img-src 'self', img-src https:"))
+        // styles and requests limited only by default-src (as on addons.mozilla.org's pages): they get their own directives
+        assertEquals("default-src 'self' https://*.ext.mi.invalid; style-src 'self' https://*.ext.mi.invalid 'unsafe-inline'; connect-src 'self' https://*.ext.mi.invalid data:",
+            com.jlees.mibrowser.extensions.allowExtensionsIn("default-src 'self'").let { it })
+        // extensions read data: addresses (Dark Reader's look at a page's inline SVG pictures, refused on GitHub)
+        assertEquals("connect-src 'self' https://*.ext.mi.invalid data:", com.jlees.mibrowser.extensions.allowExtensionsIn("connect-src 'self'"))
+        // YouTube requires Trusted Types, which refuse extensions' plain innerHTML (SponsorBlock): no longer required
+        assertEquals("", com.jlees.mibrowser.extensions.allowExtensionsIn("require-trusted-types-for 'script'"))
+        assertEquals("object-src 'none'; trusted-types a", com.jlees.mibrowser.extensions.allowExtensionsIn("object-src 'none'; require-trusted-types-for 'script'; trusted-types a"))
     }
 
-    @Test fun extensionSockets() {
-        // reached (host permissions, cookies) at the matching http(s) address
-        assertEquals("https://capi.grammarly.com/freews", com.jlees.mibrowser.extensions.httpOfSocket("wss://capi.grammarly.com/freews"))
-        assertEquals("http://localhost:8080/x", com.jlees.mibrowser.extensions.httpOfSocket("ws://localhost:8080/x"))
-        assertEquals(null, com.jlees.mibrowser.extensions.httpOfSocket("https://example.com/"))
-        // a page may only close with 1000 or its own 3000–4999 codes
-        assertEquals(1000, com.jlees.mibrowser.extensions.socketCloseCode(null))
-        assertEquals(4001, com.jlees.mibrowser.extensions.socketCloseCode(4001))
-        assertEquals(1000, com.jlees.mibrowser.extensions.socketCloseCode(1006))
+    @Test fun pagesOwnPoliciesAllowExtensionsToo() {
+        // addons.mozilla.org sets its policy in a meta tag: it's relaxed like a header's; other meta tags stay
+        val html = "<head><meta charset=utf-8><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; style-src 'self' 'sha256-x'\"></head>"
+        assertEquals("<head><meta charset=utf-8><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self' https://*.ext.mi.invalid; style-src 'self' 'unsafe-inline' https://*.ext.mi.invalid; connect-src 'self' https://*.ext.mi.invalid data:\"></head>",
+            com.jlees.mibrowser.extensions.relaxMetaPolicies(html))
+        assertEquals("<p>no policy</p>", com.jlees.mibrowser.extensions.relaxMetaPolicies("<p>no policy</p>"))
+    }
+
+    @Test fun botChecksAreRecognised() {
+        // a bot check turns mi's own fetch away: the site is left to WebView
+        assertEquals(true, com.jlees.mibrowser.extensions.isBotCheck(403, listOf("cf-mitigated" to "challenge")))
+        assertEquals(true, com.jlees.mibrowser.extensions.isBotCheck(503, listOf("Server" to "cloudflare")))
+        assertEquals(false, com.jlees.mibrowser.extensions.isBotCheck(404, listOf("Server" to "cloudflare")))
+        assertEquals(false, com.jlees.mibrowser.extensions.isBotCheck(403, listOf("Server" to "nginx")))
+        assertEquals(true, com.jlees.mibrowser.extensions.isBotCheckPage("<html><head><title>Client Challenge</title>"))
+        assertEquals(true, com.jlees.mibrowser.extensions.isBotCheckPage("<title>Just a moment...</title>"))
+        assertEquals(false, com.jlees.mibrowser.extensions.isBotCheckPage("<title>Dark Reader – Get this Extension</title>"))
     }
 }

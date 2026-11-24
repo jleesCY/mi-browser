@@ -31,7 +31,7 @@ fun adBlockingSection(vm: BrowserViewModel) =
             SwitchItem("content_copy", "Remove Tracking from Links", "Remove tracking tags from links you open, copy, or share", vm.settings.stripTrackingParams) { vm.updateSettings { copy(stripTrackingParams = it) } }
         },
         SettingsRow("Allowed Sites", "whitelist exception allow ads site") { AllowedSitesItem(vm) },
-        SettingsRow("Update Filter Lists", "adblock update easylist") { FilterListsItem(vm) },
+        SettingsRow("Update Filter Lists", "adblock update easylist") { FilterListsItem() },
     ))
 
 /** Sites where blocking is off (added from the tab menu's "Block ads here"), each with a button to block again. */
@@ -54,7 +54,7 @@ private fun AllowedSitesItem(vm: BrowserViewModel) {
 
 /** When the ad-blocking lists were last updated, with a button to update them now (they also update weekly on Wi-Fi). */
 @Composable
-private fun FilterListsItem(vm: BrowserViewModel) {
+private fun FilterListsItem() {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var updating by remember { mutableStateOf(false) }

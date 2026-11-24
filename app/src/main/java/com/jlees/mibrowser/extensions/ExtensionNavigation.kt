@@ -10,8 +10,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 
 class ExtensionNavigation internal constructor(private val e: ExtensionEngine) {
@@ -82,13 +80,13 @@ class ExtensionNavigation internal constructor(private val e: ExtensionEngine) {
     // ---- API calls
 
     fun handle(name: String, a: JsonArray, done: Done) {
-        val o = a.getOrNull(0) as? JsonObject ?: JsonObject(emptyMap())
-        val tabId = (o["tabId"] as? JsonPrimitive)?.intOrNull?.let(e::tabOf) ?: return done(true, if (name == "webNavigation.getAllFrames") JsonArray(emptyList()) else null, null)
+        val o = a.getOrNull(0).obj()
+        val tabId = o["tabId"].int()?.let(e::tabOf) ?: return done(true, if (name == "webNavigation.getAllFrames") JsonArray(emptyList()) else null, null)
         val url = committed[tabId] ?: e.vm.tabs.list.firstOrNull { it.id == tabId }?.url ?: return done(true, null, null)
         val main = buildJsonObject { put("frameId", 0); put("parentFrameId", -1); put("processId", 1); put("url", url); put("errorOccurred", false); put("frameType", "outermost_frame") }
         when (name) {
             "webNavigation.getFrame" -> {
-                val frameId = (o["frameId"] as? JsonPrimitive)?.intOrNull ?: 0
+                val frameId = o["frameId"].int() ?: 0
                 if (frameId == 0) return done(true, main, null)
                 val f = framesOf(tabId).getOrNull(frameId - 1) ?: return done(true, null, null)
                 done(true, buildJsonObject { put("frameId", frameId); put("parentFrameId", 0); put("processId", 1); put("url", f); put("errorOccurred", false); put("frameType", "sub_frame") }, null)

@@ -22,6 +22,7 @@ import com.jlees.mibrowser.library.smartDate
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.settings.Item
+import com.jlees.mibrowser.ui.settings.SegmentedGroup
 import com.jlees.mibrowser.ui.settings.SwitchItem
 import kotlin.math.abs
 
@@ -91,11 +92,11 @@ private fun Top(vm: BrowserViewModel, f: Follow, checking: Boolean) {
 /** Its settings, grouped and styled as Settings' are: what alerts you and how, then how it's checked. */
 @Composable
 private fun Settings(vm: BrowserViewModel, f: Follow, o: Options, close: () -> Unit) {
-    Group("Alerts", alertRows(o))
-    Group("Checking", checkingRows(o) + listOf<@Composable () -> Unit>({
+    SegmentedGroup("Alerts", alertRows(o))
+    SegmentedGroup("Checking", checkingRows(o) + listOf<@Composable () -> Unit>({
         SwitchItem("pause", "Pause Checking", "Keep its price history but stop checking it", o.paused) { o.paused = it }
     }))
-    Group("More", listOf(
+    SegmentedGroup("More", listOf(
         { Item("refresh", "Pick the Price Again", "Tap the price on the page yourself", onClick = { vm.repick(f.id) }) },
         // background checks, and notifications on or off for every product, are in Settings
         { Item("settings", "Following Settings", "Background checks and notifications", onClick = {

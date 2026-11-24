@@ -21,9 +21,8 @@ import com.jlees.mibrowser.ButtonStyle
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.settings.ExpandItem
 import com.jlees.mibrowser.ui.settings.Item
-import com.jlees.mibrowser.ui.settings.SectionHeader
 import com.jlees.mibrowser.ui.settings.SwitchItem
-import com.jlees.mibrowser.ui.settings.segment
+import com.jlees.mibrowser.ui.settings.SegmentedGroup
 
 @Composable
 fun BoxScope.ExtensionPanel(vm: BrowserViewModel) {
@@ -51,17 +50,10 @@ private fun Top(e: InstalledExtension) {
             Txt(listOfNotNull("Version ${e.version}", size, if (e.enabled) null else "Off").joinToString(" · "), 13f, ui.cs.onSurfaceVariant, ui.regular)
         }
     }
-    Box(Modifier.padding(top = 14.dp)) { FitBadge(e.fit) }
+    Box(Modifier.padding(top = 14.dp)) { if (e.verified) VerifiedBadge() else FitBadge(e.fit) }
+    WebViewWarning(verifiedFor(storeSource(e.source)))
     if (e.description.isNotBlank()) Txt(e.description, 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 12.dp), lineHeight = 20f, maxLines = 4)
     Spacer(Modifier.height(16.dp))
-}
-
-/** A block of rows in Settings' style: rounded, with small gaps between them, under an optional heading. */
-@Composable
-private fun Block(heading: String?, rows: List<@Composable () -> Unit>) {
-    if (rows.isEmpty()) return
-    if (heading != null) SectionHeader(null, heading)
-    rows.forEachIndexed { i, row -> Box(Modifier.segment(i, rows.size)) { row() } }
 }
 
 /** Reached by scrolling up: why it got its rating, its switches, what it can reach, keeping it up to date and its data. */
@@ -70,14 +62,14 @@ private fun Rest(vm: BrowserViewModel, e: InstalledExtension) {
     val ui = LocalUi.current
     val id = e.id
     val m = ExtensionFlow.engine?.infos?.get(id)?.manifest
-    if (e.reasons.isNotEmpty()) Block("How It Works in mi", listOf { Column(Modifier.fillMaxWidth().padding(16.dp)) { FitReasons(e.fit, e.reasons, e.serious) } })
-    Block("Settings", listOfNotNull(
+    if (e.reasons.isNotEmpty()) SegmentedGroup("How It Works in mi", listOf { Column(Modifier.fillMaxWidth().padding(16.dp)) { FitReasons(e.fit, e.reasons, e.serious) } })
+    SegmentedGroup("Settings", listOfNotNull(
         { SwitchItem("power_settings_new", "On", "Run this extension", e.enabled) { vm.setExtensionEnabled(id, it) } },
         { SwitchItem("incognito", "Allow in Incognito", "Run it in incognito tabs too", e.incognito) { vm.setExtensionIncognito(id, it) } },
         if (m?.hasButton == true) ({ SwitchItem("more_vert", "Show in Tab Menu", "Its button appears in the tab menu", e.showButton) { vm.setExtensionButton(id, it) } }) else null,
         if (m?.contentScripts?.isNotEmpty() == true) ({ OffSitesItem(vm, e) }) else null,
     ))
-    if (m != null) Block("Access", listOfNotNull(
+    if (m != null) SegmentedGroup("Access", listOfNotNull(
         reachOf(m)?.let { reach -> { Item("shield", "Sites", reach) } },
         if (m.permissions.isNotEmpty()) ({
             ExpandItem("key", "Permissions", null, m.permissions.size.toString()) {
@@ -85,7 +77,7 @@ private fun Rest(vm: BrowserViewModel, e: InstalledExtension) {
             }
         }) else null,
     ))
-    Block("Manage", listOfNotNull(
+    SegmentedGroup("Manage", listOfNotNull(
         if (e.source != null) ({ Item("refresh", "Check for Update", "Get the newest version from the store", onClick = { vm.checkExtensionUpdate(id) }) }) else null,
         e.source?.let { src -> { Item("open_in_new", "View in Store", null, onClick = {
             ExtensionFlow.opened = null; vm.addNewTab(src); vm.switcherVisible = false; vm.openView(com.jlees.mibrowser.Sheet.NONE)
@@ -111,12 +103,7 @@ private fun Bar(vm: BrowserViewModel, e: InstalledExtension, close: () -> Unit, 
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilledTonalButton(
-                {
-                    vm.showAlert("Remove ${e.name}?", "It stops running, and its settings and saved data go with it.", listOf(
-                        AlertButton("Cancel", ButtonStyle.CANCEL),
-                        AlertButton("Remove", ButtonStyle.DESTRUCTIVE) { close(); vm.removeExtension(e.id) },
-                    ))
-                },
+                { close(); vm.removeExtension(e.id) },
                 Modifier.weight(1f).height(48.dp),
                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = ui.cs.errorContainer, contentColor = ui.cs.onErrorContainer),
             ) { Txt("Remove", 15f, ui.cs.onErrorContainer, ui.bold) }

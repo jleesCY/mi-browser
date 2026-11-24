@@ -231,10 +231,7 @@ private fun confirmDelete(vm: BrowserViewModel, b: BookmarkNode, answer: (Boolea
     val inside = descendantsAndSelf(vm.bookmarks.nodes, b.id) - b.id
     val bookmarks = vm.bookmarks.nodes.count { it.id in inside && !it.isFolder }
     val folders = inside.size - bookmarks
-    val contents = listOfNotNull(
-        folders.takeIf { it > 0 }?.let { if (it == 1) "1 folder" else "$it folders" },
-        bookmarks.takeIf { it > 0 }?.let { if (it == 1) "1 bookmark" else "$it bookmarks" },
-    ).joinToString(" and ")
+    val contents = contentsLabel(folders, bookmarks, " and ")
     // the Favorites folder is your favorites: deleting it empties the home page's grid, so it says so
     if (b.id == FAVORITES_FOLDER) {
         val n = vm.bookmarks.favorites.size

@@ -3,29 +3,29 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
-const UPDATED = "November 5, 2026";
+const UPDATED = "November 24, 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
       <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h2>
-      <div className="space-y-3 text-base leading-relaxed text-black/70 dark:text-white/65">{children}</div>
+      <div className="space-y-3 text-base leading-relaxed text-on-surface-variant">{children}</div>
     </section>
   );
 }
 
 export default function Privacy() {
   return (
-    <main className="min-h-screen bg-[#fafafa] dark:bg-[#050505] text-[#171717] dark:text-[#ededed] transition-colors duration-300 overflow-x-hidden">
+    <main className="min-h-screen bg-surface-container-low text-on-surface transition-colors duration-300 overflow-x-hidden">
       <Navbar />
       <div className="pt-24 sm:pt-32 pb-20 px-6">
         <article className="max-w-3xl mx-auto space-y-12">
           <header className="space-y-4">
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tighter">
-              Privacy <span className="text-blue-600 italic">Policy</span>
+              Privacy <span className="text-primary italic">Policy</span>
             </h1>
-            <p className="text-sm text-black/50 dark:text-white/50 font-medium">Last updated {UPDATED}</p>
-            <p className="text-lg leading-relaxed text-black/70 dark:text-white/65">
+            <p className="text-sm text-on-surface-variant font-medium">Last updated {UPDATED}</p>
+            <p className="text-lg leading-relaxed text-on-surface-variant">
               mi. Browser does not collect, store or share any personal data. There are no accounts, no analytics, no
               advertising and no crash reporting. Everything you do in mi. stays on your device.
             </p>
@@ -52,18 +52,31 @@ export default function Privacy() {
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Websites you visit</strong>, and those same websites for their site icons.</li>
               <li>
+                <strong>Products you follow</strong>: their shops&apos; pages, checked from your phone for price changes (in the
+                background if Background Checks is on). Nothing is sent to anyone else.
+              </li>
+              <li>
                 <strong>Your search engine</strong> when you search. If Search Suggestions is on, what you type in the
                 search drawer is sent to your search engine as you type, to get suggestions. You can turn this off; it is
                 off in incognito tabs by default and never used with a custom search engine.
               </li>
               <li>
-                <strong>GitHub</strong> (api.github.com), to check whether a new version of mi. is available, and to
-                download the update if you choose to install it.
+                <strong>GitHub</strong> (api.github.com), to check whether a new version of mi. is available, to show its
+                release notes after an update, and to download the update if you choose to install it.
               </li>
               <li>
                 <strong>Filter list providers</strong> (easylist.to and secure.fanboy.co.nz), to download updated ad,
                 tracker and cookie-banner blocking lists about once a week on Wi-Fi, or when you tap Update Filter Lists.
                 Nothing about your browsing is sent.
+              </li>
+              <li>
+                <strong>Firefox Add-ons</strong> (addons.mozilla.org), when you browse or search for extensions, add one, or
+                mi. checks the ones you added for updates.
+              </li>
+              <li>
+                <strong>Extensions you add</strong>, which can connect to their own services and read the sites their
+                permissions allow, under their own privacy policies. mi. shows what each one can do before you add it, runs
+                none in incognito tabs unless you allow it, and refuses password managers.
               </li>
               <li>
                 <strong>Google Safe Browsing</strong>, through Android System WebView, which may check pages against
@@ -83,7 +96,7 @@ export default function Privacy() {
               <li><strong>Camera</strong>: scanning QR codes, and websites you allow (for example, video calls).</li>
               <li><strong>Microphone</strong>: websites you allow.</li>
               <li><strong>Location</strong>: websites you allow, asked site by site.</li>
-              <li><strong>Notifications</strong>: the notification that closes all incognito tabs.</li>
+              <li><strong>Notifications</strong>: price changes on products you follow, downloads, media controls, and the notifications that close all incognito tabs or turn off a site&apos;s app mode.</li>
               <li><strong>Install apps</strong>: installing mi. updates you choose to download.</li>
               <li><strong>Passkeys</strong>: letting Android&apos;s Credential Manager sign you in to websites with passkeys.</li>
               <li><strong>Storage</strong> (Android 9 and older): saving downloads.</li>
@@ -101,7 +114,7 @@ export default function Privacy() {
           <Section title="Changes and contact">
             <p>
               If this policy changes, the new version will be posted on this page with a new date. Questions? Open an
-              issue on <a className="text-blue-600 hover:underline" href="https://github.com/jleescy/mi-browser/issues" target="_blank" rel="noopener noreferrer">GitHub</a>.
+              issue on <a className="text-primary hover:underline" href="https://github.com/jleescy/mi-browser/issues" target="_blank" rel="noopener noreferrer">GitHub</a>.
             </p>
           </Section>
         </article>

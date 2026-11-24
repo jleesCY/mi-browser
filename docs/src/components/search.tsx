@@ -29,6 +29,8 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Landscape, Tablets and Foldables", type: "User Guide", href: "/user#big-screens", excerpt: "mi turns with your phone and fits wide screens." },
   { title: "Following Widget", type: "User Guide", href: "/user#following-widget", excerpt: "Your followed prices on the home screen, with a refresh button." },
   { title: "Find in Page", type: "User Guide", href: "/user#find-in-page", excerpt: "Find text on the page, with a match count." },
+  { title: "Extensions", type: "User Guide", href: "/user#extensions", excerpt: "Add extensions made for Firefox on Android: how well each works, its page, its button in the tab menu." },
+  { title: "Tested in mi", type: "User Guide", href: "/user#tested-in-mi", excerpt: "Extensions checked by hand in mi: Dark Reader, uBlock Origin, Keepa, SponsorBlock and more." },
   // Settings (the app's sections: Search, Web Pages, Media, Look & Feel, Pill, Home Page, Ad Blocking, Privacy & Security, Tabs, Gestures, Library, History, Backup & Reset, About)
   { title: "Theme", type: "Settings", href: "/user#setting-theme", excerpt: "Light, Dark, or System." },
   { title: "Pure Black", type: "Settings", href: "/user#setting-pure-black", excerpt: "True black dark theme for OLED screens." },
@@ -57,7 +59,9 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Swipe Left, Swipe Right, Swipe Up", type: "Settings", href: "/user#setting-swipe-left,-swipe-right,-swipe-up", excerpt: "Choose which page each switcher swipe opens." },
   { title: "Long Press to Search", type: "Settings", href: "/user#setting-long-press-to-search", excerpt: "Hold the switcher's Pill to search your tabs." },
   { title: "Clear Recently Closed Tabs", type: "Settings", href: "/user#setting-clear-recently-closed-tabs", excerpt: "Forget the tabs you've closed." },
-  { title: "Report a Bug or Suggest a Feature", type: "Settings", href: "/user#setting-report-a-bug-or-suggest-a-feature", excerpt: "Open a new issue on GitHub." },
+  { title: "Report a Bug", type: "Settings", href: "/user#setting-report-a-bug", excerpt: "Open a bug report on GitHub, with your version filled in." },
+  { title: "Suggest a Feature", type: "Settings", href: "/user#setting-suggest-a-feature", excerpt: "Open a feature request on GitHub." },
+  { title: "Request Extension Support", type: "Settings", href: "/user#setting-request-extension-support", excerpt: "Ask for an extension to work in mi." },
   { title: "Logo", type: "Settings", href: "/user#setting-logo", excerpt: "None, Static, or Fidget." },
   { title: "Clock", type: "Settings", href: "/user#setting-clock", excerpt: "None, 12h, or 24h." },
   { title: "Date", type: "Settings", href: "/user#setting-date", excerpt: "None, Above Clock, or Below Clock." },
@@ -235,26 +239,26 @@ export function Search() {
   };
 
   const ModalContent = (
-    <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md p-4 sm:p-4 flex items-start justify-center overflow-hidden">
+    <div className="fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-md p-4 sm:p-4 flex items-start justify-center overflow-hidden">
       <div
         ref={searchRef}
-        className="w-full max-w-2xl bg-[#0a0a0a] rounded-3xl shadow-2xl border border-white/10 overflow-hidden mt-12 sm:mt-20 flex flex-col max-h-[70vh] sm:max-h-[80vh]"
+        className="w-full max-w-2xl bg-surface-container-high rounded-4xl shadow-2xl border border-outline-variant overflow-hidden mt-12 sm:mt-20 flex flex-col max-h-[70vh] sm:max-h-[80vh]"
       >
-        <div className="flex items-center p-4 sm:p-6 border-b border-white/5 shrink-0">
-          <SearchIcon className="text-white/40 mr-3 sm:mr-4" size={20} />
+        <div className="flex items-center p-4 sm:p-6 border-b border-outline-variant shrink-0">
+          <SearchIcon className="text-on-surface-variant/80 mr-3 sm:mr-4" size={20} />
           <input
             autoFocus
             type="text"
             placeholder="Search..."
-            className="flex-1 bg-transparent border-none outline-none text-lg sm:text-xl text-white font-medium placeholder:text-white/20"
+            className="flex-1 bg-transparent border-none outline-none text-lg sm:text-xl text-on-surface font-medium placeholder:text-on-surface-variant/60"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <button
             onClick={() => setIsOpen(false)}
-            className="p-2 hover:bg-white/5 rounded-xl transition-colors ml-2"
+            className="p-2 hover:bg-surface-container-high rounded-xl transition-colors ml-2"
           >
-            <X size={20} className="text-white/40" />
+            <X size={20} className="text-on-surface-variant/80" />
           </button>
         </div>
         <div className="p-2 overflow-y-auto flex-1">
@@ -265,9 +269,9 @@ export function Search() {
                   key={idx}
                   href={result.href}
                   onClick={(e) => handleResultClick(e, result.href)}
-                  className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group"
+                  className="flex items-start gap-4 p-4 rounded-2xl hover:bg-surface-container-high transition-colors group"
                 >
-                  <div className="mt-1 p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <div className="mt-1 p-2 rounded-lg bg-primary-container text-on-primary-container group-hover:bg-primary group-hover:text-on-primary transition-colors">
                     {result.type === "Settings" ? <Settings2 size={18} /> :
                       result.type === "Architecture" ? <Code2 size={18} /> :
                         result.title === "Privacy Commitment" ? <Shield size={18} /> :
@@ -275,22 +279,22 @@ export function Search() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-white truncate">{result.title}</span>
-                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-white/30 px-1.5 py-0.5 rounded-md border border-white/5">
+                      <span className="font-bold text-on-surface truncate">{result.title}</span>
+                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/70 px-1.5 py-0.5 rounded-md border border-outline-variant">
                         {result.type}
                       </span>
                     </div>
-                    <p className="text-xs sm:text-sm text-white/50 line-clamp-2">{result.excerpt}</p>
+                    <p className="text-xs sm:text-sm text-on-surface-variant line-clamp-2">{result.excerpt}</p>
                   </div>
                 </Link>
               ))}
             </div>
           ) : query ? (
-            <div className="p-12 text-center text-white/20">
+            <div className="p-12 text-center text-on-surface-variant/60">
               <p className="text-lg font-medium">No results found for &quot;{query}&quot;</p>
             </div>
           ) : (
-            <div className="p-12 text-center text-white/20">
+            <div className="p-12 text-center text-on-surface-variant/60">
               <p className="text-sm font-medium">Try searching for &quot;Gestures&quot; or &quot;Tech Stack&quot;</p>
             </div>
           )}
@@ -303,11 +307,11 @@ export function Search() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:bg-white/10 transition-all text-xs sm:text-sm font-semibold w-full sm:max-w-sm"
+        className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-xl bg-surface-container-high border border-outline-variant text-on-surface-variant/80 hover:bg-surface-container-highest transition-all text-xs sm:text-sm font-semibold w-full sm:max-w-sm"
       >
         <SearchIcon size={14} className="sm:size-4" />
         <span className="text-center">Search</span>
-        <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-white/10 bg-white/5 px-1.5 font-mono text-[10px] font-bold opacity-100">
+        <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-outline-variant bg-surface-container-high px-1.5 font-mono text-[10px] font-bold opacity-100">
           <span className="text-xs">⌘</span>K
         </kbd>
       </button>

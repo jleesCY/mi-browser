@@ -10,9 +10,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import java.util.concurrent.ConcurrentHashMap
 
@@ -71,9 +69,9 @@ internal class ExtensionScripting(private val e: ExtensionEngine) {
         js = (o["js"] as? JsonArray)?.let { it.strings() } ?: old?.js.orEmpty(),
         css = (o["css"] as? JsonArray)?.let { it.strings() } ?: old?.css.orEmpty(),
         runAt = o["runAt"].str() ?: old?.runAt ?: "document_idle",
-        allFrames = (o["allFrames"] as? JsonPrimitive)?.booleanOrNull ?: old?.allFrames ?: false,
+        allFrames = o["allFrames"].bool() ?: old?.allFrames ?: false,
         mainWorld = o["world"].str()?.let { it == "MAIN" } ?: old?.mainWorld ?: false,
-        persist = (o["persistAcrossSessions"] as? JsonPrimitive)?.booleanOrNull ?: old?.persist ?: true,
+        persist = o["persistAcrossSessions"].bool() ?: old?.persist ?: true,
     )
 
     private fun toChrome(d: DynamicScript) = buildJsonObject {
@@ -118,7 +116,7 @@ internal class ExtensionScripting(private val e: ExtensionEngine) {
                 val d = DynamicScript(
                     id = "ff:" + com.jlees.mibrowser.logic.uniqueId(), matches = o["matches"].strings(), excludeMatches = o["excludeMatches"].strings(),
                     includeGlobs = o["includeGlobs"].strings(), excludeGlobs = o["excludeGlobs"].strings(), js = items(o["js"]), css = items(o["css"]),
-                    runAt = o["runAt"].str() ?: "document_idle", allFrames = (o["allFrames"] as? JsonPrimitive)?.booleanOrNull ?: false, persist = false,
+                    runAt = o["runAt"].str() ?: "document_idle", allFrames = o["allFrames"].bool() ?: false, persist = false,
                 )
                 scripts[ext] = mine + d; changed(ext); done(true, JsonPrimitive(d.id), null)
             }
@@ -145,7 +143,7 @@ internal class ExtensionScripting(private val e: ExtensionEngine) {
         else -> privacy[key] ?: JsonPrimitive(key !in setOf("websites.doNotTrackEnabled", "websites.resistFingerprinting", "websites.firstPartyIsolate"))
     }
 
-    fun handlePrivacy(c: ExtensionEngine.Ctx, name: String, a: JsonArray, done: Done) {
+    fun handlePrivacy(name: String, a: JsonArray, done: Done) {
         val key = a.getOrNull(0).str() ?: return done(false, null, "No setting")
         when (name) {
             "privacy.get" -> done(true, buildJsonObject {
@@ -156,7 +154,7 @@ internal class ExtensionScripting(private val e: ExtensionEngine) {
                 val v = (a.getOrNull(1) as? JsonObject)?.get("value") ?: return done(false, null, "No value")
                 // the ones mi has: changed for real (an extension asking for it is the person's choice, made by installing it)
                 when (key) {
-                    "websites.thirdPartyCookiesAllowed" -> (v as? JsonPrimitive)?.booleanOrNull?.let { allowed -> e.vm.updateSettings { copy(blockThirdPartyCookies = !allowed) } }
+                    "websites.thirdPartyCookiesAllowed" -> v.bool()?.let { allowed -> e.vm.updateSettings { copy(blockThirdPartyCookies = !allowed) } }
                     "network.httpsOnlyMode" -> v.str()?.let { mode -> e.vm.updateSettings { copy(httpsOnly = mode != "never") } }
                     else -> privacy[key] = v
                 }

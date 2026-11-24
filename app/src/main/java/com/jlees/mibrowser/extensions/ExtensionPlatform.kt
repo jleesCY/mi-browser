@@ -22,15 +22,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
@@ -39,10 +35,9 @@ import java.security.MessageDigest
 /** A sign-in page an extension opened (identity.launchWebAuthFlow), shown in a sheet until it reaches [redirect]. */
 class AuthFlow(val ext: String, val url: String, val redirect: String, val done: (String?) -> Unit)
 
-/** The address an extension's sign-in comes back to: Chrome's for a Chrome Web Store id, else Firefox's for its add-on id. */
+/** The address an extension's sign-in comes back to, as Firefox gives it (from its add-on id). */
 fun identityRedirect(id: String, geckoId: String?): String =
-    if (id.matches(Regex("[a-p]{32}"))) "https://$id.chromiumapp.org/"
-    else "https://" + MessageDigest.getInstance("SHA-1").digest((geckoId ?: id).toByteArray()).joinToString("") { "%02x".format(it) } + ".extensions.allizom.org/"
+    "https://" + MessageDigest.getInstance("SHA-1").digest((geckoId ?: id).toByteArray()).joinToString("") { "%02x".format(it) } + ".extensions.allizom.org/"
 
 internal class ExtensionPlatform(private val e: ExtensionEngine) {
     private val vm get() = e.vm
@@ -90,7 +85,6 @@ internal class ExtensionPlatform(private val e: ExtensionEngine) {
         }
     }
 
-    private fun mayReach(ext: String, url: String) = e.infos[ext]?.manifest?.hostPermissions?.any { matchesPattern(it, url) } == true
 
     private fun cookies(c: ExtensionEngine.Ctx, name: String, a: JsonArray, done: Done) {
         val o = a.getOrNull(0).obj()
@@ -104,7 +98,7 @@ internal class ExtensionPlatform(private val e: ExtensionEngine) {
         // a site the extension may reach (its host permissions), as Chrome requires
         val url = o["url"].str() ?: o["domain"].str()?.let { "https://${it.trimStart('.')}/" }
         if (url == null && name != "cookies.getAll") return done(false, null, "No url")
-        if (url != null && !mayReach(c.ext, url)) return done(false, null, "No host permissions for cookies at url: \"$url\".")
+        if (url != null && !e.mayReach(c.ext, url)) return done(false, null, "No host permissions for cookies at url: \"$url\".")
         when (name) {
             "cookies.get" -> done(true, cookiesFor(cm, url!!, storeId).firstOrNull { it["name"].str() == o["name"].str() }, null)
             "cookies.getAll" -> {
@@ -124,9 +118,18 @@ internal class ExtensionPlatform(private val e: ExtensionEngine) {
                     if (o["httpOnly"].bool() == true) append("; HttpOnly")
                     o["sameSite"].str()?.let { s -> when (s) { "lax" -> append("; SameSite=Lax"); "strict" -> append("; SameSite=Strict"); "no_restriction" -> append("; SameSite=None") } }
                 }
+                val path = o["path"].str() ?: "/"
                 cm.setCookie(url, cookie) { ok ->
                     cm.flush()
-                    val result = cookiesFor(cm, url!!, storeId).firstOrNull { it["name"].str() == n }
+                    // read back where it lives (a cookie on /extension isn't sent to the site's root); WebView doesn't say
+                    // a cookie's path or domain, so the result carries the ones it was set with (cookies.onChanged
+                    // listeners filter on them: Keepa keeps its settings in cookies on keepa.com/extension)
+                    val at = runCatching { java.net.URI(url).resolve(path).toString() }.getOrDefault(url!!)
+                    val result = cookiesFor(cm, at, storeId).firstOrNull { it["name"].str() == n }?.let { ck -> JsonObject(ck + buildJsonObject {
+                        o["domain"].str()?.let { put("domain", it.trimStart('.')); put("hostOnly", false) }
+                        put("path", path); put("secure", o["secure"].bool() == true); put("httpOnly", o["httpOnly"].bool() == true)
+                        (o["expirationDate"] as? JsonPrimitive)?.doubleOrNull?.let { put("session", false); put("expirationDate", it) }
+                    }) }
                     if (ok && result != null) changed(c.ext, result, removed = false)
                     done(true, result, null)
                 }
@@ -154,7 +157,7 @@ internal class ExtensionPlatform(private val e: ExtensionEngine) {
     private val noted = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Map<String, String>>>()
 
     private fun cookieWatchers(url: String, scope: String?) = e.store.list.filter { x ->
-        x.enabled && e.runsIn(x.id, scope) && (e.infos[x.id]?.manifest?.permissions?.contains("cookies") == true || e.granted(x.id, "cookies")) && mayReach(x.id, url)
+        x.enabled && e.runsIn(x.id, scope) && (e.infos[x.id]?.manifest?.permissions?.contains("cookies") == true || e.granted(x.id, "cookies")) && e.mayReach(x.id, url)
     }
 
     private fun cookieMap(tabId: String, url: String): Map<String, String>? {
@@ -296,7 +299,7 @@ internal class ExtensionPlatform(private val e: ExtensionEngine) {
         when (name) {
             "tabsx.captureVisibleTab" -> {
                 val t = vm.tabs.current ?: return done(false, null, "No tab")
-                if (t.url?.let { mayReach(c.ext, it) } != true && e.infos[c.ext]?.manifest?.permissions?.contains("activeTab") != true) return done(false, null, "Missing host permission for the tab")
+                if (t.url?.let { e.mayReach(c.ext, it) } != true && e.infos[c.ext]?.manifest?.permissions?.contains("activeTab") != true) return done(false, null, "Missing host permission for the tab")
                 val wv = e.tabView(t.id) ?: return done(false, null, "No tab")
                 val opts = a.getOrNull(1).obj()
                 if (wv.width <= 0 || wv.height <= 0) return done(false, null, "The tab isn't showing")

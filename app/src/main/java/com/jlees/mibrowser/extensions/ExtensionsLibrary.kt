@@ -75,7 +75,7 @@ private fun InstalledList(vm: BrowserViewModel, filter: String, open: (String) -
                 RowIconTile { Sym("add", 22f, ui.cs.onSurfaceVariant) }
                 Column(Modifier.weight(1f)) {
                     Txt("Get Extensions", 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
-                    Txt("Firefox Add-ons and the Chrome Web Store", 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                    Txt("Extensions made for phones, from Firefox Add-ons", 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
                 }
                 Sym("chevron_right", 22f, ui.cs.onSurfaceVariant)
             }
@@ -84,20 +84,15 @@ private fun InstalledList(vm: BrowserViewModel, filter: String, open: (String) -
             vm.extensions.list.isEmpty() -> item { EmptyState("extension", "No Extensions Yet", top = 40.dp) }
             list.isEmpty() -> item { EmptyState("extension", "No matches", top = 40.dp) }
             else -> items(list, key = { it.id }) { e ->
-                SwipeActionRow(null, onDelete = { vm.removeExtension(e.id) }, Modifier.animateItem(), askDelete = { answer ->
-                    vm.showAlert("Remove ${e.name}?", "It stops running, and its settings and saved data go with it.", listOf(
-                        com.jlees.mibrowser.AlertButton("Cancel", com.jlees.mibrowser.ButtonStyle.CANCEL) { answer(false) },
-                        com.jlees.mibrowser.AlertButton("Remove", com.jlees.mibrowser.ButtonStyle.DESTRUCTIVE) { answer(true); vm.removeExtension(e.id) },
-                    ), onCancel = { answer(false) })
-                }) {
+                SwipeActionRow(null, onDelete = { vm.removeExtension(e.id) }, Modifier.animateItem()) {
                     ListRowPan {
                         Row(ListRowModifier().touchable { open(e.id) }.padding(start = 15.dp, end = 12.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             RowIconTile { ExtensionIcon(e.id, 26f) }
                             Column(Modifier.weight(1f)) {
                                 Txt(e.name, 16f, if (e.enabled) ui.cs.onSurface else ui.cs.onSurfaceVariant, ui.bold, maxLines = 1)
                                 Txt(
-                                    if (!e.enabled) "Off" else when (e.fit) { Fit.WORKS -> "Works"; Fit.MAYBE -> "Might have problems"; Fit.NO -> "Not recommended" },
-                                    12f, if (!e.enabled) ui.cs.onSurfaceVariant else when (e.fit) { Fit.WORKS -> ui.cs.primary; Fit.MAYBE -> fitAmber(); Fit.NO -> ui.cs.error },
+                                    if (!e.enabled) "Off" else if (e.verified) "Tested in mi" else e.fit.label,
+                                    12f, if (!e.enabled) ui.cs.onSurfaceVariant else if (e.verified) ui.cs.primary else fitColor(e.fit),
                                     ui.semibold, maxLines = 1,
                                 )
                             }

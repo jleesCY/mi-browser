@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.TabItem
-import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.*
 import kotlinx.coroutines.launch
@@ -128,7 +127,7 @@ internal fun TabCardView(
             }
             // scaled to the card's width from the top, as the page is: never stretched, and text keeps its size
             else if (tab.previewImage != null) NetImage(tab.previewImage, Modifier.fillMaxSize(), ContentScale.FillWidth, alignmentTop = true)
-            else Txt(displayHost(tab.url), 16f, ui.cs.onSurfaceVariant, ui.extrabold, align = TextAlign.Center)
+            else Txt(com.jlees.mibrowser.extensions.shownHost(tab.url), 16f, ui.cs.onSurfaceVariant, ui.extrabold, align = TextAlign.Center)
             // taps go to the card, above whatever it shows (a shrunk error page has buttons of its own)
             Box(Modifier.matchParentSize().combinedClickable(onClick = onOpen, onLongClick = if (tab.incognito) null else onRename))
         }
@@ -169,7 +168,7 @@ internal fun TabHeader(tab: TabItem, active: Boolean, showLogo: Boolean, modifie
         Column(Modifier.padding(start = 10.dp).weight(1f)) {
             // an incognito tab gives nothing away: no title, site, icon or preview
             Txt(if (tab.incognito) "Incognito tab" else tab.title.ifEmpty { "New Tab" }, 15f, ui.cs.onSurface, ui.semibold, maxLines = 1)
-            if (!tab.incognito) Txt(displayHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
+            if (!tab.incognito) Txt(com.jlees.mibrowser.extensions.shownHost(tab.url).ifEmpty { "Home" }, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
         }
         if (tab.pinned) Sym("keep", 18f, ui.cs.primary, Modifier.padding(start = 8.dp))
     }

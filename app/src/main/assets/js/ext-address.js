@@ -1,14 +1,14 @@
 // Extensions' native addresses in a page. Extensions are told their addresses the way their browser gives them
-// (moz-extension://<id>/… from Firefox Add-ons, chrome-extension://<id>/… from the Chrome Web Store), as many check
-// for those. WebView can't load those schemes, so wherever a page loads one (an image, a script, a style sheet, a
-// frame, a fetch, a worker, a window), it's switched to the address mi really serves the extension at
+// (moz-extension://<id>/…, as Firefox gives them), as many check for those. WebView can't load that scheme, so wherever
+// a page loads one (an image, a script, a style sheet, a frame, a fetch, a worker, a window), it's switched to the
+// address mi really serves the extension at
 // (https://<id>.ext.mi.invalid/…). Elements made from HTML text are fixed as they're added. This file is an
 // expression: mi embeds it as `installAddresses = <this>()` in its extension scripts; it changes only addresses of the
 // extensions given to it, nothing of the page's own.
 (function () {
   return function installAddresses(ids) {
     if (!ids.length) return (u) => u;
-    const re = new RegExp('^(?:moz|chrome)-extension://(' + ids.map((i) => i.replace(/[^a-z0-9-]/g, '')).join('|') + ')/', 'i');
+    const re = new RegExp('^moz-extension://(' + ids.map((i) => i.replace(/[^a-z0-9-]/g, '')).join('|') + ')/', 'i');
     const fix = (u) => (typeof u === 'string' && re.test(u) ? u.replace(re, (_, id) => 'https://' + id.toLowerCase() + '.ext.mi.invalid/') : u);
     const fixAny = (u) => (u instanceof URL ? fix(u.href) : fix(u));
 

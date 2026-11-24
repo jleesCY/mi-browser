@@ -19,13 +19,10 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import java.io.File
 import java.net.HttpURLConnection
@@ -52,7 +49,7 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
         is JsonObject -> JsonObject(j.mapValues { fromNativeIn(it.value) })
         else -> j
     }
-    private val VERBATIM = setOf("runtime.sendMessage", "tabs.sendMessage", "port.post", "storage.set", "storage.remove", "permissions.request", "permissions.contains", "ws.send")
+    private val VERBATIM = setOf("runtime.sendMessage", "tabs.sendMessage", "port.post", "storage.set", "storage.remove", "permissions.request", "permissions.contains")
 
     fun handle(c: ExtensionEngine.Ctx, name: String, args: JsonArray, done: Done) {
         val ext = c.ext
@@ -60,9 +57,8 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
         try {
             if (name.startsWith("webRequest.") || name.startsWith("dnr.")) return e.requests.handle(c, name, a, done)
             if (name in DYNAMIC_SCRIPTS) return e.scripting.handle(c, name, a, done)
-            if (name.startsWith("privacy.")) return e.scripting.handlePrivacy(c, name, a, done)
+            if (name.startsWith("privacy.")) return e.scripting.handlePrivacy(name, a, done)
             if (name.startsWith("webNavigation.")) return e.navigation.handle(name, a, done)
-            if (name.startsWith("ws.")) return e.sockets.handle(c, name, a, done)
             if (name == "content.run") return if (c.kind == ExtensionEngine.Kind.CONTENT) e.tabs.runEntry(c, a.getOrNull(0).int() ?: -1, a.getOrNull(1).str().orEmpty(), done) else done(false, null, "Content scripts only")
             val ns = name.substringBefore('.')
             if (ns == "menus") {
@@ -80,11 +76,16 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
             }
             when (name) {
                 // ---- storage
-                "storage.get" -> done(true, JsonObject(e.store.read(ext, areaOf(a.getOrNull(0).str()), c.scope)), null)
+                // (off the main thread, in order: values can be megabytes; they go to the page as the JSON text they're kept as)
+                "storage.get" -> {
+                    val keys = (a.getOrNull(1) as? JsonArray)?.mapNotNull { it.str() }
+                    storageIo.execute { val got = e.store.get(ext, areaOf(a.getOrNull(0).str()), c.scope, keys); e.main.post { done(true, rawObject(got), null) } }
+                }
+                "storage.keys" -> storageIo.execute { val k = e.store.keys(ext, areaOf(a.getOrNull(0).str()), c.scope); e.main.post { done(true, JsonArray(k.map { JsonPrimitive(it) }), null) } }
                 "storage.set" -> storageWrite(c, a.getOrNull(0).str(), a.getOrNull(1).obj(), emptyList(), false, done)
-                "storage.remove" -> storageWrite(c, a.getOrNull(0).str(), emptyMap(), (a.getOrNull(1) as? JsonArray)?.mapNotNull { it.str() }.orEmpty(), false, done)
+                "storage.remove" -> storageWrite(c, a.getOrNull(0).str(), emptyMap(), a.getOrNull(1).strings(), false, done)
                 "storage.clear" -> storageWrite(c, a.getOrNull(0).str(), emptyMap(), emptyList(), true, done)
-                "storage.bytes" -> done(true, JsonPrimitive(e.store.bytesInUse(ext, areaOf(a.getOrNull(0).str()), c.scope)), null)
+                "storage.bytes" -> storageIo.execute { val n = e.store.bytesInUse(ext, areaOf(a.getOrNull(0).str()), c.scope); e.main.post { done(true, JsonPrimitive(n), null) } }
 
                 // ---- messaging
                 "runtime.sendMessage" -> {
@@ -127,7 +128,8 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
                 "tabs.sendMessage" -> {
                     val t = tab(a.getOrNull(0).int()) ?: return done(false, null, "No tab with id: ${a.getOrNull(0)}")
                     val frame = a.getOrNull(2).obj()["frameId"].int()
-                    e.sendTabMessage(c, t.id, frame == 0, a.getOrNull(1) ?: JsonNull) { v, ok -> if (ok == false) done(false, null, v.str() ?: "Error") else done(true, v, null) }
+                    val message = com.jlees.mibrowser.extensions.quirks.Quirks.tabMessage(e.infos[ext]?.manifest, ext, a.getOrNull(1) ?: JsonNull)
+                    e.sendTabMessage(c, t.id, frame == 0, message) { v, ok -> if (ok == false) done(false, null, v.str() ?: "Error") else done(true, v, null) }
                 }
                 "tabs.executeScript" -> {
                     val t = tab(a.getOrNull(0).int()) ?: vm.tabs.current ?: return done(false, null, "No tab")
@@ -150,7 +152,7 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
                     // a function's result (code: "return f(…)"), or its files' last value
                     val body = d["code"].str()?.let { code ->
                         if (d["world"].str() == "MAIN") "function(){return (function(){return $code\n}).call(window)}"
-                        else "function(chrome,browser,globalThis,self,WebSocket){return (function(){return ${isolatedWorld(code)}\n}).call(window)}"
+                        else "function(chrome,browser,globalThis,self){return (function(){return ${isolatedWorld(code)}\n}).call(window)}"
                     } ?: (d["files"] as? JsonArray)?.mapNotNull { f -> f.str()?.let { readFile(ext, it) } }?.joinToString("\n;\n")?.let { valueOf(it, main = d["world"].str() == "MAIN") }
                         ?: return done(false, null, "Nothing to run")
                     e.execInTab(ext, t.id, body) { ok, v, err ->
@@ -171,12 +173,12 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
                     val delay = (info["delayInMinutes"] as? JsonPrimitive)?.doubleOrNull
                     val now = System.currentTimeMillis()
                     val at = (info["when"] as? JsonPrimitive)?.doubleOrNull?.toLong() ?: (now + ((delay ?: period ?: 0.0) * 60_000).toLong())
-                    e.setAlarm(ext, alarmName, at, period); done(true, null, null)
+                    e.alarms.set(ext, alarmName, at, period); done(true, null, null)
                 }
-                "alarms.get" -> done(true, e.alarms["$ext/${a.getOrNull(0).str().orEmpty()}"]?.let { e.alarmJson(it) }, null)
-                "alarms.getAll" -> done(true, JsonArray(e.alarms.values.filter { it.ext == ext }.map { e.alarmJson(it) }), null)
-                "alarms.clear" -> done(true, JsonPrimitive(e.cancelAlarm("$ext/${a.getOrNull(0).str().orEmpty()}")), null)
-                "alarms.clearAll" -> { val keys = e.alarms.keys.filter { it.startsWith("$ext/") }; keys.forEach { e.cancelAlarm(it) }; done(true, JsonPrimitive(keys.isNotEmpty()), null) }
+                "alarms.get" -> done(true, e.alarms.get(ext, a.getOrNull(0).str().orEmpty()), null)
+                "alarms.getAll" -> done(true, e.alarms.all(ext), null)
+                "alarms.clear" -> done(true, JsonPrimitive(e.alarms.clear(ext, a.getOrNull(0).str().orEmpty())), null)
+                "alarms.clearAll" -> done(true, JsonPrimitive(e.alarms.clearAll(ext)), null)
 
                 // ---- the toolbar button
                 "action.setBadgeText" -> {
@@ -264,16 +266,26 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
 
     private fun storageWrite(c: ExtensionEngine.Ctx, areaName: String?, values: Map<String, JsonElement>, removed: List<String>, clear: Boolean, done: Done) {
         val area = areaOf(areaName)
-        val changes = e.store.write(c.ext, area, c.scope, values, removed, clear)
-        done(true, null, null)
-        if (changes.isEmpty()) return
-        // every context of the extension hears of it (chrome.storage.onChanged), the one that changed it too
-        val data = buildJsonObject {
-            put("area", area.name.lowercase())
-            put("changes", buildJsonObject { changes.forEach { (k, v) -> put(k, buildJsonObject { v.first?.let { put("oldValue", it) }; v.second?.let { put("newValue", it) } }) } })
+        val text = values.mapValues { it.value.toString() }
+        storageIo.execute {
+            val changes = e.store.set(c.ext, area, c.scope, text, removed, clear)
+            e.main.post {
+                done(true, null, null)
+                if (changes.isEmpty()) return@post
+                // every context of the extension hears of it (chrome.storage.onChanged), the one that changed it too
+                val data = buildJsonObject {
+                    put("area", area.name.lowercase())
+                    put("changes", buildJsonObject { changes.forEach { (k, v) -> put(k, rawObject(listOfNotNull(v.first?.let { "oldValue" to it }, v.second?.let { "newValue" to it }).toMap())) } })
+                }
+                e.emit(e.contexts.filter { it.ext == c.ext && it.scope == c.scope }, "storage.changed", data)
+            }
         }
-        e.emit(e.contexts.filter { it.ext == c.ext && it.scope == c.scope }, "storage.changed", data)
     }
+
+    /** One thread for chrome.storage's reads and writes: in order (a set then a get sees it), never on the main thread. */
+    private val storageIo = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    private fun rawObject(values: Map<String, String>) = JsonObject(values.mapValues { rawJson(it.value) })
 
     /** tabs.query: mi's tabs filtered as asked ("currentWindow" and the like are all of them: mi has one window). */
     private fun queryTabs(q: JsonObject, c: ExtensionEngine.Ctx) = vm.tabs.list.filter { t ->
@@ -282,7 +294,7 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
             (q["pinned"].bool()?.let { it == t.pinned } ?: true) &&
             (q["status"].str()?.let { it == (if (t.loading) "loading" else "complete") } ?: true) &&
             (q["title"].str()?.let { globMatches(it, t.title) } ?: true) &&
-            (q["url"].let { u -> val pats = (u as? JsonArray)?.mapNotNull { it.str() } ?: listOfNotNull(u.str()); pats.isEmpty() || pats.any { p -> t.url != null && matchesPattern(p, t.url) } }) &&
+            (q["url"].let { u -> val pats = u.strings(); pats.isEmpty() || pats.any { p -> t.url != null && matchesPattern(p, t.url) } }) &&
             (q["incognito"].bool()?.let { it == t.incognito } ?: (c.scope != null || !t.incognito || e.store[c.ext]?.incognito == true))
     }
 
@@ -301,7 +313,7 @@ internal class ExtensionApi(private val e: ExtensionEngine) {
     private fun valueOf(source: String, main: Boolean = false): String {
         val code = if (main) source else isolatedWorld(source)
         val src = JsonPrimitive(code).toString()
-        val params = if (main) "" else "chrome,browser,globalThis,self,WebSocket"
+        val params = if (main) "" else "chrome,browser,globalThis,self"
         return "function($params){try{return eval($src)}catch(e){if(!(e instanceof EvalError))throw e;return (function(){$code\n}).call(window)}}"
     }
 

@@ -72,9 +72,8 @@ Status: **engine built for 2.0** (2026-11-21); the design below is kept for the 
 - **Starting fast:** each extension's code scan is kept in `_mi_scan.json` (per version), the tab script shares
   identical entries and decides lazy entries by file size, and pages that started before extensions were ready are
   reloaded once.
-- **WebSockets** (`ExtensionSockets`, OkHttp): extension pages' and content scripts' `WebSocket` is a stand-in; mi opens
-  the connection with the extension's native origin (moz-/chrome-extension://), the site's cookies and mi's identity,
-  only to sites in its host permissions. Services such as Grammarly's refuse other origins.
+- **WebSockets:** extensions use WebView's own (their origin is mi's address for them). A stand-in that opened them
+  with the extension's native origin was removed with Grammarly, the only service that checked it.
 - **executeScript results:** code runs by eval inside the wrapper so its last value comes back (as Chrome's); where a
   page forbids eval it runs without a value. The page confirms it took the code, so long-running code isn't cut off.
 - **Pages in tabs:** an extension's own page opened in a tab gets the full API (Kind.TAB); web pages can't navigate there.
@@ -97,12 +96,11 @@ cookies, downloads, history, bookmarks, commands, omnibox, sidePanel, offscreen,
 Don't switch engines. Implement the WebExtensions API ourselves on top of the system WebView, in a new
 `extensions/` package. Precedent: Kagi's Orion runs Chrome/Firefox extensions on WebKit the same way (partial support).
 
-### Why not GeckoView
+### Why not GeckoView (tried on branch `gecko`, abandoned 2026-11-24: a ~200 MB APK)
 - Roughly +40–60 MB of APK per ABI and ~150 MB installed (estimates); mi is 4.3 MB today.
 - Gecko security updates become ours to ship (Firefox's monthly cadence, forever). The system WebView updates itself through Play.
 - Full rewrite: WebViewHost, ContentBlocker, PageScripts, media, incognito profiles and site permissions are all WebView-specific.
 - Its Android extension support is limited too.
-- Fallback if this plan proves insufficient: ship a second build, "mi Gecko", behind an engine interface. Don't start there.
 
 ### This plan vs GeckoView
 
@@ -117,14 +115,13 @@ Don't switch engines. Implement the WebExtensions API ourselves on top of the sy
 | Extension compatibility | Partial: content-script and storage/messaging extensions work; webRequest is partial; no real isolated world; no password managers | Much higher: Mozilla's own API implementation, real isolated worlds, full blocking webRequest (uBlock Origin works) |
 | Security of extensions | Weaker: content scripts share the page's world (run-first private channel mitigates spoofing) | Strong: real isolation, Mozilla-reviewed and signed add-ons |
 | Who maintains the API | Us: every API we add, every Chrome/Firefox change we track | Mozilla |
-| Install source | Firefox Add-ons (works) and Chrome Web Store (unofficial endpoint) | Firefox Add-ons only, natively |
+| Install source | Firefox Add-ons, extensions made for phones only | Firefox Add-ons only, natively |
 | Site compatibility | Chromium, the same as Chrome | Gecko; occasional sites tested only on Chrome break |
 | Development effort | Phased: phase 1 is small and useful alone (and gives userscripts) | Large up front, nothing until the port is done |
 | Reversibility | Easy to stop at any phase | All in |
 
-**Choose GeckoView instead if** users mainly want extensions this plan can't run (uBlock Origin-level request
-control, password managers), or real isolation becomes a requirement. Even then, prefer a separate "mi Gecko" build
-so the small default build stays as it is.
+**Decided:** mi stays on WebView with its own extension engine; no GeckoView build. Extensions this engine can't run
+(password managers, desktop-only ones) are refused with the reason, and the engine grows as people request support.
 
 ### Why not a Chromium fork (Kiwi-style)
 Even bigger, and maintaining it is a full-time job.
@@ -241,3 +238,145 @@ WebView has no isolated worlds, so content scripts share the page's JavaScript w
 **Likely to work:** Dark Reader, Return YouTube Dislike, SponsorBlock, cookie-banner hiders, translation and dictionary popups, site tweaks.
 
 **Not targeted:** uBlock Origin (mi's blocker covers it), password managers, VPNs, devtools.
+
+## Making common extensions work (2026-11-24)
+Requested: uBlock Origin, Dark Reader, Grammarly (then more). Debugged live through WebView's DevTools socket
+(scratch tool: adb forward to webview_devtools_remote_<pid>, then the Chrome DevTools protocol).
+
+Found and fixed (engine-wide, not per extension):
+- Strict sites' Content Security Policy blocked what extensions add (Dark Reader's inline styles, Grammarly's fonts and
+  script chunks). Browsers exempt extensions. `allowExtensionsIn` now also allows mi's extension address for scripts
+  and inline styles (dropping style nonces/hashes, which cancel 'unsafe-inline'), and gives default-src-only policies a
+  style-src. Policies set in the page's HTML (`<meta http-equiv>`, e.g. addons.mozilla.org) are relaxed too
+  (`relaxMetaPolicies`), and frame documents as well as pages. The switch-on report now also fires for blocked inline
+  styles and `chrome-extension://` files.
+- Content scripts' `import(...)` (code-split extensions like Grammarly) goes through mi (`__miImport`) so native
+  extension addresses map to mi's.
+
+Status:
+- Dark Reader: works on sites without a blocking policy (seen on Wikipedia); skips pages already dark (correct).
+  Its background also throws "No tab with id" re-injecting into unloaded tabs at start (harmless). To recheck on a
+  light strict site after a warm start.
+- Grammarly: loads; its in-page checking needs a signed-in Grammarly account (anonymous users get nothing), so the
+  final check needs the user's account.
+- uBlock Origin: not started yet.
+- Seen: on a cold start of the debug build a page can load before the extension engine is ready, with no content
+  scripts at all (no mi layer in the page). Needs a look: reload the page once the engine is up?
+
+Verified list: `extensions/VerifiedExtensions.kt`, each entry with testedWebView / worksFrom / problemsBelow (WebView
+Chromium majors) and a warning shown when the phone's WebView is older. Code for one extension goes in
+`extensions/quirks/<Name>.kt` only.
+
+### Dark Reader: why it never themed (2026-11-24)
+Its content script connects and gets its theme, then its "does the site already have a dark theme?" check removes it.
+Cause: Dark Reader injects page "proxies" that hide its own sheets from `document.styleSheets` (and customElements). In
+a browser those affect only the page (content scripts have their own DOM classes); in mi they share the page's, so
+Dark Reader hid its sheets from itself and took its own dark colours for the site's. Fix: `extensions/quirks/DarkReader.kt`
+turns both proxies off (`fixes.disableStyleSheetsProxy` / `disableCustomElementRegistryProxy`, Dark Reader's own
+per-site switches) in every theme message it sends to a tab (hook: `quirks/Quirks.tabMessage`, from tabs.sendMessage).
+Lesson for other extensions: anything a content script patches on the page's DOM classes is shared with every other
+content script and the page in mi.
+
+### Storage crash with uBlock Origin (2026-11-24)
+uBlock Origin keeps ~38 MB in chrome.storage (its compiled lists). mi kept each extension's storage as one JSON file,
+read whole at start (OutOfMemoryError: mi crashed at every launch after installing it), written whole on every change,
+and `storage.get` sent the whole area to the page even for one key (Android killed mi for "excessive binder traffic").
+Now `extensions/ExtensionStorage.kt`: one file per value (key on the first line, the JSON text after), values read only
+when asked for and passed through unparsed (JsonUnquotedLiteral), writes per key, all on one background thread in
+order; `storage.get` asks for its keys; `storage.keys` for getKeys. (Old-format files aren't converted: extensions never shipped in that format.)
+Undo after removing an extension moves its data folder aside until next start.
+
+### uBlock Origin and uBO Lite: blocking, speed, element hiding (2026-11-24)
+- **Slow rule matching.** uBO Lite's 7 default rule sets are ~20,000 DNR rules, ~6,700 of them not tied to a domain.
+  `hostOf` built a new Regex on every call and `dnrMatches` called it twice per rule, so every request took ~4 s
+  (blocked ones too). Now the host regex is compiled once, a request's hosts are worked out once (`NetRequest.host`…),
+  and `DnrIndex` indexes url filters by a whole word they must contain (`filterWord`, as uBO indexes its filters):
+  ~4,300 ms → 41–110 ms per request on the emulator.
+- **Blocked requests looked loaded.** A blocked request got a 403, which `fetch()` treats as success (ad-block checks,
+  sites' own fallbacks). Now its body's `available()` throws, so WebView fails the request before the headers, as a
+  browser does with ERR_BLOCKED_BY_CLIENT (fetch rejects, onerror fires).
+- **document_start content scripts that call the API at once hung.** ext-content.js ran content scripts before it
+  said `hello`, and mi drops calls from a frame it doesn't know yet, so uBO Lite's css-specific script (storage reads at
+  document_start) waited forever and no element hiding applied. `hello` now goes first. uBO Lite and uBO (AMO) both hide
+  elements now.
+- **uBO (AMO) still asks the background page for every request.** All WebViews share one renderer main thread, so
+  under load (a heavy page, Grammarly's background) the answer can wait; past 1.5 s mi lets the request through. Fine in
+  practice once the matcher was fixed (~74 ms per blocked request), but uBO Lite (DNR, matched natively) is the steadier pick.
+- **Crash:** `strictSites` lookups with a null site (frames whose address `java.net.URI` can't parse) threw in
+  `ConcurrentHashMap`; `isStrict` guards it.
+
+### Dark Reader verified (2026-11-24)
+Checked on the emulator (WebView 133): theming on Wikipedia, Hacker News, Craigslist and PyPI (strict style policy),
+popup on/off for a site and for all, brightness, all options, settings kept after a restart. It leaves sites that are
+already dark (GitHub with the phone in dark mode) alone, as it does in any browser. Fix found: strict sites refused its
+fetches of `data:` pictures (connect-src); `allowExtensionsIn` now adds `data:` to connect-src. Listed in
+VerifiedExtensions (Firefox Add-ons build; WebView 87+, may have problems below 106).
+
+### Requested by users (2026-11-24)
+Lacefi autofill (set aside for now, at the user's word), Grammarly and Instapaper (desktop-only on Firefox Add-ons: mi
+refuses them), Keepa (tested, listed: its settings live in cookies on keepa.com/extension, so `cookies.set` reports the
+path it was set on); earlier asks: uBlock Origin, Dark Reader (tested),
+Grammarly. New requests come in as GitHub issues labelled `extension-support` (Settings › About › Request Extension
+Support, with mi's and WebView's versions filled in). One extension at a time: make it work, test it, list it.
+
+### uBlock Origin tested; uBO Lite nearly (2026-11-24)
+uBO (Firefox Add-ons build) listed as tested: blocking scripts and fetches, element hiding, popup (counts, site switch,
+grey icon), blocked-page screen and Proceed, dashboard (settings, filter lists). Fixes found on the way:
+- **Tabs told as created at startup.** The tab watcher's first look sent every open tab as tabs.onCreated; it reached
+  uBO while its modules were loading (`µb.userFiltersAreEnabled is not a function`). The first look now only records them.
+- **Backgrounds waited for the tab script.** The engine bundled every content script (4 MB, mostly Grammarly, ~7 s on
+  the emulator) and rebuilt the rule index before starting any background, so uBO filtered nothing for ~50 s after
+  launch. Backgrounds now start right after the extensions are read (~27 s to uBO ready on the emulator debug build,
+  most of it the shared renderer busy with the restored tab and other extensions).
+- **Extension pages in a tab lost their context to their own frames.** ext-page.js's hello didn't say whether it was
+  the top frame, so the dashboard's pane iframe replaced the dashboard's context and its calls went unanswered (blank
+  dashboard). It says so now; a frame adds a context beside the page's.
+- **DNR rule changes blocked the main thread.** Each dnr.update* rebuilt the index over ~20,000 rules on the main thread
+  (and `filterWord` compiled a Regex per rule). Updates now run in order on one background thread; the rulesets'
+  index is kept while the enabled rulesets don't change, and only extensions' own rules are re-indexed (~100 ms).
+- mi's own ad blocker answers blocked requests with a 403, which fetch() counts as loaded, and it runs after
+  extensions; extensions' blocks fail the request (blockedPart). Consider the same for mi's blocker.
+uBO Lite (Chrome Web Store) also tested and listed: blocking, element hiding, popup (filtering mode down to none and
+back up to optimal, applied at once: ads load on a "no filtering" site and are blocked again on "optimal"), dashboard.
+Raising a site's mode had only looked broken: with rule changes re-indexing on the main thread it took ~9 s, so the
+popup was still busy when checked. After the off-main, split index it applies in about 2 s.
+Possibly mi: opening a link from another app while the tab switcher is open didn't switch to it (seen once).
+
+### mi's ad blocking alongside ad-blocking extensions (2026-11-24)
+Decided by the user: both run at once (as in Brave, Opera, Vivaldi). mi's blocker doesn't step aside for uBlock Origin
+or any other ad-blocking extension; if a site breaks with two blockers, the user turns off whichever they need to. (An
+automatic step-aside was built and then removed at the user's word.)
+
+
+### Only extensions made for phones (2026-11-24)
+mi adds only extensions made for phones, and there's no other way in. Every install goes through fetchExtension (the
+store, tested list, "Add to mi." on a Firefox Add-ons page, an .xpi link on a page, Check for Update), which checks
+`madeForPhones`: the extension's Firefox Add-ons listing must name Android (checked before its package is downloaded);
+a file is looked up there by its add-on id, and one not listed counts only if its manifest declares gecko_android.
+Anything else is refused ("Made for desktop, not phones: mi can't add …"). No blocklist: it's what developers declare.
+Get Extensions asks Firefox Add-ons for Android extensions only (`app=android`) and links to its Android site.
+The Chrome Web Store is gone entirely (nothing released had any): no store link, no "Add to mi." on its pages, no .crx,
+no Chrome ids, sign-in redirects or chrome-extension:// addresses. Grammarly (desktop only) and Bitwarden aren't offered.
+
+### Bot checks and headers an extension changes (2026-11-24)
+When an extension changes a page's headers (uBO Lite's rules do on addons.mozilla.org), mi fetches the request itself;
+a bot check (Fastly's "Client Challenge") then challenged mi's connection and the page never loaded. Now a bot check
+seen there (status, or the challenge page's title) hands the request back to WebView and the site's requests stay
+WebView's (ExtensionSitePolicies.botChecked), as the strict-site fetch already did.
+
+### Popular extensions, round 2 (2026-11-24)
+Tested and listed: SponsorBlock, Privacy Badger, ClearURLs (plus Keepa earlier). What they needed:
+- **Trusted Types** (YouTube: `require-trusted-types-for 'script'`): a browser's isolated world is exempt, mi's main
+  world isn't, so SponsorBlock's innerHTML was refused. ext-content.js now reports a Trusted Types refusal from
+  extension code like a blocked file, and `allowExtensionsIn` drops the requirement for that site (same mechanism as CSP).
+- **Developer-tools panels** no longer make an extension Not recommended (Cookie-Editor, Adblock Plus): Firefox for
+  Android has none either, so for a phone extension it's an extra.
+- **DNR memory and speed**: a domain key now holds its one rule itself (103k of 107k keys had one), the lazy regex
+  wrapper is gone, a rule found through its own requestDomains skips rescanning that list, and `hostIn` allocates
+  nothing. uBO Lite's default rulesets: index 16.9 → 7.7 MB, matching 335 → 34 µs a request (JVM). On the emulator the
+  app heap went from ~128 MB to ~74 MB (with mi's own blocker and uBO Lite both on).
+- Seen on the debug emulator: the system's autofill service asking for the window's structure while the heap was full
+  took over 5 s in Compose (an ANR). Judge on a release build on a phone; less heap made it rarer.
+Rated by mi's rules but not yet tested: Consent-O-Matic, YouTube High Definition and Video Background Play Fix (all
+Works); I don't care about cookies, Unhook, Cookie-Editor, Stylus, Violentmonkey, AdGuard, Ghostery, Adblock Plus (Might
+Have Problems). Proxy/VPN extensions can't work (WebView has no per-extension proxy).

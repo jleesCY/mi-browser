@@ -87,7 +87,7 @@ fun FolderPicker(
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                         Txt(f.title, 15f, ui.cs.onSurface, ui.bold, maxLines = 1)
-                        Txt(contentsLabel(subfolders, bookmarks), 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
+                        Txt(contentsLabel(subfolders, bookmarks).ifEmpty { "Empty" }, 12f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1)
                     }
                     if (f.id == selected) Sym("check", 20f, ui.cs.primary, Modifier.padding(end = 6.dp))
                     Sym("chevron_right", 20f, ui.cs.onSurfaceVariant)
@@ -129,7 +129,8 @@ fun FolderPicker(
     }
 }
 
-private fun contentsLabel(folders: Int, bookmarks: Int) = listOfNotNull(
+/** "2 folders · 1 bookmark" (empty when there's neither). */
+internal fun contentsLabel(folders: Int, bookmarks: Int, separator: String = " · ") = listOfNotNull(
     folders.takeIf { it > 0 }?.let { if (it == 1) "1 folder" else "$it folders" },
     bookmarks.takeIf { it > 0 }?.let { if (it == 1) "1 bookmark" else "$it bookmarks" },
-).joinToString(" · ").ifEmpty { "Empty" }
+).joinToString(separator)

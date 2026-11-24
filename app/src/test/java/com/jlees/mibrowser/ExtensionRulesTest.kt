@@ -54,7 +54,7 @@ class ExtensionRulesTest {
             "background":{"service_worker":"sw.js","type":"module"},"host_permissions":["https://*/*"],"permissions":["storage","tabs"],
             "web_accessible_resources":[{"resources":["img/*","f.css"],"matches":["<all_urls>"]}],"options_ui":{"page":"o.html"},
             "browser_specific_settings":{"gecko":{"id":"x@y.org"}}}""")
-        assertEquals(3, mv3.version); assertEquals("p.html", mv3.popup); assertEquals("sw.js", mv3.serviceWorker); assertTrue(mv3.serviceWorkerModule)
+        assertEquals(3, mv3.version); assertEquals("p.html", mv3.popup); assertEquals("sw.js", mv3.serviceWorker); assertTrue(mv3.backgroundModule)
         assertEquals(listOf("storage", "tabs"), mv3.permissions); assertEquals(listOf("https://*/*"), mv3.hostPermissions)
         assertEquals("o.html", mv3.optionsPage); assertEquals("x@y.org", mv3.geckoId); assertEquals("i48.png", mv3.icon(32))
         assertTrue(webAccessible("/img/a.png", mv3.webAccessible)); assertFalse(webAccessible("secret.js", mv3.webAccessible))
@@ -90,6 +90,9 @@ class ExtensionRulesTest {
         assertEquals(Fit.MAYBE, compatibility(signIn, setOf("identity.launchWebAuthFlow"), CodeFlags()).fit)
         assertEquals(Fit.NO, compatibility(signIn, setOf("identity.getAuthToken"), CodeFlags()).fit)
         assertEquals(Fit.MAYBE, compatibility(simple, setOf("tabs.somethingNew"), CodeFlags()).fit) // an API mi doesn't know: not guaranteed
+        assertEquals(Fit.WORKS, compatibility(simple, setOf("runtime.OnInstalledReason", "runtime.PlatformOs"), CodeFlags()).fit) // constants, not calls (Keepa)
+        // a developer-tools panel is an extra (Cookie-Editor, Adblock Plus): not a reason to call it Not recommended
+        assertEquals(Fit.MAYBE, compatibility(manifest("""{"name":"x","version":"1","devtools_page":"d.html","content_scripts":[{"matches":["<all_urls>"],"js":["c.js"]}]}"""), emptySet(), CodeFlags()).fit)
         // something mi can't do: Not recommended, whatever else is fine
         val native = manifest("""{"name":"x","version":"1","permissions":["nativeMessaging"],"content_scripts":[{"matches":["<all_urls>"],"js":["c.js"]}]}""")
         assertEquals(Fit.NO, compatibility(native, emptySet(), CodeFlags()).fit)
@@ -111,17 +114,16 @@ class ExtensionRulesTest {
     @Test fun storePages() {
         assertEquals(com.jlees.mibrowser.extensions.InstallSource.Amo("darkreader"), com.jlees.mibrowser.extensions.storeSource("https://addons.mozilla.org/en-US/firefox/addon/darkreader/"))
         assertEquals(com.jlees.mibrowser.extensions.InstallSource.Amo("sponsorblock"), com.jlees.mibrowser.extensions.storeSource("https://addons.mozilla.org/android/addon/sponsorblock/?src=search"))
-        assertEquals(com.jlees.mibrowser.extensions.InstallSource.Chrome("eimadpbcbfnmbkopoojfekhnkhdbieeh"),
-            com.jlees.mibrowser.extensions.storeSource("https://chromewebstore.google.com/detail/dark-reader/eimadpbcbfnmbkopoojfekhnkhdbieeh"))
+        // the Chrome Web Store isn't a store mi adds from (it doesn't make extensions for phones)
+        assertEquals(null, com.jlees.mibrowser.extensions.storeSource("https://chromewebstore.google.com/detail/dark-reader/eimadpbcbfnmbkopoojfekhnkhdbieeh"))
         assertEquals(null, com.jlees.mibrowser.extensions.storeSource("https://addons.mozilla.org/en-US/firefox/"))
         assertEquals(null, com.jlees.mibrowser.extensions.storeSource("https://example.com/addon/x"))
         assertEquals("Dark Reader", com.jlees.mibrowser.extensions.storeTitleName("Dark Reader – Get this Extension for 🦊 Firefox (en-US)"))
-        assertEquals("uBlock Origin", com.jlees.mibrowser.extensions.storeTitleName("uBlock Origin - Chrome Web Store"))
+        assertEquals("", com.jlees.mibrowser.extensions.storeTitleName("Client Challenge")) // a bot check, not the listing
     }
 
     @Test fun ids() {
-        assertEquals("abcdefghijklmnopabcdefghijklmnop", extensionId(null, "abcdefghijklmnopabcdefghijklmnop", "x")) // a Chrome id stays
-        val gecko = extensionId("addon@darkreader.org", null, "Dark Reader")
+        val gecko = extensionId("addon@darkreader.org", "Dark Reader")
         assertTrue(gecko.matches(Regex("[a-z0-9-]+"))); assertTrue(gecko.startsWith("addon-darkreader-org-"))
     }
 
@@ -146,28 +148,26 @@ class ExtensionRulesTest {
     }
 
     @Test fun signInReturnAddress() {
-        // Chrome's for a Chrome Web Store id; Firefox's (the SHA-1 of its add-on id) otherwise
-        assertEquals("https://eimadpbcbfnmbkopoojfekhnkhdbieeh.chromiumapp.org/", com.jlees.mibrowser.extensions.identityRedirect("eimadpbcbfnmbkopoojfekhnkhdbieeh", null))
+        // Firefox's: the SHA-1 of its add-on id
         val ff = com.jlees.mibrowser.extensions.identityRedirect("abc", "addon@example.com")
         assertTrue(ff.matches(Regex("https://[0-9a-f]{40}\\.extensions\\.allizom\\.org/")))
     }
 
     @Test fun nativeAddresses() {
         val ff = "darkreader-addon-1a2b3c"; val cr = "eimadpbcbfnmbkopoojfekhnkhdbieeh"
-        // as each browser gives them: Firefox's for Firefox Add-ons, Chrome's for the Chrome Web Store
+        // as Firefox gives them
         assertEquals("moz-extension://$ff/", com.jlees.mibrowser.extensions.nativeBase(ff))
-        assertEquals("chrome-extension://$cr/", com.jlees.mibrowser.extensions.nativeBase(cr))
         val page = "https://$ff.ext.mi.invalid/src/popup.html?x=1"
         assertEquals("moz-extension://$ff/src/popup.html?x=1", com.jlees.mibrowser.extensions.toNative(page))
         assertEquals("https://example.com/", com.jlees.mibrowser.extensions.toNative("https://example.com/")) // a web page stays
         // and back: what mi loads
         assertEquals(page, com.jlees.mibrowser.extensions.fromNative("moz-extension://$ff/src/popup.html?x=1"))
-        assertEquals("https://$cr.ext.mi.invalid/", com.jlees.mibrowser.extensions.fromNative("chrome-extension://$cr/"))
+        assertEquals(null, com.jlees.mibrowser.extensions.fromNative("chrome-extension://$cr/")) // mi gives only Firefox's
         assertEquals(null, com.jlees.mibrowser.extensions.fromNative("https://example.com/"))
     }
 
     @Test fun styleSheetsNameTheExtensionsOwnFiles() {
-        val css = "@font-face{src:url(moz-extension://__MSG_@@extension_id__/fonts/a.woff2)} .x{background:url(chrome-extension://__MSG_@@extension_id__/i.png)} /* __MSG_@@extension_id__ */"
+        val css = "@font-face{src:url(moz-extension://__MSG_@@extension_id__/fonts/a.woff2)} .x{background:url(moz-extension://__MSG_@@extension_id__/i.png)} /* __MSG_@@extension_id__ */"
         assertEquals("@font-face{src:url(https://abc.ext.mi.invalid/fonts/a.woff2)} .x{background:url(https://abc.ext.mi.invalid/i.png)} /* abc */",
             com.jlees.mibrowser.extensions.extensionCss(css, "abc"))
     }
@@ -178,5 +178,31 @@ class ExtensionRulesTest {
             com.jlees.mibrowser.extensions.isolatedWorld("a=window.chrome.runtime.getURL(\"\");b=window.browser.storage;typeof window.chrome"))
         assertEquals("x.window.chrome;window.chromeX;window.top===window;mywindow.chrome",
             com.jlees.mibrowser.extensions.isolatedWorld("x.window.chrome;window.chromeX;window.top===window;mywindow.chrome"))
+        // import() goes through mi (it maps extensions' native addresses); import.meta and methods named import don't
+        assertEquals("__miImport(u).then(f);x.import(y);import.meta.url;await __miImport(\"./a.js\")",
+            com.jlees.mibrowser.extensions.isolatedWorld("import(u).then(f);x.import(y);import.meta.url;await import (\"./a.js\")"))
+    }
+
+    @Test fun onlyExtensionsMadeForPhonesAreAdded() {
+        fun json(s: String) = kotlinx.serialization.json.Json.parseToJsonElement(s) as kotlinx.serialization.json.JsonObject
+        fun madeForPhones(l: kotlinx.serialization.json.JsonObject?, m: kotlinx.serialization.json.JsonObject?) = com.jlees.mibrowser.extensions.madeForPhones(l, m)
+        // Firefox Add-ons' "compatibility": a desktop-only one lists only Firefox; Dark Reader lists Android too
+        assertFalse(madeForPhones(json("""{"firefox":{"min":"58.0","max":"*"}}"""), null))
+        assertTrue(madeForPhones(json("""{"firefox":{"min":"78.0"},"android":{"min":"113.0"}}"""), null))
+        // the listing decides, whatever the manifest says
+        assertFalse(madeForPhones(json("""{"firefox":{}}"""), json("""{"browser_specific_settings":{"gecko_android":{}}}""")))
+        // not listed (a file from a page): only if its manifest declares Android; no word either way isn't enough
+        assertTrue(madeForPhones(null, json("""{"browser_specific_settings":{"gecko":{"id":"a@b"},"gecko_android":{}}}""")))
+        assertFalse(madeForPhones(null, json("""{"browser_specific_settings":{"gecko":{"id":"a@b"}}}""")))
+        assertFalse(madeForPhones(null, null))
+    }
+
+    @Test fun moduleBackgroundsLoadAsModules() {
+        fun m(s: String) = com.jlees.mibrowser.extensions.parseManifest(kotlinx.serialization.json.Json.parseToJsonElement(s) as kotlinx.serialization.json.JsonObject)
+        // Firefox's Manifest V3 background: scripts as modules (uBlock Origin Lite's), which a classic script tag can't run
+        val ff = com.jlees.mibrowser.extensions.backgroundHtml(m("""{"manifest_version":3,"name":"x","version":"1","background":{"scripts":["/js/background.js"],"type":"module"}}"""))
+        assertTrue(ff.contains("""<script type="module" src="/js/background.js">"""))
+        val classic = com.jlees.mibrowser.extensions.backgroundHtml(m("""{"manifest_version":2,"name":"x","version":"1","background":{"scripts":["a.js","b.js"]}}"""))
+        assertTrue(classic.contains("""<script src="/a.js"></script><script src="/b.js"></script>"""))
     }
 }

@@ -9,7 +9,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 
@@ -52,7 +51,7 @@ data class Manifest(
     val backgroundPage: String?,
     /** MV3 service worker. */
     val serviceWorker: String?,
-    val serviceWorkerModule: Boolean,
+    val backgroundModule: Boolean,
     /** The toolbar button's popup (action / browser_action / page_action). */
     val popup: String?,
     val hasAction: Boolean,
@@ -96,7 +95,7 @@ private fun iconMap(e: JsonElement?): Map<Int, String> = when (e) {
 
 /** Reads a manifest.json; throws when it isn't one (no name or version). */
 fun parseManifest(raw: JsonObject): Manifest {
-    val mv = (raw["manifest_version"] as? JsonPrimitive)?.intOrNull ?: 2
+    val mv = raw["manifest_version"].int() ?: 2
     val bg = raw["background"].objOrNull()
     val action = (raw["action"] ?: raw["browser_action"] ?: raw["page_action"]).objOrNull()
     val perms = raw["permissions"].strings()
@@ -125,14 +124,14 @@ fun parseManifest(raw: JsonObject): Manifest {
                 includeGlobs = o["include_globs"].strings(), excludeGlobs = o["exclude_globs"].strings(),
                 js = o["js"].strings(), css = o["css"].strings(),
                 runAt = o["run_at"].str() ?: "document_idle",
-                allFrames = (o["all_frames"] as? JsonPrimitive)?.booleanOrNull ?: false,
+                allFrames = o["all_frames"].bool() ?: false,
                 mainWorld = o["world"].str() == "MAIN",
             )
         },
         backgroundScripts = bg?.get("scripts").strings(),
         backgroundPage = bg?.get("page").str(),
         serviceWorker = bg?.get("service_worker").str(),
-        serviceWorkerModule = bg?.get("type").str() == "module",
+        backgroundModule = bg?.get("type").str() == "module",
         popup = action?.get("default_popup").str()?.takeIf { it.isNotBlank() },
         hasAction = action != null,
         actionTitle = action?.get("default_title").str(),
@@ -197,8 +196,12 @@ fun runsOn(cs: ContentScript, url: String): Boolean =
  * its function's arguments, but `window` stays the page's (a stand-in there would fail checks like
  * `event.source === window`), so "window.chrome" and "window.browser" are read as those arguments instead.
  */
-fun isolatedWorld(code: String): String = WINDOW_API.replace(code) { it.groupValues[1] }
+fun isolatedWorld(code: String): String = DYNAMIC_IMPORT.replace(WINDOW_API.replace(code) { it.groupValues[1] }, "__miImport(")
 private val WINDOW_API = Regex("""(?<![\w$.])window\.(chrome|browser)\b""")
+// ponytail: a plain regex, so a method *defined* as `import(x) {…}` in a content script would be renamed too; parse
+// the code if an extension ever does that
+/** `import(…)`: WebView can't load an extension's native address, so mi's ext-content.js loads it (`import.meta`, a method called import, are left alone). */
+private val DYNAMIC_IMPORT = Regex("""(?<![\w$.])import\s*\(""")
 
 /** Whether [path] (a file of the extension) may be loaded by web pages (web_accessible_resources). */
 fun webAccessible(path: String, patterns: List<String>): Boolean {
@@ -210,11 +213,22 @@ fun webAccessible(path: String, patterns: List<String>): Boolean {
 
 /** How well an extension works in mi, shown before it's installed and on its page. */
 @Serializable
-enum class Fit { WORKS, MAYBE, NO }
+/** A rating; [label]: how every screen words it. */
+enum class Fit(val label: String) { WORKS("Works"), MAYBE("Might Have Problems"), NO("Not Recommended") }
 
 /** A rating and its reasons; [serious]: the ones that make it Not recommended (the rest are why it might have problems). */
 @Serializable
 data class Compatibility(val fit: Fit, val reasons: List<String>, val serious: List<String> = emptyList())
+
+/**
+ * Whether an extension is made for phones, as mi requires of every one it adds: its Firefox Add-ons listing's
+ * [listing] compatibility (app → versions) names Android, as Firefox for Android requires; one not listed there counts
+ * only if its manifest ([manifestRaw]) declares Android itself (browser_specific_settings.gecko_android). Anything else
+ * (desktop only, or no word either way) isn't added.
+ */
+fun madeForPhones(listing: kotlinx.serialization.json.JsonObject?, manifestRaw: kotlinx.serialization.json.JsonObject?): Boolean =
+    if (listing != null) "android" in listing
+    else (manifestRaw?.get("browser_specific_settings") as? kotlinx.serialization.json.JsonObject)?.containsKey("gecko_android") == true
 
 /**
  * The extension APIs mi implements completely ("namespace" for all of it, or "namespace.member"). Only extensions that
@@ -239,6 +253,8 @@ val FULL_APIS = setOf(
     "tabs.captureVisibleTab", "tabs.goBack", "tabs.goForward", "tabs.duplicate", "tabs.getZoom",
     "scripting.registerContentScripts", "scripting.updateContentScripts", "scripting.getRegisteredContentScripts",
     "scripting.unregisterContentScripts", "contentScripts.register",
+    // tab events mi has but that never happen in it (one window, tabs never moved between windows or replaced)
+    "tabs.onReplaced", "tabs.onAttached", "tabs.onDetached", "tabs.onMoved", "tabs.onHighlighted", "tabs.onZoomChange", "scripting.ExecutionWorld",
     // shown as a sheet from the extension's button
     "sidePanel", "sidebarAction",
     "offscreen", "dns", "management.getSelf", "management.uninstallSelf",
@@ -357,7 +373,8 @@ fun compatibility(manifest: Manifest, apis: Set<String>, flags: CodeFlags, passw
     val no = linkedSetOf<String>(); val maybe = linkedSetOf<String>()
     if (manifest.isTheme) no += "It's a theme, and themes can't change mi's look"
     if (passwordManager) no += "It's a password manager, and mi can't keep passwords safe from the pages you visit"
-    if (manifest.hasDevtools) no += "It ${UNSUPPORTED.getValue("devtools")}"
+    // a developer-tools panel is an extra: Firefox for Android has none either, and mi only adds extensions made for phones
+    if (manifest.hasDevtools) maybe += "Some of its extras won't work (it ${UNSUPPORTED.getValue("devtools").substringBefore(", which")})"
     // what it needs to run decides "Not recommended"; what it only asks for later, for extras, is a "Maybe"
     for (p in manifest.permissions) {
         UNSUPPORTED[p]?.let { no += "It $it" }
@@ -378,8 +395,9 @@ fun compatibility(manifest: Manifest, apis: Set<String>, flags: CodeFlags, passw
             supportedFully(api) -> {}
             PARTIAL[api] != null -> maybe += "It ${PARTIAL.getValue(api)}"
             PARTIAL[ns] != null -> maybe += "It ${PARTIAL.getValue(ns)}"
-            // the namespace alone (`if (chrome.tabs)`, `const t = chrome.tabs`): fine where mi supports some of it
-            !api.contains('.') && FULL_APIS.any { it.startsWith("$ns.") } -> {}
+            // the namespace alone (`if (chrome.tabs)`) or one of its constants (`chrome.runtime.OnInstalledReason`, defined
+            // in ext-api.js): fine where mi supports some of it
+            (!api.contains('.') || api.substringAfter('.').first().isUpperCase()) && FULL_APIS.any { it.startsWith("$ns.") } -> {}
             ns in KNOWN_NAMESPACES -> maybe += "It uses $api, which mi doesn't fully support yet"
             else -> {} // not an extension API (a variable that happens to be called chrome or browser)
         }
@@ -406,12 +424,11 @@ fun looksLikePasswordManager(name: String, description: String): Boolean =
     Regex("""password manager|passwords? vault|autofill passwords|bitwarden|lastpass|1password|dashlane|keeper|nordpass|roboform|enpass|proton pass""", RegexOption.IGNORE_CASE)
         .containsMatchIn("$name $description")
 
-/** An id safe as a folder and host name: Firefox's gecko id or a Chrome id, else a hash of the name. */
-fun extensionId(geckoId: String?, chromeId: String?, name: String): String {
-    val raw = chromeId ?: geckoId ?: name
+/** An id safe as a folder and host name: from Firefox's gecko id, else a hash of the name. */
+fun extensionId(geckoId: String?, name: String): String {
+    val raw = geckoId ?: name
     val clean = raw.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
-    return if (chromeId != null && clean.matches(Regex("[a-p]{32}"))) clean
-    else clean.take(40).ifEmpty { "ext" } + "-" + Integer.toHexString(raw.hashCode()).takeLast(6)
+    return clean.take(40).ifEmpty { "ext" } + "-" + Integer.toHexString(raw.hashCode()).takeLast(6)
 }
 
 // ---------------------------------------------------------------- store pages
@@ -420,20 +437,21 @@ fun extensionId(geckoId: String?, chromeId: String?, name: String): String {
 sealed interface InstallSource {
     /** Firefox Add-ons, by its slug (the name in its address). */
     data class Amo(val slug: String) : InstallSource
-    /** The Chrome Web Store, by its 32-letter id. */
-    data class Chrome(val id: String) : InstallSource
-    /** A package file (.xpi or .crx) at an address. */
+    /** A package file (.xpi) at an address. */
     data class File(val url: String) : InstallSource
 }
 
-/** An extension's page on Firefox Add-ons or the Chrome Web Store, as an install source; null for any other page. */
+/** An extension's page on Firefox Add-ons, as an install source; null for any other page. */
 fun storeSource(url: String?): InstallSource? {
     if (url == null) return null
     Regex("""^https://addons\.mozilla\.org/(?:[a-zA-Z-]+/)?(?:firefox|android)/addon/([^/?#]+)""").find(url)?.let { return InstallSource.Amo(java.net.URLDecoder.decode(it.groupValues[1], "UTF-8")) }
-    Regex("""^https://(?:chromewebstore\.google\.com/detail|chrome\.google\.com/webstore/detail)/(?:[^/?#]+/)?([a-p]{32})(?:[/?#]|$)""").find(url)?.let { return InstallSource.Chrome(it.groupValues[1]) }
     return null
 }
 
-/** The extension's name from a store page's title ("Dark Reader – Get this Extension for 🦊 Firefox (en-US)", "uBlock - Chrome Web Store"). */
-fun storeTitleName(title: String): String =
-    title.substringBefore(" – Get this Extension").substringBefore(" – Get this Add-on").substringBefore(" - Chrome Web Store").trim()
+/** The extension's name from its Firefox Add-ons page's title ("Dark Reader – Get this Extension for 🦊 Firefox (en-US)"). */
+fun storeTitleName(title: String): String {
+    val markers = listOf(" – Get this Extension", " – Get this Add-on")
+    // a page that isn't the listing yet (a bot check, "Loading…"): no name rather than its title
+    if (markers.none { title.contains(it) }) return ""
+    return markers.fold(title) { t, m -> t.substringBefore(m) }.trim()
+}

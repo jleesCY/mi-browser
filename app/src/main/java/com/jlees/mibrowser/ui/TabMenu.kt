@@ -11,7 +11,6 @@ import com.jlees.mibrowser.adblock.adsAllowedHere
 import com.jlees.mibrowser.adblock.cleanLink
 import com.jlees.mibrowser.adblock.toggleAdsHere
 
-import com.jlees.mibrowser.launcher.LauncherShortcuts
 import com.jlees.mibrowser.launcher.toggleAppMode
 
 import com.jlees.mibrowser.Sheet
@@ -22,7 +21,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.WebCmd
-import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.data.Favicons
 import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.follow.followThisPage
@@ -164,7 +161,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Txt(if (incognito) "Incognito tab" else tab?.title?.ifEmpty { null } ?: "New Tab", 16f, ui.cs.onSurface, ui.bold, maxLines = 1)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Txt(if (incognito) "Not saved to history" else displayHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
+                    Txt(if (incognito) "Not saved to history" else com.jlees.mibrowser.extensions.shownHost(url).ifEmpty { "Home" }, 13f, ui.cs.onSurfaceVariant, ui.regular, maxLines = 1, pan = false)
                     if (hasUrl) Sym("chevron_right", 16f, ui.cs.onSurfaceVariant, label = "Site settings")
                 }
             }

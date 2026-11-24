@@ -42,8 +42,8 @@ class JsonStore(private val dir: File) {
     }
 
     fun delete(key: String) { File(dir, "$key.json").delete() }
-    /** The keys under folder [folder] ("extension_storage" → its files' names, without .json). */
-    fun keysIn(folder: String): List<String> = File(dir, folder).listFiles()?.filter { it.name.endsWith(".json") }?.map { it.name.removeSuffix(".json") }.orEmpty()
+    /** A folder of its own inside the store (one that keeps its own files: extension_storage). */
+    fun folder(name: String) = File(dir, name).apply { mkdirs() }
 
     fun clear() { dir.listFiles()?.forEach { it.delete() } }
 }

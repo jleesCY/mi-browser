@@ -11,7 +11,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import com.jlees.mibrowser.BuildConfig
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -23,10 +22,10 @@ import java.util.Locale
 
 /**
  * An extension's style sheet as a browser serves it: its own files named as moz-extension://__MSG_@@extension_id__/…
- * (or chrome-extension://) point at the extension's address at mi; the placeholder elsewhere is its id.
+ * point at the extension's address at mi; the placeholder elsewhere is its id.
  */
 fun extensionCss(css: String, id: String): String =
-    css.replace(Regex("""(moz|chrome)-extension://__MSG_@@extension_id__"""), extOrigin(id)).replace("__MSG_@@extension_id__", id)
+    css.replace("moz-extension://__MSG_@@extension_id__", extOrigin(id)).replace("__MSG_@@extension_id__", id)
 
 /** One of an extension's pages to show: its popup, options or side panel. */
 data class OpenPage(val ext: String, val path: String, val kind: ExtensionEngine.Kind)
@@ -36,14 +35,13 @@ internal class ExtensionPages(private val e: ExtensionEngine) {
     private val backgrounds = HashMap<String, Background>()
     private val open = HashMap<WebView, ExtensionEngine.Ctx>()
 
-    private val supported get() = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
 
     // ---------------------------------------------------------------- backgrounds
 
     /** Starts extension [id]'s background, if it has one. [reason]: "install", "update" or "startup" (for its first events). */
     fun startBackground(id: String, reason: String) {
         val info = e.infos[id] ?: return
-        if (!info.manifest.hasBackground || !supported || backgrounds.containsKey(id)) return
+        if (!info.manifest.hasBackground || !extensionsSupported || backgrounds.containsKey(id)) return
         e.menus.started(id, reason)
         val url = info.manifest.backgroundPage?.let { "${extOrigin(id)}/${it.trimStart('/')}" } ?: "${extOrigin(id)}/_mi_background.html"
         val ctx = e.Ctx(id, ExtensionEngine.Kind.BACKGROUND, null, true, url, null)
@@ -69,7 +67,7 @@ internal class ExtensionPages(private val e: ExtensionEngine) {
     /** A hidden page of extension [id] at [path], like its background: for DOM work a service worker can't do. */
     fun startOffscreen(id: String, path: String) {
         val info = e.infos[id] ?: return
-        if (!supported || offscreen.containsKey(id)) return
+        if (!extensionsSupported || offscreen.containsKey(id)) return
         val url = "${extOrigin(id)}/${path.trimStart('/')}"
         val ctx = e.Ctx(id, ExtensionEngine.Kind.OFFSCREEN, null, true, url, null)
         e.contexts += ctx
@@ -125,6 +123,13 @@ internal class ExtensionPages(private val e: ExtensionEngine) {
     }
 
     fun closePage(wv: WebView) { open.remove(wv)?.let { e.drop(it) }; wv.destroy() }
+
+    /** mi is closing: every page of every extension goes (backgrounds, offscreen documents, popups still open). */
+    fun stopAll() {
+        backgrounds.keys.toList().forEach(::stopBackground)
+        offscreen.keys.toList().forEach(::stopOffscreen)
+        open.keys.toList().forEach(::closePage)
+    }
 
     // ---------------------------------------------------------------- the page itself
 
@@ -220,14 +225,18 @@ internal class ExtensionPages(private val e: ExtensionEngine) {
             mapOf("Access-Control-Allow-Origin" to "*", "Cache-Control" to "no-cache"), body)
     }
 
-    /** The page a background runs in: its scripts in order (Manifest V2), or its service worker (V3; a module if it is one). */
-    private fun backgroundHtml(m: Manifest): String = buildString {
-        append("<!doctype html><html><head><meta charset=\"utf-8\"></head><body>")
-        m.backgroundScripts.forEach { append("<script src=\"/${it.trimStart('/')}\"></script>") }
-        m.serviceWorker?.let { append("<script ${if (m.serviceWorkerModule) "type=\"module\" " else ""}src=\"/${it.trimStart('/')}\"></script>") }
-        append("</body></html>")
-    }
-
     private fun html(s: String) = WebResourceResponse("text/html", "utf-8", ByteArrayInputStream(s.toByteArray()))
     private fun notFound() = WebResourceResponse("text/plain", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+}
+
+/**
+ * The page a background runs in: its scripts in order, or its service worker; modules when the manifest says "type":
+ * "module" (Firefox's Manifest V3 backgrounds use scripts as modules, as uBlock Origin Lite's does).
+ */
+internal fun backgroundHtml(m: Manifest): String = buildString {
+    append("<!doctype html><html><head><meta charset=\"utf-8\"></head><body>")
+    val type = if (m.backgroundModule) "type=\"module\" " else ""
+    m.backgroundScripts.forEach { append("<script ${type}src=\"/${it.trimStart('/')}\"></script>") }
+    m.serviceWorker?.let { append("<script ${type}src=\"/${it.trimStart('/')}\"></script>") }
+    append("</body></html>")
 }

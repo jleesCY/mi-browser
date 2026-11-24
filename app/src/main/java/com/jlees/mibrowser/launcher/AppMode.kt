@@ -22,8 +22,6 @@ import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.Sheet
 import com.jlees.mibrowser.data.TabItem
-import com.jlees.mibrowser.adblock.cleanLink
-import com.jlees.mibrowser.logic.parseDeepLink
 import com.jlees.mibrowser.ui.common.*
 
 /** What assets/js/app-color.js gave (a JSON string, or null) as ARGB; null when it found no colour of its own. */

@@ -76,7 +76,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.WebCmd
-import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.common.*
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -298,7 +297,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusManage
                                     allowFocus = false
                                     vm.isInputFocused = false
                                     vm.suggestions.clear()
-                                    vm.inputUrl = displayHost(vm.activeUrl)
+                                    vm.inputUrl = com.jlees.mibrowser.extensions.shownHost(vm.activeUrl)
                                 }
                             },
                         singleLine = true,

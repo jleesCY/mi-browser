@@ -1,0 +1,24 @@
+name: Suggest a Feature
+description: An idea for something mi. Browser could do, or do better.
+labels: ["enhancement"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: mi version
+      description: Filled in when you suggest from mi (Settings › About). Otherwise, it's shown under Check for Updates there.
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What you'd like mi to do.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it would help
+      description: When you'd use it, or what it would make easier.

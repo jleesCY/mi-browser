@@ -17,8 +17,6 @@ chan.addEventListener('message', (e) => {
 const call = (name, args) => new Promise((res, rej) => { const c = ++seq; pending[c] = { res, rej }; post({ t: 'call', x: CFG.id, k: TOKEN, c, n: name, a: args, u: location.href, top: true }); });
 const channel = { call, on: (fn) => { handler = fn; } };
 const api = makeApi(CFG, channel);
-// its WebSockets go through mi, saying they come from the extension (ext-api.js)
-if (channel.WebSocket) window.WebSocket = channel.WebSocket;
 for (const k of ['chrome', 'browser']) { try { Object.defineProperty(window, k, { value: api, writable: true, configurable: true }); } catch (_) { window[k] = api; } }
 
 // ---- requests to other sites, through mi
@@ -115,4 +113,4 @@ if (CFG.kind === 'background') {
     post({ t: 'ready', x: CFG.id, k: TOKEN });
   });
 }
-post({ t: 'hello', x: CFG.id, k: TOKEN, u: location.href });
+post({ t: 'hello', x: CFG.id, k: TOKEN, u: location.href, top: window === window.top });

@@ -234,7 +234,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------------------------------------------------------------- tabs (state and saving: TabsStore)
     // a window a page opened and filled in itself has no URL: say so (like Chrome) instead of an empty bar it could pose behind
-    private fun syncInputToActiveTab() { inputUrl = activeUrl?.let { displayHost(it) } ?: if (tabs.current?.openerId != null) "about:blank" else "" }
+    private fun syncInputToActiveTab() { inputUrl = activeUrl?.let { com.jlees.mibrowser.extensions.shownHost(it) } ?: if (tabs.current?.openerId != null) "about:blank" else "" }
 
     /** Snapshots a tab's page for its switcher card (set by MainActivity while its WebViewHost exists). */
     var capturePreview: ((String) -> Unit)? = null
@@ -407,7 +407,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 if (isNewVisit(t.lastVisit, url) || history.items.firstOrNull()?.url == url) history.add(url, tabTitle(title, url))
                 if (t.lastVisit != url) tabs.update(id) { copy(lastVisit = url) }
             }
-            if (!isInputFocused && url != null) inputUrl = displayHost(url)
+            if (!isInputFocused && url != null) inputUrl = com.jlees.mibrowser.extensions.shownHost(url)
         }
     }
 
@@ -421,7 +421,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         val url = parseDeepLink(raw)?.let(::cleanLink) ?: return
         addNewTab(url, incognito)
         if (fromApp != null) markOpenedBy(fromApp)
-        activeView = Sheet.NONE
+        // the link's tab shows: not left behind the tab switcher or the tab menu, as they were when it came in
+        activeView = Sheet.NONE; switcherVisible = false; isSubMenuVisible = false
     }
 
     // ---------------------------------------------------------------- library (state and saving: HistoryStore, BookmarksStore)

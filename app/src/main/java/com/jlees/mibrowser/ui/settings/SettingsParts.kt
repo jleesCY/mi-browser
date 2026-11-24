@@ -63,12 +63,22 @@ internal fun DefaultBrowserCard(onSet: () -> Unit) {
     }
 }
 
-/** Expressive segmented list: large outer corners, small inner corners, 2dp gaps. */
 /** Row [i] of [count] in a segmented card: full width, a 2dp gap below, rounded outer corners. */
 @Composable
 internal fun Modifier.segment(i: Int, count: Int): Modifier {
     val ui = LocalUi.current
     return fillMaxWidth().padding(bottom = if (i < count - 1) 2.dp else 0.dp).clip(segmentShape(i, count, ui.radius)).background(ui.cs.surfaceContainerHighest)
+}
+
+/**
+ * A heading (or, without one, the same space) over [rows] in one segmented card, the way Settings groups its rows;
+ * nothing when there are no rows. Panels and sheets outside Settings group their rows with it too.
+ */
+@Composable
+internal fun SegmentedGroup(title: String?, rows: List<@Composable () -> Unit>) {
+    if (rows.isEmpty()) return
+    if (title != null) SectionHeader(null, title) else Spacer(Modifier.height(20.dp))
+    rows.forEachIndexed { i, row -> Box(Modifier.segment(i, rows.size)) { row() } }
 }
 
 internal fun segmentShape(i: Int, count: Int, radius: Int): RoundedCornerShape {

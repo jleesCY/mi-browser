@@ -9,7 +9,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -37,8 +36,30 @@ class ExtensionTabs internal constructor(private val e: ExtensionEngine) {
     /** Tabs whose page started before that: loaded again once it's ready, so their extensions run in them. */
     private val missed = HashSet<String>()
 
+    /** Tabs whose current page has mi's extension layer (its top frame said hello). */
+    private val greeted = HashSet<String>()
+
     /** A page started in tab [tabId] (main thread). */
-    internal fun pageStarted(tabId: String, url: String?) { if (!ready && url != null && url.startsWith("http")) missed += tabId }
+    internal fun pageStarted(tabId: String, url: String?) {
+        greeted -= tabId
+        if (!ready && url != null && url.startsWith("http")) missed += tabId
+    }
+
+    /** Tab [tabId]'s top frame has the extension layer (main thread). */
+    internal fun greeted(tabId: String) { greeted += tabId }
+
+    /**
+     * Tab [tabId]'s page finished loading (main thread). If it never got the extension layer (it started while mi was
+     * still reading its extensions and slipped past the reload in [rebuild]), the layer is put in now: its content
+     * scripts run late rather than not at all.
+     */
+    internal fun pageFinished(tabId: String, url: String?) {
+        if (!ready || url?.startsWith("http") != true) return
+        val a = attached[tabId] ?: return
+        val script = (if (a.scope == null) normal else incognito) ?: return
+        // (its hello is sent as the page starts; a moment's grace for it to arrive)
+        a.view.postDelayed({ if (tabId !in greeted && attached[tabId] === a && a.view.url == url) a.view.evaluateJavascript(script, null) }, 300)
+    }
 
     /** Per tab: the extension whose own page its main frame shows (that page's files are all served to it). */
     private val showing = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -50,12 +71,11 @@ class ExtensionTabs internal constructor(private val e: ExtensionEngine) {
         running[tabId] = if (top) exts else running[tabId].orEmpty() + exts
     }
 
-    private val supported get() = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
 
     /** Tab [tabId]'s new WebView: extensions' content scripts run in its pages. [scope]: its incognito profile, if any. */
     fun attach(wv: WebView, tabId: String, scope: String?, cookies: android.webkit.CookieManager) {
         e.requests.attachTab(tabId, cookies, scope)
-        if (!supported) return
+        if (!extensionsSupported) return
         WebViewCompat.addWebMessageListener(wv, "miExt", setOf("*")) { _, message, origin, _, proxy ->
             e.onMessage(ExtensionEngine.Source.Tab(tabId, scope, origin.toString().trimEnd('/')), message.data, proxy)
         }
@@ -93,7 +113,7 @@ class ExtensionTabs internal constructor(private val e: ExtensionEngine) {
     private fun pageHandler(wv: WebView, scope: String?) = (if (scope == null) pages else incognitoPages)?.let { (s, origins) -> WebViewCompat.addDocumentStartJavaScript(wv, s, origins) }
 
     /**
-     * The start script for an extension's own page opened in a tab (Grammarly's welcome page, an options page in a tab):
+     * The start script for an extension's own page opened in a tab (a welcome page, an options page in a tab):
      * the same API its popup gets, for the extension whose address the page is at. It only runs at extensions' origins.
      */
     private fun pageScript(scope: String?): Pair<String, Set<String>>? {
@@ -169,7 +189,7 @@ class ExtensionTabs internal constructor(private val e: ExtensionEngine) {
                         if (files.isEmpty()) return@run -1
                         if (fns.isNotEmpty()) body.append(",\n")
                         // a "MAIN" world script is the page's own: no extension variables at all
-                        body.append("function(").append(if (cs.mainWorld) "" else "chrome,browser,globalThis,self,WebSocket").append("){\n")
+                        body.append("function(").append(if (cs.mainWorld) "" else "chrome,browser,globalThis,self").append("){\n")
                         files.forEachIndexed { n, f -> if (n > 0) body.append("\n;\n"); body.append(if (cs.mainWorld) f else isolatedWorld(f)) }
                         body.append("\n}")
                         fns.size.also { fns[key] = it }
@@ -201,7 +221,7 @@ class ExtensionTabs internal constructor(private val e: ExtensionEngine) {
             } ?: return@launch done(false, null, "No such script")
             val wv = e.tabView(tabId) ?: return@launch done(false, null, "No tab")
             val args = listOf(JsonPrimitive(info.id), JsonPrimitive(e.tokens[info.id] ?: ""), JsonPrimitive(nonce)).joinToString(",")
-            wv.evaluateJavascript("window.__miExtRunEntry&&window.__miExtRunEntry($args,function(chrome,browser,globalThis,self,WebSocket){\n$code\n});void 0", null)
+            wv.evaluateJavascript("window.__miExtRunEntry&&window.__miExtRunEntry($args,function(chrome,browser,globalThis,self){\n$code\n});void 0", null)
             done(true, null, null)
         }
     }

@@ -12,11 +12,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.BuildConfig
+import com.jlees.mibrowser.logic.Feedback
 import com.jlees.mibrowser.ui.common.*
 
 private const val GUIDE_URL = "https://jleescy.github.io/mi-browser/user"
-private const val SOURCE_URL = "https://github.com/jleescy/mi-browser"
-private const val NEW_ISSUE_URL = "$SOURCE_URL/issues/new"
+private const val SOURCE_URL = com.jlees.mibrowser.logic.Feedback.REPO
 private const val PRIVACY_URL = "https://jleescy.github.io/mi-browser/privacy"
 
 /** [openPage] opens an address in a new tab, in front (leaving Settings). */
@@ -33,8 +33,15 @@ fun aboutSection(vm: BrowserViewModel, openPage: (String) -> Unit) = SettingsSec
     SettingsRow("User Guide", "help") {
         Item("help", "User Guide", "Every gesture, tool and setting", onClick = { openPage(GUIDE_URL) }, trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
     },
-    SettingsRow("Report a Bug or Suggest a Feature", "feedback issue bug report feature request idea github problem") {
-        Item("bug_report", "Report a Bug or Suggest a Feature", "Open a new issue on GitHub", onClick = { openPage(NEW_ISSUE_URL) }, trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
+    // each opens its GitHub form with mi's version filled in
+    SettingsRow("Report a Bug", "feedback issue bug report problem broken crash github report a bug or suggest a feature") {
+        Item("bug_report", "Report a Bug", "Tell us what isn't working, on GitHub", onClick = { openPage(Feedback.bugReport(BuildConfig.VERSION_NAME)) }, trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
+    },
+    SettingsRow("Suggest a Feature", "feedback feature request idea wish github report a bug or suggest a feature") {
+        Item("star", "Suggest a Feature", "Share an idea for mi, on GitHub", onClick = { openPage(Feedback.featureRequest(BuildConfig.VERSION_NAME)) }, trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
+    },
+    SettingsRow("Request Extension Support", "extension add-on addon support request doesn't work github") {
+        RequestExtensionSupportItem(openPage)
     },
     SettingsHeading("Legal & Credits"),
     SettingsRow("Privacy Policy", "privacy data collection policy") {
@@ -48,6 +55,15 @@ fun aboutSection(vm: BrowserViewModel, openPage: (String) -> Unit) = SettingsSec
         Item("info", "Filter lists", "EasyList, EasyPrivacy and the EasyList Cookie List by The EasyList authors (CC BY-SA 3.0). StevenBlack hosts (MIT).")
     },
 ))
+
+/** Opens the extension support form with mi's and this phone's WebView version filled in (extensions run on WebView). */
+@Composable
+private fun RequestExtensionSupportItem(openPage: (String) -> Unit) {
+    val ctx = LocalContext.current
+    Item("extension", "Request Extension Support", "Ask for an extension to work in mi, on GitHub",
+        onClick = { openPage(Feedback.extensionSupport(BuildConfig.VERSION_NAME, com.jlees.mibrowser.extensions.webViewVersion(ctx))) },
+        trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
+}
 
 /** Whether mi is the default browser (checked again when Android's picker returns), and asking to become it. */
 class DefaultBrowser(val isDefault: Boolean, val request: () -> Unit)

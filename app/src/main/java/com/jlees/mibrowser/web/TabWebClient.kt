@@ -76,6 +76,7 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
         webHost.topInset.reset(id); webHost.topInset.apply(id, view) // again, now the page's own head is in place
         fetchTouchIcon(view, url)
         readAppColor(view, url)
+        webHost.extensions.tabs.pageFinished(id, url) // a page that missed the extension layer gets it now
         // Darken: WebView darkens most pages itself; this catches the bright ones that opt out of it
         if (webHost.vm.settings.darkenPages && webHost.vm.settings.jsEnabled) view.evaluateJavascript(webHost.scripts.darkFallback, null)
         webHost.signIn.pageFinished()
