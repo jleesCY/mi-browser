@@ -22,7 +22,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.webkit.CookieManager
 import android.webkit.MimeTypeMap
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.jlees.mibrowser.AlertButton
 import com.jlees.mibrowser.BrowserViewModel
@@ -54,7 +53,7 @@ class DownloadPrompt(
         fun withMi(target: Uri? = null, targetName: String? = null) {
             vm.downloader.enqueue(url, cookie, userAgent, contentDisposition, mimetype, length, incognito,
                 folder = s.downloadFolder.takeIf { target == null }, target = target, targetName = targetName)
-            Toast.makeText(activity, "Downloading ${targetName ?: fileName}", Toast.LENGTH_SHORT).show()
+            com.jlees.mibrowser.ui.common.Notices.show("Downloading ${targetName ?: fileName}")
         }
         // mi's downloader: the progress and "Download complete" notifications need permission on Android 13+, asked at
         // the first download (it starts whatever the answer; Android stops asking after two refusals)
@@ -120,7 +119,7 @@ class DownloadPrompt(
         req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
         req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
         runCatching { activity.getSystemService(DownloadManager::class.java).enqueue(req) }
-            .onSuccess { Toast.makeText(activity, "Downloading $fileName with Android", Toast.LENGTH_SHORT).show() }
+            .onSuccess { com.jlees.mibrowser.ui.common.Notices.show("Downloading $fileName with Android") }
             .onFailure { vm.showAlert("Couldn't download", "Android's download manager didn't take it. Choose mi in Settings → Downloads.") }
     }
 }

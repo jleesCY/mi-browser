@@ -406,7 +406,12 @@ fun GestureWalkthrough(vm: BrowserViewModel) {
             } else if (step == Step.INTRO) Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.CenterEnd) {
                 Button(onClick = ::advance) { Txt("Next", 15f, ui.cs.onPrimary, ui.semibold) }
             } else Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (stepDone) { Sym("check", 20f, ui.cs.primary, Modifier.padding(end = 6.dp)); Txt("Nice!", 15f, ui.cs.primary, ui.semibold) }
+                // a step done: "Nice!" pops in, the moment to feel good about
+                androidx.compose.animation.AnimatedVisibility(
+                    stepDone,
+                    enter = androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 500f), initialScale = 0.5f) + androidx.compose.animation.fadeIn(com.jlees.mibrowser.ui.common.Motion.enter(150)),
+                    exit = androidx.compose.animation.fadeOut(com.jlees.mibrowser.ui.common.Motion.exit(100)),
+                ) { Row(verticalAlignment = Alignment.CenterVertically) { Sym("check", 20f, ui.cs.primary, Modifier.padding(end = 6.dp)); Txt("Nice!", 15f, ui.cs.primary, ui.semibold) } }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = {
                     // skipping a step leaves the copy where that step would have

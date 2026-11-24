@@ -157,7 +157,7 @@ fun PillSuggestions(vm: BrowserViewModel, maxHeightDp: Float) {
                 }
             }
         }
-        AnimatedVisibility(answerShown, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(answerShown, enter = fadeIn(Motion.enter(200)) + expandVertically(Motion.enter(250)), exit = fadeOut(Motion.exit(100)) + shrinkVertically(Motion.exit(150))) {
             Column {
                 // a faint line where the rows above end and the answer begins
                 if (rows) Box(Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant.copy(alpha = 0.5f)))

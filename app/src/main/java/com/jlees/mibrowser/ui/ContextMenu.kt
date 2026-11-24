@@ -1,4 +1,4 @@
-// The long-press menu for links and images on a page.
+// The long-press menu for links and images on a page (with items extensions add).
 package com.jlees.mibrowser.ui
 
 import com.jlees.mibrowser.logic.displayHost
@@ -48,13 +48,13 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
             if (web && vm.tabs.current?.incognito != true && incognitoSupported) Action("incognito", "Open in Incognito Tab") { vm.addNewTab(target, incognito = true); close() }
             if (web && d.url != null) Action("tab", "Open in Background Tab") {
                 vm.addBackgroundTab(d.url)
-                android.widget.Toast.makeText(ctx, "Opened in background", android.widget.Toast.LENGTH_SHORT).show()
+                com.jlees.mibrowser.ui.common.Notices.show("Opened in background", done = true)
                 close()
             }
             // a link straight to the home page's favorites (the Favorites folder), named by its text or else its site
             if (web && d.url != null && !vm.bookmarks.isFavorite(d.url)) Action("star", "Add to Favorites") {
                 vm.bookmarks.addFavorite(d.text.trim().ifEmpty { displayHost(d.url).removePrefix("www.") }, d.url)
-                android.widget.Toast.makeText(ctx, "Added to favorites", android.widget.Toast.LENGTH_SHORT).show()
+                com.jlees.mibrowser.ui.common.Notices.show("Added to favorites", done = true)
                 close()
             }
             if (target != null) Action("content_copy", if (d.url != null) "Copy Link" else "Copy Image Link") {
@@ -67,6 +67,19 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
             }
             Action("share", "Share") { target?.let { shareText(ctx, vm.cleanLink(it)) }; close() }
             if (d.imgUrl != null) Action("download", "Save Image") { onSaveImage(d.imgUrl) }
+            // items extensions added (contextMenus), with their icons
+            val tabId = vm.tabs.activeId
+            val places = setOfNotNull(if (d.url != null) com.jlees.mibrowser.extensions.MenuPlace.LINK else null, if (d.imgUrl != null) com.jlees.mibrowser.extensions.MenuPlace.IMAGE else null)
+            val extItems = remember(d) { tabId?.let { com.jlees.mibrowser.extensions.ExtensionFlow.engine?.menus?.entries(it, places, d.url, d.imgUrl) }.orEmpty() }
+            extItems.forEach { (ext, title, run) ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).touchable(onClick = { run(); close() }).heightIn(min = 48.dp).padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.padding(end = 16.dp)) { com.jlees.mibrowser.extensions.ExtensionIcon(ext, 22f) }
+                    Txt(title, 15f, ui.cs.onSurface, ui.semibold, maxLines = 1)
+                }
+            }
         }
     }
 }

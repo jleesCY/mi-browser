@@ -37,10 +37,10 @@ fun FollowingView(vm: BrowserViewModel) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = sides, end = sides, top = 12.dp, bottom = SheetPillSpace)) {
             when {
                 vm.follows.follows.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    EmptyState("sell", "Nothing Followed Yet", top = 30.dp)
-                    Txt("On a product page, open the tab menu and tap \"Follow Price\". mi alerts you when it changes.", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp), align = TextAlign.Center)
+                    // 54 + this list's 12dp top padding: level with Bookmarks' and Downloads' empty pages (their 16 + 50)
+                    EmptyState("sell", "Nothing Followed Yet", top = 54.dp)
                 }
-                follows.isEmpty() -> EmptyState("sell", "No matches", top = 30.dp)
+                follows.isEmpty() -> EmptyState("sell", "No matches", top = 54.dp)
                 // hold and drag to rearrange (not while searching: the order is of the whole list)
                 else -> SortableSlots(
                     items = follows, key = { it.id }, slotW = slotW, slotH = (rowH + listGap()).dp,

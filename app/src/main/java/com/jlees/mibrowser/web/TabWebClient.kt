@@ -18,7 +18,10 @@ import com.jlees.mibrowser.logic.faviconHost
 class TabWebClient(private val webHost: WebViewHost, private val id: String) : WebViewClient() {
 
     /** Ad, tracker and cookie-banner blocking of sub-resources (runs on a WebView thread). */
-    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest) = webHost.blocker.intercept(id, request)
+    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest) =
+        webHost.extensions.tabs.intercept(id, request)
+            ?: webHost.extensions.requests.intercept(id, request)
+            ?: webHost.blocker.intercept(id, request)
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val original = request.url.toString()
@@ -26,6 +29,10 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
         val url = if (request.isForMainFrame && webHost.vm.settings.stripTrackingParams && request.method == "GET") stripTracking(original) else original
         if (request.isForMainFrame) webHost.signIn.navigated(id, url)
         val gesture = request.hasGesture()
+        // a web page can't take a tab to an extension's own pages (only to those it lets pages load), as in Chrome
+        if (request.isForMainFrame && !webHost.extensions.tabs.mayNavigate(view.url, url)) return true
+        // an extension's own page by its native address (moz-extension://…): the page at mi's address for it
+        com.jlees.mibrowser.extensions.fromNative(url)?.let { if (request.isForMainFrame) view.loadUrl(it); return true }
         if (url.startsWith("blob:") || url.startsWith("data:")) return false
         if (url.startsWith("mibrowser:")) { if (gesture) webHost.vm.handleIncomingUrl(url, incognito = webHost.isIncognito(id)); return true }
         if (webHost.vm.settings.httpsOnly && url.startsWith("http://") && request.isForMainFrame && !webHost.httpsOnly.letsThrough(id, displayHost(url))) {
@@ -35,14 +42,15 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
         if (url.startsWith("googleapp://")) return true
         val standard = url.startsWith("http://") || url.startsWith("https://") || url.startsWith("about:")
         if (standard) {
-            if (url.contains("intent://") || url.contains("#Intent;")) { webHost.externalApps.open(url, gesture); return true }
+            if (url.contains("intent://") || url.contains("#Intent;")) { webHost.externalApps.open(url, gesture, id); return true }
             if (url != original) { view.loadUrl(url); return true }
             // app mode: a link you tapped to another site opens in an ordinary tab, so the app stays on its own site
             val appStart = webHost.vm.tabs.list.firstOrNull { it.id == id }?.appStart
-            if (request.isForMainFrame && appStart != null && leavesApp(appStart, url, gesture, request.isRedirect)) { webHost.vm.addNewTab(url); return true }
+            // (it stays when it's the site the tab was made immersive on, or the one it's on now: that one may have redirected)
+            if (request.isForMainFrame && appStart != null && leavesApp(appStart, view.url, url, gesture, request.isRedirect)) { webHost.vm.addNewTab(url); return true }
             return false
         }
-        webHost.externalApps.open(url, gesture)
+        webHost.externalApps.open(url, gesture, id)
         return true
     }
 
@@ -55,6 +63,7 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
         webHost.media.forget(id) // the page that was playing is gone
         webHost.topInset.reset(id); webHost.topInset.apply(id, view)
         webHost.nav(id, view, url, true)
+        webHost.extensions.navigation.started(id, url)
         if (id == webHost.vm.tabs.activeId) webHost.vm.ui.tryEmit(UiEvent.LoadStart)
     }
 
@@ -74,11 +83,13 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
         val t = webHost.vm.tabs.list.firstOrNull { it.id == id }
         if (t != null && (t.readerMode ?: webHost.vm.settings.readerModeEnabled)) view.evaluateJavascript(webHost.scripts.reader, null)
         webHost.nav(id, view, url, false)
+        webHost.extensions.navigation.finished(id, url)
         if (id == webHost.vm.tabs.activeId) webHost.vm.ui.tryEmit(UiEvent.LoadEnd)
     }
 
     override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
         webHost.nav(id, view, url, webHost.vm.tabs.list.firstOrNull { it.id == id }?.loading ?: false)
+        if (!isReload) webHost.extensions.navigation.addressChanged(id, url)
     }
 
     /**
@@ -89,6 +100,7 @@ class TabWebClient(private val webHost: WebViewHost, private val id: String) : W
 
     override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
         if (!request.isForMainFrame) return
+        webHost.extensions.navigation.failed(id, request.url.toString(), "net::ERR_" + (error.description?.toString()?.removePrefix("net::ERR_") ?: "FAILED"))
         // like Chrome's HTTPS upgrades: any failure of the automatic https attempt retries over http, except when
         // the name doesn't resolve (http would fail too) or Safe Browsing blocked the page (never routed around)
         val httpMightWork = error.errorCode != ERROR_HOST_LOOKUP && error.errorCode != ERROR_UNSAFE_RESOURCE

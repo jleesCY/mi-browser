@@ -104,6 +104,13 @@ object Motion {
     fun <T> noBounce(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 600f)      // settles without overshoot (the Pill growing, the switcher's search)
     fun <T> playful(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.5f, stiffness = 300f)     // fidget logo
     fun <T> springBack(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.45f, stiffness = 500f) // the Pill settling after a drag
+
+    /** Something arriving (a panel, a dialog): fast at first, settling gently into place (Material's emphasized decelerate). */
+    fun <T> enter(ms: Int = 250): FiniteAnimationSpec<T> = androidx.compose.animation.core.tween(ms, easing = ENTER)
+    /** Something leaving: it gathers speed on its way out, and goes quicker than it came (Material's emphasized accelerate). */
+    fun <T> exit(ms: Int = 150): FiniteAnimationSpec<T> = androidx.compose.animation.core.tween(ms, easing = EXIT)
+    private val ENTER = androidx.compose.animation.core.CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+    private val EXIT = androidx.compose.animation.core.CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 }
 
 /** App-wide styling inputs: the M3 color scheme plus the user's shape/size/density/weight settings. */
@@ -200,8 +207,8 @@ fun Sym(name: String, size: Float, color: Color, modifier: Modifier = Modifier, 
 }
 
 /** Clickable with the Material ripple. Clip the modifier first for a shaped ripple. */
-fun Modifier.touchable(enabled: Boolean = true, onClick: () -> Unit): Modifier =
-    clickable(interactionSource = null, indication = ripple(), enabled = enabled, onClick = onClick)
+fun Modifier.touchable(enabled: Boolean = true, source: androidx.compose.foundation.interaction.MutableInteractionSource? = null, onClick: () -> Unit): Modifier =
+    clickable(interactionSource = source, indication = ripple(), enabled = enabled, onClick = onClick)
 
 /** M3 switch with the expressive check thumb icon. */
 @Composable

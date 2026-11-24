@@ -3,7 +3,6 @@
 // exceptions); this page just gathers it for one site.
 package com.jlees.mibrowser.sites
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -81,7 +80,7 @@ fun SiteSettingsView(vm: BrowserViewModel, host: WebViewHost, closeOverlay: () -
                     AlertButton("Cancel", ButtonStyle.CANCEL),
                     AlertButton("Clear", ButtonStyle.DESTRUCTIVE) {
                         host.clearSiteData(tab.id, url)
-                        Toast.makeText(ctx, "Site data cleared", Toast.LENGTH_SHORT).show()
+                        com.jlees.mibrowser.ui.common.Notices.show("Site data cleared", done = true)
                     },
                 ))
             })

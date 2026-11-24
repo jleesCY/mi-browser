@@ -2,16 +2,9 @@
 // (its price history, settings and actions), and the banner while you tap the price on the page.
 package com.jlees.mibrowser.follow
 
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -31,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.core.app.NotificationManagerCompat
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.logic.displayHost
 import com.jlees.mibrowser.ui.ModalFrame
@@ -138,7 +130,7 @@ private fun BoxScope.FollowSheet(vm: BrowserViewModel) {
     val last = remember { arrayOfNulls<Draft>(1) }
     if (d != null) last[0] = d
     val slide = remember { Animatable(1f) } // 1: below the screen, 0: in place
-    LaunchedEffect(d != null) { slide.animateTo(if (d != null) 0f else 1f, tween(320, easing = FastOutSlowInEasing)) }
+    LaunchedEffect(d != null) { slide.animateTo(if (d != null) 0f else 1f, if (d != null) Motion.enter(300) else Motion.exit(180)) }
     LaunchedEffect(d == null) { if (d == null) FollowFlow.renamingDraft = false } // closed mid-rename: not carried to the next one
     val shown = d ?: last[0] ?: return
     if (d == null && slide.value >= 1f) { last[0] = null; return }
@@ -253,14 +245,19 @@ internal fun Notice(text: String, first: Pair<String, () -> Unit>, second: Pair<
 @Composable
 private fun BoxScope.PickBanner() {
     val ui = LocalUi.current
-    if (FollowFlow.picking == null && FollowFlow.repickPending == null) return
+    androidx.compose.animation.AnimatedVisibility(
+        FollowFlow.picking != null || FollowFlow.repickPending != null, Modifier.align(Alignment.TopCenter).zIndex(200f),
+        enter = androidx.compose.animation.slideInVertically(Motion.enter(280)) { -it } + androidx.compose.animation.fadeIn(Motion.enter(200)),
+        exit = androidx.compose.animation.slideOutVertically(Motion.exit(160)) { -it } + androidx.compose.animation.fadeOut(Motion.exit(140)),
+    ) {
     Row(
-        Modifier.align(Alignment.TopCenter).zIndex(200f).statusBarsPadding().padding(12.dp).fillMaxWidth()
+        Modifier.statusBarsPadding().padding(12.dp).fillMaxWidth()
             .background(ui.cs.inverseSurface, RoundedCornerShape(ui.radius.dp)).padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Sym("sell", 20f, ui.cs.inverseOnSurface, Modifier.padding(end = 12.dp))
         Txt(if (FollowFlow.repickPending != null) "Loading the page…" else "Tap the price on the page", 15f, ui.cs.inverseOnSurface, ui.semibold, Modifier.weight(1f))
         TextButton(::cancelPick) { Txt("Cancel", 14f, ui.cs.inversePrimary, ui.bold) }
+    }
     }
 }

@@ -1,5 +1,7 @@
 package com.jlees.mibrowser.library
 
+import com.jlees.mibrowser.ui.common.SheetPillSpace
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -92,7 +94,7 @@ private fun BookmarkImportPage(vm: BrowserViewModel) {
     }
 
     // the sheet already sits above the keyboard (OverlaySheet pads by its height): no ime padding here
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().padding(bottom = SheetPillSpace)) { // its buttons stay above the Pill
         FilledTonalButton(onClick = { picker.launch(arrayOf("text/html", "application/xhtml+xml", "application/octet-stream", "text/plain")) }, Modifier.fillMaxWidth()) {
             Sym("folder", 20f, ui.cs.onSecondaryContainer, Modifier.padding(end = 8.dp))
             Txt("Choose File", 15f, ui.cs.onSecondaryContainer, ui.semibold)

@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
 
         IncognitoNotice.update(this, 0) // left over if the process ended while incognito tabs were open
         com.jlees.mibrowser.launcher.AppModeNotice.update(this, null) // the same for immersive's
-        vm.start(if (intent?.action == Intent.ACTION_VIEW) intent.dataString else null, shortcutOf(intent))
+        vm.start(if (intent?.action == Intent.ACTION_VIEW) intent.dataString else null, shortcutOf(intent), senderOf(intent))
         LauncherShortcuts.publish(this)
         if (intent?.action == ACTION_SCAN_QR) vm.qrScannerVisible = true
         if (intent?.action == ACTION_OPEN_DOWNLOADS) vm.openView(Sheet.DOWNLOADS)
@@ -163,13 +163,19 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         when (intent.action) {
-            Intent.ACTION_VIEW -> vm.handleIncomingUrl(intent.dataString)
+            Intent.ACTION_VIEW -> vm.handleIncomingUrl(intent.dataString, fromApp = senderOf(intent))
             ACTION_SCAN_QR -> vm.qrScannerVisible = true
             ACTION_CLOSE_INCOGNITO -> vm.closeIncognitoTabs()
             ACTION_EXIT_APP_MODE -> intent.getStringExtra(EXTRA_TAB)?.let { vm.exitAppMode(it) }
             ACTION_OPEN_DOWNLOADS -> vm.openView(Sheet.DOWNLOADS)
             ACTION_OPEN_FOLLOWING -> openFollowing(intent)
             // the media notification: back to the tab that's playing
+            // an extension's notification was tapped: it's told (notifications.onClicked)
+            ACTION_EXT_NOTIFICATION -> {
+                val ext = intent.getStringExtra(EXTRA_EXT) ?: return
+                com.jlees.mibrowser.extensions.ExtensionFlow.engine?.emitToPages(ext, "notifications.onClicked",
+                    kotlinx.serialization.json.JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive(intent.getStringExtra(EXTRA_NOTIFICATION).orEmpty()))))
+            }
             ACTION_SHOW_TAB -> intent.getStringExtra(EXTRA_TAB)?.takeIf { id -> vm.tabs.list.any { it.id == id } }?.let { vm.setActiveTab(it); vm.switcherVisible = false }
             ACTION_NEW_TAB, ACTION_NEW_INCOGNITO, ACTION_SEARCH -> shortcutOf(intent)?.let(vm::openFromShortcut)
         }
@@ -179,6 +185,16 @@ class MainActivity : ComponentActivity() {
     private fun openFollowing(intent: Intent) {
         vm.openView(Sheet.FOLLOWING)
         com.jlees.mibrowser.follow.FollowFlow.open = intent.getStringExtra(EXTRA_FOLLOW)
+    }
+
+    /** The app that sent a link (as Android reports it), so a sign-in it started can hand back to it; not mi itself. */
+    private fun senderOf(intent: Intent?): String? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        // as Activity.getReferrer reads it, but for this link (a link to the running mi isn't getIntent()): its referrer
+        // extras, else who Android says sent it
+        @Suppress("DEPRECATION") val extra = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_REFERRER)
+            ?: intent.getStringExtra(Intent.EXTRA_REFERRER_NAME)?.let(android.net.Uri::parse)
+        return (extra ?: referrer)?.takeIf { it.scheme == "android-app" }?.host?.takeIf { it != packageName }
     }
 
     companion object {
@@ -192,6 +208,16 @@ class MainActivity : ComponentActivity() {
         const val ACTION_NEW_INCOGNITO = "com.jlees.mibrowser.NEW_INCOGNITO"
         const val ACTION_SEARCH = "com.jlees.mibrowser.SEARCH"
         const val ACTION_SHOW_TAB = "com.jlees.mibrowser.SHOW_TAB"
+        const val ACTION_EXT_NOTIFICATION = "com.jlees.mibrowser.EXT_NOTIFICATION"
+        const val EXTRA_EXT = "ext"
+        const val EXTRA_NOTIFICATION = "notification"
+
+        /** Opens mi and tells extension [ext] its notification [id] was tapped. */
+        fun extensionNotificationIntent(ctx: android.content.Context, ext: String, id: String): android.app.PendingIntent =
+            android.app.PendingIntent.getActivity(ctx, "$ext/$id".hashCode(),
+                Intent(ctx, MainActivity::class.java).setAction(ACTION_EXT_NOTIFICATION).putExtra(EXTRA_EXT, ext).putExtra(EXTRA_NOTIFICATION, id)
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
         const val EXTRA_TAB = "tab"
     }
 

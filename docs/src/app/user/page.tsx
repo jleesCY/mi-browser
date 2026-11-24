@@ -321,9 +321,9 @@ export default function UserDocs() {
                 <SettingsSection title="Look & Feel" icon={<Palette size={20} />}>
                   <SettingItem title="Theme" desc="Choose Light, Dark, or System (follows your device's dark mode)." />
                   <SettingItem title="Pure Black" desc="In dark mode, use true black backgrounds. Saves battery on OLED screens; the tab switcher is black too, while cards and the Pill stay a shade lighter." />
-                  <SettingItem title="Accent Color" desc="Adaptive (your wallpaper colors, Android 12+), Gray, Blue, Green, Red, Orange, Yellow, or Purple. The full Material 3 color scheme is generated from your choice." />
+                  <SettingItem title="Accent Color" desc="Adaptive (your wallpaper colors, Android 12+), Gray, Blue (the default), Green, Red, Orange, Yellow, or Purple. The full Material 3 color scheme is generated from your choice." />
                   <SettingItem title="Font Size" desc="Adjust the global font scale from 80% to 120% to suit your readability needs." />
-                  <SettingItem title="Font" desc="Standard (Google Sans Flex), Rounded (its rounded stroke ends) or System (your phone's own font). The mi. logo is always rounded." />
+                  <SettingItem title="Font" desc="Standard (Google Sans Flex), Rounded (its rounded stroke ends) or System (your phone's own font)." />
                   <SettingItem title="Corners" desc="Choose Square (0dp), Soft (12dp), or Round (28dp) for sheets, cards, and the Pill." />
                   <SettingItem title="List Spacing" desc="Select Compact, Normal, or Airy to adjust the padding and density of the interface." />
                   <SettingItem title="Status Bar" desc="Toggles the visibility of your device's system status bar (clock, battery, etc.) for a more immersive look. With it hidden, pages (sticky headers included) still start below the camera cutout and scroll behind it." />
@@ -345,7 +345,7 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Home Page" icon={<Home size={20} />}>
-                  <SettingItem title="Logo" desc="Choose the logo style displayed on the home page: None, Static, or Fidget (interactive)." />
+                  <SettingItem title="Logo" desc="Choose how the mi. logo (a globe with mi.'s dot) shows on a blank tab: None, Static, or Fidget (drag it around)." />
                   <SettingItem title="Clock" desc="Select the clock format on the home page: None, 12h, or 24h." />
                   <SettingItem title="Date" desc="Choose the date placement on the home page: None, Above Clock, or Below Clock." />
                   <SettingItem title="Favorites" desc="Your favorites at the bottom of the home page, four across and two down, swiped sideways for more. Hold one and drag to rearrange it, or hold and let go to edit it. On by default." />

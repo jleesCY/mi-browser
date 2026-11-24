@@ -42,12 +42,13 @@ fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, scree
     var horizontal by remember { mutableStateOf<Boolean?>(null) }
     var startX by remember { mutableFloatStateOf(0f) }
     Box(
-        modifier.offset { IntOffset((x.value * density).roundToInt(), 0) }.padding(bottom = maxOf(navInsetDp + 10f, 10f).dp)
+        // 8dp less below: the grab area is 8dp taller than the bar on each side, so the bar itself stays where it was
+        modifier.offset { IntOffset((x.value * density).roundToInt(), 0) }.padding(bottom = (maxOf(navInsetDp + 10f, 10f) - 8f).coerceAtLeast(0f).dp)
             // the Pill morphs into this spot as it hides; the button shows once it's fully there
             .graphicsLayer { alpha = if (pill.scrollY.value >= HIDDEN_TRANSLATE_Y) 1f else 0f },
     ) {
         Box(
-            Modifier.size(w.dp, 32.dp).onGloballyPositioned { pill.recallBounds = it.boundsInWindow() }.shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(ui.cs.secondaryContainer)
+            Modifier.size(w.dp, 48.dp) // the area that takes the gesture: Material's 48dp, though the bar is 32dp
                 .panGesture(
                     enabled = pill.isBarHidden, slopDp = 4f,
                     onStart = { startX = x.value; horizontal = null },
@@ -68,6 +69,11 @@ fun RecallButton(vm: BrowserViewModel, pill: PillState, navInsetDp: Float, scree
                     onTap = { pill.showBar() },
                 ),
             contentAlignment = Alignment.Center,
-        ) { Sym("keyboard_arrow_up", 24f, ui.cs.onSecondaryContainer, label = "Show toolbar") }
+        ) {
+            Box(
+                Modifier.size(w.dp, 32.dp).onGloballyPositioned { pill.recallBounds = it.boundsInWindow() }.shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(ui.cs.secondaryContainer),
+                contentAlignment = Alignment.Center,
+            ) { Sym("keyboard_arrow_up", 24f, ui.cs.onSecondaryContainer, label = "Show toolbar") }
+        }
     }
 }

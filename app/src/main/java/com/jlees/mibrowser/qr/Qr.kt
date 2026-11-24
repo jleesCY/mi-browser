@@ -135,7 +135,7 @@ fun QrScanner(vm: BrowserViewModel) {
     }
     val close = { vm.qrScannerVisible = false }
 
-    AnimatedVisibility(vm.qrScannerVisible, enter = slideInVertically { it }, exit = slideOutVertically { it }, modifier = Modifier.zIndex(900f)) {
+    AnimatedVisibility(vm.qrScannerVisible, enter = slideInVertically(Motion.enter(300)) { it }, exit = slideOutVertically(Motion.exit(200)) { it }, modifier = Modifier.zIndex(900f)) {
         BackHandler(onBack = close)
         if (!granted) {
             Column(Modifier.fillMaxSize().background(ui.cs.surface).blockTouches().padding(20.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {

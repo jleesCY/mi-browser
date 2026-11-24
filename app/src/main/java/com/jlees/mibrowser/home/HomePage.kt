@@ -115,10 +115,31 @@ fun HomePage(vm: BrowserViewModel) {
     }
 }
 
+/**
+ * mi. Browser's mark, the shape of its app icon (res/drawable/ic_launcher_foreground.xml): a globe, centred, with mi.'s
+ * dot ("you are here") off-centre at its bottom right, on the icon's 100-unit grid. Inside the app it's always in the
+ * text colour (onSurface), never the icon's Sky blue: the colour belongs to the launcher icon only. The globe's lines
+ * and the ring round the dot are cut out (see-through), so it sits on any background, light or dark.
+ */
 @Composable
 fun MiLogo() {
-    val ui = LocalUi.current
-    Txt("mi.", 60f, ui.cs.onSurface, ui.extrabold, Modifier.alpha(0.9f), letterSpacing = -1f, font = sansFlex(true))
+    val ink = LocalUi.current.cs.onSurface
+    androidx.compose.foundation.Canvas(
+        Modifier.size(96.dp).graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen },
+    ) {
+        val u = size.minDimension / 100f
+        fun p(x: Float, y: Float) = Offset(x * u, y * u)
+        val cut = androidx.compose.ui.graphics.BlendMode.Clear
+        drawCircle(ink, 38 * u, p(50f, 50f))
+        val lines = androidx.compose.ui.graphics.Path().apply {
+            moveTo(12 * u, 50 * u); lineTo(88 * u, 50 * u)
+            moveTo(50 * u, 12 * u); cubicTo(29 * u, 31 * u, 29 * u, 69 * u, 50 * u, 88 * u)
+            moveTo(50 * u, 12 * u); cubicTo(71 * u, 31 * u, 71 * u, 69 * u, 50 * u, 88 * u)
+        }
+        drawPath(lines, Color.Black, style = Stroke(5 * u, cap = androidx.compose.ui.graphics.StrokeCap.Round), blendMode = cut)
+        drawCircle(Color.Black, 20 * u, p(78f, 78f), blendMode = cut)
+        drawCircle(ink, 12 * u, p(78f, 78f))
+    }
 }
 
 @Composable

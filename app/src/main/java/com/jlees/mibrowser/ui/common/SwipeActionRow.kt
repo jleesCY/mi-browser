@@ -120,7 +120,7 @@ fun SwipeActionRow(
                             }
                             tx < -wPx * 0.25f || (v < -1200f && tx < -wPx * 0.08f) -> {
                                 deleting = true
-                                val slide = launch { animate(tx, -wPx, animationSpec = timing(200)) { value, _ -> tx = value } }
+                                val slide = launch { animate(tx, -wPx, animationSpec = Motion.exit(200)) { value, _ -> tx = value } }
                                 if (slotHeight != null) shrink.animateTo(0f, timing(200)) else slide.join()
                                 onDelete()
                             }

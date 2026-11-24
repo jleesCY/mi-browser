@@ -50,14 +50,14 @@ private val SIGN_IN = Regex("""oauth|authori[sz]e|sign-?in|log-?in|/sso\b|/auth\
 
 /**
  * In app mode, does going to [url] leave the app (opening in an ordinary tab instead)? Only a link you tapped
- * ([gesture], not a [redirect]) to another site than the app's [start]; a sign-in page (Google, GitHub…) stays in the
+ * ([gesture], not a [redirect]) to another site than both the app's [start] and the page it's on ([current]); a sign-in page (Google, GitHub…) stays in the
  * app, as signing in comes back to it.
  */
-fun leavesApp(start: String, url: String, gesture: Boolean, redirect: Boolean): Boolean {
+fun leavesApp(start: String, current: String?, url: String, gesture: Boolean, redirect: Boolean): Boolean {
     if (!gesture || redirect || SIGN_IN.containsMatchIn(url)) return false
-    val from = faviconHost(start) ?: return false
-    val to = faviconHost(url) ?: return false
-    return com.jlees.mibrowser.adblock.AdBlock.registrable(from) != com.jlees.mibrowser.adblock.AdBlock.registrable(to)
+    val to = faviconHost(url)?.let { com.jlees.mibrowser.adblock.AdBlock.registrable(it) } ?: return false
+    // the site the app opened at, or the one it's on now (a pin of gmail.com lives on mail.google.com)
+    return listOfNotNull(start, current).none { faviconHost(it)?.let { h -> com.jlees.mibrowser.adblock.AdBlock.registrable(h) } in setOf(to, null) }
 }
 
 /** The tab menu's App Mode: on, it opens at the page showing now; off, it's an ordinary tab again. */

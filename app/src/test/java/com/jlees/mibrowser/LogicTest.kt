@@ -261,7 +261,7 @@ class LogicTest {
 
     @Test fun hex() {
         assertEquals(0xFF007AFF, hexColor("#007AFF"))
-        assertEquals(0xFF007AFF, hexColor("bad"))
+        assertEquals(0xFF3D9BFF, hexColor("bad")) // invalid: mi.'s Sky blue
     }
 
     @Test
@@ -411,16 +411,27 @@ class LogicTest {
         assertEquals(9, slot(3f, 5f))       // below the last row: the last favorite
     }
 
-    @Test fun longTextPansInSettingsAndTheTabMenuToBeginWith() {
+    @Test fun longTextDoesntPanToBeginWithThenPansInSettingsAndTheTabMenu() {
         val s = com.jlees.mibrowser.data.Settings()
-        val on = com.jlees.mibrowser.data.PanArea.entries.filter { s.pans(it) }
+        assertTrue(com.jlees.mibrowser.data.PanArea.entries.none { s.pans(it) }) // off by default
+        // turned on: Settings and the tab menu to begin with
+        val on = com.jlees.mibrowser.data.PanArea.entries.filter { s.copy(panLongText = true).pans(it) }
         assertEquals(listOf(com.jlees.mibrowser.data.PanArea.SETTINGS, com.jlees.mibrowser.data.PanArea.TAB_MENU), on)
-        assertEquals(false, s.copy(panLongText = false).pans(com.jlees.mibrowser.data.PanArea.SETTINGS)) // off everywhere
     }
 
     @Test fun aCrashedPageReopensOnceAMinute() {
         assertTrue(com.jlees.mibrowser.web.reloadAfterCrash(null, 5_000)) // the first crash: the page comes back by itself
         assertFalse(com.jlees.mibrowser.web.reloadAfterCrash(5_000, 30_000)) // again so soon: the error page, no loop
         assertTrue(com.jlees.mibrowser.web.reloadAfterCrash(5_000, 70_000)) // a minute on, it's a new crash
+    }
+
+    @Test fun aTabAnAppOpenedMayHandBackToAnAppForAWhile() {
+        val opened = 1_000_000L
+        // a sign-in started from an app (Slack) ends by sending you back to it, without a tap
+        assertTrue(com.jlees.mibrowser.web.mayOpenAppUntapped(opened, opened + 5_000))
+        assertTrue(com.jlees.mibrowser.web.mayOpenAppUntapped(opened, opened + com.jlees.mibrowser.web.APP_HANDBACK_MS))
+        // not long after, and never in a tab no app opened
+        assertFalse(com.jlees.mibrowser.web.mayOpenAppUntapped(opened, opened + com.jlees.mibrowser.web.APP_HANDBACK_MS + 1))
+        assertFalse(com.jlees.mibrowser.web.mayOpenAppUntapped(0, opened))
     }
 }

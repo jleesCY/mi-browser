@@ -75,6 +75,8 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.6.2")
     implementation("androidx.camera:camera-view:1.6.2")
     implementation("com.google.zxing:core:3.5.4")
+    // extensions' WebSockets, opened by mi with the extension's origin (WebView can't set it): extensions/ExtensionSockets
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17") // Android code (the downloader) in unit tests
     testImplementation("androidx.test:core:1.7.0")

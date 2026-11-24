@@ -23,6 +23,9 @@ class UserAgents(private val ctx: Context) {
     private val mobileUa by lazy { "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromeMajor.0.0.0 Mobile Safari/537.36" }
     private val desktopUa by lazy { "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chromeMajor.0.0.0 Safari/537.36" }
 
+    /** The mobile identity's UA string (for requests mi makes itself on a page's or extension's behalf). */
+    val mobile: String get() = mobileUa
+
     private fun metadata(desktop: Boolean): UserAgentMetadata {
         fun brand(name: String, major: String, full: String) =
             UserAgentMetadata.BrandVersion.Builder().setBrand(name).setMajorVersion(major).setFullVersion(full).build()

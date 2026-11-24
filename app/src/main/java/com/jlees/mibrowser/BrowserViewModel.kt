@@ -63,10 +63,11 @@ enum class LaunchAction { NEW_TAB, NEW_INCOGNITO_TAB, SEARCH }
 
 /** The full-screen sheet over the browser, if any. */
 /** Where Settings opens: section [section] (its id), scrolled to the row [row] under [heading]. */
-data class SettingsTarget(val section: String, val heading: String?, val row: String)
+/** Where to open Settings: a section, scrolled to [row] under [heading]; with [page], that row's own page opened over it. */
+data class SettingsTarget(val section: String, val heading: String?, val row: String, val page: com.jlees.mibrowser.ui.settings.SettingsSubPage? = null)
 
 /** The full-screen pages. The Library is BOOKMARKS / DOWNLOADS / FOLLOWING; History is HISTORY / RECENTLY_CLOSED. */
-enum class Sheet { NONE, BOOKMARKS, HISTORY, RECENTLY_CLOSED, DOWNLOADS, FOLLOWING, SETTINGS, SITE }
+enum class Sheet { NONE, BOOKMARKS, HISTORY, RECENTLY_CLOSED, DOWNLOADS, FOLLOWING, EXTENSIONS, SETTINGS, SITE }
 
 /** A site asked for a username and password (HTTP authentication). */
 data class AuthRequest(val host: String, val realm: String, val insecure: Boolean, val onSubmit: (String, String) -> Unit, val onCancel: () -> Unit)
@@ -120,6 +121,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     val downloader = Downloader(app, downloads)
     /** Followed prices (one store per process: the background check uses it too, see FollowStore.get). */
     val follows = com.jlees.mibrowser.follow.FollowStore.get(app)
+    /** Installed extensions and their saved data (extensions/). */
+    val extensions = com.jlees.mibrowser.extensions.ExtensionsStore(store)
     var ready by mutableStateOf(false)
 
     // ---- UI state ----
@@ -148,6 +151,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     var historySearch by mutableStateOf("")
 
     val updater = Updater(this)
+    val whatsNew = com.jlees.mibrowser.update.WhatsNew(this)
     val suggestions = SearchSuggestions(this)
     val switcher = SwitcherTransition()
     val find = FindInPage { web.tryEmit(it) }
@@ -157,7 +161,11 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- startup
     private var started = false
 
-    fun start(deepLink: String?, shortcut: LaunchAction? = null) {
+    /** The current tab was opened by app [pkg] (with a link): it may hand back to it for a while (ExternalApps). */
+    private fun markOpenedBy(pkg: String) { tabs.activeId?.let { id -> tabs.update(id) { copy(openedByApp = pkg, openedByAppAt = System.currentTimeMillis()) } } }
+
+    /** [fromApp]: the app whose link started mi, if one did. */
+    fun start(deepLink: String?, shortcut: LaunchAction? = null, fromApp: String? = null) {
         pendingShortcut = shortcut
         if (started) return
         started = true
@@ -168,8 +176,11 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 bookmarks.load()
                 downloads.load()
                 follows.load()
+                extensions.load()
                 downloader.pruneMissing()
                 tabs.load(parseDeepLink(deepLink), settings.startupTabMode)
+                // mi was started by another app's link: that tab may hand back to the app (a sign-in returning to it)
+                if (deepLink != null && fromApp != null) markOpenedBy(fromApp)
                 sweepFiles()
             }
             downloader.resumeInterrupted() // downloads running when mi was last closed carry on
@@ -184,6 +195,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             pendingShortcut?.let { openFromShortcut(it); pendingShortcut = null }
             savers.forEach { it.launchIn(viewModelScope) }
             updater.checkQuietly()
+            whatsNew.checkAtLaunch()
             AdBlock.load(getApplication())
             AdBlock.updateIfStale(getApplication()) // weekly, on unmetered networks
         }
@@ -213,7 +225,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Every stored file; each store owns its own (incognito tabs are never written: they don't survive the app). */
     private val savers = listOf(Saver(0, { settings }) { store.write("settings", Settings.serializer(), it) }, tabs.saver, tabs.closedSaver) +
-        history.savers + bookmarks.savers + downloads.savers
+        history.savers + bookmarks.savers + downloads.savers + extensions.savers
 
     /** Writes everything now (before mi ends its process after incognito use). */
     fun saveNow() { savers.forEach { it.writeNow() }; follows.saveNow() }
@@ -258,6 +270,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         tabs.open(newTab(null).copy(
             id = id, openerId = openerId, desktopMode = desktopMode,
             profile = tabs[openerId]?.profile, // same profile as the opener (window.opener needs it)
+            openedByApp = tabs[openerId]?.openedByApp, openedByAppAt = tabs[openerId]?.openedByAppAt ?: 0, // a sign-in window opened from a tab an app opened
         ))
         switcherVisible = false
         onTabShown()
@@ -403,9 +416,11 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Deep link / VIEW intent while running. */
     /** [incognito]: the link came from an incognito page, so its tab stays incognito. */
-    fun handleIncomingUrl(raw: String?, incognito: Boolean = false) {
+    /** [fromApp]: the app (package) that sent the link; its tab may hand back to that app (ExternalApps). */
+    fun handleIncomingUrl(raw: String?, incognito: Boolean = false, fromApp: String? = null) {
         val url = parseDeepLink(raw)?.let(::cleanLink) ?: return
         addNewTab(url, incognito)
+        if (fromApp != null) markOpenedBy(fromApp)
         activeView = Sheet.NONE
     }
 

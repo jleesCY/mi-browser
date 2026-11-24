@@ -96,9 +96,9 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
     DisposableEffect(folderStack.size, search.isEmpty()) {
         sheetBack?.inner = if (folderStack.isEmpty() || search.isNotEmpty()) null else BackSwipe(
             drag = { p -> scope.launch { folderSlide.snapTo(p) } },
-            release = { up ->
+            release = { up, speed ->
                 scope.launch {
-                    if (up) { folderSlide.animateTo(1f, androidx.compose.animation.core.tween(160)); folderStack = folderStack.dropLast(1) }
+                    if (up) { folderSlide.animateTo(1f, Motion.switcher, initialVelocity = speed); folderStack = folderStack.dropLast(1) } // at the finger's speed
                     else folderSlide.animateTo(0f, androidx.compose.animation.core.tween(200))
                     folderSlide.snapTo(0f)
                 }

@@ -95,7 +95,9 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     LaunchedEffect(vm.settingsTarget) {
         val t = vm.settingsTarget ?: return@LaunchedEffect
         vm.settingsSearch = ""; subPage = null
-        openId = t.section; found = t.heading to t.row
+        openId = t.section
+        // a row's own page (an extension's, from holding its button): opened at once, over its section
+        if (t.page != null) { subPages[t.page.id] = t.page; subPage = t.page } else found = t.heading to t.row
         vm.settingsTarget = null
     }
     BackHandler(enabled = openId != null || subPage != null) { if (subPage != null) subPage = null else openId = null }
@@ -117,7 +119,8 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             }
         }) { top ->
             CompositionLocalProvider(LocalSettingsNav provides nav) {
-                Box(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = top, bottom = SheetPillSpace)) { sub.content() }
+                // no room kept for the Pill here: a page's list scrolls on behind it (only the Pill covers it); each page leaves the room at its end
+                Box(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = top)) { sub.content() }
             }
         } else if (page == null) TopBarOver(sheetBg, bar = {}) { top -> // the search field is the Pill at the bottom
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top, bottom = SheetPillSpace)) {
@@ -198,10 +201,10 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     DisposableEffect(state) {
         sheetBack?.inner = if (openId == null && subPage == null) null else BackSwipe(
             drag = { p -> backing = true; scope.launch { back.snapTo(p) } },
-            release = { up ->
+            release = { up, speed ->
                 scope.launch {
                     if (up) {
-                        back.animateTo(1f, tween(160))
+                        back.animateTo(1f, Motion.switcher, initialVelocity = speed) // carries on at the finger's speed
                         instant = true
                         if (subPage != null) subPage = null else openId = null
                     } else back.animateTo(0f, tween(200))
@@ -229,6 +232,9 @@ AnimatedContent(
         },
     ) { Page(it) }
     // searching shows results from the top level, so it leaves any section that's open
-    SheetSearchPill(search, { vm.settingsSearch = it; if (it.isNotEmpty()) { subPage = null; openId = null } })
+    // a page with a search of its own takes the Pill over while it shows (Get Extensions searches Firefox Add-ons)
+    val own = subPage?.search
+    if (own != null) SheetSearchPill(own.query, { own.query = it }, placeholder = own.placeholder)
+    else SheetSearchPill(search, { vm.settingsSearch = it; if (it.isNotEmpty()) { subPage = null; openId = null } })
     }
 }

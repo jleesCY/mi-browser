@@ -94,13 +94,13 @@ class PillState(private val scope: CoroutineScope, private val vm: BrowserViewMo
     fun loadStart() {
         ignoreNextScroll = true
         if (!appMode) showBar()
-        scope.launch { progress.snapTo(0f); progress.animateTo(0.1f, timing(300)) }
+        scope.launch { progress.snapTo(0f); progress.animateTo(0.1f, tween(300, easing = androidx.compose.animation.core.LinearEasing)) }
     }
 
-    fun loadProgress(p: Float) = scope.launch { progress.animateTo(p, timing(200)) }
+    fun loadProgress(p: Float) = scope.launch { progress.animateTo(p, tween(200, easing = androidx.compose.animation.core.LinearEasing)) } // progress fills steadily
 
     fun loadEnd() = scope.launch {
-        progress.animateTo(1f, timing(200))
+        progress.animateTo(1f, tween(200, easing = androidx.compose.animation.core.LinearEasing))
         kotlinx.coroutines.delay(200)
         progress.snapTo(0f)
     }

@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "mi"
+rootProject.name = "mi-browser"
 include(":app")

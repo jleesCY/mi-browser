@@ -2,7 +2,6 @@ package com.jlees.mibrowser.web
 
 import android.app.Activity
 import android.webkit.*
-import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.jlees.mibrowser.ui.common.shareText
@@ -33,7 +32,7 @@ class PageBridge(private val activity: Activity, private val print: (id: String,
         lastAction = now
         when (msg.optString("type")) {
             "print" -> print(id, view)
-            "passkeyBlocked" -> Toast.makeText(activity, "Passkeys can't be created in incognito", Toast.LENGTH_LONG).show()
+            "passkeyBlocked" -> com.jlees.mibrowser.ui.common.Notices.show("Passkeys can't be created in incognito", long = true)
             "share" -> {
                 val text = listOf(msg.optString("text"), msg.optString("url")).filter { it.isNotBlank() }.joinToString("\n")
                 if (text.isNotEmpty()) shareText(activity, text, msg.optString("title").ifBlank { null })

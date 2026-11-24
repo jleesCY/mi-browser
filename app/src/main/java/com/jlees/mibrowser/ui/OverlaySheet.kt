@@ -33,7 +33,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 fun OverlaySheet(
     slide: Animatable<Float, androidx.compose.animation.core.AnimationVector1D>,
     topInsetDp: Float, imeDp: () -> Float, onClose: () -> Unit,
-    backTowardEnd: Boolean, onBackDrag: (Float) -> Unit, onBackRelease: (Boolean) -> Unit, fromBottom: Boolean = false,
+    backTowardEnd: Boolean, onBackDrag: (Float) -> Unit, onBackRelease: (finish: Boolean, speed: Float) -> Unit, fromBottom: Boolean = false,
     morphFrom: () -> androidx.compose.ui.geometry.Rect? = { null }, morphContent: @Composable () -> Unit = {},
     header: (@Composable () -> Unit)? = null, belowHeader: (@Composable () -> Unit)? = null, content: @Composable () -> Unit,
 ) {

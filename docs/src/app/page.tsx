@@ -28,13 +28,13 @@ export default function Home() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-6 border border-blue-500/20">
                <Sparkles size={14} />
-               1.0 · Native Android
+               2.0 · For Android
             </div>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter mb-6 leading-[1.1]">
               A minimal <span className="text-blue-600 italic">masterpiece</span> for the modern web.
             </h1>
             <p className="text-base sm:text-xl text-black/60 dark:text-white/60 mb-8 max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">
-              mi. is a hyper-lightweight browser that replaces bulky toolbars with a single, intelligent Pill. Built natively in Kotlin with Material 3 Expressive. Fast, private, and deeply customizable.
+              A simple, private browser built around one idea: everything you need is in a single Pill at the bottom of the screen. Search, switch tabs and go back with a swipe, while ads and trackers are blocked for you. Follow prices, keep any site on your home screen as its own app, and browse privately whenever you want.
             </p>
             <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
               <a href="#download" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-blue-500/25 transition-all active:scale-95">

@@ -40,6 +40,7 @@ fun SwitcherPanel.sheet(library: com.jlees.mibrowser.data.LibraryPage) = when (t
         com.jlees.mibrowser.data.LibraryPage.BOOKMARKS -> Sheet.BOOKMARKS
         com.jlees.mibrowser.data.LibraryPage.DOWNLOADS -> Sheet.DOWNLOADS
         com.jlees.mibrowser.data.LibraryPage.FOLLOWING -> Sheet.FOLLOWING
+        com.jlees.mibrowser.data.LibraryPage.EXTENSIONS -> Sheet.EXTENSIONS
     }
     SwitcherPanel.SETTINGS -> Sheet.SETTINGS
     SwitcherPanel.HISTORY -> Sheet.HISTORY
@@ -47,7 +48,7 @@ fun SwitcherPanel.sheet(library: com.jlees.mibrowser.data.LibraryPage) = when (t
 
 /** The panel an overlay page belongs to (null: not one of them, e.g. Site settings). */
 fun panelOf(view: Sheet): SwitcherPanel? = when (view) {
-    Sheet.BOOKMARKS, Sheet.DOWNLOADS, Sheet.FOLLOWING -> SwitcherPanel.LIBRARY
+    Sheet.BOOKMARKS, Sheet.DOWNLOADS, Sheet.FOLLOWING, Sheet.EXTENSIONS -> SwitcherPanel.LIBRARY
     Sheet.HISTORY, Sheet.RECENTLY_CLOSED -> SwitcherPanel.HISTORY
     Sheet.SETTINGS -> SwitcherPanel.SETTINGS
     else -> null

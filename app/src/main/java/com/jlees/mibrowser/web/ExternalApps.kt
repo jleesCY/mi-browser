@@ -8,16 +8,34 @@ import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ButtonStyle
 import com.jlees.mibrowser.logic.displayHost
 
+/** How long after another app opens a tab its page may hand back to an app without a tap (a sign-in, done). */
+const val APP_HANDBACK_MS = 10 * 60_000L
+
+/**
+ * Whether a page may open an app without a tap: only in a tab another app opened, within [APP_HANDBACK_MS], and only
+ * that app (ExternalApps launches it by package). A sign-in started from an app (Slack's "sign in with your
+ * organization") ends with the site sending you back to the app by itself, as in Chrome; a site can't use it to open
+ * any other app. Anywhere else, opening an app takes a tap and a yes.
+ */
+fun mayOpenAppUntapped(openedByAppAt: Long, now: Long) = openedByAppAt > 0 && now - openedByAppAt in 0..APP_HANDBACK_MS
+
 /** Links that leave the browser for another app, and what happens when no app can take them. */
 class ExternalApps(private val activity: Activity, private val vm: BrowserViewModel) {
     /**
-     * Links to other apps (tel:, mailto:, market:, intent://…). Pages can only trigger this from a user tap, and the
-     * user confirms before another app opens. Without a tap, an intent:// link may still fall back to its web URL.
+     * Links to other apps (tel:, mailto:, market:, intent://…) from tab [tabId]. From a tap, the user confirms before
+     * another app opens. Without one, only a tab another app just opened may hand back to that app (mayOpenAppUntapped),
+     * once, straight away; otherwise an intent:// link may still fall back to its web URL.
      */
-    fun open(url: String, gesture: Boolean) {
+    fun open(url: String, gesture: Boolean, tabId: String? = null) {
         val isIntent = url.startsWith("intent:") || url.contains("#Intent;")
         if (!gesture) {
-            if (isIntent) fallbackUrl(url)?.let { vm.loadInTab(vm.tabs.activeId, it) }
+            val tab = vm.tabs.list.firstOrNull { it.id == tabId }
+            val app = tab?.openedByApp
+            if (app != null && mayOpenAppUntapped(tab.openedByAppAt, System.currentTimeMillis()) && launch(url, isIntent, app)) {
+                vm.tabs.update(tab.id) { copy(openedByAppAt = 0) } // once: a page can't keep opening it
+                return
+            }
+            if (isIntent) fallbackUrl(url)?.let { vm.loadInTab(tabId ?: vm.tabs.activeId, it) }
             return
         }
         val target = if (isIntent) Regex("package=([^;]+)").find(url)?.groupValues?.get(1) ?: "another app"
@@ -38,6 +56,14 @@ class ExternalApps(private val activity: Activity, private val vm: BrowserViewMo
             onCancel = {},
         )
     }
+
+    /** Opens [url] in app [pkg] only, without asking (a hand-back to the app that sent you here); false if it can't take it. */
+    private fun launch(url: String, isIntent: Boolean, pkg: String): Boolean = runCatching {
+        val intent = if (isIntent) Intent.parseUri(url, Intent.URI_INTENT_SCHEME).apply { component = null; selector = null }
+        else Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        if (intent.`package` != null && intent.`package` != pkg) return false // a link for another app
+        activity.startActivity(intent.setPackage(pkg).addCategory(Intent.CATEGORY_BROWSABLE))
+    }.isSuccess
 
     private fun fallbackUrl(intentUrl: String) = Regex("browser_fallback_url=([^;]+)").find(intentUrl)
         ?.let { Uri.decode(it.groupValues[1]) }?.takeIf { it.startsWith("http://") || it.startsWith("https://") }

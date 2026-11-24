@@ -37,6 +37,10 @@ data class TabItem(
     /** Set for a window a page opened (window.open / target=_blank): the tab that opened it. Its page talks to the
      *  opener (window.opener, postMessage) and window.close() returns there. Not kept across restarts. */
     @Transient val openerId: String? = null,
+    /** The app that opened this tab with a link, and when (0: none). For a while its page may hand back to that app
+     *  without a tap, as a sign-in started from an app ends by returning to it (see mayOpenAppUntapped). */
+    @Transient val openedByApp: String? = null,
+    @Transient val openedByAppAt: Long = 0,
     /** The address was typed without a scheme and opened over https; if https can't connect, retry over http. */
     @Transient val httpFallback: Boolean = false,
     /** Bumped to force the WebView to load requestedUrl even if unchanged. */

@@ -1,5 +1,6 @@
 package com.jlees.mibrowser.find
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -59,18 +60,22 @@ fun FindPillContent(find: FindInPage, cornerRadius: Int) {
                 decorationBox = { inner -> Box { if (find.query.isEmpty()) Txt("Find in page", 16f, ui.cs.onSurfaceVariant, ui.semibold); inner() } },
             )
             // "2/7" while there are matches, "0/0" in the error colour when the text isn't on the page
+            // and shakes once when the text stops being found
+            val shake = shakeOffset(find.query.isNotEmpty() && find.total == 0)
             if (find.query.isNotEmpty()) Txt(
                 "${find.current}/${find.total}", 14f,
                 if (find.total == 0) ui.cs.error else ui.cs.onSurfaceVariant, ui.bold,
-                Modifier.padding(end = 14.dp), maxLines = 1,
+                Modifier.padding(end = 14.dp).graphicsLayer { translationX = shake.dp.toPx() }, maxLines = 1,
             )
         }
         val enabled = find.total > 0 || find.query.isNotEmpty()
         IconButton(onClick = { find.next(false) }, enabled = enabled) { Sym("keyboard_arrow_up", 26f, ui.cs.onSurface.copy(alpha = if (enabled) 1f else 0.38f), label = "Previous match") }
         IconButton(onClick = { find.next(true) }, enabled = enabled) { Sym("keyboard_arrow_down", 26f, ui.cs.onSurface.copy(alpha = if (enabled) 1f else 0.38f), label = "Next match") }
-        Box(
-            Modifier.size(40.dp).clip(CircleShape).background(ui.cs.secondaryContainer).clickable { close() },
-            contentAlignment = Alignment.Center,
-        ) { Sym("close", 22f, ui.cs.onSecondaryContainer, label = "Close find") }
+        // 48dp to tap, the filled circle 40dp inside it
+        Box(Modifier.size(48.dp).clip(CircleShape).clickable { close() }, contentAlignment = Alignment.Center) {
+            Box(Modifier.size(40.dp).clip(CircleShape).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) {
+                Sym("close", 22f, ui.cs.onSecondaryContainer, label = "Close find")
+            }
+        }
     }
 }

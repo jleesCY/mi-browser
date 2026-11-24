@@ -66,7 +66,7 @@ private fun FilterListsItem(vm: BrowserViewModel) {
         scope.launch {
             val ok = AdBlock.updateIfStale(ctx.applicationContext, force = true)
             updating = false
-            android.widget.Toast.makeText(ctx, if (ok) "Filter lists updated" else "Couldn't download the filter lists", android.widget.Toast.LENGTH_SHORT).show()
+            com.jlees.mibrowser.ui.common.Notices.show(if (ok) "Filter lists updated" else "Couldn't download the filter lists", done = ok)
         }
     })
 }

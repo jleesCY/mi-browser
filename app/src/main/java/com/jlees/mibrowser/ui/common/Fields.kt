@@ -1,6 +1,8 @@
 // Text fields shared by dialogs and sheets.
 package com.jlees.mibrowser.ui.common
 
+import androidx.compose.ui.draw.clip
+
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -62,7 +64,22 @@ fun ClearableField(
                 }
             },
         )
-        if (value.isNotEmpty()) Box(Modifier.touchable { onChange(""); fr.requestFocus() }) { Sym("cancel", 20f, ui.cs.onSurfaceVariant, label = "Clear") }
+        ClearButton(value.isNotEmpty()) { onChange(""); fr.requestFocus() }
+    }
+}
+
+/** A field's clear (×): 48dp to tap, it pops in when there's text and out when there isn't. */
+@Composable
+fun ClearButton(visible: Boolean, onClear: () -> Unit) {
+    val ui = LocalUi.current
+    androidx.compose.animation.AnimatedVisibility(
+        visible,
+        enter = androidx.compose.animation.fadeIn(Motion.enter(150)) + androidx.compose.animation.scaleIn(Motion.enter(200), initialScale = 0.6f),
+        exit = androidx.compose.animation.fadeOut(Motion.exit(100)) + androidx.compose.animation.scaleOut(Motion.exit(100), targetScale = 0.6f),
+    ) {
+        Box(Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape).touchable(onClick = onClear), contentAlignment = Alignment.Center) {
+            Sym("cancel", 20f, ui.cs.onSurfaceVariant, label = "Clear")
+        }
     }
 }
 
@@ -70,7 +87,7 @@ fun ClearableField(
 @Composable
 fun SheetSearchField(
     value: String, onChange: (String) -> Unit,
-    trailing: (@Composable () -> Unit)? = null, onFocus: (Boolean) -> Unit = {}, autoFocus: Boolean = false,
+    trailing: (@Composable () -> Unit)? = null, onFocus: (Boolean) -> Unit = {}, autoFocus: Boolean = false, placeholder: String = "Search",
 ) {
     val ui = LocalUi.current
     val fr = remember { FocusRequester() }
@@ -87,7 +104,7 @@ fun SheetSearchField(
             value, onChange, Modifier.weight(1f).focusRequester(fr).onFocusChanged { onFocus(it.isFocused) }, singleLine = true,
             textStyle = TextStyle(color = ui.cs.onSurface, fontFamily = ui.font, fontWeight = ui.semibold, fontSize = 16.sp),
             cursorBrush = SolidColor(ui.cs.primary),
-            decorationBox = { inner -> Box { if (value.isEmpty()) Txt("Search", 16f, ui.cs.onSurfaceVariant, ui.semibold, scaled = false); inner() } },
+            decorationBox = { inner -> Box { if (value.isEmpty()) Txt(placeholder, 16f, ui.cs.onSurfaceVariant, ui.semibold, scaled = false); inner() } },
         )
         if (value.isNotEmpty()) IconButton(onClick = { onChange(""); fr.requestFocus() }) { Sym("close", 22f, ui.cs.onSurfaceVariant, label = "Clear") }
         else trailing?.invoke()

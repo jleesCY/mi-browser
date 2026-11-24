@@ -61,7 +61,14 @@ class ContentBlocker(private val settings: () -> Settings, private val sessionAl
      * Element hiding on [wv]: [script] (assets/js/cosmetic-filter.js) asks, per frame, what to hide on its host;
      * a selector the page rejects is reported back ("bad:") and dropped. Needs the listener and start-script features.
      */
-    fun attach(wv: WebView, tabId: String, script: String) {
+    fun attach(wv: WebView, tabId: String, script: String, scriptlets: String) {
+        // scriptlets: each frame asks, as it starts, which run on its site (assets/js/scriptlets.js), and is answered at
+        // once, before the page's own scripts; the answer is public filter-list data, so any page may ask
+        val app = wv.context.applicationContext
+        wv.addJavascriptInterface(object {
+            @android.webkit.JavascriptInterface fun get(host: String): String = AdBlock.scriptletsFor(host, settingsFor(tabId), app)
+        }, "miScriptlets")
+        WebViewCompat.addDocumentStartJavaScript(wv, scriptlets, setOf("*"))
         WebViewCompat.addWebMessageListener(wv, "miAdBlock", setOf("*")) { _, message, origin, isMainFrame, reply ->
             val host = origin.host ?: return@addWebMessageListener
             val data = message.data.orEmpty()

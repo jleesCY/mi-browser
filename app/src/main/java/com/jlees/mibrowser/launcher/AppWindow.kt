@@ -58,8 +58,33 @@ class AppWindow : ComponentActivity() {
     private val settings by lazy { JsonStore(File(filesDir, "store")).read("settings", Settings.serializer()) ?: Settings() }
     private val scripts by lazy { PageScripts(this) }
     private val blocker by lazy { ContentBlocker({ settings }) }
+    /** Files the page makes itself, saved into Downloads (mi's Downloads page lists them once mi next has them: not here). */
+    private val blobs by lazy {
+        com.jlees.mibrowser.downloads.BlobDownloads(this, { settings.downloadFolder },
+            onSaved = { android.widget.Toast.makeText(this, "Saved ${it.fileName} to Downloads", android.widget.Toast.LENGTH_SHORT).show() },
+            onFailed = { android.widget.Toast.makeText(this, "Couldn't save $it", android.widget.Toast.LENGTH_SHORT).show() })
+    }
+    private lateinit var pull: android.widget.ImageView
     private var video: View? = null
     private var videoDone: WebChromeClient.CustomViewCallback? = null
+
+    // permissions a page asks for: what this window was allowed (until it closes), and Android's own prompt
+    private val allowed = HashSet<String>()
+    private var onAndroid: ((Boolean) -> Unit)? = null
+    private val askAndroid = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r -> onAndroid?.invoke(r.values.any { it }); onAndroid = null }
+
+    /** Asks whether the site may use [what] (once a window), then Android's [perms] if mi hasn't got them; [grant] or [deny]. */
+    private fun ask(what: String, perms: Array<String>, grant: () -> Unit, deny: () -> Unit) {
+        val go = {
+            val missing = perms.filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+            if (missing.isEmpty()) grant() else { onAndroid = { ok -> if (ok) grant() else deny() }; askAndroid.launch(missing.toTypedArray()) }
+        }
+        if (what in allowed) { go(); return }
+        android.app.AlertDialog.Builder(this).setTitle(title).setMessage("Allow this site to use your $what?")
+            .setPositiveButton("Allow") { _, _ -> allowed += what; go() }
+            .setNegativeButton("Don't Allow") { _, _ -> deny() }
+            .setOnCancelListener { deny() }.show()
+    }
 
     // file uploads (FileChooser, shared with the browser window)
     private var resultCallback: ((ActivityResult) -> Unit)? = null
@@ -75,7 +100,10 @@ class AppWindow : ComponentActivity() {
 
         // pages see light or dark (prefers-color-scheme) from the theme they're made with, as in the browser window
         val themed = android.view.ContextThemeWrapper(this, if (settings.darkFor(resources.configuration)) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)
-        web = WebView(themed)
+        // mi's WebView: pull down from the top of the page to reload (a page that didn't load has no other way back)
+        web = com.jlees.mibrowser.web.MiWebView(themed, incognito = false, pullEnabled = { settings.pullToRefresh },
+            onPull = { p -> pull.alpha = p.coerceAtMost(1f); pull.translationY = p * 48 * resources.displayMetrics.density; pull.rotation = p * 270f },
+            onRefresh = { web.reload() })
         with(web.settings) {
             javaScriptEnabled = settings.jsEnabled
             domStorageEnabled = true
@@ -93,21 +121,24 @@ class AppWindow : ComponentActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, !settings.blockCookies && !settings.blockThirdPartyCookies)
         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) WebSettingsCompat.setAlgorithmicDarkeningAllowed(web.settings, settings.darkenPages)
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))
-            blocker.attach(web, KEY, scripts.cosmeticFilter) // ad and cookie-banner hiding, as in mi
+            { blocker.attach(web, KEY, scripts.cosmeticFilter, scripts.scriptlets); blobs.attach(web, scripts.blobDownload) } // ad hiding, and files the page makes
+        web.setOnLongClickListener { linkMenu() }
         web.webViewClient = Client()
         web.webChromeClient = Chrome()
-        // downloads: mi's browser window downloads them (its downloader, its Downloads page)
-        web.setDownloadListener { url, _, _, _, _ -> toMi(url) }
+        // downloads: a file the page made itself is handed over and saved here; anything else, mi's browser window
+        // downloads (its downloader and Downloads page)
+        web.setDownloadListener { url, _, _, _, _ -> if (url.startsWith("blob:") || url.startsWith("data:")) blobs.fetch(web, url, false) else toMi(url) }
 
         // the page between the status and navigation bars; the space behind them in the site's colour (set as it loads)
         root = FrameLayout(this).apply { addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)) }
+        pull = pullMark(settings.darkFor(resources.configuration))
+        root.addView(pull, FrameLayout.LayoutParams(dp(40), dp(40), android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(8) })
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom); insets
         }
         setContentView(root)
-        // turns with the phone, as mi does, unless Rotate Screen is off
-        requestedOrientation = if (settings.rotateScreen) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        turn(fullscreen = false)
         colour(if (settings.darkFor(resources.configuration)) Color.BLACK else Color.WHITE)
 
         // Back goes back through the page; at its first page the window goes to the background, kept in Recents (as apps do)
@@ -121,13 +152,50 @@ class AppWindow : ComponentActivity() {
         if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) web.loadUrl(start)
     }
 
+    /** Turns with the phone, as mi does, unless Rotate Screen is off; full-screen video always turns, as in mi. */
+    private fun turn(fullscreen: Boolean) {
+        requestedOrientation = if (fullscreen || settings.rotateScreen) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    /** The refresh mark a pull shows: a round button-like mark, hidden until the page is pulled. */
+    private fun pullMark(dark: Boolean) = android.widget.ImageView(this).apply {
+        setImageResource(com.jlees.mibrowser.R.drawable.sym_refresh)
+        setColorFilter(if (dark) 0xFFA8C7FA.toInt() else 0xFF0B57D0.toInt())
+        background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(if (dark) 0xFF2B2C33.toInt() else Color.WHITE) }
+        setPadding(dp(8), dp(8), dp(8), dp(8)); elevation = dp(4).toFloat(); alpha = 0f
+    }
+
     /** The site's [color]: behind the status and navigation bars (their icons dark or light to read on it) and on its Recents card. */
     private fun colour(color: Int) {
         val solid = color or (0xFF shl 24)
         root.setBackgroundColor(solid)
         val light = ColorUtils.calculateLuminance(solid) > 0.5
         WindowCompat.getInsetsController(window, window.decorView).apply { isAppearanceLightStatusBars = light; isAppearanceLightNavigationBars = light }
-        @Suppress("DEPRECATION") setTaskDescription(ActivityManager.TaskDescription(title, Favicons.bitmapFor(start), solid))
+        @Suppress("DEPRECATION") setTaskDescription(ActivityManager.TaskDescription(title, icon, solid))
+    }
+
+    /**
+     * The site's icon for the Recents card, read from its stored file: mi's icon list (Favicons) is only loaded once
+     * the browser window has run, which it may not have (the pin opened with mi closed). Else mi's own.
+     */
+    private val icon by lazy {
+        com.jlees.mibrowser.logic.faviconHost(start)?.let { host -> runCatching { android.graphics.BitmapFactory.decodeFile(File(filesDir, "favicons/$host.png").path) }.getOrNull() }
+    }
+
+    /** A link held: open it in mi, copy it or share it. False (the page's own long-press) for anything else. */
+    private fun linkMenu(): Boolean {
+        val hit = web.hitTestResult
+        val url = hit.extra?.takeIf { hit.type == WebView.HitTestResult.SRC_ANCHOR_TYPE && (it.startsWith("http://") || it.startsWith("https://")) } ?: return false
+        android.app.AlertDialog.Builder(this).setTitle(displayHost(url)).setItems(arrayOf("Open in mi", "Copy Link", "Share")) { _, i ->
+            when (i) {
+                0 -> toMi(url)
+                1 -> getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText("Link", url))
+                else -> runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url), null)) }
+            }
+        }.show()
+        return true
     }
 
     /** Opens [url] in mi's browser window (another site, a download). */
@@ -138,13 +206,15 @@ class AppWindow : ComponentActivity() {
             val url = request.url.toString()
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 // a link you tapped to another site: mi's browser window (sign-ins stay here: leavesApp)
-                if (request.isForMainFrame && leavesApp(start, url, request.hasGesture(), request.isRedirect)) { toMi(url); return true }
+                if (request.isForMainFrame && leavesApp(start, view.url, url, request.hasGesture(), request.isRedirect)) { toMi(url); return true }
                 return false
             }
             // other apps (tel:, mailto:, maps, intent:…), only from a tap, and only to apps that open web links' kind
-            if (request.hasGesture()) runCatching {
-                val intent = if (url.startsWith("intent:")) Intent.parseUri(url, Intent.URI_INTENT_SCHEME) else Intent(Intent.ACTION_VIEW, request.url)
-                startActivity(intent.addCategory(Intent.CATEGORY_BROWSABLE).apply { component = null; selector = null })
+            if (request.hasGesture()) {
+                val intent = runCatching { if (url.startsWith("intent:")) Intent.parseUri(url, Intent.URI_INTENT_SCHEME) else Intent(Intent.ACTION_VIEW, request.url) }.getOrNull()
+                val opened = intent != null && runCatching { startActivity(Intent(intent).addCategory(Intent.CATEGORY_BROWSABLE).apply { component = null; selector = null }) }.isSuccess
+                // the app isn't there: the web address the link gives for that case, if any
+                if (!opened) intent?.getStringExtra("browser_fallback_url")?.takeIf { it.startsWith("https://") || it.startsWith("http://") }?.let { view.loadUrl(it) }
             }
             return true
         }
@@ -175,14 +245,32 @@ class AppWindow : ComponentActivity() {
             video = view; videoDone = callback
             (window.decorView as ViewGroup).addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.systemBars())
+            turn(fullscreen = true)
         }
 
         override fun onHideCustomView() {
             video?.let { (window.decorView as ViewGroup).removeView(it) }
             video = null; videoDone = null
             WindowCompat.getInsetsController(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
+            turn(fullscreen = false)
         }
-        // camera, microphone and location requests are declined (WebChromeClient's default) for now
+
+        // camera and microphone (a call, a scanner): asked once per window, then Android's own permission if mi lacks it
+        override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
+            val cam = android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE in request.resources
+            val mic = android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE in request.resources
+            val grantable = request.resources.filter { it == android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE || it == android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE }.toTypedArray()
+            if (grantable.isEmpty()) { request.deny(); return }
+            val what = when { cam && mic -> "camera and microphone"; cam -> "camera"; else -> "microphone" }
+            val perms = listOfNotNull(android.Manifest.permission.CAMERA.takeIf { cam }, android.Manifest.permission.RECORD_AUDIO.takeIf { mic }).toTypedArray()
+            runOnUiThread { ask(what, perms, { request.grant(grantable) }, { request.deny() }) }
+        }
+
+        // location (a map, a store finder): the same
+        override fun onGeolocationPermissionsShowPrompt(origin: String, callback: android.webkit.GeolocationPermissions.Callback) {
+            ask("location", arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION),
+                { callback.invoke(origin, true, false) }, { callback.invoke(origin, false, false) })
+        }
     }
 
     override fun onStart() { super.onStart(); PageTimers.appWindows++; PageTimers.apply(web) }

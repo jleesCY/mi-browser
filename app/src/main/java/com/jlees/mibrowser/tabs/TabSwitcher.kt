@@ -343,10 +343,15 @@ fun TabSwitcher(
         }
         // tab menu: a tall card above the bottom bar, growing out of the ⋮ button
         if (vm.isSubMenuVisible) Box(Modifier.fillMaxSize().blockTouches { vm.isSubMenuVisible = false })
+        // it grows out of (and shrinks back into) the ⋮ button: that's the Pill's third button, ~81% across it
+        val screenW = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+        val menuW = minOf(screenW, with(density) { COMFORTABLE_WIDTH.dp.toPx() })
+        val dots = vm.switcher.barPill?.let { it.left + it.width * 0.81f }
+        val from = TransformOrigin(dots?.let { ((it - (screenW - menuW) / 2) / menuW).coerceIn(0f, 1f) } ?: 0.5f, 1f)
         androidx.compose.animation.AnimatedVisibility(
             vm.isSubMenuVisible, Modifier.align(Alignment.BottomCenter),
-            enter = fadeIn(tween(120)) + scaleIn(Motion.noBounce(), initialScale = 0.85f, transformOrigin = TransformOrigin(0.5f, 1f)),
-            exit = fadeOut(tween(120)) + scaleOut(tween(150), targetScale = 0.9f, transformOrigin = TransformOrigin(0.5f, 1f)),
+            enter = fadeIn(tween(120)) + scaleIn(Motion.noBounce(), initialScale = 0.85f, transformOrigin = from),
+            exit = fadeOut(Motion.exit(100)) + scaleOut(Motion.exit(120), targetScale = 0.9f, transformOrigin = from),
         ) {
             CompositionLocalProvider(LocalPan provides vm.settings.pans(com.jlees.mibrowser.data.PanArea.TAB_MENU)) { // long tool names pan, if picked
                 TabMenu(vm, Modifier.widthIn(max = COMFORTABLE_WIDTH.dp).fillMaxSize().padding(top = statusDp.dp + 16.dp, bottom = navDp.dp + 88.dp, start = 12.dp, end = 12.dp))

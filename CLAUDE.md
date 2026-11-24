@@ -15,12 +15,12 @@ one line in BrowserViewModel and its rows in the Settings section files) should 
 
 | Package | Owns |
 |---|---|
-| `adblock/` | filter engine, content blocker (WebView hooks), tracking-parameter cleaning |
+| `adblock/` | filter engine, content blocker (WebView hooks), scriptlets (ScriptletRules + assets/js/scriptlets.js, from uBlock Origin's lists), tracking-parameter cleaning |
 | `search/` | engines, `!` shortcuts, suggestions, Pill highlighting of shortcuts, the Add search shortcut dialog |
 | `incognito/` | WebView profiles, screen/keyboard protections, notification, toggle |
 | `tabs/` | TabsStore, TabRules, per-tab back/forward stack, tab switcher and its search, the switcher Pill's layout (SwitcherLayout) |
 | `library/` | HistoryStore, BookmarksStore (favorites are the bookmarks in its Favorites folder), their rules, bookmark file import/export (Netscape HTML), History and Bookmarks screens |
-| `downloads/` | mi's downloader (engine, foreground service, notifications), DownloadsStore, the download prompt and other handlers, Downloads page |
+| `downloads/` | mi's downloader (engine, foreground service, notifications), DownloadsStore, the download prompt and other handlers, BlobDownloads (files a page makes itself, handed over by blob-download.js), Downloads page |
 | `sites/` | Site settings page (one site's permissions, pop-ups, ad blocking, data), opened from the tab menu |
 | `answers/` | inline answers in the Pill (math, unit conversions, number bases, time and date, coin and dice): the rules, the answer row |
 | `follow/` | Following prices: FollowStore (follows, price history, the changes found), FollowRules (price parsing, product data, alerts), PriceChecker (quick fetch, else a hidden page load in its own profile), FollowJob (background checks via JobScheduler), FollowNotifier, FollowWidget (home-screen widget), the page hook (follow-detect.js), Library › Following, the follow and product sheets |
@@ -29,7 +29,8 @@ one line in BrowserViewModel and its rows in the Settings section files) should 
 | `qr/` | scanner and generator |
 | `media/` | background playback (page media script, media notification service), picture-in-picture |
 | `launcher/` | launcher shortcuts, search widget, home-screen pins (opened as apps: AppWindow, a window and Recents card of their own), app mode for a tab (no Pill; a notification turns it off) |
-| `update/` | GitHub release checks and installs |
+| `extensions/` | the extension engine (WebExtensions on WebView): ExtensionRules (manifests, match patterns, API scan, the Works / Might Have Problems / Not Recommended rating), ExtensionPackage (.xpi/.crx), ExtensionsStore (installed, chrome.storage), ExtensionEngine (where extension code runs, messages, events), ExtensionApi (the API calls), ExtensionPages (backgrounds, offscreen pages and popups in WebViews, serving files), ExtensionTabs (content scripts in tabs), ExtensionRequests + ExtensionNetRules (webRequest, declarativeNetRequest), ExtensionScripting (scripts registered while running, privacy), ExtensionNavigation (webNavigation), ExtensionPlatform (cookies, sign-in, side panels, downloads and other browser APIs), ExtensionMenus (contextMenus), ExtensionSockets (extensions' WebSockets), ExtensionInstaller (Firefox Add-ons, Chrome Web Store), Library › Extensions (ExtensionsLibrary) and the other screens; page JS in assets/js/ext-*.js |
+| `update/` | GitHub release checks and installs, What's New (the release notes shown after every update) |
 | `onboarding/` | the Gesture Walkthrough (hands-on gesture tour, shown once to every user) |
 
 Shared plumbing, used by several features, stays in the shell packages:
@@ -100,10 +101,12 @@ A file in a shell package that serves only one feature is in the wrong place.
 4. Add its settings to the section file(s) in `ui/settings/` where they appear; a new section gets its own file, listed in SettingsView and in one of the main page's `headings` there.
 5. Put WebView behaviour in its own class, delegated from WebViewHost.
 6. Apply the `keepsTraces` rule to anything recorded.
-7. Write tests, then build and run on the emulator `mi_test` (never the user's phone).
+7. Write tests, then build and run on mi-browser's own emulator, `mi_browser_test` (emulator-5556; never the shared `mi_test`, never the user's phone).
 8. Update the package table in §1 of this file if packages changed.
 
 ## Project rules
+- The mi. logo inside the app (`MiLogo`: home page, tab cards, the walkthrough) is drawn in the text colour
+  (`onSurface`), never the app icon's Sky blue `#3D9BFF`. The rest of the app is coloured by the Accent setting (default: the same Sky blue).
 - Versioning: MAJOR = massive changes, MINOR = significant features, PATCH = fixes/QoL.
 - Commit or push only when asked. Never commit or print `keystore.properties` or `*.jks`.
 - Debug builds are slow on the emulator. Judge performance on release builds.

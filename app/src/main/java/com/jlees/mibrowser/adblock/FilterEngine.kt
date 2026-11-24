@@ -11,7 +11,8 @@ import java.net.URL
 /**
  * One set of Adblock Plus rules. Network rules: plain "||host^" rules (and hosts-file entries) are hash lookups; other
  * patterns are indexed by their longest safe keyword, so a URL is only checked against rules sharing one of its words.
- * Rules needing what WebView can't offer (popups, CSP, redirects, header or parameter rewriting, scriptlets) are skipped.
+ * Rules needing what WebView can't offer (popups, CSP, redirects, header or parameter rewriting) are skipped; scriptlets
+ * ("##+js(…)") are ScriptletRules' (taken from uBlock Origin's lists).
  */
 class FilterEngine {
     private val blockHosts = HashSet<String>()

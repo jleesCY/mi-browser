@@ -52,7 +52,7 @@ fun lookAndFeelSection(vm: BrowserViewModel): SettingsSection {
         SettingsRow(area.label, "pan overflowed long text scroll marquee ${area.label.lowercase()}") {
             val icon = when (area) {
                 PanArea.SETTINGS -> "settings"; PanArea.TAB_MENU -> "apps"; PanArea.BOOKMARKS -> "bookmarks"; PanArea.DOWNLOADS -> "download"
-                PanArea.FOLLOWING -> "sell"; PanArea.HISTORY -> "history"; PanArea.SUGGESTIONS -> "search"
+                PanArea.FOLLOWING -> "sell"; PanArea.HISTORY -> "history"; PanArea.SUGGESTIONS -> "search"; PanArea.EXTENSIONS -> "extension"
             }
             SwitchItem(icon, area.label, null, area in s.panAreas) { on -> set { copy(panAreas = if (on) panAreas + area else panAreas - area) } }
         }

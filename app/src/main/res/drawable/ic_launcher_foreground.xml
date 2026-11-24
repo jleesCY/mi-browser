@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- mi. Browser's icon, "You are here": the world in the app's sky blue (#3D9BFF), with mi.'s dot on it (you), cut out from the globe
+     by a ring of the icon's near-black. Drawn on a 100-unit grid, scaled to 46.7dp and centred on the 108dp adaptive
+     canvas, so it fills 70% of the visible circle like every mi. app's glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="30.67" android:translateY="30.67" android:scaleX="0.467" android:scaleY="0.467">
+        <path android:fillColor="#FF3D9BFF" android:pathData="M12,50 a38,38 0 1,0 76,0 a38,38 0 1,0 -76,0 Z" />
+        <group>
+            <clip-path android:pathData="M12,50 a38,38 0 1,0 76,0 a38,38 0 1,0 -76,0 Z" />
+            <!-- the equator and two meridians -->
+            <path android:strokeColor="#FF0D0D0F" android:strokeWidth="5" android:strokeLineCap="round"
+                android:pathData="M12,50 H88 M50,12 C29,31 29,69 50,88 M50,12 C71,31 71,69 50,88" />
+        </group>
+        <!-- you: mi.'s dot (r 12 at 78,78, off-centre at the bottom right on every mi. icon; the globe itself is centred), with a ring of background around it -->
+        <path android:fillColor="#FF0D0D0F" android:pathData="M58,78 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0 Z" />
+        <path android:fillColor="#FF3D9BFF" android:pathData="M66,78 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+    </group>
+</vector>

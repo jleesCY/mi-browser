@@ -4,19 +4,8 @@
 // stay pinned at the bottom throughout.
 package com.jlees.mibrowser.follow
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -24,17 +13,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.SettingsTarget
 import com.jlees.mibrowser.Sheet
@@ -45,26 +24,13 @@ import com.jlees.mibrowser.ui.common.*
 import com.jlees.mibrowser.ui.settings.Item
 import com.jlees.mibrowser.ui.settings.SwitchItem
 import kotlin.math.abs
-import kotlin.math.min
-import kotlinx.coroutines.launch
 
 @Composable
-fun BoxScope.ProductPanel(vm: BrowserViewModel) {
-    val open = FollowFlow.open?.let { vm.follows[it] }
-    // the last one shown stays drawn while the panel slides away
-    val last = remember { arrayOfNulls<Follow>(1) }
-    if (open != null) last[0] = open
-    val slide = remember { Animatable(1f) } // 1: below the screen, 0: in place
-    LaunchedEffect(open != null) { slide.animateTo(if (open != null) 0f else 1f, tween(320, easing = FastOutSlowInEasing)) }
-    val f = open ?: last[0] ?: return
-    if (open == null && slide.value >= 1f) { last[0] = null; return }
-    Panel(vm, f, slide.value)
-}
+fun BoxScope.ProductPanel(vm: BrowserViewModel) =
+    SlidingPanel(FollowFlow.open?.let { vm.follows[it] }) { f, hidden -> Panel(vm, f, hidden) }
 
 @Composable
 private fun BoxScope.Panel(vm: BrowserViewModel, f: Follow, hidden: Float) {
-    val ui = LocalUi.current
-    val density = LocalDensity.current
     val o = remember(f.id) { Options(f) }
     val checking = f.id in FollowFlow.checking
     fun close() {
@@ -73,85 +39,7 @@ private fun BoxScope.Panel(vm: BrowserViewModel, f: Follow, hidden: Float) {
         vm.follows.markRead(f.id)
         FollowFlow.open = null
     }
-    BackHandler(FollowFlow.open != null) { close() }
-
-    BoxWithConstraints(Modifier.fillMaxSize().zIndex(300f)) {
-        val statusPx = with(density) { WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx() }
-        val maxPx = constraints.maxHeight - statusPx
-        var topPx by remember(f.id) { mutableFloatStateOf(0f) }   // the top part: picture, chart, name… to Check now
-        var barPx by remember { mutableFloatStateOf(0f) }         // the pinned buttons
-        val handlePx = with(density) { 28.dp.toPx() }
-        val minPx = (handlePx + topPx + barPx).coerceAtMost(maxPx)
-        var heightPx by remember(f.id) { mutableFloatStateOf(0f) }
-        if (heightPx == 0f && topPx > 0f && barPx > 0f) heightPx = minPx
-        val min by rememberUpdatedState(minPx)
-        val max by rememberUpdatedState(maxPx)
-        val dismiss by rememberUpdatedState(::close)
-        // let go: closed if pulled well below its first size (or flicked down there), else settled open or at its first
-        // size, the way it was moving
-        suspend fun settle(velocity: Float) {
-            if (heightPx < min && (heightPx < min * 0.75f || velocity > 1500f)) { dismiss(); return }
-            val target = when {
-                heightPx <= min -> min
-                velocity < -300f -> max
-                velocity > 300f -> min
-                else -> if (heightPx > (min + max) / 2) max else min
-            }
-            if (target != heightPx) animate(heightPx, target, animationSpec = tween(220)) { v, _ -> heightPx = v }
-        }
-        val scroll = remember(f.id) { ScrollState(0) }
-        // scrolling up grows the panel to the whole screen before the page scrolls; at the top, scrolling down shrinks it
-        val grow = remember(f.id) {
-            object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                    val dy = available.y
-                    if (dy < 0 && heightPx < max) { val take = min(-dy, max - heightPx); heightPx += take; return Offset(0f, -take) }
-                    return Offset.Zero
-                }
-                // at the top of its page, dragging down shrinks it, and on past its first size (to close)
-                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                    val dy = available.y
-                    val floor = if (source == NestedScrollSource.UserInput) 0f else min // a fling stops at the first size
-                    if (dy > 0 && heightPx > floor) { val take = min(dy, heightPx - floor); heightPx -= take; return Offset(0f, take) }
-                    return Offset.Zero
-                }
-                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                    if (heightPx != max) settle(available.y)
-                    return available
-                }
-            }
-        }
-
-        // behind it, the page dims; a tap there closes it
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - hidden }.background(Color.Black.copy(alpha = 0.5f)).blockTouches { close() })
-
-        Column(
-            Modifier.align(Alignment.BottomCenter).widthIn(max = COMFORTABLE_WIDTH.dp).fillMaxWidth()
-                .then(if (heightPx > 0f) Modifier.height(with(density) { heightPx.toDp() }) else Modifier.heightIn(max = with(density) { maxPx.toDp() }))
-                .graphicsLayer { translationY = hidden * size.height }
-                .background(ui.cs.surfaceContainerLow, RoundedCornerShape(topStart = ui.radius.dp, topEnd = ui.radius.dp))
-                .blockTouches(),
-        ) {
-            // the bar: drag it (or the page) up for the whole screen, down to close
-            val dragScope = rememberCoroutineScope()
-            Box(
-                Modifier.fillMaxWidth().height(28.dp).draggable(
-                    rememberDraggableState { d -> heightPx = (heightPx - d).coerceIn(0f, max) },
-                    Orientation.Vertical,
-                    onDragStopped = { v -> dragScope.launch { settle(v) } },
-                ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(Modifier.size(width = 36.dp, height = 4.dp).background(ui.cs.outlineVariant, RoundedCornerShape(2.dp)))
-            }
-            Column(Modifier.weight(1f, fill = false).nestedScroll(grow).verticalScroll(scroll).padding(horizontal = 20.dp)) {
-                Column(Modifier.onSizeChanged { topPx = it.height.toFloat() }) { Top(vm, f, checking) }
-                Settings(vm, f, o, ::close)
-                Spacer(Modifier.height(24.dp))
-            }
-            Bar(vm, f, ::close, Modifier.onSizeChanged { barPx = it.height.toFloat() })
-        }
-    }
+    ExpandingPanel(f.id, hidden, ::close, top = { Top(vm, f, checking) }, rest = { Settings(vm, f, o, ::close) }) { m -> Bar(vm, f, ::close, m) }
 }
 
 /** The picture and the price history side by side; under them the name, price and stock; then when it was last checked. */

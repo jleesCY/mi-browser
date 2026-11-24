@@ -1,6 +1,7 @@
 // Ad, tracker and cookie-banner blocking: EasyList, EasyPrivacy and the EasyList Cookie List (Adblock Plus syntax) plus
-// the StevenBlack hosts list. Network rules block sub-resource requests; cosmetic rules hide page elements. Lists ship
-// in assets/ and are refreshed weekly (on unmetered networks) into filesDir/filters/.
+// the StevenBlack hosts list. Network rules block sub-resource requests; cosmetic rules hide page elements. uBlock
+// Origin's lists add scriptlets (ScriptletRules): only those are taken from them. Lists ship in assets/ and are
+// refreshed weekly (on unmetered networks) into filesDir/filters/.
 package com.jlees.mibrowser.adblock
 
 import kotlinx.serialization.json.JsonArray
@@ -31,6 +32,12 @@ object AdBlock {
         Source("cookies", "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt"),
     )
     private const val WEEK_MS = 7L * 24 * 60 * 60 * 1000
+    /** uBlock Origin's lists, for their scriptlets (with the files they include): ads, quick fixes, and what unbreaks sites. */
+    private const val UBO = "https://ublockorigin.github.io/uAssets/filters/"
+    private val SCRIPTLET_LISTS = listOf("filters.txt", "quick-fixes.txt", "unbreak.txt")
+
+    /** The scriptlet rules (with the ads setting). Null until loaded. */
+    @Volatile var scriptlets: ScriptletIndex? = null; private set
 
     /** One engine per setting: ads (EasyList + hosts list), trackers (EasyPrivacy), cookie banners. Null until loaded. */
     @Volatile var ads: FilterEngine? = null; private set
@@ -57,6 +64,7 @@ object AdBlock {
         val adEngine = hosts.await().apply { merge(easylist) }
         listOf(adEngine, easyprivacy, cookieList).forEach { it.finish() }
         ads = adEngine; trackers = easyprivacy; cookies = cookieList
+        scriptlets = readScriptlets(ctx)
         listsUpdated = SOURCES.minOf { s -> File(dir(ctx), "${s.id}.txt").takeIf { it.length() > 0 }?.lastModified() ?: bundledTime(ctx) }
     }
 
@@ -89,9 +97,47 @@ object AdBlock {
                 }.getOrDefault(false)
                 if (ok && tmp.renameTo(out)) got++ else tmp.delete()
             }
+            if (downloadScriptlets(ctx)) got++
             if (got > 0) load(ctx)
             got > 0
         }
+    }
+
+    /**
+     * uBlock Origin's lists, with the files they include, kept as their scriptlet lines only ("##+js(…)", "#@#+js(…)"),
+     * their "!#if" sections settled for mi. False if any list couldn't be fetched (the copy in use stays).
+     */
+    private fun downloadScriptlets(ctx: Context): Boolean = runCatching {
+        fun fetch(name: String) = (URL(UBO + name).openConnection() as HttpURLConnection).run {
+            connectTimeout = 15000; readTimeout = 30000
+            if (responseCode != 200) error("$name: $responseCode")
+            inputStream.bufferedReader().readText()
+        }
+        val lines = ArrayList<String>()
+        for (list in SCRIPTLET_LISTS) {
+            val text = fetch(list)
+            val included = Regex("""^!#include ([\w./-]+)$""", RegexOption.MULTILINE).findAll(text).map { it.groupValues[1] }.filterNot { it.contains("..") }
+            for (t in listOf(text) + included.map(::fetch)) preprocessFilterList(t.lineSequence()).filterTo(lines) { "#+js(" in it }
+        }
+        if (lines.size < 1000) return@runCatching false // not the lists (an error page): the copy in use stays
+        val tmp = File(dir(ctx), "scriptlets.tmp")
+        tmp.writeText(lines.joinToString("\n"))
+        tmp.renameTo(File(dir(ctx), "scriptlets.txt"))
+    }.getOrDefault(false)
+
+    private fun readScriptlets(ctx: Context) = ScriptletIndex().apply {
+        val file = File(dir(ctx), "scriptlets.txt")
+        runCatching { (if (file.length() > 0) file.inputStream() else ctx.assets.open("filters/scriptlets.txt")).bufferedReader().useLines { it.forEach(::add) } }
+    }
+
+    /**
+     * The scriptlets for a page or frame on [host], as JSON for assets/js/scriptlets.js: none unless ads are blocked
+     * there. Asked as the page starts, so a page opened before the lists have loaded reads the scriptlet rules then.
+     */
+    fun scriptletsFor(host: String, s: Settings, ctx: Context): String {
+        if (!s.blockAds || s.adAllowlist.any { host == it || host.endsWith(".$it") }) return "[]"
+        val index = scriptlets ?: synchronized(this) { scriptlets ?: readScriptlets(ctx).also { scriptlets = it } }
+        return JSONArray(index.forHost(host).map { JSONArray(listOf(it.name) + it.args) }).toString()
     }
 
     /** The engines [s] turns on for a page on [pageHost]: none on a site you allowed. */

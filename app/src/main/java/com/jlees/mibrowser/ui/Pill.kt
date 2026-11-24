@@ -336,9 +336,7 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusManage
                         },
                     )
                     Row(Modifier.padding(start = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (vm.isInputFocused && tfv.text.isNotEmpty()) {
-                            Box(Modifier.padding(end = 8.dp).touchable { vm.inputUrl = ""; tfv = TextFieldValue(""); focusRequester.requestFocus() }) { Sym("cancel", 20f, ui.cs.onSurfaceVariant, label = "Clear") }
-                        }
+                        ClearButton(vm.isInputFocused && tfv.text.isNotEmpty()) { vm.inputUrl = ""; tfv = TextFieldValue(""); focusRequester.requestFocus() }
                         if (vm.isInputFocused) {
                             Box(Modifier.touchable { focusManager.clearFocus(); vm.submitInput(tfv.text) }) { Sym("search", 22f, ui.cs.primary, label = "Search") }
                         } else if (vm.tabs.current?.isFresh == true && incognitoSupported) {

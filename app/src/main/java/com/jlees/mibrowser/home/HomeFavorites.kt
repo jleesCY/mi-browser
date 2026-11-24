@@ -44,7 +44,7 @@ fun BoxScope.HomeFavorites(vm: BrowserViewModel, onTop: (Float) -> Unit = {}) {
     FavoriteDialog(vm.bookmarks, editing) { editing = null }
     // while typing in the Pill they step aside (fading out): the page shrinks above the keyboard, and the grid would
     // ride up with it into the logo
-    AnimatedVisibility(!vm.isInputFocused, Modifier.matchParentSize(), enter = fadeIn(), exit = fadeOut()) {
+    AnimatedVisibility(!vm.isInputFocused, Modifier.matchParentSize(), enter = fadeIn(Motion.enter(200)), exit = fadeOut(Motion.exit(100))) {
         Box(Modifier.fillMaxSize()) {
             FavoritesGrid(
                 vm.homeFavorites(), onOpen = { vm.navigateTab(it.url, it.title) }, onHold = { editing = it },
@@ -101,11 +101,12 @@ fun BoxScope.FavoritesGrid(
 @Composable
 private fun Tile(fav: BookmarkNode, modifier: Modifier, onOpen: () -> Unit) {
     val ui = LocalUi.current
+    val press = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Column(
-        modifier.height(TILE_HEIGHT).clip(RoundedCornerShape(16.dp))
+        modifier.height(TILE_HEIGHT).pressScale(press).clip(RoundedCornerShape(16.dp))
             // a hold is the grid's (edit, or drag to move; it gives the buzz): with a long-click of its own, letting go
             // after one isn't a tap
-            .combinedClickable(interactionSource = null, indication = ripple(), hapticFeedbackEnabled = false, onLongClick = {}, onClick = onOpen)
+            .combinedClickable(interactionSource = press, indication = ripple(), hapticFeedbackEnabled = false, onLongClick = {}, onClick = onOpen)
             .padding(top = 6.dp, start = 4.dp, end = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

@@ -25,6 +25,7 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.UiEvent
+import com.jlees.mibrowser.extensions.fetchExtension
 import com.jlees.mibrowser.WebCmd
 import com.jlees.mibrowser.adblock.ContentBlocker
 import com.jlees.mibrowser.data.TabItem
@@ -70,6 +71,10 @@ class WebViewHost(
     val media = com.jlees.mibrowser.media.BackgroundMedia(activity.applicationContext, { vm.settings.backgroundAudio }, ::isIncognito,
         { id -> vm.tabs.list.firstOrNull { it.id == id }?.url }) { applyActivity() }
     private val downloads = DownloadPrompt(activity, vm, requestPermissions, launchForResult)
+    /** Files a page makes itself (blob:/data:): saved into Downloads and listed on the Downloads page. */
+    private val blobDownloads = com.jlees.mibrowser.downloads.BlobDownloads(activity, { vm.settings.downloadFolder },
+        onSaved = { item -> vm.downloads.add(item); com.jlees.mibrowser.ui.common.Notices.show("Saved ${item.fileName}", done = true) },
+        onFailed = { name -> com.jlees.mibrowser.ui.common.Notices.show("Couldn't save $name") })
     private val printer = Printer(activity) { id -> destroy(id) }
     internal val externalApps = ExternalApps(activity, vm)
     internal val signIn = SignInChallenges(activity, vm)
@@ -80,6 +85,11 @@ class WebViewHost(
     private val linkMenu = LinkMenu(vm, haptics)
     internal val httpsOnly = HttpsOnly(vm, ::profileOf)
     private val views = HashMap<String, WebView>()
+    /** Installed extensions, running in tabs and in pages of their own (extensions/). */
+    val extensions = com.jlees.mibrowser.extensions.ExtensionEngine(activity.applicationContext, vm).also {
+        it.tabView = { id -> views[id] }
+        com.jlees.mibrowser.extensions.ExtensionFlow.engine = it
+    }
     private val loaded = HashMap<String, Pair<String?, Int>>()
     /** Live WebViews are capped (each is a full page renderer): least recently viewed tabs are evicted, keeping their
      *  back/forward state here so they come back where they were when opened again. */
@@ -101,6 +111,7 @@ class WebViewHost(
     val incognito = IncognitoProfiles(
         tabProfiles = { vm.tabs.list.mapNotNull { it.profile } },
         onEnded = { name ->
+            vm.extensions.forgetScope(name)
             // session state kept per profile goes with it
             popups.forget(name)
             signIn.forget(name)
@@ -194,6 +205,7 @@ class WebViewHost(
     fun destroy(id: String) {
         if (printer.isPrinting(id)) { printer.closeWhenDone(id); views[id]?.let { (it.parent as? ViewGroup)?.removeView(it) }; return }
         blocker.forget(id)
+        extensions.tabs.detach(id)
         var wasIncognito = false
         views.remove(id)?.let { wv ->
             (wv.parent as? ViewGroup)?.removeView(wv)
@@ -301,11 +313,13 @@ class WebViewHost(
         // window.print() and navigator.share for pages (assets/js/bridge.js).
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             WebViewCompat.addWebMessageListener(wv, "miBridge", setOf("*"), bridge.listener(id))
-            blocker.attach(wv, id, scripts.cosmeticFilter)
+            blocker.attach(wv, id, scripts.cosmeticFilter, scripts.scriptlets)
+            blobDownloads.attach(wv, scripts.blobDownload)
             WebViewCompat.addDocumentStartJavaScript(wv, scripts.bridge, setOf("*"))
             // what plays, for background playback and picture-in-picture (assets/js/media.js)
             WebViewCompat.addWebMessageListener(wv, "miMedia", setOf("*"), media.listener(id))
             WebViewCompat.addDocumentStartJavaScript(wv, scripts.media, setOf("*"))
+            extensions.tabs.attach(wv, id, profile, incognito.cookies(wv))
         }
         PageTimers.mainNeeds = appVisible || media.playingTab != null
         PageTimers.apply(wv) // paused while every WebView was gone
@@ -313,10 +327,18 @@ class WebViewHost(
         wv.webChromeClient = TabChromeClient(this, id)
         wv.setOnScrollChangeListener { _, _, y, _, _ -> if (id == vm.tabs.activeId) vm.ui.tryEmit(UiEvent.Scroll(y / density)) }
         wv.setOnLongClickListener { linkMenu.onLongPress(wv) }
+        wv.selectionItems = { extensions.menus.selectionItems(id, wv) } // extensions' items for selected text
         if (profile == null) com.jlees.mibrowser.follow.FollowPage.attach(id, wv) // following prices (never from incognito)
         // match count and position for the find bar (only the visible tab's search is shown)
         wv.setFindListener { ordinal, matches, done -> if (done && id == vm.tabs.activeId) vm.find.onResult(ordinal, matches) }
-        wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length -> downloads.start(incognito.cookies(wv), isIncognito(id), url, userAgent, contentDisposition, mimetype, length) }
+        wv.setDownloadListener { url, userAgent, contentDisposition, mimetype, length ->
+            // a file the page made itself: the page hands it over (BlobDownloads); anything else, mi's downloader
+            if (url.startsWith("blob:") || url.startsWith("data:")) blobDownloads.fetch(wv, url, isIncognito(id))
+            // an extension package (Firefox .xpi, Chrome .crx): offered to install, not saved as a file
+            else if (mimetype == "application/x-xpinstall" || mimetype == "application/x-chrome-extension" || Regex("""\.(xpi|crx)([?#]|$)""").containsMatchIn(url))
+                vm.fetchExtension(com.jlees.mibrowser.extensions.InstallSource.File(url), android.webkit.URLUtil.guessFileName(url, contentDisposition, mimetype).substringBeforeLast('.'))
+            else downloads.start(incognito.cookies(wv), isIncognito(id), url, userAgent, contentDisposition, mimetype, length)
+        }
         return wv
     }
 
@@ -335,6 +357,7 @@ class WebViewHost(
         (resultMsg.obj as WebView.WebViewTransport).webView = wv
         resultMsg.sendToTarget()
         vm.addPopupTab(popupId, openerId = openerId, desktopMode = desktop)
+        extensions.navigation.createdTarget(openerId, popupId, opener?.url.orEmpty())
         return true
     }
 

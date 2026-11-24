@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/public/icon.png" width="96" alt="mi. Browser icon: a blue globe with a dot" /></p>
+
 <h1 align="center">mi. Browser</h1>
 
 <p align="center">
@@ -13,13 +15,16 @@
 </p>
 
 <p align="center">
-  <img src="docs/public/images/homepage.jpg" width="200" alt="A new tab: the mi. logo with the Pill at the bottom" />
-  <img src="docs/public/images/tab_switcher.jpg" width="200" alt="Tab switcher with a pinned tab" />
-  <img src="docs/public/images/power_tools.jpg" width="200" alt="Tab menu: favorite, bookmark, pin, quick tiles and tools" />
-  <img src="docs/public/images/incognito.jpg" width="200" alt="A new incognito tab" />
+  <a href="https://rookieenough.github.io/Orion-Data/redirect.html?id=mi-browser"><img src="https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png" alt="Get it on Orion Store" height="52"></a>
 </p>
 
-**mi.** (pronounced "my") replaces the usual toolbar with one floating **Pill**: tap it to search, swipe up for your tabs, swipe sideways to go back and forward. It's written natively in Kotlin, weighs about 5 MB, and keeps all of your data on your phone.
+<p align="center">
+  <img src="docs/public/images/homepage.jpg" width="240" alt="A new tab: the mi. logo, your favorites and the Pill" />
+  <img src="docs/public/images/tab_switcher.jpg" width="240" alt="The tab switcher" />
+  <img src="docs/public/images/power_tools.jpg" width="240" alt="Tab menu: favorite, bookmark, pin, quick tiles and tools" />
+</p>
+
+**mi. Browser** is a simple, private browser built around one idea: everything you need is in a single Pill at the bottom of the screen. Search, switch tabs and go back with a swipe, while ads and trackers are blocked for you. Follow a product's price and get told when it drops, keep any site on your home screen as its own app, and browse privately whenever you want. Nothing you do leaves your phone.
 
 **[Website](https://jleescy.github.io/mi-browser)** · **[User Guide](https://jleescy.github.io/mi-browser/user)** · **[Download](https://github.com/jleescy/mi-browser/releases/latest)**
 

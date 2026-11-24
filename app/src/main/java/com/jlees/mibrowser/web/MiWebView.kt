@@ -35,6 +35,34 @@ class MiWebView(
     private var armedAt = Float.NaN
     private var progress = 0f
 
+    /** Extra items for the selected-text menu (extensions' contextMenus): titles and what tapping each does. */
+    var selectionItems: () -> List<Pair<String, () -> Unit>> = { emptyList() }
+
+    // the selected-text menu WebView opens, with the extra items after its own
+    override fun startActionMode(callback: android.view.ActionMode.Callback, type: Int): android.view.ActionMode? {
+        val extra = selectionItems()
+        if (extra.isEmpty()) return super.startActionMode(callback, type)
+        val base = EXTRA_ITEM_BASE
+        val wrapped = object : android.view.ActionMode.Callback2() {
+            override fun onCreateActionMode(mode: android.view.ActionMode, menu: android.view.Menu): Boolean {
+                val ok = callback.onCreateActionMode(mode, menu)
+                extra.forEachIndexed { i, (title, _) -> menu.add(android.view.Menu.NONE, base + i, 1000 + i, title) }
+                return ok
+            }
+            override fun onPrepareActionMode(mode: android.view.ActionMode, menu: android.view.Menu) = callback.onPrepareActionMode(mode, menu)
+            override fun onActionItemClicked(mode: android.view.ActionMode, item: android.view.MenuItem): Boolean {
+                val i = item.itemId - base
+                if (i in extra.indices) { extra[i].second(); mode.finish(); return true }
+                return callback.onActionItemClicked(mode, item)
+            }
+            override fun onDestroyActionMode(mode: android.view.ActionMode) = callback.onDestroyActionMode(mode)
+            override fun onGetContentRect(mode: android.view.ActionMode, view: android.view.View, outRect: android.graphics.Rect) {
+                if (callback is android.view.ActionMode.Callback2) callback.onGetContentRect(mode, view, outRect) else super.onGetContentRect(mode, view, outRect)
+            }
+        }
+        return super.startActionMode(wrapped, type)
+    }
+
     override fun onCreateInputConnection(outAttrs: android.view.inputmethod.EditorInfo): android.view.inputmethod.InputConnection? =
         super.onCreateInputConnection(outAttrs).also { if (incognito) outAttrs.imeOptions = outAttrs.imeOptions or android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING }
 
@@ -78,5 +106,6 @@ class MiWebView(
     private companion object {
         const val ARM_WINDOW_DP = 24f
         const val PULL_DP = 72f
+        const val EXTRA_ITEM_BASE = 0x6d6900
     }
 }

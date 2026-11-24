@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -62,6 +63,15 @@ fun DialogAction(text: String, destructive: Boolean = false, modifier: Modifier 
     }
 }
 
+/** A connected group's button [i] of [last]+1: rounded on the outside ends only. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun connectedShapes(i: Int, last: Int) = when (i) {
+    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+    last -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+}
+
 /** Expressive connected button group (single choice). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -72,17 +82,42 @@ fun ConnectedChoice(options: List<Pair<String, String>>, value: String, modifier
                 checked = v == value,
                 onCheckedChange = { onPick(v) },
                 modifier = Modifier.weight(1f).semantics { role = Role.RadioButton },
-                shapes = when (i) {
-                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                },
+                shapes = connectedShapes(i, options.lastIndex),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             ) {
                 // a long choice pans where that's on, else ends in "…"
                 val pan = LocalPan.current
                 Text(label, if (pan) Modifier.panIfLong() else Modifier, maxLines = 1, softWrap = !pan,
                     overflow = if (pan) androidx.compose.ui.text.style.TextOverflow.Clip else androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+/**
+ * Connected icon buttons (single choice) where only the chosen one shows its name, so many choices fit one row (the
+ * Library's pages). The chosen one widens to fit its name as the choice changes.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ConnectedIconChoice(options: List<Triple<String, String, String>>, value: String, modifier: Modifier = Modifier, onPick: (String) -> Unit) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+        options.forEachIndexed { i, (v, label, icon) ->
+            val on = v == value
+            val weight by androidx.compose.animation.core.animateFloatAsState(if (on) 3f else 1f, Motion.enter(220), label = "choice width")
+            ToggleButton(
+                checked = on,
+                onCheckedChange = { onPick(v) },
+                modifier = Modifier.weight(weight).semantics { role = Role.RadioButton },
+                shapes = connectedShapes(i, options.lastIndex),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+            ) {
+                // the icon names its page for screen readers while the name is hidden
+                Sym(icon, 20f, androidx.compose.material3.LocalContentColor.current, label = if (on) null else label)
+                androidx.compose.animation.AnimatedVisibility(on, enter = androidx.compose.animation.expandHorizontally(Motion.enter(220)) + androidx.compose.animation.fadeIn(Motion.enter(220)),
+                    exit = androidx.compose.animation.shrinkHorizontally(Motion.exit(110)) + androidx.compose.animation.fadeOut(Motion.exit(110))) {
+                    Text(label, Modifier.padding(start = 8.dp), maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }

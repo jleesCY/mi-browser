@@ -152,26 +152,44 @@ class StructureTest {
         assertFalse(Settings(settingsVersion = 0, blockThirdPartyCookies = true).migrated().blockThirdPartyCookies)
         // v1 → v2: with "Block Ads & Trackers" off, ads and cookie banners stay off too
         val off = Settings(settingsVersion = 1, blockTrackers = false, blockAds = true, hideCookieBanners = true).migrated()
-        assertFalse(off.blockAds); assertFalse(off.hideCookieBanners); assertEquals(4, off.settingsVersion) // then on to the latest
+        assertFalse(off.blockAds); assertFalse(off.hideCookieBanners); assertEquals(6, off.settingsVersion) // then on to the latest
         val on = Settings(settingsVersion = 1).migrated()
         assertTrue(on.blockAds); assertTrue(on.hideCookieBanners)
         // v2 → v3: HTTPS Only (and Warn Every Time) switch on once, even where it was off
         val v2 = Settings(settingsVersion = 2, httpsOnly = false, httpsWarnEveryTime = false).migrated()
-        assertTrue(v2.httpsOnly && v2.httpsWarnEveryTime); assertEquals(4, v2.settingsVersion)
+        assertTrue(v2.httpsOnly && v2.httpsWarnEveryTime); assertEquals(6, v2.settingsVersion)
         // after that it's an ordinary setting: turned off, it stays off
         val turnedOff = v2.copy(httpsOnly = false)
         assertEquals(turnedOff, turnedOff.migrated())
         // current settings are left alone
-        val current = Settings(settingsVersion = 4, blockAds = false)
+        val current = Settings(settingsVersion = 6, blockAds = false)
         assertEquals(current, current.migrated())
     }
 
+    @Test fun blueAccentBecomesSkyBlue() {
+        // v4 → v5 (2.0): the old blue becomes mi. Browser's Sky blue; any other colour (or wallpaper colours) stays
+        assertEquals("#3D9BFF", Settings(settingsVersion = 4, accentColor = "#007AFF").migrated().accentColor)
+        assertEquals("#34C759", Settings(settingsVersion = 4, accentColor = "#34C759").migrated().accentColor)
+        assertEquals("dynamic", Settings(settingsVersion = 4, accentColor = "dynamic").migrated().accentColor)
+        assertEquals("#3D9BFF", Settings().migrated().accentColor) // new installs start on it
+        // once migrated, picking the old blue by hand isn't undone
+        assertEquals("#007AFF", Settings(settingsVersion = 5, accentColor = "#007AFF").migrated().accentColor)
+    }
+
+    @Test fun panningOffByDefault() {
+        // v5 → v6 (2.0): Pan Overflowed Text turns off once, for new and existing installs; turned back on, it stays on
+        assertFalse(Settings().migrated().panLongText)
+        assertFalse(Settings(settingsVersion = 5, panLongText = true).migrated().panLongText)
+        assertTrue(Settings(settingsVersion = 6, panLongText = true).migrated().panLongText)
+    }
+
     @Test fun importedSettingsKeepThisPhonesOwn() {
-        val phone = Settings(downloadFolder = "content://this-phone/tree", lastUpdateCheck = 5)
+        val phone = Settings(downloadFolder = "content://this-phone/tree", lastUpdateCheck = 5, lastSeenVersion = 200)
         val backup = Settings(settingsVersion = 0, downloadFolder = "content://old-phone/tree", lastUpdateCheck = 1, pureBlack = true, searchEngineIndex = 99)
         val r = backup.importedOver(phone)
         assertEquals("content://this-phone/tree", r.downloadFolder); assertEquals(5L, r.lastUpdateCheck) // the old phone's folder isn't open to mi here
-        assertTrue(r.pureBlack); assertEquals(0, r.searchEngineIndex); assertEquals(4, r.settingsVersion) // the rest comes over, repaired and migrated
+        assertEquals(200, r.lastSeenVersion) // What's New already shown here isn't shown again
+        assertTrue(r.pureBlack); assertEquals(0, r.searchEngineIndex); assertEquals(6, r.settingsVersion) // the rest comes over, repaired and migrated
     }
 
     @Test fun fontMigrationAndWalkthrough() {
@@ -253,12 +271,15 @@ class StructureTest {
 
     @Test fun anAppKeepsToItsOwnSite() {
         val app = "https://mail.example.com/inbox"
-        assertTrue(leavesApp(app, "https://news.site/story", gesture = true, redirect = false)) // a link out: an ordinary tab
-        assertFalse(leavesApp(app, "https://help.example.com/faq", true, false)) // the same site's other parts stay
-        assertFalse(leavesApp(app, "https://news.site/story", gesture = false, redirect = false)) // the page itself moving on
-        assertFalse(leavesApp(app, "https://news.site/story", gesture = true, redirect = true))
+        assertTrue(leavesApp(app, null, "https://news.site/story", gesture = true, redirect = false)) // a link out: an ordinary tab
+        assertFalse(leavesApp(app, null, "https://help.example.com/faq", true, false)) // the same site's other parts stay
+        assertFalse(leavesApp(app, null, "https://news.site/story", gesture = false, redirect = false)) // the page itself moving on
+        assertFalse(leavesApp(app, null, "https://news.site/story", gesture = true, redirect = true))
         // signing in goes elsewhere and comes back: it stays in the app
-        assertFalse(leavesApp(app, "https://accounts.google.com/o/oauth2/auth?client_id=x", true, false))
-        assertFalse(leavesApp(app, "https://github.com/login?return_to=x", true, false))
+        assertFalse(leavesApp(app, null, "https://accounts.google.com/o/oauth2/auth?client_id=x", true, false))
+        assertFalse(leavesApp(app, null, "https://github.com/login?return_to=x", true, false))
+        // a pin that redirected to another site keeps that site's links too
+        assertFalse(leavesApp("https://gmail.com", "https://mail.google.com/mail", "https://drive.google.com/x", true, false))
+        assertTrue(leavesApp("https://gmail.com", "https://mail.google.com/mail", "https://news.site/story", true, false))
     }
 }

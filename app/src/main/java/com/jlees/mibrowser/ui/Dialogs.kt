@@ -46,13 +46,21 @@ fun ModalFrame(visible: Boolean, onDismiss: () -> Unit, dismissOnScrim: Boolean 
             window?.setWindowAnimations(0)
             @Suppress("DEPRECATION") window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
-        AnimatedVisibility(state, enter = fadeIn(), exit = fadeOut()) {
+        AnimatedVisibility(state, enter = fadeIn(Motion.enter(200)), exit = fadeOut(Motion.exit(120))) {
             Box(
                 // the dialog stays clear of the status bar, navigation bar, cutouts and keyboard (DialogCard scrolls to fit)
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).blockTouches { if (dismissOnScrim) onDismiss() }
                     .windowInsetsPadding(WindowInsets.safeDrawing).padding(vertical = 16.dp),
-                contentAlignment = Alignment.Center, content = content,
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.animateEnterExit(
+                        enter = androidx.compose.animation.scaleIn(Motion.enter(250), initialScale = 0.9f),
+                        exit = androidx.compose.animation.scaleOut(Motion.exit(120), targetScale = 0.95f),
+                    ),
+                    contentAlignment = Alignment.Center, content = content,
+                )
+            }
         }
     }
 }

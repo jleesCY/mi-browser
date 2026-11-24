@@ -9,7 +9,7 @@ const val DYNAMIC_ACCENT = "dynamic"
 const val GRAY_ACCENT = "#8E8E93"
 val ACCENTS = listOf(
     GRAY_ACCENT, // gray (monochrome scheme)
-    "#007AFF",   // blue
+    "#3D9BFF",   // blue: mi. Browser's Sky blue (its icon)
     "#34C759",   // green
     "#FF3B30",   // red
     "#FF9500",   // orange
@@ -17,8 +17,8 @@ val ACCENTS = listOf(
     "#AF52DE",   // purple
 )
 
-/** "#RRGGBB" → ARGB long, default blue when invalid. */
+/** "#RRGGBB" → ARGB long, mi.'s Sky blue when invalid. */
 fun hexColor(hex: String?): Long {
-    val h = hex?.removePrefix("#") ?: return 0xFF007AFF
-    return h.toLongOrNull(16)?.takeIf { h.length == 6 }?.let { 0xFF000000 or it } ?: 0xFF007AFF
+    val h = hex?.removePrefix("#") ?: return 0xFF3D9BFF
+    return h.toLongOrNull(16)?.takeIf { h.length == 6 }?.let { 0xFF000000 or it } ?: 0xFF3D9BFF
 }

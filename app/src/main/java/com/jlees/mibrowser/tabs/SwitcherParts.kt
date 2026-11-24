@@ -42,7 +42,8 @@ fun cardAspect(vm: BrowserViewModel): Float =
 @Composable
 fun SwitcherEdgeButton(icon: String, onClick: () -> Unit, modifier: Modifier = Modifier, label: String? = null) {
     val ui = LocalUi.current
-    IconButton(onClick = onClick, modifier.size(52.dp)) { Sym(icon, 26f, ui.cs.onSurface, label = label) } // icon only, on the gradient
+    val press = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    IconButton(onClick = onClick, modifier.size(52.dp).pressScale(press), interactionSource = press) { Sym(icon, 26f, ui.cs.onSurface, label = label) } // icon only, on the gradient
 }
 
 /** The contents of the switcher's centre pill: History (also a swipe up), new tab and the tab menu. */
@@ -51,11 +52,14 @@ fun SwitcherPillButtons(onNew: () -> Unit, onMenu: () -> Unit, up: SwitcherPanel
     val ui = LocalUi.current
     Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
         // the page that a swipe up opens (History unless moved in Settings › Tabs)
-        IconButton(onClick = onUp, Modifier.padding(start = 4.dp, end = 4.dp).size(52.dp)) { Sym(up.icon, 24f, ui.cs.onSurface, label = up.label) }
+        val pressUp = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        val pressNew = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        val pressMenu = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        IconButton(onClick = onUp, Modifier.padding(start = 4.dp, end = 4.dp).size(52.dp).pressScale(pressUp), interactionSource = pressUp) { Sym(up.icon, 24f, ui.cs.onSurface, label = up.label) }
         FilledIconButton(
-            onClick = onNew, modifier = Modifier.size(56.dp),
+            onClick = onNew, modifier = Modifier.size(56.dp).pressScale(pressNew), interactionSource = pressNew,
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = ui.cs.primaryContainer),
         ) { Sym("add", 30f, ui.cs.onPrimaryContainer, label = "New tab") }
-        IconButton(onClick = onMenu, Modifier.padding(horizontal = 4.dp).size(52.dp)) { Sym("more_vert", 24f, ui.cs.onSurface, label = "Tab menu") }
+        IconButton(onClick = onMenu, Modifier.padding(horizontal = 4.dp).size(52.dp).pressScale(pressMenu), interactionSource = pressMenu) { Sym("more_vert", 24f, ui.cs.onSurface, label = "Tab menu") }
     }
 }

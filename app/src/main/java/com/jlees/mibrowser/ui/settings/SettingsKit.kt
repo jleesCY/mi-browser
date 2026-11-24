@@ -42,7 +42,10 @@ internal fun placeRows(rows: List<SettingsRow>): List<PlacedRow> {
 class SettingsSection(val id: String, val title: String, val icon: String, val summary: String, val rows: List<SettingsRow>)
 
 /** A full page opened from a row (it slides in over its section, like a section over the list); [content] fills it. */
-class SettingsSubPage(val id: String, val title: String, val icon: String, val content: @Composable () -> Unit)
+class SettingsSubPage(val id: String, val title: String, val icon: String, val search: PageSearch? = null, val content: @Composable () -> Unit)
+
+/** A page's own search (Get Extensions): while the page shows, the sheet's search Pill searches it, not Settings. */
+class PageSearch(val placeholder: String) { var query by androidx.compose.runtime.mutableStateOf("") }
 
 /** Opens and closes [SettingsSubPage]s; provided by SettingsView to the rows it shows. */
 class SettingsNav(val open: (SettingsSubPage) -> Unit, val close: () -> Unit)
@@ -121,7 +124,7 @@ fun ExpandItem(icon: String, title: String, subtitle: String?, value: String?, d
         Item(icon, title, subtitle, danger = danger, onClick = { open = !open }, trailing = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (value != null) Txt(value, 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(end = 4.dp))
-                Sym(if (open) "keyboard_arrow_up" else "keyboard_arrow_down", 22f, ui.cs.onSurfaceVariant)
+                Chevron(open, 22f, ui.cs.onSurfaceVariant)
             }
         })
         if (open) Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) { options { open = false } }

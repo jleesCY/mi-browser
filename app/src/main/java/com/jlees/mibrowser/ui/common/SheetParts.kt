@@ -23,8 +23,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
 import com.jlees.mibrowser.ui.common.SheetSearchField
 
-/** A sheet's back swipe: [drag] reports how far (0..1 of the width), [release] whether to finish or spring back. */
-class BackSwipe(val drag: (Float) -> Unit, val release: (Boolean) -> Unit)
+/**
+ * A sheet's back swipe: [drag] reports how far (0..1 of the width), [release] whether to finish or spring back, and how
+ * fast the finger was going that way when it let go (in widths a second), so the slide carries on at that speed.
+ */
+class BackSwipe(val drag: (Float) -> Unit, val release: (finish: Boolean, speed: Float) -> Unit)
 
 /**
  * What swiping a sheet's search Pill does: pushes the sheet back out the way it came ([towardEnd]: to the right; else
@@ -61,6 +64,7 @@ val SheetPillSpace = 112.dp
 @Composable
 fun BoxScope.SheetSearchPill(
     value: String, onChange: (String) -> Unit,
+    placeholder: String = "Search",
     menu: (@Composable ColumnScope.(close: () -> Unit) -> Unit)? = null,
 ) {
     val ui = LocalUi.current
@@ -116,7 +120,9 @@ fun BoxScope.SheetSearchPill(
                     onRelease = { _, _, vx, vy ->
                         val b = latestBack.value
                         val toward = if (upLevel) vx else if (b?.downward == true) vy else vx * (if (b?.towardEnd == true) 1f else -1f) // dp/ms
-                        swipe?.release?.invoke(progress > 0.25f || (toward > 0.5f && progress > 0.02f)); swipe = null
+                        // the same speed in widths (or heights) a second, as the drag measures its progress
+                        val speed = toward * 1000f * density.density / (if (upLevel) screenPx else (b?.extent?.invoke() ?: screenPx))
+                        swipe?.release?.invoke(progress > 0.25f || (toward > 0.5f && progress > 0.02f), speed); swipe = null
                     },
                 )
                 .graphicsLayer {
@@ -132,11 +138,11 @@ fun BoxScope.SheetSearchPill(
             androidx.compose.animation.AnimatedVisibility(
                 open && menu != null,
                 enter = androidx.compose.animation.expandVertically(expandFrom = Alignment.Bottom) + androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.shrinkVertically(shrinkTowards = Alignment.Bottom) + androidx.compose.animation.fadeOut(),
+                exit = androidx.compose.animation.shrinkVertically(Motion.exit(150), shrinkTowards = Alignment.Bottom) + androidx.compose.animation.fadeOut(Motion.exit(100)),
             ) { Column(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp)) { menu?.invoke(this) { open = false } } }
             Box(Modifier.fillMaxWidth().height(70.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.graphicsLayer { alpha = (1f - m * 2f).coerceIn(0f, 1f) }) {
-                    SheetSearchField(value, onChange, onFocus = { typing = it; if (it) open = false /* typing closes the menu */ }, trailing = menu?.let { {
+                    SheetSearchField(value, onChange, placeholder = placeholder, onFocus = { typing = it; if (it) open = false /* typing closes the menu */ }, trailing = menu?.let { {
                         IconButton(onClick = { open = !open }) { Sym(if (open) "close" else "more_vert", 24f, ui.cs.onSurfaceVariant, label = if (open) "Close menu" else "More options") }
                     } })
                 }

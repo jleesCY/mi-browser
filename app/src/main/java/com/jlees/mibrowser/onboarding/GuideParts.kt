@@ -219,9 +219,10 @@ internal fun FingerHint(move: Move, at: Rect) {
 internal fun Chip(label: String, on: Boolean) {
     val ui = LocalUi.current
     val circle by animateColorAsState(if (on) ui.cs.primary else Color.Transparent, label = "check")
+    val pop = com.jlees.mibrowser.ui.common.popScale(on) // ticked: the circle pops
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(22.dp).clip(CircleShape).background(circle).border(2.dp, if (on) ui.cs.primary else ui.cs.outline, CircleShape),
+            Modifier.size(22.dp).graphicsLayer { scaleX = pop; scaleY = pop }.clip(CircleShape).background(circle).border(2.dp, if (on) ui.cs.primary else ui.cs.outline, CircleShape),
             contentAlignment = Alignment.Center,
         ) { if (on) Sym("check", 16f, ui.cs.onPrimary) }
         Txt(label, 14f, if (on) ui.cs.onSurface else ui.cs.onSurfaceVariant, ui.semibold, Modifier.padding(start = 10.dp))

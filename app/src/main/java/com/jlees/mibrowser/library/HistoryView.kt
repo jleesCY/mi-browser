@@ -65,12 +65,12 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
             sections.forEach { sec ->
                 item(key = "h_" + sec.title) {
                     Row(
-                        Modifier.fillMaxWidth().listInset().touchable { collapsed = if (sec.title in collapsed) collapsed - sec.title else collapsed + sec.title }.padding(vertical = 10.dp),
+                        Modifier.animateItem().fillMaxWidth().listInset().touchable { collapsed = if (sec.title in collapsed) collapsed - sec.title else collapsed + sec.title }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (vm.settings.historyGrouping == HistoryGrouping.SITE) NetImage(Favicons.src(sec.title), Modifier.padding(end = 8.dp).size(16.dp).clip(RoundedCornerShape(2.dp)))
                         Txt(sec.title, 14f, ui.cs.onSurfaceVariant, ui.bold, Modifier.weight(1f))
-                        Sym(if (sec.title in collapsed && !searching) "keyboard_arrow_down" else "keyboard_arrow_up", 16f, ui.cs.onSurfaceVariant)
+                        Chevron(sec.title !in collapsed || searching, 16f, ui.cs.onSurfaceVariant)
                     }
                 }
                 if (searching || sec.title !in collapsed) {
@@ -84,12 +84,12 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
         UndoBar(undo, onTimeout = { undo = null }, Modifier.align(Alignment.BottomCenter).padding(bottom = SheetPillSpace))
         SheetSearchPill(search, { vm.historySearch = it }) { close ->
             var open by remember { mutableStateOf(false) }
-            SheetMenuItem("delete", "Clear History", trailing = { Sym(if (open) "keyboard_arrow_up" else "keyboard_arrow_down", 16f, ui.cs.onSurface) }) { open = !open }
+            SheetMenuItem("delete", "Clear History", trailing = { Chevron(open, 16f, ui.cs.onSurface) }) { open = !open }
             // the time ranges unfold under it (and the Pill grows with them)
             androidx.compose.animation.AnimatedVisibility(
                 open,
                 enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
+                exit = androidx.compose.animation.shrinkVertically(Motion.exit(150)) + androidx.compose.animation.fadeOut(Motion.exit(100)),
             ) {
                 Column(Modifier.padding(top = 5.dp)) {
                     Box(Modifier.fillMaxWidth().height(1.dp).background(ui.cs.surface))
@@ -175,7 +175,7 @@ fun RecentlyClosedView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                             if (vm.settings.showTabLogo) NetImage(Favicons.src(url), Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)), fallback = globe) else globe()
                         }
                         Txt(t.title.ifEmpty { displayHost(url) }, 13f, ui.cs.onSurface, ui.semibold, Modifier.weight(1f).padding(start = 8.dp), maxLines = 1)
-                        Box(Modifier.size(28.dp).clip(CircleShape).touchable { vm.tabs.forgetClosed(t.id) }, contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(48.dp).clip(CircleShape).touchable { vm.tabs.forgetClosed(t.id) }, contentAlignment = Alignment.Center) {
                             Sym("close", 16f, ui.cs.onSurfaceVariant, label = "Remove")
                         }
                     }

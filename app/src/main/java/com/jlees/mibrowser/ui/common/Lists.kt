@@ -42,11 +42,13 @@ import kotlin.math.roundToInt
 /**
  * Drag-to-reorder fixed slots: a list (the Bookmarks list), or a grid of [columns] (the home page's favorites). Hold an
  * item a moment, then drag it; let go without moving and [onHold] runs instead (its own actions, like editing it).
+ * [fixedTail]: that many items at the end stay where they are (the tab menu's Add button): they can't be picked up, and
+ * nothing is dropped past them.
  */
 @Composable
 fun <T> SortableSlots(
     items: List<T>, key: (T) -> String, slotW: Dp, slotH: Dp, onReorder: (Int, Int) -> Unit,
-    columns: Int = 1, onHold: (T) -> Unit = {}, content: @Composable (T) -> Unit,
+    columns: Int = 1, onHold: (T) -> Unit = {}, fixedTail: Int = 0, content: @Composable (T) -> Unit,
 ) {
     val d = LocalDensity.current
     val wPx = with(d) { slotW.toPx() }
@@ -82,6 +84,7 @@ fun <T> SortableSlots(
                         .pointerInput(k, keys, wPx, hPx) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
+                                if (index >= count - fixedTail) return@awaitEachGesture // stays put
                                 // raw screen position of the touch-down (the dragged item moves under the finger)
                                 val downMe = currentEvent.motionEvent
                                 val origin = if (downMe != null) Offset(downMe.rawX, downMe.rawY) else null
@@ -103,18 +106,20 @@ fun <T> SortableSlots(
                                 // moved at any point while held (not just where it ended up): a drag that comes back to
                                 // where it started is still a rearrange, never an edit
                                 var moved = false
+                                // from here the touch is the drag's: read before the item itself sees it (Initial pass) and
+                                // claimed, so letting go isn't also a tap on the item (an extension's button opening its popup)
                                 while (true) {
-                                    val e = awaitPointerEvent()
+                                    val e = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                                     val c = e.changes.firstOrNull { it.id == down.id }
                                     if (c == null) { moved = true; break } // the touch was lost (cancelled): not a hold either
-                                    if (!c.pressed) break
+                                    if (!c.pressed) { c.consume(); break }
                                     val me = e.motionEvent
                                     total = if (me != null && origin != null) Offset(me.rawX, me.rawY) - origin else total + c.positionChange()
                                     if (total.getDistance() > viewConfiguration.touchSlop) moved = true
                                     c.consume()
                                     drag = total
                                     val at = slot(startOrder) + drag
-                                    val safe = gridSlot(at.x / wPx, at.y / hPx, columns, count)
+                                    val safe = gridSlot(at.x / wPx, at.y / hPx, columns, count).coerceAtMost(count - 1 - fixedTail)
                                     val cur = order[k] ?: index
                                     if (safe != cur) {
                                         for ((kk, v) in order.toMap()) {

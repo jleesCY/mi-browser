@@ -13,6 +13,7 @@ class PageScripts(ctx: Context) {
     val media by lazy { load("media") }
     /** Every frame, at document start: element hiding for ad, tracker and cookie-banner blocking. */
     val cosmeticFilter by lazy { load("cosmetic-filter") }
+    val scriptlets by lazy { load("scriptlets") }
     /** Incognito frames, at document start: creating passkeys is refused (signing in still works). */
     val noPasskeyCreation by lazy { load("no-passkey-creation") }
     /** After load, when reader mode is on: a reading layout without navigation, sidebars or ad boxes. */
@@ -25,4 +26,13 @@ class PageScripts(ctx: Context) {
     val appColor by lazy { load("app-color") }
     /** After load, with Darken on: darkens a bright page that opts out of WebView's own darkening. */
     val darkFallback by lazy { load("dark-fallback") }
+    /** Every page, at document start: hands a file the page made itself (blob:/data:) over to mi when it's downloaded. */
+    val blobDownload by lazy { load("blob-download") }
+    /** The WebExtensions API (chrome.* / browser.*) as an expression, for the extension engine (extensions/). */
+    val extApi by lazy { load("ext-api") }
+    val extAddress by lazy { load("ext-address") }
+    /** The body of the document-start script that runs extensions' content scripts in a page. */
+    val extContent by lazy { load("ext-content") }
+    /** The body of the document-start script for an extension's own pages (background, popup, options). */
+    val extPage by lazy { load("ext-page") }
 }

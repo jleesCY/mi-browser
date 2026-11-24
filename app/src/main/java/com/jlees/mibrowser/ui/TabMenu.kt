@@ -1,6 +1,7 @@
 // The tab menu (⋮ in the tab switcher): favorite, bookmark, pin; quick tiles; tools; closing tabs.
 package com.jlees.mibrowser.ui
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateDpAsState
 import com.jlees.mibrowser.search.addSearchShortcutFromPage
 import com.jlees.mibrowser.incognito.closeIncognitoTabs
@@ -62,7 +63,8 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
     fun tileStyle(on: Boolean, enabled: Boolean, onPress: () -> Unit): Pair<Modifier, androidx.compose.ui.graphics.Color> {
         val radius by animateDpAsState(if (on) 28.dp else 18.dp, Motion.spatial(), label = "tile")
         val bg by androidx.compose.animation.animateColorAsState(if (on) ui.cs.primaryContainer else ui.cs.surfaceContainerHighest, label = "tile bg")
-        return Modifier.clip(RoundedCornerShape(radius)).background(bg).alpha(if (enabled) 1f else 0.38f).touchable(enabled, onClick = onPress) to
+        val press = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        return Modifier.pressScale(press).clip(RoundedCornerShape(radius)).background(bg).alpha(if (enabled) 1f else 0.38f).touchable(enabled, press, onPress) to
             (if (on) ui.cs.onPrimaryContainer else ui.cs.onSurface)
     }
     @Composable
@@ -72,22 +74,45 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             Modifier.weight(1f).height(62.dp).then(style).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Sym(icon, 22f, fg, Modifier.padding(end = 12.dp))
+            val pop = popScale(on == true) // turned on: the icon pops
+            Sym(icon, 22f, fg, Modifier.padding(end = 12.dp).graphicsLayer { scaleX = pop; scaleY = pop })
             Column(Modifier.weight(1f)) {
                 Txt(label, 14f, fg, ui.semibold, maxLines = 1)
                 if (sub != null) Txt(sub, 12f, fg.copy(alpha = 0.75f), ui.regular, maxLines = 1)
             }
         }
     }
+    /**
+     * Items in [columns] across that can be rearranged: hold one, then drag it (SortableSlots). Each slot is a row the
+     * item fills, with the menu's 8dp gaps between items and none at the edges.
+     */
+    @Composable
+    fun <T> DragSlots(items: List<T>, columns: Int, slotH: androidx.compose.ui.unit.Dp, key: (T) -> String, fixedTail: Int = 0, onReorder: (Int, Int) -> Unit, onHold: (T) -> Unit = {}, content: @Composable RowScope.(T) -> Unit) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val gap = if (columns == 2) 8.dp else 0.dp
+            val w = maxWidth + gap
+            Box(Modifier.requiredWidth(w)) {
+                SortableSlots(items, key, slotW = w / columns, slotH = slotH, onReorder = onReorder, columns = columns, onHold = onHold, fixedTail = fixedTail) { item ->
+                    Row(Modifier.fillMaxSize().padding(horizontal = gap / 2, vertical = gap / 2)) { content(item) }
+                }
+            }
+        }
+    }
     /** A round shortcut button with its label underneath. */
     @Composable
-    fun RowScope.Round(icon: String, label: String, enabled: Boolean = true, onPress: () -> Unit) {
+    fun RowScope.Round(icon: String, label: String, enabled: Boolean = true, badge: String = "", iconContent: (@Composable () -> Unit)? = null, onPress: () -> Unit) {
+        val press = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
         Column(
-            Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f).clip(RoundedCornerShape(16.dp)).touchable(enabled, onClick = onPress).padding(vertical = 4.dp),
+            Modifier.weight(1f).pressScale(press).alpha(if (enabled) 1f else 0.38f).clip(RoundedCornerShape(16.dp)).touchable(enabled, press, onPress).padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // the circle snug around a big icon: compact enough for two rows of tools on a smaller phone
-            Box(Modifier.size(50.dp).clip(CircleShape).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) { Sym(icon, 24f, ui.cs.onSecondaryContainer) }
+            Box {
+                Box(Modifier.size(50.dp).clip(CircleShape).background(ui.cs.secondaryContainer), contentAlignment = Alignment.Center) { iconContent?.invoke() ?: Sym(icon, 24f, ui.cs.onSecondaryContainer) }
+                // an extension's badge (chrome.action): a small pill on the circle's corner
+                if (badge.isNotEmpty()) Txt(badge.take(4), 10f, ui.cs.onPrimary, ui.bold,
+                    Modifier.align(Alignment.TopEnd).clip(CircleShape).background(ui.cs.primary).padding(horizontal = 5.dp, vertical = 1.dp), maxLines = 1)
+            }
             Txt(label, 12f, ui.cs.onSurface, ui.semibold, Modifier.padding(top = 4.dp), maxLines = 1)
         }
     }
@@ -110,14 +135,15 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             Modifier.weight(1f).height(72.dp).then(style),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
-            Sym(icon, 22f, fg)
+            val pop = popScale(on) // favorited, pinned: the icon pops
+            Sym(icon, 22f, fg, Modifier.graphicsLayer { scaleX = pop; scaleY = pop })
             Txt(label, 13f, fg, ui.semibold, Modifier.padding(top = 4.dp), maxLines = 1)
         }
     }
     /** A header action (copy, share): a round icon button. */
     @Composable
     fun MenuIcon(icon: String, label: String, onPress: () -> Unit) {
-        Box(Modifier.padding(start = 4.dp).size(44.dp).clip(CircleShape).touchable(onClick = onPress), contentAlignment = Alignment.Center) {
+        Box(Modifier.padding(start = 4.dp).size(48.dp).clip(CircleShape).touchable(onClick = onPress), contentAlignment = Alignment.Center) {
             Sym(icon, 22f, ui.cs.onSurfaceVariant, label = label)
         }
     }
@@ -143,7 +169,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 }
             }
             if (hasUrl) {
-                MenuIcon("content_copy", "Copy link") { copyText(ctx, vm.cleanLink(url)); android.widget.Toast.makeText(ctx, "Link copied", android.widget.Toast.LENGTH_SHORT).show(); dismiss() }
+                MenuIcon("content_copy", "Copy link") { copyText(ctx, vm.cleanLink(url)); com.jlees.mibrowser.ui.common.Notices.show("Link copied", done = true); dismiss() }
             }
         }
 
@@ -153,7 +179,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TopAction("star", if (fav) "Favorited" else "Favorite", fav, hasUrl) {
                 vm.toggleFavorite()
-                android.widget.Toast.makeText(ctx, if (fav) "Removed from favorites" else "Added to favorites", android.widget.Toast.LENGTH_SHORT).show()
+                com.jlees.mibrowser.ui.common.Notices.show(if (fav) "Removed from favorites" else "Added to favorites", done = !fav)
             }
             TopAction("bookmark_add", "Bookmark", false, hasUrl) { vm.bookmarksAutoAdd = true; vm.openView(Sheet.BOOKMARKS) }
             TopAction("keep", if (pinned) "Pinned" else "Pin", pinned, tab != null) { vm.tabs.togglePinned(vm.tabs.activeId) }
@@ -168,15 +194,36 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             Section("This tab")
             val desktop = tab?.desktopMode ?: vm.settings.desktopMode
             val reader = tab?.readerMode ?: vm.settings.readerModeEnabled
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Tile("desktop_windows", "Desktop site", if (desktop) "On" else "Off", desktop) { vm.setDesktopMode(!desktop) }
-                    Tile("chrome_reader_mode", "Reader mode", if (reader) "On" else "Off", reader) { vm.setReaderMode(!reader) }
+            val blocking = vm.adsAllowedHere() == null
+            // two across; hold one and drag to rearrange them (the order is kept)
+            DragSlots(com.jlees.mibrowser.data.QuickTile.ordered(vm.settings.quickTiles), columns = 2, slotH = 70.dp, key = { it.name },
+                onReorder = { from, to -> vm.updateSettings { copy(quickTiles = com.jlees.mibrowser.data.QuickTile.ordered(quickTiles).toMutableList().apply { add(to, removeAt(from)) }) } }) { t ->
+                when (t) {
+                    com.jlees.mibrowser.data.QuickTile.DESKTOP -> Tile("desktop_windows", "Desktop site", if (desktop) "On" else "Off", desktop) { vm.setDesktopMode(!desktop) }
+                    com.jlees.mibrowser.data.QuickTile.READER -> Tile("chrome_reader_mode", "Reader mode", if (reader) "On" else "Off", reader) { vm.setReaderMode(!reader) }
+                    com.jlees.mibrowser.data.QuickTile.FIND -> Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.find.open() }
+                    com.jlees.mibrowser.data.QuickTile.ADS -> Tile("shield", "Block ads here", if (!hasUrl) null else if (blocking) "On" else "Off for this site", hasUrl && blocking, hasUrl) { vm.toggleAdsHere() }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.find.open() }
-                    val blocking = vm.adsAllowedHere() == null
-                    Tile("shield", "Block ads here", if (!hasUrl) null else if (blocking) "On" else "Off for this site", hasUrl && blocking, hasUrl) { vm.toggleAdsHere() }
+            }
+
+            // extensions with a toolbar button: tapping one opens its popup (or tells it it was tapped); + gets more
+            val engine = com.jlees.mibrowser.extensions.ExtensionFlow.engine
+            val buttons = vm.extensions.list.filter { e -> e.enabled && e.showButton && (!incognito || e.incognito) && engine?.infos?.get(e.id)?.manifest?.hasButton == true }
+            Section("Extensions")
+            // four across, Add always last; hold one and drag to rearrange them (the order is kept)
+            DragSlots(buttons.map { it.id } + "", columns = 4, slotH = 84.dp, key = { it }, fixedTail = 1,
+                onReorder = { from, to -> vm.extensions.reorder(buttons.map { it.id }, from, to) },
+                // held and let go without moving: the extension's own page in Settings
+                onHold = { id -> if (id.isNotEmpty()) {
+                    leave(); com.jlees.mibrowser.extensions.ExtensionFlow.libraryTarget = id; vm.openView(com.jlees.mibrowser.Sheet.EXTENSIONS)
+                } }) { id ->
+                val item = buttons.firstOrNull { it.id == id }
+                if (item != null) {
+                    val action = engine?.actions?.get(item.id)
+                    Round("extension", action?.title?.takeIf { it.isNotBlank() } ?: item.name, action?.enabled != false, badge = engine?.badgeOf(item.id).orEmpty(),
+                        iconContent = { com.jlees.mibrowser.extensions.ExtensionIcon(item.id, 28f) }) { dismiss(); engine?.pressAction(item.id) }
+                } else Round("add", "Add") {
+                    leave(); com.jlees.mibrowser.extensions.ExtensionFlow.libraryTarget = "get"; vm.openView(com.jlees.mibrowser.Sheet.EXTENSIONS)
                 }
             }
 
@@ -197,31 +244,13 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             )
             // At most four to a row. The rows stack while the menu has room for them; only when they'd overflow do they
             // become pages swiped sideways, with dots for which page shows.
-            val pages = tools.chunked(4)
-            var rowH by remember { mutableIntStateOf(0) }
-            var stacked by remember { mutableStateOf(true) }
-            val dotsH = with(LocalDensity.current) { 12.dp.roundToPx() }
-            LaunchedEffect(viewportH, contentH, rowH, pages.size) {
-                if (rowH == 0 || viewportH == 0) return@LaunchedEffect
-                val rows = pages.size * rowH; val paged = rowH + dotsH
-                val heightStacked = if (stacked) contentH else contentH - paged + rows
-                stacked = heightStacked <= viewportH
+            // four across; hold one and drag to rearrange them (the order is kept); the menu's middle scrolls if they don't fit
+            val saved = vm.settings.toolOrder
+            val ordered = tools.sortedBy { t -> saved.indexOf(t.icon).let { if (it < 0) saved.size + tools.indexOf(t) else it } }
+            DragSlots(ordered, columns = 4, slotH = 84.dp, key = { it.icon },
+                onReorder = { from, to -> vm.updateSettings { val moved = ordered.map { it.icon }.toMutableList().apply { add(to, removeAt(from)) }; copy(toolOrder = moved + (toolOrder - moved.toSet())) } }) { t ->
+                Round(t.icon, t.label, t.enabled, onPress = t.onPress)
             }
-            @Composable fun ToolRow(page: List<TabTool>) = Row(Modifier.fillMaxWidth().onSizeChanged { rowH = it.height }) {
-                page.forEach { Round(it.icon, it.label, it.enabled, it.onPress) }
-                repeat(4 - page.size) { Spacer(Modifier.weight(1f)) } // a short last row keeps the columns above
-            }
-            if (pages.size == 1 || stacked) pages.forEach { ToolRow(it) }
-            else {
-                val pager = androidx.compose.foundation.pager.rememberPagerState { pages.size }
-                androidx.compose.foundation.pager.HorizontalPager(pager, Modifier.fillMaxWidth()) { i -> ToolRow(pages[i]) }
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.Center) {
-                    pages.indices.forEach { i ->
-                        Box(Modifier.padding(horizontal = 3.dp).size(6.dp).clip(CircleShape).background(if (i == pager.currentPage) ui.cs.primary else ui.cs.outlineVariant))
-                    }
-                }
-            }
-
         }
 
         // closing tabs: kept apart at the bottom

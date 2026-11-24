@@ -59,11 +59,11 @@ fun DownloadsView(vm: BrowserViewModel) {
             sections.forEach { (title, group) ->
                 item(key = "h_$title") {
                     Row(
-                        Modifier.fillMaxWidth().listInset().touchable { collapsed = if (title in collapsed) collapsed - title else collapsed + title }.padding(vertical = 4.dp),
+                        Modifier.animateItem().fillMaxWidth().listInset().touchable { collapsed = if (title in collapsed) collapsed - title else collapsed + title }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Txt(title, 14f, ui.cs.onSurfaceVariant, ui.bold, Modifier.weight(1f))
-                        Sym(if (title in collapsed && q.isEmpty()) "keyboard_arrow_down" else "keyboard_arrow_up", 16f, ui.cs.onSurfaceVariant)
+                        Chevron(title !in collapsed || q.isNotEmpty(), 16f, ui.cs.onSurfaceVariant)
                     }
                 }
                 if (q.isNotEmpty() || title !in collapsed) items(group, key = { it.id }) { d ->

@@ -166,7 +166,7 @@ class Downloader(context: Context, private val store: DownloadsStore) {
             val total = if (length < 0) -1 else resumeFrom + length
             if (item.uri == null) {
                 if (total > 0 && item.folder == null && total > freeSpace()) throw IOException("ENOSPC")
-                item = createFile(item)
+                item = createDownloadFile(ctx, item)
             }
             // a large file from a server that hands out parts (it answered the Range from byte 0): several connections
             if (code == 206 && resumeFrom == 0L && total >= PARTS_FROM) openRw(item)?.let { file ->
@@ -296,9 +296,7 @@ class Downloader(context: Context, private val store: DownloadsStore) {
 
     private fun finish(item: DownloadItem) {
         main.post { stopRetrying(item.id) }
-        if (Build.VERSION.SDK_INT >= 29 && Uri.parse(item.uri).authority == MediaStore.AUTHORITY) runCatching {
-            ctx.contentResolver.update(Uri.parse(item.uri), ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
-        }
+        showDownloadFile(ctx, item)
         post(item.id) { copy(state = DownloadState.DONE, done = item.done, total = item.total, parts = null) }
         DownloadService.notifyFinished(ctx, item.copy(state = DownloadState.DONE), this)
     }
@@ -323,37 +321,6 @@ class Downloader(context: Context, private val store: DownloadsStore) {
             target = URL(target, location)
         }
         throw IOException("Too many redirects")
-    }
-
-    /** Creates the file in Downloads (hidden from other apps until finished, on Android 10+). */
-    private fun createFile(item: DownloadItem): DownloadItem {
-        if (item.folder != null) { // a folder the user picked (its provider renames a duplicate itself)
-            val tree = Uri.parse(item.folder)
-            val dir = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
-            val doc = runCatching { DocumentsContract.createDocument(ctx.contentResolver, dir, item.mime, item.fileName) }.getOrNull()
-                ?: throw IOException("Can't save to the chosen folder")
-            val name = runCatching {
-                ctx.contentResolver.query(doc, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
-            }.getOrNull()
-            return item.copy(uri = doc.toString(), fileName = name ?: item.fileName)
-        }
-        if (Build.VERSION.SDK_INT >= 29) {
-            val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, item.fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, item.mime)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }) ?: throw IOException("Couldn't create the file")
-            // MediaStore renames a duplicate ("name (1).pdf"): show the name it got
-            val name = ctx.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                if (c.moveToFirst()) c.getString(0) else null
-            }
-            return item.copy(uri = uri.toString(), fileName = name ?: item.fileName)
-        }
-        @Suppress("DEPRECATION") val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).apply { mkdirs() }
-        val name = uniqueFileName(item.fileName) { File(dir, it).exists() }
-        val file = File(dir, name).apply { createNewFile() }
-        return item.copy(uri = Uri.fromFile(file).toString(), fileName = name)
     }
 
     /**
@@ -408,5 +375,43 @@ class Downloader(context: Context, private val store: DownloadsStore) {
             private set
         /** The store's items, for the service's notification. */
         fun items() = current?.store?.items.orEmpty()
+    }
+}
+
+/** Creates [item]'s file in Downloads, or the folder it names (hidden from other apps until finished, on Android 10+). */
+internal fun createDownloadFile(ctx: Context, item: DownloadItem): DownloadItem {
+    if (item.folder != null) { // a folder the user picked (its provider renames a duplicate itself)
+        val tree = Uri.parse(item.folder)
+        val dir = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        val doc = runCatching { DocumentsContract.createDocument(ctx.contentResolver, dir, item.mime, item.fileName) }.getOrNull()
+            ?: throw IOException("Can't save to the chosen folder")
+        val name = runCatching {
+            ctx.contentResolver.query(doc, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+        }.getOrNull()
+        return item.copy(uri = doc.toString(), fileName = name ?: item.fileName)
+    }
+    if (Build.VERSION.SDK_INT >= 29) {
+        val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, item.fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, item.mime)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }) ?: throw IOException("Couldn't create the file")
+        // MediaStore renames a duplicate ("name (1).pdf"): show the name it got
+        val name = ctx.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+        return item.copy(uri = uri.toString(), fileName = name ?: item.fileName)
+    }
+    @Suppress("DEPRECATION") val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).apply { mkdirs() }
+    val name = uniqueFileName(item.fileName) { File(dir, it).exists() }
+    val file = File(dir, name).apply { createNewFile() }
+    return item.copy(uri = Uri.fromFile(file).toString(), fileName = name)
+}
+
+/** A finished download's file: shown to other apps (gallery, Files) now that it's whole. */
+internal fun showDownloadFile(ctx: Context, item: DownloadItem) {
+    if (Build.VERSION.SDK_INT >= 29 && Uri.parse(item.uri).authority == MediaStore.AUTHORITY) runCatching {
+        ctx.contentResolver.update(Uri.parse(item.uri), ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
     }
 }

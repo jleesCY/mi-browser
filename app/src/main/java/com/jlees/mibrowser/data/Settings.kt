@@ -18,7 +18,7 @@ interface Choice { val label: String }
 }
 
 /** The Library page you were last on: it opens there again. */
-@Serializable enum class LibraryPage { @SerialName("bookmarks") BOOKMARKS, @SerialName("downloads") DOWNLOADS, @SerialName("following") FOLLOWING }
+@Serializable enum class LibraryPage { @SerialName("bookmarks") BOOKMARKS, @SerialName("downloads") DOWNLOADS, @SerialName("following") FOLLOWING, @SerialName("extensions") EXTENSIONS }
 
 /** Look & Feel › List Style: History, Downloads and Following as separate rounded cards, or as one table of rows. */
 @Serializable enum class ListStyle(override val label: String) : Choice { @SerialName("cards") CARDS("Cards"), @SerialName("table") TABLE("Table") }
@@ -27,7 +27,7 @@ interface Choice { val label: String }
 @Serializable enum class PanArea(override val label: String) : Choice {
     @SerialName("settings") SETTINGS("Settings"), @SerialName("tabMenu") TAB_MENU("Tab Menu"), @SerialName("bookmarks") BOOKMARKS("Bookmarks"),
     @SerialName("downloads") DOWNLOADS("Downloads"), @SerialName("following") FOLLOWING("Following"), @SerialName("history") HISTORY("History"),
-    @SerialName("suggestions") SUGGESTIONS("Pill Suggestions"),
+    @SerialName("suggestions") SUGGESTIONS("Pill Suggestions"), @SerialName("extensions") EXTENSIONS("Extensions"),
 }
 
 @Serializable enum class Spacing(override val label: String) : Choice {
@@ -82,6 +82,15 @@ interface Choice { val label: String }
     @SerialName("None") NONE("None"), @SerialName("Static") STATIC("Static"), @SerialName("Fidget") FIDGET("Fidget")
 }
 
+/** The tab menu's quick tiles ("This tab"), in the order they show; rearranged by dragging them. */
+@Serializable enum class QuickTile {
+    @SerialName("desktop") DESKTOP, @SerialName("reader") READER, @SerialName("find") FIND, @SerialName("ads") ADS;
+    companion object {
+        /** [saved] in order, with any tile it doesn't name (one added since) after them. */
+        fun ordered(saved: List<QuickTile>) = saved.distinct() + entries.filterNot { it in saved }
+    }
+}
+
 /** A page the tab switcher opens from one of its places (see tabs/SwitcherLayout). */
 @Serializable enum class SwitcherPanel(override val label: String, val icon: String) : Choice {
     @SerialName("library") LIBRARY("Library", "library_books"),
@@ -94,7 +103,8 @@ data class Settings(
     val themeMode: ThemeMode = ThemeMode.DARK,
     /** Dark theme on true black (OLED screens): backgrounds black, cards a hair lighter. */
     val pureBlack: Boolean = false,
-    val accentColor: String = "#007AFF",
+    /** mi. Browser's Sky blue by default, its icon's colour. */
+    val accentColor: String = "#3D9BFF",
     val searchEngineIndex: Int = 0,
     /** Your own search engine (index = number of built-ins): a name and an address with %s for the query. */
     val customSearchName: String = "",
@@ -118,7 +128,7 @@ data class Settings(
     /** Not a setting you see: the Library page last shown, which the Library reopens on. */
     val libraryPage: LibraryPage = LibraryPage.BOOKMARKS,
     /** Look & Feel › Pan Overflowed Text, and where: only Settings and the tab menu to begin with. */
-    val panLongText: Boolean = true,
+    val panLongText: Boolean = false,
     val panAreas: Set<PanArea> = setOf(PanArea.SETTINGS, PanArea.TAB_MENU),
     val fontScale: Float = 1f,
     val font: AppFont = AppFont.STANDARD,
@@ -190,6 +200,12 @@ data class Settings(
     val darkenPages: Boolean = false,
     /** When the automatic update check last reached GitHub (ms); it runs at most every 12 hours. */
     val lastUpdateCheck: Long = 0,
+    /** The tab menu's tools, by their icon name, in the order they were dragged into (any not named follow, as they come). */
+    val toolOrder: List<String> = emptyList(),
+    /** The tab menu's quick tiles, in the order they were dragged into. */
+    val quickTiles: List<QuickTile> = QuickTile.entries.toList(),
+    /** Not a setting you see: the version code whose What's New was last shown (update/WhatsNew; 0: none yet). */
+    val lastSeenVersion: Int = 0,
     /** Bumped when a default changes for existing installs; see BrowserViewModel.migrate. */
     val settingsVersion: Int = 0,
 ) {
@@ -205,8 +221,8 @@ fun Settings.darkFor(config: android.content.res.Configuration) = when (themeMod
     ThemeMode.SYSTEM -> (config.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
 }
 
-/** A backup's settings, in place of [current], except what belongs to this phone: its download folder (access to a folder is given per phone) and when it last checked for updates. */
-fun Settings.importedOver(current: Settings) = copy(downloadFolder = current.downloadFolder, lastUpdateCheck = current.lastUpdateCheck).sanitized().migrated()
+/** A backup's settings, in place of [current], except what belongs to this phone: its download folder (access to a folder is given per phone), when it last checked for updates and the last What's New it showed. */
+fun Settings.importedOver(current: Settings) = copy(downloadFolder = current.downloadFolder, lastUpdateCheck = current.lastUpdateCheck, lastSeenVersion = current.lastSeenVersion).sanitized().migrated()
 
 /** Defaults changed for existing installs. v1: third-party cookies allowed (payment/sign-in iframes need them). */
 fun Settings.migrated(): Settings {
@@ -219,6 +235,10 @@ fun Settings.migrated(): Settings {
     if (m.settingsVersion < 3) m = m.copy(httpsOnly = true, httpsWarnEveryTime = true, settingsVersion = 3)
     // 1.6: the Rounded Font switch became the Font choice
     if (m.settingsVersion < 4) m = m.copy(font = if (m.roundedFont) AppFont.ROUNDED else m.font, settingsVersion = 4)
+    // 2.0: the blue accent (the default) became mi. Browser's Sky blue, its icon's colour; other picks stay as they are
+    if (m.settingsVersion < 5) m = m.copy(accentColor = if (m.accentColor.equals("#007AFF", ignoreCase = true)) "#3D9BFF" else m.accentColor, settingsVersion = 5)
+    // 2.0: Pan Overflowed Text is off by default, existing installs included, once (long text ends in "…")
+    if (m.settingsVersion < 6) m = m.copy(panLongText = false, settingsVersion = 6)
     return m
 }
 

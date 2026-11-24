@@ -1,6 +1,7 @@
 // The one screen: the page, the Pill, the tab switcher, and the sheets and dialogs over them.
 package com.jlees.mibrowser.ui
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.ui.graphics.luminance
 import com.jlees.mibrowser.launcher.exitAppMode
 import com.jlees.mibrowser.ui.common.LocalPan
@@ -79,6 +80,8 @@ import com.jlees.mibrowser.logic.hexColor
 import com.jlees.mibrowser.library.BookmarksView
 import com.jlees.mibrowser.ui.common.LocalUi
 import com.jlees.mibrowser.ui.common.ConnectedChoice
+import com.jlees.mibrowser.ui.common.ConnectedIconChoice
+import com.jlees.mibrowser.extensions.ExtensionPanel
 import com.jlees.mibrowser.ui.common.UiConfig
 import com.jlees.mibrowser.library.HistoryView
 import com.jlees.mibrowser.home.HomePage
@@ -90,6 +93,7 @@ import com.jlees.mibrowser.data.pans
 import com.jlees.mibrowser.ui.settings.SettingsView
 import com.jlees.mibrowser.web.MAX_LIVE_TABS
 import com.jlees.mibrowser.web.WebViewHost
+import com.jlees.mibrowser.extensions.updateExtensionOffer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -187,7 +191,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         LaunchedEffect(appTab?.id, appTab?.title) { com.jlees.mibrowser.launcher.AppModeNotice.update(activity, appTab) }
 
         // ---- pill focus animations
-        LaunchedEffect(vm.isInputFocused) { pill.focusAnim.animateTo(if (vm.isInputFocused) 1f else 0f, timing(200)) }
+        LaunchedEffect(vm.isInputFocused) { pill.focusAnim.animateTo(if (vm.isInputFocused) 1f else 0f, if (vm.isInputFocused) Motion.enter(200) else Motion.exit(150)) }
 
         BoxWithConstraints(Modifier.fillMaxSize().background(ui.cs.surface)) {
             // Focus sink: when Android re-assigns view focus after clearFocus(), Compose gives it to the first focusable
@@ -221,11 +225,18 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     sheetX.snapTo(1f)
                 }
             }
-            // ✕, Back or picking an item: slide back out to the side it came from
-            val closeOverlay: () -> Unit = {
+            // ✕, Back or picking an item: slide back out to the side it came from, gathering speed. Let go of a swipe that
+            // closes it ([speed]: the finger's, in widths a second): it carries on at that speed, no slow start
+            fun slideAway(speed: Float? = null) {
                 focusManager.clearFocus()
-                scope.launch { sheetX.animateTo(sideOf(vm.activeView), timing(250)); vm.onOverlayClosed(); sheetShown = false }
+                val side = sideOf(vm.activeView)
+                scope.launch {
+                    if (speed == null) sheetX.animateTo(side, Motion.exit(200))
+                    else sheetX.animateTo(side, Motion.switcher, initialVelocity = side * speed)
+                    vm.onOverlayClosed(); sheetShown = false
+                }
             }
+            val closeOverlay: () -> Unit = { slideAway() }
 
             val popup = vm.tabs.current?.openerId != null
             val immersive = vm.tabs.current?.appStart != null
@@ -311,12 +322,12 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 }
                 // above the tab switcher (zIndex 150) when opened from it; closing returns to the switcher
                 if (vm.activeView != Sheet.NONE) Box(Modifier.fillMaxSize().zIndex(160f)) {
-                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.DOWNLOADS || vm.activeView == Sheet.FOLLOWING
+                    val library = vm.activeView == Sheet.BOOKMARKS || vm.activeView == Sheet.DOWNLOADS || vm.activeView == Sheet.FOLLOWING || vm.activeView == Sheet.EXTENSIONS
                     // the Library page you're on is the one it reopens on
                     LaunchedEffect(vm.activeView) {
                         val page = when (vm.activeView) {
                             Sheet.BOOKMARKS -> com.jlees.mibrowser.data.LibraryPage.BOOKMARKS; Sheet.DOWNLOADS -> com.jlees.mibrowser.data.LibraryPage.DOWNLOADS
-                            Sheet.FOLLOWING -> com.jlees.mibrowser.data.LibraryPage.FOLLOWING; else -> null
+                            Sheet.FOLLOWING -> com.jlees.mibrowser.data.LibraryPage.FOLLOWING; Sheet.EXTENSIONS -> com.jlees.mibrowser.data.LibraryPage.EXTENSIONS; else -> null
                         }
                         if (page != null && page != vm.settings.libraryPage) vm.updateSettings { copy(libraryPage = page) }
                     }
@@ -327,7 +338,7 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     // the page pans as Settings does (its menus and pop-ups); its list rows as their list's switch says
                     val panArea = when (vm.activeView) {
                         Sheet.BOOKMARKS -> PanArea.BOOKMARKS; Sheet.DOWNLOADS -> PanArea.DOWNLOADS; Sheet.FOLLOWING -> PanArea.FOLLOWING
-                        Sheet.HISTORY, Sheet.RECENTLY_CLOSED -> PanArea.HISTORY; else -> PanArea.SETTINGS
+                        Sheet.HISTORY, Sheet.RECENTLY_CLOSED -> PanArea.HISTORY; Sheet.EXTENSIONS -> PanArea.EXTENSIONS; else -> PanArea.SETTINGS
                     }
                     CompositionLocalProvider(LocalPan provides s.pans(PanArea.SETTINGS), LocalListPan provides s.pans(panArea)) { OverlaySheet(
                         sheetX, statusDp, imeDp, closeOverlay,
@@ -335,28 +346,34 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                         backTowardEnd = side > 0,
                         fromBottom = swipeOf(vm.activeView) == com.jlees.mibrowser.tabs.PillSwipe.UP,
                         onBackDrag = { p -> scope.launch { sheetX.snapTo(side * p) } },
-                        onBackRelease = { close -> if (close) closeOverlay() else scope.launch { sheetX.animateTo(0f, Motion.switcher) } },
+                        onBackRelease = { close, speed -> if (close) slideAway(speed) else scope.launch { sheetX.animateTo(0f, Motion.switcher) } },
                         // opened from the switcher: the search Pill grows out of the switcher's Pill, and back into it
                         morphFrom = { if (vm.switcherVisible) vm.switcher.barPill else null },
                         morphContent = { com.jlees.mibrowser.tabs.SwitcherPillButtons({}, {}, up = s.switcherLayout.up) },
                         header = header,
                         // the page's two sections, under its title
                         belowHeader = when {
-                            library -> { { ConnectedChoice(listOf(Sheet.BOOKMARKS.name to "Bookmarks", Sheet.DOWNLOADS.name to "Downloads", Sheet.FOLLOWING.name to "Following"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
+                            library -> { { ConnectedIconChoice(listOf(Triple(Sheet.BOOKMARKS.name, "Bookmarks", "bookmarks"), Triple(Sheet.DOWNLOADS.name, "Downloads", "download"),
+                                Triple(Sheet.FOLLOWING.name, "Following", "sell"), Triple(Sheet.EXTENSIONS.name, "Extensions", "extension")), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
                             history -> { { ConnectedChoice(listOf(Sheet.HISTORY.name to "History", Sheet.RECENTLY_CLOSED.name to "Recently Closed"), vm.activeView.name) { vm.activeView = Sheet.valueOf(it) } } }
                             else -> null
                         },
                     ) {
-                        when (vm.activeView) {
+                        // Bookmarks ⇄ Downloads ⇄ Following, History ⇄ Recently Closed: a quick crossfade, not a cut
+                        androidx.compose.animation.AnimatedContent(
+                            vm.activeView, transitionSpec = { androidx.compose.animation.fadeIn(Motion.enter(180)) togetherWith androidx.compose.animation.fadeOut(Motion.exit(90)) },
+                            label = "sheet page",
+                        ) { view -> when (view) {
                             Sheet.HISTORY -> HistoryView(vm, closeOverlay)
                             Sheet.RECENTLY_CLOSED -> com.jlees.mibrowser.library.RecentlyClosedView(vm, closeOverlay)
                             Sheet.BOOKMARKS -> BookmarksView(vm, kbVisible, closeOverlay)
                             Sheet.DOWNLOADS -> DownloadsView(vm)
                             Sheet.FOLLOWING -> com.jlees.mibrowser.follow.FollowingView(vm)
+                            Sheet.EXTENSIONS -> com.jlees.mibrowser.extensions.ExtensionsView(vm)
                             Sheet.SETTINGS -> SettingsView(vm, closeOverlay)
                             Sheet.SITE -> SiteSettingsView(vm, host, closeOverlay)
                             Sheet.NONE -> {}
-                        }
+                        } }
                     } }
                 }
             }
@@ -370,13 +387,23 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                     if (vm.activeView != view) { sheetShown = true; vm.openView(view) } // shown: the open animation doesn't run
                     scope.launch { sheetX.snapTo(sideOf(view) * (1f - p)) }
                 },
-                releaseSheet = { open -> if (open) scope.launch { sheetX.animateTo(0f, Motion.switcher) } else closeOverlay() },
+                releaseSheet = { open -> if (open) scope.launch { sheetX.animateTo(0f, Motion.switcher) } else slideAway(0f) }, // let go short: back with the gesture's spring
             )
+            // mi's notices ("Link copied"…): the same pill as Undo, above the Pill (and the switcher's), over everything
+            com.jlees.mibrowser.ui.common.UndoBar(com.jlees.mibrowser.ui.common.Notices.current, onTimeout = { com.jlees.mibrowser.ui.common.Notices.current = null },
+                Modifier.align(Alignment.BottomCenter).zIndex(400f).padding(bottom = navDp.dp + 92.dp))
+            // on an extension's store page: "Add to mi." (extensions/), in the same place, while the page shows
+            if (!vm.switcherVisible && vm.activeView == Sheet.NONE && !vm.isInputFocused)
+                com.jlees.mibrowser.extensions.ExtensionOfferBar(vm, Modifier.align(Alignment.BottomCenter).zIndex(390f).padding(bottom = navDp.dp + 92.dp))
+            LaunchedEffect(vm.tabs.current?.url, vm.tabs.current?.loading, vm.tabs.current?.title, vm.extensions.list) { vm.updateExtensionOffer() }
+            // extensions start once mi's own data has loaded
+            LaunchedEffect(vm.ready) { if (vm.ready) host.extensions.start() }
 
 
             QrScanner(vm)
             QrGenerator(vm)
             CompositionLocalProvider(LocalPan provides s.pans(PanArea.SETTINGS)) { FollowOverlays(vm) } // follow price: its sheets and the "tap the price" banner
+            CompositionLocalProvider(LocalPan provides s.pans(PanArea.EXTENSIONS)) { ExtensionPanel(vm) } // an installed extension's panel (pans as Extensions says)
             ConfirmDialog(vm)
             RenameDialog(vm)
             com.jlees.mibrowser.launcher.PinDialog()
@@ -384,6 +411,10 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             AuthDialog(vm)
             ContextMenu(vm, onSaveImage = { url -> saveImageFromUrl(activity, vm, url) })
             CustomAlert(vm.alert, onButton = { vm.alert = null }, onCancel = { vm.alert?.onCancel?.invoke(); vm.alert = null })
+            com.jlees.mibrowser.update.WhatsNewDialog(vm)
+            com.jlees.mibrowser.extensions.ExtensionPageSheet()
+            com.jlees.mibrowser.extensions.ExtensionAuthSheet()
+            com.jlees.mibrowser.extensions.ExtensionInstallDialog(vm)
             GestureWalkthrough(vm)
 
             host.customView?.let { v ->
