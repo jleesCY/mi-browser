@@ -1,17 +1,17 @@
 {
-  "repoUrl": "https://github.com/jleesCY/mi-browser",
+  "repoUrl": "https://github.com/mi-app-hub/mi-browser",
   "name": "mi. Browser",
-  "author": "jleesCY",
+  "author": "mi-app-hub",
   "id": "mi-browser",
   "packageName": "com.jlees.mibrowser",
-  "icon": "https://jleescy.github.io/mi-browser/icon.png",
+  "icon": "https://mi-app-hub.github.io/mi-browser/icon.png",
   "screenshots": [
-    "https://jleescy.github.io/mi-browser/promo/mi-browser-1-homepage.png",
-    "https://jleescy.github.io/mi-browser/promo/mi-browser-2-browsing.png",
-    "https://jleescy.github.io/mi-browser/promo/mi-browser-3-tab-switcher.png",
-    "https://jleescy.github.io/mi-browser/promo/mi-browser-4-recent-history-focused-pill.png",
-    "https://jleescy.github.io/mi-browser/promo/mi-browser-5-incognito.png",
-    "https://jleescy.github.io/mi-browser/promo/mi-browser-6-extensions.png"
+    "https://mi-app-hub.github.io/mi-browser/promo/mi-browser-1-homepage.png",
+    "https://mi-app-hub.github.io/mi-browser/promo/mi-browser-2-browsing.png",
+    "https://mi-app-hub.github.io/mi-browser/promo/mi-browser-3-tab-switcher.png",
+    "https://mi-app-hub.github.io/mi-browser/promo/mi-browser-4-recent-history-focused-pill.png",
+    "https://mi-app-hub.github.io/mi-browser/promo/mi-browser-5-incognito.png",
+    "https://mi-app-hub.github.io/mi-browser/promo/mi-browser-6-extensions.png"
   ],
   "shortDescription": "A private, gesture-driven browser built around one Pill.",
   "description": "mi. Browser is a simple, private browser built around one idea: everything you need is in a single Pill at the bottom of the screen. Search, switch tabs and go back with a swipe, while ads and trackers are blocked for you.\n\n• Extensions made for phones, from Firefox Add-ons: Dark Reader, uBlock Origin, SponsorBlock, Privacy Badger and more.\n• Ads, trackers and cookie banners blocked by default, with tracking-free links and HTTPS Only.\n• Follow a product's price and get told when it drops, goes on sale or comes back in stock.\n• Keep any site on your home screen as its own app.\n• Incognito tabs that keep nothing and vanish when you close them.\n• Material 3 Expressive design, coloured by your wallpaper or your choice of accent.\n\nNo accounts, no tracking."
