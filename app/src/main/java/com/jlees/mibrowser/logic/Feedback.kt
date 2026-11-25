@@ -6,7 +6,7 @@ package com.jlees.mibrowser.logic
 import java.net.URLEncoder
 
 object Feedback {
-    const val REPO = "https://github.com/jleescy/mi-browser"
+    const val REPO = "https://github.com/mi-app-hub/mi-browser"
 
     fun bugReport(version: String) = issueForm("bug_report.yml", "version" to version)
     fun featureRequest(version: String) = issueForm("feature_request.yml", "version" to version)

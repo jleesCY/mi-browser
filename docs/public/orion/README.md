@@ -3,18 +3,18 @@
 Everything Orion's form asks for, ready to copy. The same values are in `listing.json` (Orion's own field names).
 Author and App ID fill themselves in on Orion from the GitHub repo; they're here to check against.
 
-- **GitHub repo:** https://github.com/jleesCY/mi-browser
+- **GitHub repo:** https://github.com/mi-app-hub/mi-browser
 - **Name:** mi. Browser
-- **Author** (from GitHub): jleesCY
+- **Author** (from GitHub): mi-app-hub
 - **App ID** (from GitHub): mi-browser (package `com.jlees.mibrowser`)
-- **Icon:** https://jleescy.github.io/mi-browser/icon.png
+- **Icon:** https://mi-app-hub.github.io/mi-browser/icon.png
 - **Screenshots** (the six store images in `../promo/`, live once the docs site is deployed):
-  1. https://jleescy.github.io/mi-browser/promo/mi-browser-1-homepage.png
-  2. https://jleescy.github.io/mi-browser/promo/mi-browser-2-browsing.png
-  3. https://jleescy.github.io/mi-browser/promo/mi-browser-3-tab-switcher.png
-  4. https://jleescy.github.io/mi-browser/promo/mi-browser-4-recent-history-focused-pill.png
-  5. https://jleescy.github.io/mi-browser/promo/mi-browser-5-incognito.png
-  6. https://jleescy.github.io/mi-browser/promo/mi-browser-6-extensions.png
+  1. https://mi-app-hub.github.io/mi-browser/promo/mi-browser-1-homepage.png
+  2. https://mi-app-hub.github.io/mi-browser/promo/mi-browser-2-browsing.png
+  3. https://mi-app-hub.github.io/mi-browser/promo/mi-browser-3-tab-switcher.png
+  4. https://mi-app-hub.github.io/mi-browser/promo/mi-browser-4-recent-history-focused-pill.png
+  5. https://mi-app-hub.github.io/mi-browser/promo/mi-browser-5-incognito.png
+  6. https://mi-app-hub.github.io/mi-browser/promo/mi-browser-6-extensions.png
 
 ## Short description
 

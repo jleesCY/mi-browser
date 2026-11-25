@@ -449,12 +449,12 @@ class LogicTest {
 
     @Test fun feedbackFormsSayWhatTheyWereMadeOn() {
         val f = com.jlees.mibrowser.logic.Feedback
-        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=bug_report.yml&version=2.0.0", f.bugReport("2.0.0"))
-        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=feature_request.yml&version=2.0.0-dev", f.featureRequest("2.0.0-dev"))
+        assertEquals("https://github.com/mi-app-hub/mi-browser/issues/new?template=bug_report.yml&version=2.0.0", f.bugReport("2.0.0"))
+        assertEquals("https://github.com/mi-app-hub/mi-browser/issues/new?template=feature_request.yml&version=2.0.0-dev", f.featureRequest("2.0.0-dev"))
         // spaces and symbols encoded; an unknown WebView version left out
-        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=extension_support.yml&version=2.0.0&extension=Dark%20Reader%20%26%20more",
+        assertEquals("https://github.com/mi-app-hub/mi-browser/issues/new?template=extension_support.yml&version=2.0.0&extension=Dark%20Reader%20%26%20more",
             f.extensionSupport("2.0.0", null, "Dark Reader & more"))
-        assertEquals("https://github.com/jleescy/mi-browser/issues/new?template=extension_support.yml&version=2.0.0&webview=133.0.6943.137",
+        assertEquals("https://github.com/mi-app-hub/mi-browser/issues/new?template=extension_support.yml&version=2.0.0&webview=133.0.6943.137",
             f.extensionSupport("2.0.0", "133.0.6943.137"))
     }
 }

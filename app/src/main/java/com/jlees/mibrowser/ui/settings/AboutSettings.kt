@@ -15,9 +15,9 @@ import com.jlees.mibrowser.BuildConfig
 import com.jlees.mibrowser.logic.Feedback
 import com.jlees.mibrowser.ui.common.*
 
-private const val GUIDE_URL = "https://jleescy.github.io/mi-browser/user"
+private const val GUIDE_URL = "https://mi-app-hub.github.io/mi-browser/user"
 private const val SOURCE_URL = com.jlees.mibrowser.logic.Feedback.REPO
-private const val PRIVACY_URL = "https://jleescy.github.io/mi-browser/privacy"
+private const val PRIVACY_URL = "https://mi-app-hub.github.io/mi-browser/privacy"
 
 /** [openPage] opens an address in a new tab, in front (leaving Settings). */
 fun aboutSection(vm: BrowserViewModel, openPage: (String) -> Unit) = SettingsSection("about", "About", "info", "Updates, help, feedback, credits", listOf(
@@ -48,7 +48,7 @@ fun aboutSection(vm: BrowserViewModel, openPage: (String) -> Unit) = SettingsSec
         Item("shield", "Privacy Policy", "mi collects no personal data", onClick = { openPage(PRIVACY_URL) }, trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
     },
     SettingsRow("Source Code", "github open source") {
-        Item("code", "Source Code", "github.com/jleescy/mi-browser", onClick = { openPage(SOURCE_URL) }, trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
+        Item("code", "Source Code", "github.com/mi-app-hub/mi-browser", onClick = { openPage(SOURCE_URL) }, trailing = { Sym("open_in_new", 20f, LocalUi.current.cs.onSurfaceVariant) })
     },
     SettingsRow("Credits", "licenses open source attribution") { CreditsItem() },
     SettingsRow("Filter List Credits", "easylist license adblock") {

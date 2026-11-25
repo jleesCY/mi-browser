@@ -114,7 +114,7 @@ export default function Privacy() {
           <Section title="Changes and contact">
             <p>
               If this policy changes, the new version will be posted on this page with a new date. Questions? Open an
-              issue on <a className="text-primary hover:underline" href="https://github.com/jleescy/mi-browser/issues" target="_blank" rel="noopener noreferrer">GitHub</a>.
+              issue on <a className="text-primary hover:underline" href="https://github.com/mi-app-hub/mi-browser/issues" target="_blank" rel="noopener noreferrer">GitHub</a>.
             </p>
           </Section>
         </article>

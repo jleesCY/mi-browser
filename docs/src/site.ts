@@ -4,4 +4,4 @@
 export const getAssetPath = (path: string) =>
   `${process.env.NODE_ENV === "production" ? `/${process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser"}` : ""}${path}`;
 
-export const GITHUB_URL = "https://github.com/jleescy/mi-browser";
+export const GITHUB_URL = "https://github.com/mi-app-hub/mi-browser";

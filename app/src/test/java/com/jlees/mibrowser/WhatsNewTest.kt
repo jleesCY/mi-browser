@@ -27,7 +27,7 @@ class WhatsNewTest {
             - The new logo
             * Sky blue, everywhere
 
-            [All changes since v1.9.0](https://github.com/jleescy/mi-browser/compare/v1.9.0...v2.0.0)
+            [All changes since v1.9.0](https://github.com/mi-app-hub/mi-browser/compare/v1.9.0...v2.0.0)
             APK: app/build/outputs/apk/release/mi-browser-2.0.0-release.apk
         """.trimIndent()
         val n = parseReleaseNotes("2.0.0", md)

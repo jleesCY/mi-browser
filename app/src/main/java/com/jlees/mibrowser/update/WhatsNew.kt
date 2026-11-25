@@ -86,7 +86,7 @@ private fun clean(s: String) = LINK.replace(s.trim()) { it.groupValues[1] }
 
 /** Asks GitHub for the release tagged "v[version]": its notes, null when there's no such release (or no notes). */
 internal suspend fun fetchReleaseNotes(version: String): ReleaseNotes? = withContext(Dispatchers.IO) {
-    val conn = (URL("https://api.github.com/repos/jleescy/mi-browser/releases/tags/v$version").openConnection() as HttpURLConnection).apply {
+    val conn = (URL("https://api.github.com/repos/mi-app-hub/mi-browser/releases/tags/v$version").openConnection() as HttpURLConnection).apply {
         connectTimeout = 10_000; readTimeout = 10_000
         setRequestProperty("Accept", "application/vnd.github+json")
     }

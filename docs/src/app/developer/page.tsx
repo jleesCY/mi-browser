@@ -161,7 +161,7 @@ export default function DeveloperDocs() {
                 <div className="space-y-6">
                   <h3 className="text-xl font-bold">Installation</h3>
                   <CodeBlock 
-                    command={`git clone https://github.com/jleescy/mi-browser.git\ncd mi-browser`}
+                    command={`git clone https://github.com/mi-app-hub/mi-browser.git\ncd mi-browser`}
                   />
                 </div>
 
@@ -203,7 +203,7 @@ export default function DeveloperDocs() {
                   <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 text-xs text-primary/80">
                     <p><strong>Signing:</strong> create a <code className="bg-surface-container-highest px-1 rounded">keystore.properties</code> file in the project root (it is git-ignored) with <code className="bg-surface-container-highest px-1 rounded">storeFile</code>, <code className="bg-surface-container-highest px-1 rounded">storePassword</code>, <code className="bg-surface-container-highest px-1 rounded">keyAlias</code> and <code className="bg-surface-container-highest px-1 rounded">keyPassword</code>. Without it, the release APK is built unsigned.</p>
                   </div>
-                  <p className="text-sm text-on-surface-variant"><strong>Versioning:</strong> MAJOR.MINOR.PATCH: major for ground-up changes (1.0 was the native rewrite; 2.0 the mi. family rebrand and extensions), minor for significant new features, patch for fixes and smaller improvements. The 0.x releases were built with React Native; their source is on the <a className="underline" href="https://github.com/jleescy/mi-browser/tree/legacy">legacy</a> branch.</p>
+                  <p className="text-sm text-on-surface-variant"><strong>Versioning:</strong> MAJOR.MINOR.PATCH: major for ground-up changes (1.0 was the native rewrite; 2.0 the mi. family rebrand and extensions), minor for significant new features, patch for fixes and smaller improvements. The 0.x releases were built with React Native; their source is on the <a className="underline" href="https://github.com/mi-app-hub/mi-browser/tree/legacy">legacy</a> branch.</p>
                 </div>
               </div>
             </motion.div>

@@ -16,7 +16,7 @@ import java.net.URL
 data class Release(val version: String, val apkUrl: String)
 
 object Updates {
-    private const val LATEST = "https://api.github.com/repos/jleescy/mi-browser/releases/latest"
+    private const val LATEST = "https://api.github.com/repos/mi-app-hub/mi-browser/releases/latest"
 
     /**
      * Whether the launch check should ask GitHub now. [lastNothingNew] is when a check last found nothing new: the next

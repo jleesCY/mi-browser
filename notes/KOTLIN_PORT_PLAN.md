@@ -433,7 +433,7 @@ Each bullet is an acceptance item. Legacy refs are under `legacy/`.
   - Reset All Settings (red) → confirm "This will restore all app settings to their default values. Your history and tabs will be preserved." [Reset]. This also clears `ignoredHosts`.
   - Wipe All Data (red) → confirm "This will delete ALL data including history, bookmarks, tabs, and settings. The app will be reset to a fresh state." [Wipe App] → reset settings, clear history + recents + bookmarks + favorites, one fresh tab, delete all stores and cache files, close the overlay. Also clear WebView cookies, cache and storage, which is the intent of a wipe.
   - Use the in-app CustomAlert for all of these. RN used the native `Alert` for import/export; unify on CustomAlert.
-- [ ] Footer: "Help" (help-circle-outline, accent 70%) → new tab `https://jleescy.github.io/mi-browser/user` + close. "mi browser v{versionName}" (11sp, 40% alpha), using `BuildConfig.VERSION_NAME`.
+- [ ] Footer: "Help" (help-circle-outline, accent 70%) → new tab `https://mi-app-hub.github.io/mi-browser/user` + close. "mi browser v{versionName}" (11sp, 40% alpha), using `BuildConfig.VERSION_NAME`.
 
 ### 6.11 Home page (`HomePage.tsx`, `useWeather.ts`)
 - [ ] Rendered for the active tab when its url is null/`about:blank`. Tapping anywhere dismisses the keyboard.
