@@ -263,7 +263,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
                 vm.tabs.list.forEach { t ->
                     if (t.isHome) { if (host.has(t.id)) host.destroy(t.id) }
                     // background tabs: keep live ones in sync; only warm new ones while under the live-WebView cap
-                    else if (t.hasLoadedOnce && t.id != vm.tabs.activeId && (host.has(t.id) || host.liveCount < MAX_LIVE_TABS)) host.sync(t)
+                    else if (t.id != vm.tabs.activeId &&
+                        com.jlees.mibrowser.tabs.warmInBackground(host.has(t.id), t.hasLoadedOnce, host.resting(t.id), host.liveCount, MAX_LIVE_TABS)) host.sync(t)
                 }
             }
 

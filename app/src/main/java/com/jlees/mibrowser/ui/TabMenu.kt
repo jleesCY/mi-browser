@@ -199,7 +199,7 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                     com.jlees.mibrowser.data.QuickTile.DESKTOP -> Tile("desktop_windows", "Desktop site", if (desktop) "On" else "Off", desktop) { vm.setDesktopMode(!desktop) }
                     com.jlees.mibrowser.data.QuickTile.READER -> Tile("chrome_reader_mode", "Reader mode", if (reader) "On" else "Off", reader) { vm.setReaderMode(!reader) }
                     com.jlees.mibrowser.data.QuickTile.FIND -> Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.find.open() }
-                    com.jlees.mibrowser.data.QuickTile.ADS -> Tile("shield", "Block ads here", if (!hasUrl) null else if (blocking) "On" else "Off for this site", hasUrl && blocking, hasUrl) { vm.toggleAdsHere() }
+                    com.jlees.mibrowser.data.QuickTile.ADS -> Tile("shield", "Block ads here", if (!hasUrl) null else if (blocking) com.jlees.mibrowser.adblock.blockingLabel(com.jlees.mibrowser.adblock.BlockedCounts.on(tab?.id)) else "Off for this site", hasUrl && blocking, hasUrl) { vm.toggleAdsHere() }
                 }
             }
 

@@ -5,13 +5,8 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Terminal, Cpu, Layout, FolderTree, Info } from "lucide-react";
 import { useHighlight } from "@/hooks/useHighlight";
+import { getAssetPath } from "@/site";
 
-const getAssetPath = (path: string) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  const repoName = process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser";
-  const basePath = isProd ? `/${repoName}` : "";
-  return `${basePath}${path}`;
-};
 
 const PROJECT_STRUCTURE = `
 /

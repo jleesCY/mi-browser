@@ -98,7 +98,10 @@ class WebViewHost(
     private val loaded = HashMap<String, Pair<String?, Int>>()
     /** Live WebViews are capped (each is a full page renderer): least recently viewed tabs are evicted, keeping their
      *  back/forward state here so they come back where they were when opened again. */
+    /** When each live tab was last on screen (System.nanoTime): the least recent rests first, and an idle one rests. */
     private val lastUsed = HashMap<String, Long>()
+    /** The tab on screen, so the moment it's left counts as its last time seen. */
+    private var onScreen: String? = null
     private val saved = HashMap<String, Bundle>()
     val liveCount get() = views.size
     /** Bumped when all WebViews are rebuilt, so the visible AndroidView re-attaches a fresh one. */
@@ -173,16 +176,25 @@ class WebViewHost(
     fun setAppVisible(visible: Boolean) {
         if (visible == appVisible) return
         appVisible = visible
+        if (!visible) { onScreen?.let { lastUsed[it] = System.nanoTime() }; restIdle() }
         applyActivity()
     }
 
     fun has(id: String) = views.containsKey(id)
 
+    /** Tab [id]'s page is resting (its state kept, its WebView gone) until it's opened. */
+    fun resting(id: String) = saved.containsKey(id)
+
     /** Get or create the tab's WebView, apply settings and perform any requested load. */
     fun sync(tab: TabItem): WebView {
         val fresh = !views.containsKey(tab.id)
         val wv = views.getOrPut(tab.id) { create(tab.id, tab.profile) }
-        if (tab.id == vm.tabs.activeId) lastUsed[tab.id] = System.nanoTime()
+        val now = System.nanoTime()
+        if (fresh) lastUsed.putIfAbsent(tab.id, now) // opened in the background: its 10 minutes start now
+        if (tab.id == vm.tabs.activeId) {
+            lastUsed[tab.id] = now
+            if (onScreen != tab.id) { onScreen?.let { lastUsed[it] = now }; onScreen = tab.id; restIdle() } // switched tabs
+        }
         if (fresh) {
             configure(wv, tab.desktopMode ?: vm.settings.desktopMode)
             // a new WebView for an existing tab (evicted, theme change, activity recreated): restore or reopen its page
@@ -223,16 +235,34 @@ class WebViewHost(
         if (wasIncognito || incognito.detach(id, null) || vm.tabs.list.none { it.id == id }) Handler(Looper.getMainLooper()).post { incognito.release() }
     }
 
-    /** Evicts least recently viewed WebViews (never the active one) until at most [max] are live. */
+    /**
+     * Tabs whose pages must stay live: the one on screen, one playing media, a pop-up and its opener (the page relies on
+     * window.opener / postMessage between the two), one printing.
+     */
+    private fun mustStayLive(): Set<String> =
+        (listOfNotNull(vm.tabs.activeId, media.tabId) + vm.tabs.list.filter { it.openerId != null }.flatMap { listOf(it.id, it.openerId!!) } +
+            views.keys.filter { printer.isPrinting(it) }).toSet()
+
+    /** Rests tab [id]'s page: its state is kept, so it comes back where it was when the tab is opened. */
+    private fun rest(id: String) {
+        val state = Bundle().also { views[id]?.saveState(it) }
+        destroy(id)
+        saved[id] = state
+    }
+
+    /** Rests least recently viewed WebViews (never one that must stay live) until at most [max] are live. */
     fun trimTo(max: Int) {
         while (views.size > max) {
-            // never a popup or its opener: the page relies on window.opener / postMessage between the two
-            val linked = vm.tabs.list.filter { it.openerId != null }.flatMap { listOf(it.id, it.openerId!!) }.toSet()
-            val id = views.keys.filter { it != vm.tabs.activeId && it != media.tabId && it !in linked && !printer.isPrinting(it) }.minByOrNull { lastUsed[it] ?: 0L } ?: return
-            val state = Bundle().also { views[id]?.saveState(it) }
-            destroy(id)
-            saved[id] = state
+            val keep = mustStayLive()
+            rest(views.keys.filter { it !in keep }.minByOrNull { lastUsed[it] ?: 0L } ?: return)
         }
+    }
+
+    /** Rests the pages of tabs not looked at for 10 minutes (Settings › Tabs › Rest Unused Tabs): on a tab switch, and as mi leaves the screen. */
+    fun restIdle() {
+        if (!vm.settings.restUnusedTabs) return
+        val ms = 1_000_000L
+        com.jlees.mibrowser.tabs.tabsToRest(views.keys.toList(), lastUsed.mapValues { it.value / ms }, System.nanoTime() / ms, mustStayLive()).forEach(::rest)
     }
 
     /** Activity teardown: release every WebView (they hold the Activity). [finishing]: incognito ends with the app. */

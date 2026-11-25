@@ -80,3 +80,21 @@ fun matchesTab(tab: TabItem, query: String): Boolean {
     val address = tab.url ?: tab.historyStack.getOrNull(tab.currentIndex).orEmpty()
     return tab.title.contains(q, ignoreCase = true) || address.contains(q, ignoreCase = true)
 }
+
+/** How long a tab can sit unseen before its page rests (frees its memory; it reloads when you open it). */
+const val REST_AFTER_MS = 10 * 60_000L
+
+/**
+ * The live tabs whose pages should rest: those not looked at for [idleMs] (by [lastSeen], the last moment each was on
+ * screen), apart from [keep] (the tab you're on, one playing media, a pop-up and its opener, one printing).
+ */
+fun tabsToRest(live: Collection<String>, lastSeen: Map<String, Long>, now: Long, keep: Set<String>, idleMs: Long = REST_AFTER_MS): List<String> =
+    live.filter { it !in keep && now - (lastSeen[it] ?: now) >= idleMs }
+
+/**
+ * Whether a background tab's page is kept in sync or loaded ahead: one already live, or one that has loaded before
+ * while there's room under the live-page cap, but never one put to rest ([resting]: Rest Unused Tabs or the cap), which
+ * waits until it's opened (loading it again behind your back would undo the rest and cost the battery it saved).
+ */
+fun warmInBackground(live: Boolean, hasLoadedOnce: Boolean, resting: Boolean, liveCount: Int, maxLive: Int): Boolean =
+    live || (hasLoadedOnce && !resting && liveCount < maxLive)

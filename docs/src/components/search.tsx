@@ -14,8 +14,8 @@ interface SearchResult {
 
 const MOCK_DATA: SearchResult[] = [
   // User Guide Sections
-  { title: "Core Interactions", type: "User Guide", href: "/user#the-pill", excerpt: "Master the core interaction element: tap and swipe-up gestures." },
-  { title: "The Pill", type: "User Guide", href: "/user#the-pill", excerpt: "Master the core interaction element: tap and swipe-up gestures." },
+  { title: "The Pill", type: "User Guide", href: "/user#the-pill", excerpt: "Tap to search, swipe up for tabs, sideways for back and forward, down to hide." },
+  { title: "Incognito", type: "User Guide", href: "/user#incognito", excerpt: "Tabs that save nothing and are erased when closed." },
   { title: "Navigation Gestures", type: "User Guide", href: "/user#gestures", excerpt: "Learn horizontal swipe gestures for back/forward navigation." },
   { title: "Site Settings", type: "User Guide", href: "/user#site-settings", excerpt: "One site's permissions, pop-ups, ad blocking and data." },
   { title: "Recently Closed Tabs", type: "User Guide", href: "/user#recently-closed", excerpt: "History's Recently Closed section: reopen tabs you closed." },
@@ -57,6 +57,7 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Picture-in-Picture", type: "Settings", href: "/user#setting-picture-in-picture", excerpt: "Fullscreen videos keep playing in a small window." },
   { title: "Background Playback", type: "Settings", href: "/user#setting-background-playback", excerpt: "Audio and video keep playing when you leave mi." },
   { title: "Swipe Left, Swipe Right, Swipe Up", type: "Settings", href: "/user#setting-swipe-left,-swipe-right,-swipe-up", excerpt: "Choose which page each switcher swipe opens." },
+  { title: "Rest Unused Tabs", type: "Settings", href: "/user#setting-rest-unused-tabs", excerpt: "Tabs unused for 10 minutes free their memory." },
   { title: "Long Press to Search", type: "Settings", href: "/user#setting-long-press-to-search", excerpt: "Hold the switcher's Pill to search your tabs." },
   { title: "Clear Recently Closed Tabs", type: "Settings", href: "/user#setting-clear-recently-closed-tabs", excerpt: "Forget the tabs you've closed." },
   { title: "Report a Bug", type: "Settings", href: "/user#setting-report-a-bug", excerpt: "Open a bug report on GitHub, with your version filled in." },

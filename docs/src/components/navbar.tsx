@@ -5,15 +5,9 @@ import { Search } from "./search";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { getAssetPath, GITHUB_URL } from "@/site";
 
-const getAssetPath = (path: string) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  const repoName = process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser";
-  const basePath = isProd ? `/${repoName}` : "";
-  return `${basePath}${path}`;
-};
 
-const GITHUB_URL = "https://github.com/jleescy/mi-browser";
 
 export function Navbar() {
   const pathname = usePathname();

@@ -53,8 +53,12 @@ class SheetBack(
 
 val LocalSheetBack = staticCompositionLocalOf<SheetBack?> { null }
 
-/** The room a sheet view's list leaves at its end for the search Pill. */
-val SheetPillSpace = 112.dp
+/**
+ * The room a sheet view's list leaves at its end for the search Pill: the Pill (70dp, 10dp up) sits above the
+ * navigation bar, which is taller with 3-button navigation, so its height is counted in, plus a gap past the Pill.
+ */
+val SheetPillSpace: androidx.compose.ui.unit.Dp
+    @Composable get() = 80.dp + 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
 /**
  * A sheet view's search field, in a Pill at the bottom (above the keyboard while typing). Swiping the Pill goes back,

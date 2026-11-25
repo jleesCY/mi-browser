@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "deploy": "npm run build && touch ./out/.nojekyll && gh-pages -d out -t",
     "theme": "node scripts/theme.mjs",
     "predev": "node scripts/theme.mjs",

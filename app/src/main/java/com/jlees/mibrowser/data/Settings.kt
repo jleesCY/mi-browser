@@ -144,6 +144,8 @@ data class Settings(
     val startupTabMode: StartupTabs = StartupTabs.NEW,
     val keepClosedTabs: KeepClosedTabs = KeepClosedTabs.SESSION,
     val showTabLogo: Boolean = true,
+    /** Tabs you haven't looked at for a while free their page's memory and reload when you open them (tabs/: tabsToRest). */
+    val restUnusedTabs: Boolean = true,
     val showBookmarkIcons: Boolean = true,
     val desktopMode: Boolean = false,
     val readerModeEnabled: Boolean = false,

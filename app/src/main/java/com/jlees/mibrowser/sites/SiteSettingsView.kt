@@ -71,7 +71,8 @@ fun SiteSettingsView(vm: BrowserViewModel, host: WebViewHost, closeOverlay: () -
                 host.setPopupsAllowed(tab.id, site, it); version++
             }
             val blocking = vm.adsAllowedHere() == null
-            SwitchItem("block", "Ad Blocking", "Ads, trackers and cookie banners on this site", blocking) { vm.toggleAdsHere() }
+            val count = com.jlees.mibrowser.adblock.BlockedCounts.on(vm.tabs.activeId)
+            SwitchItem("block", "Ad Blocking", if (blocking && count > 0) "$count ads and trackers blocked on this page" else "Ads, trackers and cookie banners on this site", blocking) { vm.toggleAdsHere() }
         }
 
         Group(Modifier.padding(top = 16.dp)) {

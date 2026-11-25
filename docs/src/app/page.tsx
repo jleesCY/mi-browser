@@ -4,17 +4,11 @@ import { motion } from "framer-motion";
 import { Download, ChevronRight, Zap, Palette, Shield, Sparkles, Puzzle, Check } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { GITHUB_URL } from "@/site";
+import { DeviceMockup } from "@/components/device-mockup";
 
-// Helper to handle basePath for GitHub Pages
-const getAssetPath = (path: string) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  const repoName = process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser";
-  const basePath = isProd ? `/${repoName}` : "";
-  return `${basePath}${path}`;
-};
 
 export default function Home() {
-  const GITHUB_URL = "https://github.com/jleescy/mi-browser";
 
   return (
     <main className="min-h-screen bg-surface-container-low text-on-surface overflow-x-hidden transition-colors duration-300">
@@ -54,7 +48,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative flex justify-center lg:justify-end mt-8 lg:mt-0"
           >
-            <DeviceMockup src={getAssetPath("/images/homepage.jpg")} color="blue" />
+            <DeviceMockup src="/images/homepage.jpg" color="blue" />
           </motion.div>
         </div>
       </section>
@@ -73,7 +67,7 @@ export default function Home() {
         
         {/* The Pill */}
         <FeatureDetail 
-          image={getAssetPath("/images/browsing.jpg")}
+          image="/images/browsing.jpg"
           tag="Interaction"
           tagColor="text-primary bg-primary-container border-primary/20"
           title="One Pill. Total Control."
@@ -90,7 +84,7 @@ export default function Home() {
 
         {/* Tab Management */}
         <FeatureDetail 
-          image={getAssetPath("/images/tab_zoom.jpg")}
+          image="/images/tab_zoom.jpg"
           tag="Organization"
           tagColor="text-tertiary bg-tertiary-container border-tertiary/20"
           title="Visual Tab Management."
@@ -107,7 +101,7 @@ export default function Home() {
 
         {/* Customization */}
         <FeatureDetail 
-          image={getAssetPath("/images/settings.jpg")}
+          image="/images/settings.jpg"
           tag="Aesthetic"
           tagColor="text-tertiary bg-tertiary-container border-tertiary/20"
           title="Deeply, truly yours."
@@ -124,7 +118,7 @@ export default function Home() {
 
         {/* Power Tools / Context Menu */}
         <FeatureDetail 
-          image={getAssetPath("/images/power_tools.jpg")}
+          image="/images/power_tools.jpg"
           tag="Utility"
           tagColor="text-secondary bg-secondary-container border-secondary/20"
           title="Power in your pocket."
@@ -262,25 +256,3 @@ function FeatureDetail({ image, tag, tagColor, title, description, bullets, imag
   );
 }
 
-function DeviceMockup({ src, color }: { src: string, color?: string }) {
-  const glowStyles: any = {
-    blue: "bg-primary/20 shadow-primary/30",
-    purple: "bg-tertiary/20 shadow-tertiary/30",
-    pink: "bg-tertiary/20 shadow-tertiary/30",
-    orange: "bg-secondary/20 shadow-secondary/30",
-    cyan: "bg-secondary/20 shadow-secondary/30",
-  };
-
-  return (
-    <div className="relative group">
-      <div className={`absolute -inset-10 ${color ? glowStyles[color].split(' ')[0] : 'bg-primary-container'} rounded-full blur-[80px] group-hover:opacity-100 transition-opacity opacity-50`} />
-      <div className={`relative w-[220px] sm:w-[280px] bg-black rounded-[2rem] sm:rounded-[2.5rem] p-2 sm:p-3 shadow-2xl border-[4px] sm:border-[6px] border-[#1a1a1a] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-1`}>
-        <img 
-          src={src} 
-          alt="mi. App Screenshot" 
-          className="w-full h-auto block rounded-[1.4rem] sm:rounded-[1.8rem]"
-        />
-      </div>
-    </div>
-  );
-}

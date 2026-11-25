@@ -28,14 +28,16 @@ class ContentBlocker(private val settings: () -> Settings, private val sessionAl
     private val pageHosts = ConcurrentHashMap<String, String>()
 
     /** Tab [tabId] started loading a page on [host] (also pages restored from history or cache). */
-    fun pageStarted(tabId: String, host: String?) { if (host != null) pageHosts[tabId] = host }
-    fun forget(tabId: String) { pageHosts.remove(tabId) }
+    fun pageStarted(tabId: String, host: String?) { if (host != null) pageHosts[tabId] = host; BlockedCounts.pageStarted(tabId) }
+    fun forget(tabId: String) { pageHosts.remove(tabId); BlockedCounts.forget(tabId) }
 
     /** WebViewClient.shouldInterceptRequest for tab [tabId]: an empty response for a blocked sub-resource. */
     fun intercept(tabId: String, request: WebResourceRequest): WebResourceResponse? {
         if (request.isForMainFrame) { pageStarted(tabId, request.url.host); return null }
         val host = request.url.host ?: return null
-        return if (AdBlock.shouldBlock(request.url.toString(), host, pageHosts[tabId], request.requestHeaders["Accept"], settingsFor(tabId))) blocked() else null
+        if (!AdBlock.shouldBlock(request.url.toString(), host, pageHosts[tabId], request.requestHeaders["Accept"], settingsFor(tabId))) return null
+        BlockedCounts.blocked(tabId)
+        return blocked()
     }
 
     /** Service workers fetch outside any tab: their requests are filtered without a page. */

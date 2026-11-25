@@ -1,15 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { getAssetPath, GITHUB_URL } from "@/site";
 
-const getAssetPath = (path: string) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  const repoName = process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser";
-  const basePath = isProd ? `/${repoName}` : "";
-  return `${basePath}${path}`;
-};
 
-const GITHUB_URL = "https://github.com/jleescy/mi-browser";
 
 export function Footer() {
   return (

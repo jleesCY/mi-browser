@@ -39,13 +39,8 @@ import {
   Star,
   EyeOff,
 } from "lucide-react";
+import { DeviceMockup } from "@/components/device-mockup";
 
-const getAssetPath = (path: string) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  const repoName = process.env.NEXT_PUBLIC_REPO_NAME || "mi-browser";
-  const basePath = isProd ? `/${repoName}` : "";
-  return `${basePath}${path}`;
-};
 
 export default function UserDocs() {
   useHighlight();
@@ -73,60 +68,57 @@ export default function UserDocs() {
 
           <section className="space-y-24 sm:space-y-32">
 
-            {/* 1. Pill Interactions - IMAGE RIGHT */}
+            {/* 1. The Pill - IMAGE RIGHT */}
             <motion.div id="the-pill" {...fadeInUp} className="space-y-12">
               <div className="flex items-center justify-center sm:justify-start gap-3">
                 <div className="p-2 rounded-xl bg-primary-container text-on-primary-container">
                   <Navigation size={24} />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Pill Interactions</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">The Pill</h2>
               </div>
               <div className="grid lg:grid-cols-2 gap-12 items-center text-center sm:text-left">
                 <div className="space-y-6">
                   <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed font-medium">
-                    mi. Browser is designed for one-handed use. Everything centers around &quot;The Pill&quot; at the bottom of your screen.
+                    Everything starts from the Pill at the bottom of the screen, within reach of your thumb.
                   </p>
-                  <div className="space-y-6 inline-block text-left w-full">
-                    <div className="space-y-4">
-                      <GuideItem icon={<MousePointer2 size={18} />} title="Tap the Pill" desc="Focuses the address bar. Type a URL or a search query to navigate instantly." />
-                      <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Opens the Tab Switcher. The page shrinks into its card as your finger moves, like a phone's recent apps screen." />
-                      <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hides the Pill entirely for an immersive full-screen experience. Tap or swipe up on the floating recall button to bring it back." />
-                      <div id="recall-button">
-                        <GuideItem icon={<GripHorizontal size={18} />} title="Move the Recall Button" desc="While the Pill is hidden, swipe the recall button left or right. It follows your finger and pins to the left, center, or right of the screen, wherever you let go." />
-                      </div>
-                      <div id="incognito">
-                        <GuideItem icon={<Search size={18} />} title="Incognito" desc="On a fresh tab, tap the mask in the Pill to make it incognito (a tab you've browsed in keeps its mode). Each incognito tab has its own private storage: nothing comes in from your other tabs and nothing leaves. Its pages aren't added to history, screenshots are blocked, the tab switcher shows it only as 'Incognito tab', and its cookies, logins and site data are erased when you close it. Long-press a link and choose 'Open in Incognito Tab' to send it there. While incognito tabs are open, a notification closes them all with one tap. In incognito the keyboard is asked not to learn what you type, passkeys can't be created (signing in with one works), and search suggestions are off unless you turn on Suggestions in Incognito. Downloads and bookmarks you choose to save are kept." />
-                        <GuideItem icon={<Search size={18} />} title="Paste and Go" desc="Copied a link? Tap the Pill and Paste and Go is offered right above the field, for a few minutes after copying. mi only reads the clipboard when you tap it." />
-                      </div>
-                      <div id="search-widget">
-                        <GuideItem icon={<Search size={18} />} title="Search Widget" desc="Add the mi widget to your home screen: tap the bar to open a new tab ready to type, or its buttons for a new incognito tab or the QR scanner. Long-press mi's icon for the same shortcuts." />
-                      </div>
-                      <div id="home-screen-apps">
-                        <GuideItem icon={<Maximize size={18} />} title="Sites as Apps" desc="In the tab menu, tap Home screen and keep Open as App on: the site goes on your home screen as an app. It opens in a window of its own, with its own card in Recents, the site's colour in the status bar and no Pill, and you're signed in as in mi. Tapping it again comes back to the same window. Links to other sites and downloads open in mi; Back on its first page leaves it in Recents, as an app does." />
-                      </div>
-                      <div id="immersive">
-                        <GuideItem icon={<Maximize size={18} />} title="Immersive" desc="Tap Immersive in the tab menu to hide the Pill on the tab you're on, the status bar taking the site's colour. A quiet notification, 'Tap to exit immersive mode', brings the Pill back (with notifications off for mi, Back on the page's first page does). Links to other sites open in a new tab." />
-                      </div>
-                      <div id="big-screens">
-                        <GuideItem icon={<Monitor size={18} />} title="Landscape, Tablets and Foldables" desc="mi turns with your phone (Rotate Screen in Settings › Look & Feel keeps it in portrait). On a wide screen the Pill, Settings, the Library and other pages keep a comfortable width, centred, and a new tab moves its logo above your favorites when the screen is short. mi works in split screen too." />
-                      </div>
-                      <div id="search-engine-only">
-                        <GuideItem icon={<Search size={18} />} title="Search, Never Open" desc="Start with !se to always search your search engine, even for something that looks like an address: !se example.com searches for it instead of opening the site." />
-                      </div>
+                  <div id="gestures" className="space-y-4 inline-block text-left w-full">
+                    <GuideItem icon={<MousePointer2 size={18} />} title="Tap" desc="Type an address or a search." />
+                    <GuideItem icon={<ChevronRight size={18} className="-rotate-90" />} title="Swipe Up" desc="Open the tab switcher." />
+                    <GuideItem icon={<ChevronRight size={18} />} title="Swipe Sideways" desc="Right to go back, left to go forward." />
+                    <div id="recall-button">
+                      <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hide the Pill. Tap the small button left behind to bring it back, or drag it to either side." />
                     </div>
-
-                    <div id="gestures" className="pt-4 space-y-4 border-t border-outline-variant">
-                      <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-4">Navigation Gestures</h4>
-                      <GuideItem icon={<ChevronRight size={18} />} title="Swipe Right" desc="Go back to the previous page in your history." />
-                      <GuideItem icon={<ChevronRight size={18} className="rotate-180" />} title="Swipe Left" desc="Go forward to the next page if you've navigated back." />
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-outline-variant bg-surface-container-high text-[10px] sm:text-xs text-on-surface-variant">
-                      <p><strong>Pro Tip:</strong> These gestures work directly on the Pill area, allowing for effortless one-handed browsing.</p>
-                    </div>
+                    <GuideItem icon={<Search size={18} />} title="Paste and Go" desc="Just copied a link? Tap the Pill to open it." />
                   </div>
                 </div>
                 <DeviceMockup src="/images/browsing.jpg" color="blue" />
+              </div>
+            </motion.div>
+
+            {/* 1b. More ways to browse */}
+            <motion.div id="more-ways" {...fadeInUp} className="space-y-8">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="p-2 rounded-xl bg-secondary-container text-on-secondary-container">
+                  <Maximize size={24} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">More Ways to Browse</h2>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-6 text-left">
+                <div id="incognito">
+                  <GuideItem icon={<Lock size={18} />} title="Incognito" desc="Tap the mask in the Pill on a new tab. Nothing is saved, and everything is erased when you close it." />
+                </div>
+                <div id="home-screen-apps">
+                  <GuideItem icon={<Maximize size={18} />} title="Sites as Apps" desc="Tab menu › Home screen puts a site on your home screen as its own app, without the Pill." />
+                </div>
+                <div id="immersive">
+                  <GuideItem icon={<Maximize size={18} />} title="Immersive" desc="Tab menu › Immersive hides the Pill on one tab. A notification brings it back." />
+                </div>
+                <div id="search-widget">
+                  <GuideItem icon={<Search size={18} />} title="Search Widget" desc="Add mi's widget to your home screen to start a search, an incognito tab or a QR scan." />
+                </div>
+                <div id="big-screens">
+                  <GuideItem icon={<Monitor size={18} />} title="Landscape and Tablets" desc="mi turns with your phone, fits wide screens and works in split screen." />
+                </div>
               </div>
             </motion.div>
 
@@ -176,7 +168,7 @@ export default function UserDocs() {
                     <GuideItem icon={<Calculator size={18} />} title="Inline Answers" desc="Math, unit conversions, number bases, the time in a city, coin flips and dice are answered right above the field as you type, worked out on your phone. Tap an answer to copy it." />
                     <GuideItem icon={<Clock size={18} />} title="Recent Searches" desc="Your past searches appear as soon as you tap the Pill. Tap one to put it back in the field; tap its ✕ to forget it." />
                     <GuideItem icon={<Search size={18} />} title="Search Suggestions" desc="Suggestions from your search engine appear as you type, with the part you typed in bold. Tap ↖ to fill one in and keep typing." />
-                    <GuideItem icon={<Zap size={18} />} title="Shortcuts" desc="Type ! and your search shortcuts appear, narrowing as you type. Tap one to put it in the Pill." />
+                    <div id="search-engine-only"><GuideItem icon={<Zap size={18} />} title="Shortcuts" desc="Type ! for your search shortcuts, like !w for Wikipedia. !se always searches, even for something that looks like an address." /></div>
                     <GuideItem icon={<FolderHeart size={18} />} title="Favorites" desc="Your favorites sit at the bottom of every new tab, four across and two down, swiped sideways for more. Add one with the star in the tab menu, or hold a link and choose Add to Favorites." />
                     <GuideItem icon={<GripHorizontal size={18} />} title="Rearrange Favorites" desc="Touch and hold a favorite, then drag it to its new place." />
                     <GuideItem icon={<Trash2 size={18} />} title="Edit or Remove a Favorite" desc="Touch and hold a favorite and let go without moving it to edit its name and address; Delete is in there too. Favorites also live in a Favorites folder in your bookmarks; deleting that folder deletes them all (mi asks first)." />
@@ -377,6 +369,7 @@ export default function UserDocs() {
 
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
+                  <SettingItem title="Rest Unused Tabs" desc="On by default. Tabs you haven't opened in 10 minutes free their memory, saving battery, and reload where they were when you open them. The tab you're on, one playing media and a pop-up with its opener always stay." />
                   <SettingItem title="Site Icons" id="setting-site-icons-tabs" desc="Shows each website's icon on its tab card in the tab switcher. When off, a globe is shown." />
                 </SettingsSection>
 
@@ -451,7 +444,7 @@ export default function UserDocs() {
                     <div id="quick-bookmark">
                       <GuideItem icon={<Bookmark size={18} />} title="Share &amp; Copy" desc="Share sends the page with your device's share sheet; the copy icon next to the tab's name copies its link." />
                     <div id="site-settings">
-                      <GuideItem icon={<ShieldCheck size={18} />} title="Site Settings" desc="Tap the site at the top of the tab menu: its connection, what it may use this session (camera, microphone, location), pop-ups, ad blocking, and Clear Site Data for just that site." />
+                      <GuideItem icon={<ShieldCheck size={18} />} title="Site Settings" desc="Tap the site at the top of the tab menu: its connection, what it may use this session (camera, microphone, location), pop-ups, ad blocking (with how many ads and trackers were blocked on the page; the Block ads here tile shows it too), and Clear Site Data for just that site." />
                     </div>
                     </div>
                     <div id="find-in-page">
@@ -570,28 +563,3 @@ function SettingItem({ title, desc, id: given }: { title: string, desc: string, 
   );
 }
 
-function DeviceMockup({ src, color }: { src: string, color?: string }) {
-  const glowStyles: any = {
-    blue: "bg-primary/20 shadow-primary/30",
-    purple: "bg-tertiary/20 shadow-tertiary/30",
-    pink: "bg-tertiary/20 shadow-tertiary/30",
-    orange: "bg-secondary/20 shadow-secondary/30",
-    cyan: "bg-secondary/20 shadow-secondary/30",
-    green: "bg-secondary/20 shadow-secondary/30",
-  };
-
-  const glowClass = (color && glowStyles[color]) ? glowStyles[color].split(' ')[0] : 'bg-primary-container';
-
-  return (
-    <div className="relative group flex justify-center">
-      <div className={`absolute -inset-10 ${glowClass} rounded-full blur-[80px] group-hover:opacity-100 transition-opacity opacity-50`} />
-      <div className={`relative w-[220px] sm:w-[280px] bg-black rounded-[2rem] p-2 shadow-2xl border-[4px] border-[#1a1a1a] overflow-hidden transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-1`}>
-        <img
-          src={getAssetPath(src)}
-          alt="mi. App Screenshot"
-          className="w-full h-auto block rounded-[1.4rem]"
-        />
-      </div>
-    </div>
-  );
-}
