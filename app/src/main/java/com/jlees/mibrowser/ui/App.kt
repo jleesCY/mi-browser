@@ -102,6 +102,11 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
     val s = vm.settings
     val dark = when (s.themeMode) { ThemeMode.LIGHT -> false; ThemeMode.DARK -> true; ThemeMode.SYSTEM -> isSystemInDarkTheme() }
     val ctx = LocalContext.current
+    // the home-screen icon follows Look & Feel › App Icon, once the settings have loaded (before, every pick looks like
+    // the default); off the main thread, as it asks the package manager
+    LaunchedEffect(vm.ready, s.appIcon) {
+        if (vm.ready) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.jlees.mibrowser.launcher.applyAppIcon(ctx.applicationContext, s.appIcon) }
+    }
     val baseScheme = if (s.accentColor == DYNAMIC_ACCENT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
     } else rememberDynamicColorScheme(

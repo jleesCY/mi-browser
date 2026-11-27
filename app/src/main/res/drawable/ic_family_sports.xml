@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- mi. Sports' icon, "You are here": a trophy in the app's basketball orange (#FF6A13), and mi.'s dot beside its base:
+     your team's turn to lift it. Drawn on a 100-unit grid (see the mi-brand icons/make_icons.py), scaled to 46.7dp and
+     centred on the 108dp adaptive canvas. The ring of background round the dot is the icon's own near-black. The trophy
+     is drawn 12% larger than its art (mi-brand, 2026-11-27); mi.'s dot and its ring keep their size and place. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="30.67" android:translateY="30.67" android:scaleX="0.467" android:scaleY="0.467">
+        <group android:pivotX="50" android:pivotY="50" android:scaleX="1.12" android:scaleY="1.12">
+            <!-- the cup, its handles, stem and base -->
+            <path android:fillColor="#FFFF6A13" android:pathData="M26,12 H74 V36 Q74,60 50,62 Q26,60 26,36 Z M45,60 H55 V75 H45 Z M32,74 H68 Q72,74 72,78 V84 Q72,88 68,88 H32 Q28,88 28,84 V78 Q28,74 32,74 Z" />
+            <path android:strokeColor="#FFFF6A13" android:strokeWidth="7" android:strokeLineCap="round" android:pathData="M26,20 H17 Q11,20 12,28 Q14,42 28,47 M74,20 H83 Q89,20 88,28 Q86,42 72,47" />
+            <!-- the cup's lip, cut out -->
+            <path android:strokeColor="#FF0D0D0F" android:strokeWidth="5" android:pathData="M26,24 H74" />
+        </group>
+        <!-- mi.'s dot (r 12 at 78,78 on every mi. icon), with a ring of background (r 20) cut round it -->
+        <path android:fillColor="#FF0D0D0F" android:pathData="M58,78 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0 Z" />
+        <path android:fillColor="#FFFF6A13" android:pathData="M66,78 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+    </group>
+</vector>

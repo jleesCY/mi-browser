@@ -56,17 +56,6 @@ fun fromNative(url: String?): String? = url?.let { Regex("""^moz-extension://([a
 /** The extension behind an address at its origin, or null. */
 fun extIdOf(url: String?): String? = url?.let { Regex("""^https://([a-z0-9-]+)\Q$EXT_HOST\E(/|$)""").find(it)?.groupValues?.get(1) }
 
-/**
- * The extension file an address names, as (extension, path): at mi's address for it, or at its native one, as extensions
- * know their files (runtime.getURL) and so redirect requests to them (LocalCDN: moz-extension://<id>/resources/….jsm?<the
- * address it stands in for>). The query isn't part of the path. Null for any other address.
- */
-fun extensionFileOf(url: String): Pair<String, String>? {
-    val u = fromNative(url) ?: url
-    val id = extIdOf(u) ?: return null
-    return id to (runCatching { java.net.URI(u).path }.getOrNull() ?: u.removePrefix(extOrigin(id)).substringBefore('?').substringBefore('#')).ifEmpty { "/" }
-}
-
 /** A toolbar button's state (chrome.action), shown in the tab menu. */
 data class ActionState(
     val badge: String = "",

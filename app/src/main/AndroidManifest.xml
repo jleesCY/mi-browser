@@ -23,6 +23,12 @@
 
     <!-- Payment Request API: lets checkout pages find payment apps such as Google Pay (WebSettingsCompat.setPaymentRequestEnabled) -->
     <queries>
+        <!-- the other mi. apps (Settings › About › More mi. Apps opens one if it's installed) -->
+        <package android:name="com.jlees.minotes" />
+        <package android:name="com.jlees.mibudget" />
+        <package android:name="com.jlees.miedits" />
+        <package android:name="com.jlees.misports" />
+        <package android:name="com.jlees.miweather" />
         <intent><action android:name="org.chromium.intent.action.PAY" /></intent>
         <intent><action android:name="org.chromium.intent.action.IS_READY_TO_PAY" /></intent>
         <intent><action android:name="org.chromium.intent.action.UPDATE_PAYMENT_DETAILS" /></intent>
@@ -50,10 +56,6 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|density"
             android:theme="@style/Theme.Mi.Splash">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -71,6 +73,42 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- what mi's home-screen entries open: it starts MainActivity in its own task and goes, so mi's task never came
+             from an entry (Android closes a task when the entry that opened it is turned off, as picking an app icon does) -->
+        <activity
+            android:name=".launcher.LaunchActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay" />
+        <!-- mi on the home screen: one entry per app icon look, the one picked turned on (Look & Feel › App Icon,
+             launcher/AppIcon.kt); both open LaunchActivity -->
+        <activity-alias
+            android:name=".AppIconDark"
+            android:targetActivity=".launcher.LaunchActivity"
+            android:exported="true"
+            android:enabled="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".AppIconLight"
+            android:targetActivity=".launcher.LaunchActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:icon="@mipmap/ic_launcher_light"
+            android:roundIcon="@mipmap/ic_launcher_light">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- a home-screen pin opened as an app: its own window and Recents card, one per address (launcher/AppWindow) -->
         <activity

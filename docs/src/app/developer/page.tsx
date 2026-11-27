@@ -15,7 +15,8 @@ const PROJECT_STRUCTURE = `
 │       ├── java/com/jlees/mibrowser/
 │       │   ├── MainActivity.kt      # Edge-to-edge host, intents, permissions
 │       │   ├── BrowserViewModel.kt  # Holds the feature stores, coordinates across them
-│       │   ├── tabs/                # Tab list & rules, tab switcher, previews
+│       │   ├── tabs/                # Tab list & rules, tab switcher, previews, tab groups
+│       │   ├── containers/          # Profiles: their own tabs, groups, history (and sign-ins, if kept separate)
 │       │   ├── library/             # History & bookmarks: stores, rules, screens
 │       │   ├── search/              # Engines, ! shortcuts, suggestions
 │       │   ├── adblock/             # Filter engine, content blocking, scriptlets, link cleaning
@@ -25,7 +26,7 @@ const PROJECT_STRUCTURE = `
 │       │   ├── answers/             # Inline answers: calculator, units, time
 │       │   ├── follow/              # Following prices: store, rules, checks, sheets, widget
 │       │   ├── downloads/           # mi's downloader, blob downloads, Downloads page
-│       │   ├── home/ qr/ launcher/ update/   # update/: release checks, What's New
+│       │   ├── home/ qr/ launcher/ update/   # launcher/: shortcuts, pins, App Icon; update/: release checks, What's New
 │       │   ├── data/ logic/         # Shared models, JSON storage, URL parsing
 │       │   ├── web/                 # WebViewHost + one class per WebView job
 │       │   └── ui/                  # App shell: Pill, sheets, dialogs, widgets; settings/ (one file per section)

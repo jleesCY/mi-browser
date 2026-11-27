@@ -11,7 +11,6 @@ import com.jlees.mibrowser.extensions.localize
 import com.jlees.mibrowser.extensions.looksLikePasswordManager
 import com.jlees.mibrowser.extensions.matchesPattern
 import com.jlees.mibrowser.extensions.parseManifest
-import com.jlees.mibrowser.extensions.runsOn
 import com.jlees.mibrowser.extensions.scanApis
 import com.jlees.mibrowser.extensions.scanFlags
 import com.jlees.mibrowser.extensions.webAccessible
@@ -44,9 +43,9 @@ class ExtensionRulesTest {
             "exclude_globs":["*logout*"],"js":["a.js"],"run_at":"document_start","all_frames":true}]}""")
         val cs = m.contentScripts.single()
         assertEquals("document_start", cs.runAt); assertTrue(cs.allFrames)
-        assertTrue(runsOn(cs, "https://www.example.com/page"))
-        assertFalse(runsOn(cs, "https://admin.example.com/"))
-        assertFalse(runsOn(cs, "https://www.example.com/logout"))
+        assertEquals(listOf("*://*.example.com/*"), cs.matches)
+        assertEquals(listOf("*://admin.example.com/*"), cs.excludeMatches)
+        assertEquals(listOf("*logout*"), cs.excludeGlobs)
     }
 
     @Test fun manifestParts() {
@@ -167,12 +166,12 @@ class ExtensionRulesTest {
     }
 
     @Test fun aRedirectToAnExtensionsNativeAddressIsServedFromItsFiles() {
-        // LocalCDN redirects a CDN's library to its own copy by runtime.getURL (moz-extension://…), the address after "?"
+        // LocalCDN redirects a CDN's library to its own copy by runtime.getURL (moz-extension://…), the address after "?":
+        // mi serves its file from its own address for it (ExtensionRequests.redirect)
         val id = "0b1c2d3e-aaaa-bbbb-cccc-1234567890ab"
-        assertEquals(id to "/resources/jquery/2.1.4/jquery.min.jsm",
-            com.jlees.mibrowser.extensions.extensionFileOf("moz-extension://$id/resources/jquery/2.1.4/jquery.min.jsm?https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"))
-        assertEquals(id to "/a.css", com.jlees.mibrowser.extensions.extensionFileOf(com.jlees.mibrowser.extensions.extOrigin(id) + "/a.css"))
-        assertEquals(null, com.jlees.mibrowser.extensions.extensionFileOf("https://cdn.example.com/a.js"))
+        val served = com.jlees.mibrowser.extensions.fromNative("moz-extension://$id/resources/jquery/2.1.4/jquery.min.jsm?https://ajax.googleapis.com/x.js")!!
+        assertEquals(id, com.jlees.mibrowser.extensions.extIdOf(served))
+        assertEquals("/resources/jquery/2.1.4/jquery.min.jsm", java.net.URI(served).path)
     }
 
     @Test fun styleSheetsNameTheExtensionsOwnFiles() {

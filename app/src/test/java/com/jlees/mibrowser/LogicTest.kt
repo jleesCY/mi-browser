@@ -457,4 +457,23 @@ class LogicTest {
         assertEquals("https://github.com/mi-app-hub/mi-browser/issues/new?template=extension_support.yml&version=2.0.0&webview=133.0.6943.137",
             f.extensionSupport("2.0.0", "133.0.6943.137"))
     }
+
+    @Test fun historyIsGroupedByDayAndBySite() {
+        val now = java.util.Calendar.getInstance().apply { set(2026, 10, 26, 15, 0) }.timeInMillis
+        val day = 86_400_000L
+        val items = listOf(
+            HistoryItem("https://a.example/1", "A", now - 60_000), HistoryItem("https://b.example", "B", now - day),
+            HistoryItem("https://a.example/2", "A2", now - 3 * day), HistoryItem("https://c.example", "C", now - 30 * day),
+        )
+        assertEquals(listOf("Today", "Yesterday", "Last 7 Days", "Older"), com.jlees.mibrowser.library.groupHistoryByDate(items, now).map { it.title })
+        assertEquals(listOf("Today"), com.jlees.mibrowser.library.groupHistoryByDate(items.take(1), now).map { it.title }) // empty days left out
+        val bySite = com.jlees.mibrowser.library.groupHistoryBySite(items)
+        assertEquals(listOf("a.example", "b.example", "c.example"), bySite.map { it.title })
+        assertEquals(2, bySite.first().items.size)
+        // today: just the time; yesterday says so; older: the date
+        val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(now - 60_000))
+        assertEquals(time, com.jlees.mibrowser.library.smartDate(now - 60_000, now))
+        assertTrue(com.jlees.mibrowser.library.smartDate(now - day, now).startsWith("Yesterday, "))
+        assertFalse(com.jlees.mibrowser.library.smartDate(now - 30 * day, now).startsWith("Yesterday"))
+    }
 }

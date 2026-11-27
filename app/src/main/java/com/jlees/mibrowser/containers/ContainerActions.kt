@@ -12,11 +12,14 @@ val BrowserViewModel.currentProfile: String? get() = tabs.current?.container
 
 /** Profile [id]'s icon and colour (null: Default's). */
 fun BrowserViewModel.lookOf(id: String?): Pair<ProfileIcon, ProfileColor> =
-    id?.let { c -> settings.containers.firstOrNull { it.id == c } }?.let { it.icon to it.color }
+    containerOf(id, settings.containers)?.let { it.icon to it.color }
         ?: (settings.defaultProfileIcon to settings.defaultProfileColor)
 
 /** Profile [id]'s name (null: Default). */
-fun BrowserViewModel.nameOf(id: String?): String = profileName(id?.let { c -> settings.containers.firstOrNull { it.id == c } })
+fun BrowserViewModel.nameOf(id: String?): String = profileName(containerOf(id, settings.containers))
+
+/** Every profile, Default (null) first, in the order made. */
+val BrowserViewModel.profileIds: List<String?> get() = listOf(null) + settings.containers.map { it.id }
 
 /** Shows profile [id] (null: Default): its most recent tab, or a new tab if it has none. */
 fun BrowserViewModel.switchProfile(id: String?) {

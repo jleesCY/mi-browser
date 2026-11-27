@@ -4,6 +4,8 @@
     <color name="black">#000000</color>
     <!-- every mi. app icon sits on this near-black -->
     <color name="icon_background">#0D0D0F</color>
+    <!-- the Light app icon's background (Look & Feel › App Icon) -->
+    <color name="icon_background_light">#F5F5F7</color>
 
     <style name="Theme.Mi" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/black</item>

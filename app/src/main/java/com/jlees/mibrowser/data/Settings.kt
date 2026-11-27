@@ -21,6 +21,9 @@ interface Choice { val label: String }
 @Serializable enum class LibraryPage { @SerialName("bookmarks") BOOKMARKS, @SerialName("downloads") DOWNLOADS, @SerialName("following") FOLLOWING, @SerialName("extensions") EXTENSIONS }
 
 /** Look & Feel › List Style: History, Downloads and Following as separate rounded cards, or as one table of rows. */
+/** Look & Feel › App Icon: mi's home-screen icon on its near-black or near-white background (launcher/AppIcon). */
+@Serializable enum class AppIconStyle(override val label: String) : Choice { @SerialName("dark") DARK("Dark"), @SerialName("light") LIGHT("Light") }
+
 @Serializable enum class ListStyle(override val label: String) : Choice { @SerialName("cards") CARDS("Cards"), @SerialName("table") TABLE("Table") }
 
 /** Where long text pans (Look & Feel › Pan Overflowed Text); everywhere else it ends in "…". */
@@ -133,6 +136,8 @@ data class Settings(
     val panAreas: Set<PanArea> = setOf(PanArea.SETTINGS, PanArea.TAB_MENU),
     val fontScale: Float = 1f,
     val font: AppFont = AppFont.STANDARD,
+    /** Look & Feel › App Icon. */
+    val appIcon: AppIconStyle = AppIconStyle.DARK,
     /** Before 1.6 (replaced by [font]); read once by the v4 migration. */
     val roundedFont: Boolean = false,
     /** The Quick Guide was shown (or skipped). Until then it shows at start, for new and existing users alike. */
@@ -182,7 +187,7 @@ data class Settings(
     val longPressCopyLink: Boolean = true,
     /** Tabs › Group Tabs from Links: a tab opened from a page's link joins that page's tab group (tabs/TabGroupRules). */
     val groupLinkTabs: Boolean = true,
-    /** Tabs › Profiles: on, the tab switcher's row of profiles and their own tabs and history (containers/); off (the default), all together. */
+    /** Tabs › Profiles: on, each profile's own tabs and history, switched from the tab switcher (containers/); off (the default), all together. */
     val profilesEnabled: Boolean = false,
     /** The profiles besides Default (containers/ContainerRules), in the order made. */
     val containers: List<com.jlees.mibrowser.containers.Container> = emptyList(),

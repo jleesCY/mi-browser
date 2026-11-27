@@ -64,6 +64,8 @@ const MOCK_DATA: SearchResult[] = [
   { title: "Long Press to Copy Link", type: "Settings", href: "/user#setting-long-press-to-copy-link", excerpt: "Hold the Pill to copy the page's link." },
   { title: "Long Press to Search", type: "Settings", href: "/user#setting-long-press-to-search", excerpt: "Hold the switcher's Pill to search your tabs." },
   { title: "Clear Recently Closed Tabs", type: "Settings", href: "/user#setting-clear-recently-closed-tabs", excerpt: "Forget the tabs you've closed." },
+  { title: "App Icon", type: "Settings", href: "/user#setting-app-icon", excerpt: "mi's home-screen icon on a dark or a light background." },
+  { title: "More mi. Apps", type: "Settings", href: "/user#setting-more-mi.-apps", excerpt: "The other mi. apps: Notes, Budget, Edits, Sports and Weather." },
   { title: "Report a Bug", type: "Settings", href: "/user#setting-report-a-bug", excerpt: "Open a bug report on GitHub, with your version filled in." },
   { title: "Suggest a Feature", type: "Settings", href: "/user#setting-suggest-a-feature", excerpt: "Open a feature request on GitHub." },
   { title: "Request Extension Support", type: "Settings", href: "/user#setting-request-extension-support", excerpt: "Ask for an extension to work in mi." },

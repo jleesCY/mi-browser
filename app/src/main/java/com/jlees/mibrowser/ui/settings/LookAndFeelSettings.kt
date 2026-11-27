@@ -1,6 +1,9 @@
 // Settings › Look & Feel: colors, text, layout and haptics.
 package com.jlees.mibrowser.ui.settings
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.border
 import android.os.Build
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -38,6 +41,7 @@ fun lookAndFeelSection(vm: BrowserViewModel): SettingsSection {
             if (s.themeMode != ThemeMode.LIGHT) SwitchItem("contrast", "Pure Black", "True black backgrounds in dark mode", s.pureBlack) { set { copy(pureBlack = it) } }
         },
         SettingsRow("Accent Color", "colour wallpaper material you dynamic") { AccentItem(vm) },
+        SettingsRow("App Icon", "home screen launcher icon logo light dark white black") { AppIconItem(vm) },
         SettingsHeading("Text"),
         SettingsRow("Font Size", "text scale app") {
             SliderItem("format_size", "Font Size", "UI font size throughout mi", s.fontScale, 0.8f, 1.2f) { set { copy(fontScale = it) } }
@@ -100,6 +104,31 @@ private fun AccentItem(vm: BrowserViewModel) {
                 ) {
                     if (isDyn) Sym("wallpaper", 22f, ui.cs.onTertiaryContainer)
                     if (selected && !isDyn) Sym("check", 22f, Color.White)
+                }
+            }
+        }
+    })
+}
+
+/** The home-screen icon's look: each one previewed as the home screen shows it, the picked one ringed in the accent. */
+@Composable
+private fun AppIconItem(vm: BrowserViewModel) {
+    val ui = LocalUi.current
+    Item("apps", "App Icon", "How mi looks on your home screen", below = {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            com.jlees.mibrowser.data.AppIconStyle.entries.forEach { style ->
+                val selected = vm.settings.appIcon == style
+                val (bg, fg) = com.jlees.mibrowser.launcher.appIconLook(style)
+                Column(
+                    Modifier.clip(RoundedCornerShape(16.dp)).touchable { vm.updateSettings { copy(appIcon = style) } }.padding(8.dp)
+                        .semantics(mergeDescendants = true) { contentDescription = "${style.label} app icon" + if (selected) ", chosen" else "" },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // a ring in the accent round the one picked (a gap of the row's own colour between)
+                    Box(Modifier.size(68.dp).border(3.dp, if (selected) ui.cs.primary else Color.Transparent, CircleShape), contentAlignment = Alignment.Center) {
+                        com.jlees.mibrowser.launcher.AppIconPreview(fg, bg, 56.dp)
+                    }
+                    Txt(style.label, 13f, if (selected) ui.cs.primary else ui.cs.onSurfaceVariant, if (selected) ui.bold else ui.semibold, Modifier.padding(top = 6.dp))
                 }
             }
         }

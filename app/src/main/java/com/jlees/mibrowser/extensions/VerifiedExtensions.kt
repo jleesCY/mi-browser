@@ -106,6 +106,17 @@ val VERIFIED_EXTENSIONS: List<VerifiedExtension> = listOf(
     VerifiedExtension("ClearURLs", amoSlug = "clearurls", testedWebView = 158, worksFrom = 87,
         summary = "Automatically removes tracking parameters from links.",
         iconUrl = "https://addons.mozilla.org/user-media/addon_icons/839/839767-64.png"),
+    // Tested in mi 2.0.1 on a phone. Firefox Add-ons build. Checked: libraries pages load from public CDNs (jQuery,
+    // Bootstrap, Font Awesome…) served from its own copies instead (localcdn.org's tests), its counter, its popup. Its
+    // redirects name its files by their moz-extension:// address, which mi serves from them. Range: nothing newer than
+    // mi's engine needs (its newest is String.replaceAll, 85).
+    VerifiedExtension("LocalCDN", amoSlug = "localcdn-fork-of-decentraleyes", testedWebView = 158, worksFrom = 87,
+        summary = "Emulates remote frameworks (e.g. jQuery, Bootstrap, AngularJS) and delivers them as local resource.",
+        iconUrl = "https://addons.mozilla.org/user-media/addon_icons/2627/2627159-64.png",
+        limitations = listOf(
+            "Its HTML filter isn't available: it needs a Firefox-only feature, so LocalCDN skips it",
+            "Right after mi opens, a page's first libraries can load from their CDN before LocalCDN is ready",
+        )),
 )
 
 /** The verified entry for an install source (a store page), or null. */

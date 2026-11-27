@@ -358,4 +358,19 @@ class FollowTest {
         assertEquals(false, PriceChecker.checkSkips("https://shop.test/app.js", null, "shop.test"))
         assertEquals(false, PriceChecker.checkSkips("https://shop.test/api/price", "application/json", "shop.test"))
     }
+
+    @Test fun stockAndPricesInWords() {
+        assertEquals(true, com.jlees.mibrowser.follow.stockOf("https://schema.org/InStock"))
+        assertEquals(true, com.jlees.mibrowser.follow.stockOf("in stock"))
+        assertEquals(false, com.jlees.mibrowser.follow.stockOf("out_of_stock"))
+        assertEquals(false, com.jlees.mibrowser.follow.stockOf("Sold-Out"))
+        assertEquals(null, com.jlees.mibrowser.follow.stockOf("ask us"))
+        assertEquals(null, com.jlees.mibrowser.follow.stockOf(null))
+        val locale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            assertEquals("$19.99", com.jlees.mibrowser.follow.formatPrice(19.99, "USD"))
+            assertEquals("19.99 XYZ1", com.jlees.mibrowser.follow.formatPrice(19.99, "XYZ1")) // not a currency: the number and the code
+        } finally { java.util.Locale.setDefault(locale) }
+    }
 }

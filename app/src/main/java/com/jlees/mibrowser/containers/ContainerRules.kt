@@ -61,12 +61,13 @@ fun newProfileLook(containers: List<Container>): Pair<ProfileIcon, ProfileColor>
 fun profileName(c: Container?): String = c?.icon?.label ?: "Default"
 
 /**
- * The profile a tab opened from [opener] (a link, a pop-up, a new tab from the switcher) goes in: the opener's, so you
+ * With profiles turned off ([enabled] false), none: new tabs go to Default, not into a profile you can't see (whose
+ * separate sign-ins they'd use). Otherwise the profile a tab opened from [opener] (a link, a pop-up, a new tab from the switcher) goes in: the opener's, so you
  * stay in the profile you're in and a page's sign-in carries on. None (Default) for a profile that's gone. An incognito
  * tab belongs to a profile too, to be listed with its tabs, though it keeps its own private storage.
  */
-fun inheritedContainer(opener: TabItem?, containers: List<Container>): String? =
-    opener?.container?.takeIf { id -> containers.any { it.id == id } }
+fun inheritedContainer(opener: TabItem?, containers: List<Container>, enabled: Boolean = true): String? =
+    if (!enabled) null else opener?.container?.takeIf { id -> containers.any { it.id == id } }
 
 /**
  * The tabs the tab switcher shows while [profile] (null: Default) is the one you're in: its own, or (profiles turned
@@ -78,9 +79,8 @@ fun profileTabs(tabs: List<TabItem>, profile: String?, enabled: Boolean = true):
 /** The tab a switch to [profile] shows: its most recently used, or none (then a new tab starts it). */
 fun tabToShow(tabs: List<TabItem>, profile: String?): TabItem? = profileTabs(tabs, profile).maxByOrNull { it.lastUsed }
 
-/** A tab's profile, if it still exists (a deleted profile's tabs are in Default). */
-fun containerOf(tab: TabItem?, containers: List<Container>): Container? =
-    tab?.container?.let { id -> containers.firstOrNull { it.id == id } }
+/** Profile [id], if it still exists (null: Default, or a deleted profile, whose tabs are in Default). */
+fun containerOf(id: String?, containers: List<Container>): Container? = id?.let { c -> containers.firstOrNull { it.id == c } }
 
 /** The profile whose own storage tab's container [id] browses in: only one that keeps sign-ins separate. */
 fun isolatedProfile(id: String?, containers: List<Container>): String? =

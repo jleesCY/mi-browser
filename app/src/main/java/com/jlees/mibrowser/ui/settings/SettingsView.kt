@@ -153,7 +153,7 @@ fun SettingsView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
                 }
                 item(key = "footer") {
                     Box(Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
-                        Txt("mi browser v${BuildConfig.VERSION_NAME}", 12f, ui.cs.onSurfaceVariant, ui.regular, Modifier.graphicsLayer { alpha = 0.5f })
+                        Txt("mi. Browser v${BuildConfig.VERSION_NAME}", 12f, ui.cs.onSurfaceVariant, ui.regular, Modifier.graphicsLayer { alpha = 0.5f })
                     }
                 }
             }

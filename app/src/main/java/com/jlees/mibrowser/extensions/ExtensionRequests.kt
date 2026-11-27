@@ -329,7 +329,7 @@ class ExtensionRequests internal constructor(private val e: ExtensionEngine) {
             val html = "<!doctype html><meta http-equiv=\"refresh\" content=\"0;url=${target.replace("\"", "%22")}\"><script>location.replace($safe)</script>"
             return WebResourceResponse("text/html", "utf-8", ByteArrayInputStream(html.toByteArray()))
         }
-        extensionFileOf(target)?.let { (id, path) -> return e.pages.serve(id, path, all = false) }
+        extIdOf(target)?.let { id -> return e.pages.serve(id, runCatching { java.net.URI(target).path }.getOrNull() ?: "/", all = false) }
         if (target.startsWith("data:")) {
             val meta = target.substringAfter("data:").substringBefore(',')
             val body = target.substringAfter(',')

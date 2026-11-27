@@ -26,7 +26,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: mi version
+      label: mi. Browser version
       description: Filled in when you request from mi. Otherwise, it's shown under Settings › About › Check for Updates.
       placeholder: "2.0.0"
     validations:

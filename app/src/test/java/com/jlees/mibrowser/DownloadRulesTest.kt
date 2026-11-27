@@ -48,6 +48,14 @@ class DownloadRulesTest {
         assertEquals("10.0 MB", downloadStatus(d.copy(state = DownloadState.DONE)))
     }
 
+    @Test fun timeLeftOnlyWhileItsRunning() {
+        val d = DownloadItem("1", "https://a.com/f.zip", "f.zip", total = 10_000, done = 4_000, state = DownloadState.RUNNING, speed = 100)
+        assertEquals("1 min left", com.jlees.mibrowser.downloads.timeLeftOf(d))
+        assertEquals(null, com.jlees.mibrowser.downloads.timeLeftOf(d.copy(state = DownloadState.PAUSED)))
+        assertEquals(null, com.jlees.mibrowser.downloads.timeLeftOf(d.copy(speed = 0))) // no speed yet
+        assertEquals(null, com.jlees.mibrowser.downloads.timeLeftOf(d.copy(total = -1))) // size unknown
+    }
+
     @Test fun interruptedDownloadsComeBackPaused() {
         val items = listOf(DownloadState.RUNNING, DownloadState.QUEUED, DownloadState.DONE, DownloadState.FAILED).mapIndexed { i, s -> DownloadItem("$i", "u", "f", state = s) }
         assertEquals(listOf(DownloadState.PAUSED, DownloadState.PAUSED, DownloadState.DONE, DownloadState.FAILED), afterRestart(items).map { it.state })

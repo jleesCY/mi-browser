@@ -37,7 +37,7 @@
 - **Sites as apps**: pin any site to your home screen as an app with its own window, or make a tab immersive, without the Pill.
 - **Incognito tabs**, each with its own private storage, erased when closed.
 - **Fast downloads** (including files a page makes itself), bookmarks with import and export, history, picture-in-picture and background playback.
-- **Material 3 Expressive**: colours from your wallpaper, pure black dark mode, haptics and smooth motion, at home in landscape and on tablets.
+- **Material 3 Expressive**: colours from your wallpaper, pure black dark mode, a light or dark app icon, haptics and smooth motion, at home in landscape and on tablets.
 - **No accounts, no tracking.** Everything stays on your device.
 
 See everything mi does in the **[User Guide](https://mi-app-hub.github.io/mi-browser/user)**.
@@ -58,8 +58,11 @@ cd mi-browser
 How the code is organized is in the **[Developer Guide](https://mi-app-hub.github.io/mi-browser/developer)** and [CLAUDE.md](CLAUDE.md). The website lives in [`docs/`](docs) (Next.js); its colours are generated from the app's default accent by `docs/scripts/theme.mjs`.
 
 ## More mi. Apps
-- [mi. Notes](https://github.com/mi-app-hub/mi-notes): A simple, private Android notes app built around a single control: the Pill.
+- [mi. Notes](https://github.com/mi-app-hub/mi-notes): Notes in folders on one calm page.
 - [mi. Budget](https://github.com/mi-app-hub/mi-budget): Your purchases, budgets and subscriptions, private on your phone.
+- [mi. Edits](https://github.com/mi-app-hub/mi-edits): A simple, private video and audio editor.
+- [mi. Sports](https://github.com/mi-app-hub/mi-sports): Live scores for the teams, players and leagues you follow.
+- [mi. Weather](https://github.com/mi-app-hub/mi-weather): Every detail of the weather where you are, all inside the app.
 
 ## License
 [MIT](LICENSE). The bundled filter lists, hosts list, font and icons keep their own licenses. mi. collects no personal data: see the [Privacy Policy](https://mi-app-hub.github.io/mi-browser/privacy).

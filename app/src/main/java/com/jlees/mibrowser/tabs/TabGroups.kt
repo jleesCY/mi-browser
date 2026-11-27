@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,20 +93,6 @@ fun TabGroupDialogs(vm: BrowserViewModel) {
     GroupManager(vm)
 }
 
-/** A row of a group dialog's list: a symbol and a label, [on] marked with a check. */
-@Composable
-private fun ChoiceRow(icon: String, label: String, on: Boolean = false, color: androidx.compose.ui.graphics.Color? = null, onPress: () -> Unit) {
-    val ui = LocalUi.current
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).touchable(onClick = onPress).heightIn(min = 48.dp).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Sym(icon, 22f, color ?: ui.cs.onSurfaceVariant, Modifier.padding(end = 16.dp))
-        Txt(label, 15f, color ?: ui.cs.onSurface, ui.semibold, Modifier.weight(1f), maxLines = 1)
-        if (on) Sym("check", 20f, ui.cs.primary)
-    }
-}
-
 /** The tab menu's Group tile: the tab's group chosen from the list, a new one made, or the tab taken out. */
 @Composable
 private fun GroupPicker(vm: BrowserViewModel) {
@@ -120,10 +105,10 @@ private fun GroupPicker(vm: BrowserViewModel) {
         DialogCard("Tab Group", actions = { DialogAction("Cancel", onClick = close) }) {
             // the groups in its profile (containers/): another profile's aren't seen from here
             vm.tabs.groups.filter { g -> vm.tabs.list.any { it.groupId == g.id && it.container == tab.container } }.forEach { g ->
-                ChoiceRow("tab_group", g.name, on = tab.groupId == g.id) { vm.tabs.setGroup(tab.id, g.id); close() }
+                DialogRow(g.name, on = tab.groupId == g.id, mark = { Sym("tab_group", 20f, LocalUi.current.cs.onSurfaceVariant) }) { vm.tabs.setGroup(tab.id, g.id); close() }
             }
-            ChoiceRow("add", "New Group") { close(); TabGroupFlow.naming = GroupNaming.New(tab.id) }
-            if (tab.groupId != null) ChoiceRow("close", "Remove from Group") { vm.tabs.setGroup(tab.id, null); close() }
+            DialogRow("New Group", mark = { Sym("add", 20f, LocalUi.current.cs.onSurfaceVariant) }) { close(); TabGroupFlow.naming = GroupNaming.New(tab.id) }
+            if (tab.groupId != null) DialogRow("Remove from Group", mark = { Sym("close", 20f, LocalUi.current.cs.onSurfaceVariant) }) { vm.tabs.setGroup(tab.id, null); close() }
         }
     }
 }
@@ -166,8 +151,8 @@ private fun GroupManager(vm: BrowserViewModel) {
         DialogCard(null, actions = { DialogAction("Cancel", onClick = close) }) {
             val ui = LocalUi.current
             Txt(group.name, 18f, ui.cs.onSurface, ui.semibold, Modifier.padding(bottom = 12.dp), maxLines = 2)
-            ChoiceRow("edit", "Rename Group") { close(); TabGroupFlow.naming = GroupNaming.Rename(group.id) }
-            ChoiceRow("tab_group", "Ungroup") { vm.tabs.ungroup(group.id); close() }
+            DialogRow("Rename Group", mark = { Sym("edit", 20f, LocalUi.current.cs.onSurfaceVariant) }) { close(); TabGroupFlow.naming = GroupNaming.Rename(group.id) }
+            DialogRow("Ungroup", mark = { Sym("tab_group", 20f, LocalUi.current.cs.onSurfaceVariant) }) { vm.tabs.ungroup(group.id); close() }
         }
     }
 }

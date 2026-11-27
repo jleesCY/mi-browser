@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Download, ChevronRight, Zap, Palette, Shield, Sparkles, Puzzle, Check } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { GITHUB_URL, getAssetPath } from "@/site";
+import { GITHUB_URL, getAssetPath, MI_APPS } from "@/site";
 import { DeviceMockup } from "@/components/device-mockup";
 
 
@@ -167,12 +167,6 @@ export default function Home() {
   );
 }
 
-/** The other released mi. apps (mi-brand's family table), each linking to its own site. */
-const MI_APPS = [
-  { name: "mi. Notes", line: "A simple, private Android notes app built around a single control: the Pill.", icon: "/family/notes.png", href: "https://mi-app-hub.github.io/mi-notes/" },
-  { name: "mi. Budget", line: "Your purchases, budgets and subscriptions, private on your phone.", icon: "/family/budget.svg", href: "https://mi-app-hub.github.io/mi-budget/" },
-];
-
 function MoreApps() {
   return (
     <section className="max-w-6xl mx-auto px-6 mb-20">
@@ -195,7 +189,7 @@ function MoreApps() {
 
 /** Extensions: what mi runs, and the ones tested by hand (the app's "Tested in mi" list). */
 function Extensions() {
-  const tested = ["Dark Reader", "uBlock Origin", "uBlock Origin Lite", "Keepa", "SponsorBlock", "Privacy Badger", "ClearURLs"];
+  const tested = ["Dark Reader", "uBlock Origin", "uBlock Origin Lite", "Keepa", "SponsorBlock", "Privacy Badger", "ClearURLs", "LocalCDN"];
   return (
     <section className="max-w-6xl mx-auto px-6">
       <motion.div

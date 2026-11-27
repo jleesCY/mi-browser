@@ -13,8 +13,11 @@ data class TabsState(val tabs: List<TabItem>, val activeId: String)
  * of a pop-up), otherwise the most recently used, like an app switcher.
  */
 fun nextTabAfterClosing(closed: TabItem, remaining: List<TabItem>): String? =
-    closed.openerId?.takeIf { o -> remaining.any { it.id == o } }
+    closed.openerId?.takeIf { o -> remaining.any { it.id == o && it.container == closed.container } }
         ?: remaining.filter { it.container == closed.container }.maxByOrNull { it.lastUsed }?.id // staying in its profile
+
+/** A number of tabs in words: "1 tab", "3 tabs". */
+fun tabCount(n: Int) = if (n == 1) "1 tab" else "$n tabs"
 
 /**
  * Closes [ids] from [state]. The active tab moves on by [nextTabAfterClosing] if it was closed; with no tab left in its

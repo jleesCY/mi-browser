@@ -1,6 +1,8 @@
 // The History screen: search, grouping by time or site, swipe to delete.
 package com.jlees.mibrowser.library
 
+import com.jlees.mibrowser.containers.currentProfile
+
 import com.jlees.mibrowser.ConfirmAction
 import com.jlees.mibrowser.data.HistoryGrouping
 
@@ -47,10 +49,10 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     LaunchedEffect(vm.history.items.size) { focusManager.clearFocus() }
 
     // the profile you're in (containers/), others added from the chips; every profile's with profiles turned off
-    var shownProfiles by remember { mutableStateOf(setOf(vm.tabs.current?.container)) }
+    var shownProfiles by remember { mutableStateOf(setOf(vm.currentProfile)) }
     val profilesShown = vm.settings.profilesEnabled && vm.settings.containers.isNotEmpty()
     val filtered = inProfiles(vm.history.items, shownProfiles.takeIf { profilesShown })
-        .filter { it.title.lowercase().contains(search.lowercase()) || it.url.lowercase().contains(search.lowercase()) }
+        .filter { it.title.contains(search, ignoreCase = true) || it.url.contains(search, ignoreCase = true) }
     val visible = filtered.take(visibleCount)
     val sections = if (vm.settings.historyGrouping == HistoryGrouping.SITE) groupHistoryBySite(visible) else groupHistoryByDate(visible)
 

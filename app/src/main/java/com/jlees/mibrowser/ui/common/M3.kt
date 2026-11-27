@@ -54,6 +54,20 @@ fun DialogCard(
     }
 }
 
+/** A row of a dialog's list: a [mark] (symbol, badge), a label, and a check on the one that's [on], or a [trailing] control. */
+@Composable
+fun DialogRow(label: String, on: Boolean = false, color: androidx.compose.ui.graphics.Color? = null, mark: @Composable () -> Unit, trailing: (@Composable () -> Unit)? = null, onPress: () -> Unit) {
+    val ui = LocalUi.current
+    Row(
+        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).touchable(onClick = onPress).heightIn(min = 48.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { mark() }
+        Txt(label, 15f, color ?: ui.cs.onSurface, ui.semibold, Modifier.padding(start = 16.dp).weight(1f), maxLines = 1)
+        if (trailing != null) trailing() else if (on) Sym("check", 20f, ui.cs.primary)
+    }
+}
+
 /** Dialog text action (M3 dialogs use text buttons); [destructive] uses the error color. */
 @Composable
 fun DialogAction(text: String, destructive: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {

@@ -67,7 +67,7 @@ private fun CustomBangsItem(vm: BrowserViewModel) {
     var adding by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
         // the "i" explains shortcuts, for anyone who hasn't met "!w" before
-        Item("add", "Create a new shortcut", onClick = { adding = true }, trailing = {
+        Item("add", "Your Shortcuts", "Add your own search shortcuts", onClick = { adding = true }, trailing = {
             IconButton(onClick = { explainShortcuts(vm) }) { Sym("info", 22f, LocalUi.current.cs.onSurfaceVariant, label = "What are shortcuts?") }
         })
         if (vm.settings.customBangs.isNotEmpty()) BangListLabel("Yours")

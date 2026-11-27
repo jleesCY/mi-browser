@@ -261,7 +261,7 @@ fun TabSwitcher(
             .then(if (searching) Modifier.pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } } else Modifier)
             .padding(top = statusDp.dp + 16.dp, bottom = 12.dp).windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
             val count = when {
-                query.isBlank() && groupFilter == null -> "${tabs.size} ${if (tabs.size == 1) "tab" else "tabs"}"
+                query.isBlank() && groupFilter == null -> tabCount(tabs.size)
                 else -> "${shown.size} of ${tabs.size} tabs"
             }
             // the tab count, after the profile you're in (profiles on): tap it to see every profile and switch

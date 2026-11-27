@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- mi. Notes' icon, "You are here": a big pencil in the app's yellow (#FFCC00), coming in from beyond the top left at
+     45°, that has just written mi.'s dot (the full stop). Drawn on a 100-unit grid (see the mi-brand icons/make_icons.py),
+     scaled to 46.7dp and centred on the 108dp adaptive canvas. The pencil is one solid body running past the corner of
+     the whole canvas, so every launcher shape (square, squircle, circle) shows it filling the corner, with no gap. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="30.67" android:translateY="30.67" android:scaleX="0.467" android:scaleY="0.467">
+        <!-- the pencil, drawn along x with its tip at the origin (just short of the dot), then turned so it runs off the top left -->
+        <group android:translateX="64" android:translateY="64" android:rotation="45" android:scaleX="1.6" android:scaleY="1.6">
+            <path android:fillColor="#FFFFCC00" android:pathData="M-24,-17 L-3,-3 Q0,0 -3,3 L-24,17 Z M-197,-17 H-31 Q-28,-17 -28,-14 V14 Q-28,17 -31,17 H-197 Q-200,17 -200,14 V-14 Q-200,-17 -197,-17 Z" />
+            <!-- where the sharpened wood meets the lead -->
+            <path android:strokeColor="#FF0D0D0F" android:strokeWidth="3.5" android:pathData="M-9,-9 V9" />
+        </group>
+        <!-- mi.'s dot: the full stop the pencil just wrote at 78,78 like every mi. icon, drawn 12% larger than the family's r 12 (r 13.44) so it reads beside the big pencil -->
+        <path android:fillColor="#FFFFCC00" android:pathData="M64.56,78 a13.44,13.44 0 1,0 26.88,0 a13.44,13.44 0 1,0 -26.88,0 Z" />
+    </group>
+</vector>

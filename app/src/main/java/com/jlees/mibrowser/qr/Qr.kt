@@ -155,7 +155,7 @@ fun QrScanner(vm: BrowserViewModel) {
                 if (processing) LoadingIndicator(Modifier.size(56.dp))
                 else FilledTonalIconButton(
                     onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.size(56.dp),
-                ) { Sym("image", 28f, ui.cs.onSecondaryContainer) }
+                ) { Sym("image", 28f, ui.cs.onSecondaryContainer, label = "Scan a picture") }
             }
             Box(Modifier.align(Alignment.Center).size(250.dp).border(4.dp, ui.cs.primaryContainer, RoundedCornerShape(36.dp)))
             Txt("Align the QR code within the frame", 16f, Color.White, FontWeight.W600, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 60.dp))

@@ -271,7 +271,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
      * opens in (containers/): the one you're in, or the linking tab's.
      */
     fun addNewTab(url: String? = null, incognito: Boolean = false, from: String? = null,
-                  profile: String? = com.jlees.mibrowser.containers.inheritedContainer(from?.let { tabs[it] } ?: tabs.current, settings.containers)) {
+                  profile: String? = com.jlees.mibrowser.containers.inheritedContainer(from?.let { tabs[it] } ?: tabs.current, settings.containers, settings.profilesEnabled)) {
         captureOutgoing()
         val tab = newTab(url).copy(profile = if (incognito) newIncognitoProfile() else null, container = profile)
         tabs.open(tab)
@@ -329,7 +329,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             hasLoadedOnce = false, // loads when first shown
             lastUsed = (current?.lastUsed ?: System.currentTimeMillis()) - 1,
             profile = if (current?.incognito == true) newIncognitoProfile() else null, // links from incognito stay incognito
-            container = com.jlees.mibrowser.containers.inheritedContainer(current, settings.containers), // in the profile you're in
+            container = com.jlees.mibrowser.containers.inheritedContainer(current, settings.containers, settings.profilesEnabled), // in the profile you're in
         )
         tabs.openInBackground(tab)
         current?.let { groupLinkTab(it.id, tab.id) }
@@ -359,8 +359,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun clearAllTabs() {
         val mine = com.jlees.mibrowser.containers.profileTabs(tabs.list, tabs.current?.container, settings.profilesEnabled) // the profile you're in
         val anyPinned = mine.any { it.pinned }
-        alert = AlertData("Close All Tabs?", (if (anyPinned) "Every tab except pinned ones will close." else "Every tab will close.") +
-            (if (tabs.list.any { it.incognito && !it.pinned }) " You can reopen them from History, except incognito ones." else " You can reopen them from History."), listOf(
+        val which = if (settings.profilesEnabled) "Every tab in this profile" else "Every tab"
+        alert = AlertData("Close All Tabs?", (if (anyPinned) "$which except pinned ones will close." else "$which will close.") +
+            (if (mine.any { it.incognito && !it.pinned }) " You can reopen them from History, except incognito ones." else " You can reopen them from History."), listOf(
             AlertButton("Cancel", ButtonStyle.CANCEL),
             AlertButton("Close All", ButtonStyle.DESTRUCTIVE) { closeTabs(tabsToClear(mine, keepPinned = true)) },
         ))

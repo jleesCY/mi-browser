@@ -39,6 +39,8 @@ class ContainersTest {
         assertEquals("w", inheritedContainer(opener.copy(profile = newIncognitoProfile()), listOf(work)))
         assertNull(inheritedContainer(opener, listOf(games)))
         assertNull(inheritedContainer(null, listOf(work)))
+        // profiles turned off: new tabs go to Default, not into a hidden profile and its separate sign-ins
+        assertNull(inheritedContainer(opener, listOf(work), enabled = false))
     }
 
     @Test fun switchingProfileShowsOnlyItsTabs() {
@@ -58,6 +60,22 @@ class ContainersTest {
         // not the more recent Default tab: a fresh tab in Work
         assertEquals("w", after.tabs.first { it.id == after.activeId }.container)
         assertEquals(listOf(a.id), after.tabs.filter { it.id != after.activeId }.map { it.id })
+    }
+
+    @Test fun closingATabMovedToAnotherProfileStaysInThatProfile() {
+        val opener = newTab("https://a.example").copy(lastUsed = 9)
+        val moved = newTab("https://b.example").copy(openerId = opener.id, container = "w", lastUsed = 5)
+        val other = newTab("https://c.example").copy(container = "w", lastUsed = 1)
+        // not back to its opener, which is in Default now
+        assertEquals(other.id, com.jlees.mibrowser.tabs.nextTabAfterClosing(moved, listOf(opener, other)))
+    }
+
+    @Test fun aDeletedProfilesHistoryMovesToDefault() {
+        val h = com.jlees.mibrowser.library.HistoryStore(JsonStore(Files.createTempDirectory("history").toFile()))
+        h.add("https://a.example", "A", "w")
+        h.add("https://b.example", "B")
+        h.moveProfile("w", null)
+        assertEquals(listOf<String?>(null, null), h.items.map { it.profile })
     }
 
     @Test fun onlyAProfileKeepingItsSignInsSeparateHasItsOwnStorage() {
@@ -84,7 +102,7 @@ class ContainersTest {
         assertEquals(listOf("w", null), h.map { it.profile })
         assertEquals(listOf<String?>(null), inProfiles(h, setOf(null)).map { it.profile })
         assertEquals(2, inProfiles(h, null).size)
-        assertEquals(work, containerOf(newTab().copy(container = "w"), listOf(work)))
+        assertEquals(work, containerOf("w", listOf(work)))
     }
 
     @Test fun restoringABackupKeepsThisPhonesProfiles() {

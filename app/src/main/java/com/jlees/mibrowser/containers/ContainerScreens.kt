@@ -4,6 +4,7 @@
 // one, from the tab menu, and History's profile chips.
 package com.jlees.mibrowser.containers
 
+import com.jlees.mibrowser.tabs.tabCount
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -109,10 +110,10 @@ private fun ProfileChooser(vm: BrowserViewModel) {
     ModalFrame(ContainerFlow.choosing, close, dismissOnScrim = true) {
         DialogCard("Profiles", actions = { DialogAction("Done", onClick = close) }) {
             val current = vm.currentProfile
-            (listOf<String?>(null) + vm.settings.containers.map { it.id }).forEach { id ->
+            vm.profileIds.forEach { id ->
                 val (icon, color) = vm.lookOf(id)
                 val n = vm.tabs.list.count { it.container == id }
-                DialogRow("${vm.nameOf(id)} · ${if (n == 1) "1 tab" else "$n tabs"}", mark = { ProfileBadge(icon, color, on = id == current, size = 28f) },
+                DialogRow("${vm.nameOf(id)} · ${tabCount(n)}", mark = { ProfileBadge(icon, color, on = id == current, size = 28f) },
                     trailing = {
                         androidx.compose.material3.IconButton(onClick = { close(); editProfile(id) }) { Sym("edit", 20f, ui.cs.onSurfaceVariant, label = "Edit ${vm.nameOf(id)} profile") }
                     }) { close(); vm.switchProfile(id) }
@@ -129,20 +130,6 @@ fun ContainerDialogs(vm: BrowserViewModel) {
     LookChanger(vm)
     ProfileMaker(vm)
     MovePicker(vm)
-}
-
-/** A row of a profile dialog: a mark, a label, and a check on the one that's [on] (or a [trailing] control). */
-@Composable
-private fun DialogRow(label: String, on: Boolean = false, color: androidx.compose.ui.graphics.Color? = null, mark: @Composable () -> Unit, trailing: (@Composable () -> Unit)? = null, onPress: () -> Unit) {
-    val ui = LocalUi.current
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).touchable(onClick = onPress).heightIn(min = 48.dp).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { mark() }
-        Txt(label, 15f, color ?: ui.cs.onSurface, ui.semibold, Modifier.padding(start = 16.dp).weight(1f), maxLines = 1)
-        if (trailing != null) trailing() else if (on) Sym("check", 20f, ui.cs.primary)
-    }
 }
 
 /** Choosing a profile's look: its icon (shown in the chosen colour), then its colour. */
@@ -177,7 +164,7 @@ private fun ProfileActions(vm: BrowserViewModel) {
     if (managing != null) last = managing
     val k = last ?: return
     val id = idOf(k)
-    val profile = id?.let { c -> vm.settings.containers.firstOrNull { it.id == c } }
+    val profile = containerOf(id, vm.settings.containers)
     if (id != null && profile == null) return
     val ui = LocalUi.current
     val close = { ContainerFlow.managing = null }
@@ -189,7 +176,7 @@ private fun ProfileActions(vm: BrowserViewModel) {
                 Column(Modifier.padding(start = 14.dp)) {
                     Txt(vm.nameOf(id), 18f, ui.cs.onSurface, ui.semibold)
                     val n = vm.tabs.list.count { it.container == id }
-                    Txt(if (n == 1) "1 tab" else "$n tabs", 13f, ui.cs.onSurfaceVariant, ui.regular)
+                    Txt(tabCount(n), 13f, ui.cs.onSurfaceVariant, ui.regular)
                 }
             }
             DialogRow("Icon and Color", mark = { Sym("palette", 20f, ui.cs.onSurfaceVariant) }) { close(); ContainerFlow.lookFor = k }
@@ -243,8 +230,10 @@ private fun LookChanger(vm: BrowserViewModel) {
 @Composable
 private fun ProfileMaker(vm: BrowserViewModel) {
     val open = ContainerFlow.creating
-    var look by remember(open) { mutableStateOf(newProfileLook(vm.settings.containers)) }
-    var isolated by remember(open) { mutableStateOf(false) }
+    // set afresh as it opens, and kept while it closes (made, the next unused look would flash in as it fades)
+    var look by remember { mutableStateOf(newProfileLook(vm.settings.containers)) }
+    var isolated by remember { mutableStateOf(false) }
+    LaunchedEffect(open) { if (open) { look = newProfileLook(vm.settings.containers); isolated = false } }
     val ui = LocalUi.current
     val close = { ContainerFlow.creating = false }
     ModalFrame(open, close) {
@@ -277,7 +266,7 @@ private fun MovePicker(vm: BrowserViewModel) {
     ModalFrame(picking != null, close, dismissOnScrim = true) {
         DialogCard("Move to Profile", actions = { DialogAction("Cancel", onClick = close) }) {
             Txt("The tab goes there; its page reloads in that profile.", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(bottom = 12.dp), lineHeight = 20f, scaled = false)
-            (listOf<String?>(null) + vm.settings.containers.map { it.id }).forEach { id ->
+            vm.profileIds.forEach { id ->
                 DialogRow(vm.nameOf(id), tab.container == id, mark = { val (i, c) = vm.lookOf(id); ProfileBadge(i, c, on = false, size = 28f) }) { vm.moveToContainer(tab.id, id); close() }
             }
             DialogRow("New Profile", mark = { Sym("add", 20f, ui.cs.primary) }) { close(); newProfile(moving = tab.id) }
@@ -292,7 +281,7 @@ private fun MovePicker(vm: BrowserViewModel) {
 @Composable
 fun ProfileChips(vm: BrowserViewModel, shown: Set<String?>, modifier: Modifier = Modifier, onChange: (Set<String?>) -> Unit) {
     Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        (listOf<String?>(null) + vm.settings.containers.map { it.id }).forEach { id ->
+        vm.profileIds.forEach { id ->
             val on = id in shown
             val (icon, color) = vm.lookOf(id)
             ProfileBadge(icon, color, on, Modifier.clip(CircleShape)

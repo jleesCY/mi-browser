@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- mi. Budget's icon, "You are here": your wallet in the app's green (#34C759), and mi.'s dot is the snap that keeps
+     your money in, cut out from the wallet by a ring of the icon's near-black. Drawn on a 100-unit grid, scaled to 46.7dp
+     and centred on the 108dp adaptive canvas, with the glyph 12% larger (about 78% of the visible circle) like every mi. app's. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="30.67" android:translateY="30.67" android:scaleX="0.467" android:scaleY="0.467">
+        <!-- the glyph drawn 12% larger than its art about the centre (mi.'s dot keeps its size and place) -->
+        <group android:pivotX="50" android:pivotY="50" android:scaleX="1.12" android:scaleY="1.12">
+            <!-- the flap of a note sticking out, then the wallet -->
+            <path android:fillColor="#FF34C759" android:pathData="M24,25 L62,13 Q68,11 70,17 L72,25 Z" />
+            <path android:fillColor="#FF34C759" android:pathData="M26,25 H74 A14,14 0 0,1 88,39 V73 A14,14 0 0,1 74,87 H26 A14,14 0 0,1 12,73 V39 A14,14 0 0,1 26,25 Z" />
+            <!-- the fold -->
+            <path android:strokeColor="#FF0D0D0F" android:strokeWidth="5" android:strokeLineCap="round" android:pathData="M12,43 H72" />
+        </group>
+        <!-- mi.'s dot (r 12 at 78,78, the same spot on every mi. icon) with a ring of background around it -->
+        <path android:fillColor="#FF0D0D0F" android:pathData="M58,78 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0 Z" />
+        <path android:fillColor="#FF34C759" android:pathData="M66,78 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+    </group>
+</vector>

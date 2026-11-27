@@ -12,6 +12,7 @@ import com.jlees.mibrowser.containers.editProfile
 import com.jlees.mibrowser.containers.lookOf
 import com.jlees.mibrowser.containers.nameOf
 import com.jlees.mibrowser.containers.newProfile
+import com.jlees.mibrowser.containers.profileIds
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
@@ -47,7 +48,7 @@ fun tabsSection(vm: BrowserViewModel) = SettingsSection("tabs", "Tabs", "tab", "
 private fun ProfileList(vm: BrowserViewModel) {
     val ui = LocalUi.current
     FlowRow(Modifier.fillMaxWidth().padding(start = 56.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        (listOf<String?>(null) + vm.settings.containers.map { it.id }).forEach { id ->
+        vm.profileIds.forEach { id ->
             val (icon, color) = vm.lookOf(id)
             ProfileBadge(icon, color, on = false, modifier = Modifier.clip(CircleShape).touchable { editProfile(id) }
                 .semantics { contentDescription = "Edit ${vm.nameOf(id)} profile" })

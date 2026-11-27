@@ -183,13 +183,6 @@ fun globMatches(glob: String, text: String): Boolean {
     return Regex(re, RegexOption.DOT_MATCHES_ALL).matches(text)
 }
 
-/** Whether content script [cs] runs on [url] (its matches and globs, as Chrome applies them). */
-fun runsOn(cs: ContentScript, url: String): Boolean =
-    cs.matches.any { matchesPattern(it, url) } &&
-        cs.excludeMatches.none { matchesPattern(it, url) } &&
-        (cs.includeGlobs.isEmpty() || cs.includeGlobs.any { globMatches(it, url) }) &&
-        cs.excludeGlobs.none { globMatches(it, url) }
-
 /**
  * An extension's code for its own world in a page (content scripts, executeScript), where a browser gives it a window
  * of its own whose "chrome" and "browser" are the extension APIs. mi runs it in the page with chrome and browser as

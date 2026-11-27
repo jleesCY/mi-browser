@@ -10,6 +10,8 @@
         <!-- the ring round the dot -->
         <group>
             <clip-path android:pathData="M-10,-10 H110 V110 H-10 Z M58,78 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0 Z" />
+            <!-- the globe, 12% larger about its centre, as in the foreground (the dot's ring above stays put) -->
+            <group android:pivotX="50" android:pivotY="50" android:scaleX="1.12" android:scaleY="1.12">
             <!-- the equator -->
             <group>
                 <clip-path android:pathData="M-10,-10 H110 V110 H-10 Z M0,47.5 V52.5 H100 V47.5 Z" />
@@ -22,6 +24,7 @@
                         <path android:fillColor="#FFFFFFFF" android:pathData="M12,50 a38,38 0 1,0 76,0 a38,38 0 1,0 -76,0 Z" />
                     </group>
                 </group>
+            </group>
             </group>
         </group>
         <!-- you: mi.'s dot -->
