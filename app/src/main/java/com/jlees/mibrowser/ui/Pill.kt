@@ -19,6 +19,7 @@ import com.jlees.mibrowser.incognito.incognitoSupported
 import com.jlees.mibrowser.incognito.toggleIncognito
 import com.jlees.mibrowser.web.connectionNotSecure
 import com.jlees.mibrowser.web.explainNotSecure
+import com.jlees.mibrowser.adblock.copyLink
 
 import com.jlees.mibrowser.tabs.SwitcherPillButtons
 
@@ -60,6 +61,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
@@ -84,6 +86,7 @@ import kotlin.math.roundToInt
 fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navInsetDp: Float, suggestionsMaxDp: Float) {
     val ui = LocalUi.current
     val s = vm.settings
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val focusManager = LocalFocusManager.current
     // All animated values (keyboard focus, hide/show) are read inside layout/draw lambdas, so animating them never
     // recomposes the pill, its text field or its suggestions.
@@ -125,6 +128,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
                             if (vm.canGoBackUi) CustomAccessibilityAction("Back") { vm.goBack() } else null,
                             if (vm.canGoForwardUi) CustomAccessibilityAction("Forward") { vm.goForward() } else null,
                             CustomAccessibilityAction("Hide toolbar") { pill.hideBar(); true },
+                            vm.activeUrl?.takeIf { s.longPressCopyLink }?.let { url -> CustomAccessibilityAction("Copy link") { vm.copyLink(ctx, url); true } },
                         )
                     }
                     .panGesture(
@@ -190,6 +194,7 @@ fun BottomArea(vm: BrowserViewModel, pill: PillState, imeDp: () -> Float, navIns
 private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusManager: androidx.compose.ui.focus.FocusManager) {
     val ui = LocalUi.current
     val s = vm.settings
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val focusRequester = remember { FocusRequester() }
     var tfv by remember { mutableStateOf(TextFieldValue(vm.inputUrl)) }
     // On focus the host is swapped for the full URL, but the focusing tap then reports its cursor placement together
@@ -268,6 +273,12 @@ private fun SearchPillContent(vm: BrowserViewModel, pill: PillState, focusManage
                             tfv = v; vm.inputUrl = v.text
                         },
                         modifier = Modifier.weight(1f).padding(start = if (notSecure) 8.dp else 16.dp, end = 16.dp)
+                            // not typing: a tap starts typing, holding copies the page's link (Gestures › Long Press
+                            // to Copy Link), before the field's own long press (a word selected, Android's copy bar)
+                            .then(if (vm.isInputFocused) Modifier else Modifier.closedFieldTouches(
+                                onTap = { allowFocus = true; focusRequester.requestFocus() },
+                                onHold = vm.activeUrl?.takeIf { s.longPressCopyLink }?.let { url -> { allowFocus = false; vm.copyLink(ctx, url) } },
+                            ))
                             .pointerInput(Unit) {
                                 awaitEachGesture {
                                     // a touch on the field unlocks focus for the tap; a swipe (e.g. up to the switcher) locks it again.
@@ -381,5 +392,45 @@ private fun Modifier.morphInto(progress: () -> Float, target: () -> Rect?, origi
     val pl = m.measure(Constraints.fixed(w, h))
     layout(c.maxWidth, ownH) {
         pl.place(lerp(0f, t.left - origin.at.x, p).roundToInt(), lerp(0f, t.top - origin.at.y, p).roundToInt())
+    }
+}
+
+/**
+ * The address field's touches while it isn't being typed in, taken before the field sees them: a tap starts typing
+ * ([onTap]), holding still copies the page's link ([onHold]; null: holding does nothing more than a tap), and a swipe
+ * is left to the Pill's swipes (which watch every touch). The field's own long press, a word selected and Android's
+ * copy-and-paste bar, never starts on a field that isn't open.
+ */
+@Composable
+private fun Modifier.closedFieldTouches(onTap: () -> Unit, onHold: (() -> Unit)?): Modifier {
+    val haptics = LocalHaptics.current
+    val tap by rememberUpdatedState(onTap)
+    val hold by rememberUpdatedState(onHold)
+    return pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            down.consume()
+            val slop = viewConfiguration.touchSlop
+            // true: let go where it went down (a tap); false: moved away (a swipe) or the touch was lost
+            suspend fun AwaitPointerEventScope.follow(): Boolean {
+                while (true) {
+                    val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: return false
+                    if ((c.position - down.position).getDistance() > slop) return false
+                    if (!c.pressed) { c.consume(); return true }
+                }
+            }
+            val holding = hold
+            // null: still held, still, when the long-press time ran out
+            val ended = if (holding == null) follow() else withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) { follow() }
+            when (ended) {
+                true -> tap()
+                false -> Unit
+                null -> {
+                    haptics?.longPress()
+                    holding?.invoke()
+                    do { val e = awaitPointerEvent(PointerEventPass.Initial); e.changes.forEach { it.consume() } } while (e.changes.any { it.pressed })
+                }
+            }
+        }
     }
 }

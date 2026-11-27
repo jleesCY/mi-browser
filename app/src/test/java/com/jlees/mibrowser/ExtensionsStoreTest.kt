@@ -26,7 +26,7 @@ class ExtensionsStoreTest {
         s.reorder(listOf("a", "c", "d"), from = 2, to = 0)
         assertEquals(listOf("d", "b", "a", "c"), s.list.map { it.id })
         // quick tiles: the saved order, then any tile it doesn't name
-        assertEquals(listOf(com.jlees.mibrowser.data.QuickTile.FIND, com.jlees.mibrowser.data.QuickTile.DESKTOP, com.jlees.mibrowser.data.QuickTile.READER, com.jlees.mibrowser.data.QuickTile.ADS),
+        assertEquals(listOf(com.jlees.mibrowser.data.QuickTile.FIND, com.jlees.mibrowser.data.QuickTile.DESKTOP, com.jlees.mibrowser.data.QuickTile.READER, com.jlees.mibrowser.data.QuickTile.ADS, com.jlees.mibrowser.data.QuickTile.GROUP, com.jlees.mibrowser.data.QuickTile.CONTAINER), // tiles added since come after the saved order
             com.jlees.mibrowser.data.QuickTile.ordered(listOf(com.jlees.mibrowser.data.QuickTile.FIND, com.jlees.mibrowser.data.QuickTile.DESKTOP)))
     }
 

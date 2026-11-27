@@ -93,4 +93,10 @@ class DownloadRulesTest {
             .forEach { assertEquals(it.toString(), false, retriesItself(err(it))) }
         assertEquals(RETRYING, downloadStatus(DownloadItem("1", "u", "f", state = DownloadState.FAILED, error = RETRYING)))
     }
+
+    @Test fun deleteAllTakesOnlyFinishedDownloads() {
+        val items = DownloadState.values().mapIndexed { i, s -> DownloadItem("$i", "u", "f$i", state = s) }
+        // a download still going (or paused, or failed) keeps its place: Cancel is for those
+        assertEquals(listOf(DownloadState.DONE), com.jlees.mibrowser.downloads.finishedDownloads(items).map { it.state })
+    }
 }

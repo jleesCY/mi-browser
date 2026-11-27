@@ -77,7 +77,7 @@ fun SiteSettingsView(vm: BrowserViewModel, host: WebViewHost, closeOverlay: () -
 
         Group(Modifier.padding(top = 16.dp)) {
             Item("delete", "Clear Site Data", "Cookies and storage for $site; you'll be signed out of it", danger = true, onClick = {
-                vm.showAlert("Clear data for $site?", "Its cookies and stored data are deleted and the page reloads. You'll be signed out of $site.", listOf(
+                vm.showAlert("Clear Site Data?", "The cookies and stored data of $site are deleted and the page reloads. You'll be signed out of $site.", listOf(
                     AlertButton("Cancel", ButtonStyle.CANCEL),
                     AlertButton("Clear", ButtonStyle.DESTRUCTIVE) {
                         host.clearSiteData(tab.id, url)

@@ -62,7 +62,8 @@ private fun Rest(vm: BrowserViewModel, e: InstalledExtension) {
     val ui = LocalUi.current
     val id = e.id
     val m = ExtensionFlow.engine?.infos?.get(id)?.manifest
-    if (e.reasons.isNotEmpty()) SegmentedGroup("How It Works in mi", listOf { Column(Modifier.fillMaxWidth().padding(16.dp)) { FitReasons(e.fit, e.reasons, e.serious) } })
+    val limitations = verifiedFor(storeSource(e.source))?.limitations.orEmpty()
+    if (e.reasons.isNotEmpty() || limitations.isNotEmpty()) SegmentedGroup("How It Works in mi", listOf { Column(Modifier.fillMaxWidth().padding(16.dp)) { FitReasons(e.fit, e.reasons, e.serious, limitations) } })
     SegmentedGroup("Settings", listOfNotNull(
         { SwitchItem("power_settings_new", "On", "Run this extension", e.enabled) { vm.setExtensionEnabled(id, it) } },
         { SwitchItem("incognito", "Allow in Incognito", "Run it in incognito tabs too", e.incognito) { vm.setExtensionIncognito(id, it) } },

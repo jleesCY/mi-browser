@@ -24,10 +24,14 @@ fun favoritesOf(all: List<BookmarkNode>): List<BookmarkNode> =
 /** [url] added to favorites (the end of the Favorites folder, made first in Bookmarks if it's gone); once only. */
 fun addFavorite(all: List<BookmarkNode>, title: String, url: String): List<BookmarkNode> {
     if (favoritesOf(all).any { it.url == url }) return all
+    return addBookmark(withFavoritesFolder(all), title.ifEmpty { "Favorite" }, url, FAVORITES_FOLDER)
+}
+
+/** [all] with the Favorites folder, made first in Bookmarks if it isn't there (a new install has none until needed). */
+fun withFavoritesFolder(all: List<BookmarkNode>): List<BookmarkNode> {
+    if (all.any { it.id == FAVORITES_FOLDER }) return all
     val first = (all.filter { it.parentId == null }.minOfOrNull { it.order } ?: 0) - 1
-    val withFolder = if (all.any { it.id == FAVORITES_FOLDER }) all
-        else all + BookmarkNode(FAVORITES_FOLDER, BookmarkType.FOLDER, "Favorites", "", null, first)
-    return addBookmark(withFolder, title.ifEmpty { "Favorite" }, url, FAVORITES_FOLDER)
+    return all + BookmarkNode(FAVORITES_FOLDER, BookmarkType.FOLDER, "Favorites", "", null, first)
 }
 
 /**

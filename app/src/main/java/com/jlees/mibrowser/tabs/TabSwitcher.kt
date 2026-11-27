@@ -146,9 +146,23 @@ fun TabSwitcher(
     val order = remember {
         vm.tabs.list.withIndex().sortedWith(compareBy({ it.value.lastUsed }, { -it.index })).map { it.value.id }
     }
-    val tabs = vm.tabs.list.let { all ->
+    // only the profile you're in (containers/: the one the current tab belongs to), unless profiles are turned off
+    val profile = vm.tabs.current?.container
+    val profilesOn = vm.settings.profilesEnabled
+    val tabs = com.jlees.mibrowser.containers.profileTabs(vm.tabs.list.let { all ->
         order.mapNotNull { id -> all.firstOrNull { it.id == id } } + all.filter { it.id !in order }.sortedBy { it.lastUsed }
+    }, profile, profilesOn)
+    // switching profile: the profile's own cards fade in
+    val profileFade = remember { androidx.compose.animation.core.Animatable(1f) }
+    var shownProfile by remember { mutableStateOf(profile) }
+    LaunchedEffect(profile) {
+        if (profile == shownProfile) return@LaunchedEffect
+        shownProfile = profile
+        profileFade.snapTo(0f)
+        profileFade.animateTo(1f, Motion.enter(200))
     }
+    // and the tab groups with a tab in it
+    val groups = vm.tabs.groups.filter { g -> tabs.any { it.groupId == g.id } }
     // tab search (TabSearch.kt): the cards narrow to the matching tabs
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -166,9 +180,15 @@ fun TabSwitcher(
             keyboardSeen && !leaving -> endSearch()
         }
     }
-    val shown = if (query.isBlank()) tabs else tabs.filter { matchesTab(it, query) }
+    // a group's chip narrows the cards to its tabs (TabGroups.kt); a group that's gone shows them all again
+    var groupFilter by remember { mutableStateOf<String?>(null) }
+    if (groupFilter != null && groups.none { it.id == groupFilter }) groupFilter = null
+    val inGroup = tabsInGroup(tabs, groupFilter)
+    val shown = if (query.isBlank()) inGroup else inGroup.filter { matchesTab(it, query) }
     val pager = rememberPagerState(initialPage = tabs.indexOfFirst { it.id == vm.tabs.activeId }.coerceAtLeast(0)) { shown.size }
     LaunchedEffect(query) { if (query.isNotBlank() && shown.isNotEmpty()) pager.scrollToPage(0) } // the best match first
+    // a chip picked: the current tab's card if it's among them, else the group's most recent
+    LaunchedEffect(groupFilter, profile) { if (shown.isNotEmpty()) pager.scrollToPage(shown.indexOfFirst { it.id == vm.tabs.activeId }.takeIf { it >= 0 } ?: shown.lastIndex) }
     // Undo brings a closed tab back: once its card is in the pager, scroll to it
     var refocus by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(refocus, tabs.size) {
@@ -241,16 +261,18 @@ fun TabSwitcher(
             .then(if (searching) Modifier.pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } } else Modifier)
             .padding(top = statusDp.dp + 16.dp, bottom = 12.dp).windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
             val count = when {
-                query.isBlank() -> "${tabs.size} ${if (tabs.size == 1) "tab" else "tabs"}"
-                shown.isEmpty() -> "0 of ${tabs.size} tabs"
+                query.isBlank() && groupFilter == null -> "${tabs.size} ${if (tabs.size == 1) "tab" else "tabs"}"
                 else -> "${shown.size} of ${tabs.size} tabs"
             }
-            Txt(count, 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.align(Alignment.CenterHorizontally))
+            // the tab count, after the profile you're in (profiles on): tap it to see every profile and switch
+            if (profilesOn) com.jlees.mibrowser.containers.CurrentProfile(vm, count, Modifier.align(Alignment.CenterHorizontally))
+            else Txt(count, 14f, ui.cs.onSurfaceVariant, ui.semibold, Modifier.align(Alignment.CenterHorizontally))
+            if (groups.isNotEmpty()) GroupChips(groups, tabs, groupFilter, centered) { groupFilter = it }
             val favorites = vm.homeFavorites() // drawn on blank tabs' cards, as on their page
             if (query.isNotBlank() && shown.isEmpty()) NoTabsFound(query, Modifier.fillMaxWidth().weight(1f))
             else HorizontalPager(
                 state = pager,
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxWidth().weight(1f).graphicsLayer { alpha = profileFade.value },
                 contentPadding = PaddingValues(horizontal = 56.dp),
                 pageSpacing = 12.dp,
                 key = { shown.getOrNull(it)?.id ?: it },

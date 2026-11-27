@@ -56,9 +56,9 @@ fun PillSuggestions(vm: BrowserViewModel, maxHeightDp: Float) {
     val notTyping = filter.isEmpty() || (activeUrl != null && (filter == activeUrl || filter == displayHost(activeUrl) || filter == com.jlees.mibrowser.extensions.shownHost(activeUrl)))
     // Paste and go: a link copied in the last few minutes, offered before anything is typed (see CopiedLink)
     val copied = remember(vm.isInputFocused) { if (vm.isInputFocused) CopiedLink.peek(ctx) else null }?.takeIf { notTyping && vm.settings.quickActions }
-    // incognito doesn't show (or add to) your normal recent searches
+    // incognito doesn't show (or add to) your normal recent searches; each profile has its own (containers/)
     val recents = if (!vm.settings.recentSearches || vm.tabs.current?.keepsTraces == false) emptyList()
-        else vm.history.recents.filter { notTyping || it.title.contains(filter, ignoreCase = true) }
+        else vm.history.recents.filter { (!vm.settings.profilesEnabled || it.profile == vm.tabs.current?.container) && (notTyping || it.title.contains(filter, ignoreCase = true)) }
     // engine suggestions repeating a past search are dropped
     val searched = recents.map { it.title.lowercase() }.toSet()
     // the engine sometimes answers in its suggestions ("= 3.10686 miles", from Google): an answer, not a search

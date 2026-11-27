@@ -320,13 +320,16 @@ class ExtensionRequests internal constructor(private val e: ExtensionEngine) {
      * A request sent elsewhere: a page (or frame) moves to the new address itself, so it shows it; a part of a page is
      * answered from the new address (an extension's own file, data, or fetched by mi).
      */
-    internal fun redirect(target: String, request: WebResourceRequest, type: String): WebResourceResponse? {
+    internal fun redirect(to: String, request: WebResourceRequest, type: String): WebResourceResponse? {
+        // an extension names its own files by their native address (runtime.getURL: moz-extension://…), which WebView can't
+        // load: mi's address for the same file
+        val target = fromNative(to) ?: to
         if (request.isForMainFrame || type == "sub_frame") {
             val safe = JsonPrimitive(target).toString()
             val html = "<!doctype html><meta http-equiv=\"refresh\" content=\"0;url=${target.replace("\"", "%22")}\"><script>location.replace($safe)</script>"
             return WebResourceResponse("text/html", "utf-8", ByteArrayInputStream(html.toByteArray()))
         }
-        extIdOf(target)?.let { id -> return e.pages.serve(id, java.net.URI(target).path ?: "/", all = false) }
+        extensionFileOf(target)?.let { (id, path) -> return e.pages.serve(id, path, all = false) }
         if (target.startsWith("data:")) {
             val meta = target.substringAfter("data:").substringBefore(',')
             val body = target.substringAfter(',')

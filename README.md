@@ -21,7 +21,7 @@
 <p align="center">
   <img src="docs/public/images/homepage.jpg" width="240" alt="A new tab: the mi. logo, your favorites and the Pill" />
   <img src="docs/public/images/tab_switcher.jpg" width="240" alt="The tab switcher" />
-  <img src="docs/public/images/power_tools.jpg" width="240" alt="Tab menu: favorite, bookmark, pin, quick tiles and tools" />
+  <img src="docs/public/images/power_tools.jpg" width="240" alt="Tab menu: favorite, bookmark, pin and share, then the tab's tiles, extensions and tools" />
 </p>
 
 **mi. Browser** is a simple, private browser built around one idea: everything you need is in a single Pill at the bottom of the screen. Search, switch tabs and go back with a swipe, while ads and trackers are blocked for you. Add extensions, follow a product's price and get told when it drops, keep any site on your home screen as its own app, and browse privately whenever you want. Nothing you do leaves your phone.
@@ -30,7 +30,7 @@
 
 ## Highlights
 - **One Pill for everything**: search with suggestions, inline answers (`20% of 150`, `5 km in mi`) and `!` shortcuts, plus back, forward and the tab switcher, all by swipe.
-- **Tab switcher** with live previews, pinned tabs, tab search and undo.
+- **Tab switcher** with live previews, tab groups, pinned tabs, tab search and undo, plus optional profiles that keep their own tabs and history.
 - **Extensions**: add extensions made for Firefox on Android, run by mi's own engine. mi tells you how well each one works before you add it, and keeps a hand-tested list (Dark Reader, uBlock Origin, Keepa, SponsorBlock, Privacy Badger and more).
 - **Follow prices**: follow a product from the tab menu and mi tells you when it drops, goes on sale or comes back in stock, checked on your phone, with a home-screen widget.
 - **Built-in blocking** of ads, trackers and cookie banners (with uBlock Origin's scriptlets for ads inside sites like YouTube), tracking-free links and HTTPS Only.
@@ -56,6 +56,10 @@ cd mi-browser
 ```
 
 How the code is organized is in the **[Developer Guide](https://mi-app-hub.github.io/mi-browser/developer)** and [CLAUDE.md](CLAUDE.md). The website lives in [`docs/`](docs) (Next.js); its colours are generated from the app's default accent by `docs/scripts/theme.mjs`.
+
+## More mi. Apps
+- [mi. Notes](https://github.com/mi-app-hub/mi-notes): A simple, private Android notes app built around a single control: the Pill.
+- [mi. Budget](https://github.com/mi-app-hub/mi-budget): Your purchases, budgets and subscriptions, private on your phone.
 
 ## License
 [MIT](LICENSE). The bundled filter lists, hosts list, font and icons keep their own licenses. mi. collects no personal data: see the [Privacy Policy](https://mi-app-hub.github.io/mi-browser/privacy).

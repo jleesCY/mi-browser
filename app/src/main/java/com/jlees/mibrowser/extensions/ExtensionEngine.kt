@@ -45,16 +45,27 @@ fun nativeBase(id: String) = "moz-extension://$id/"
 /** mi's address for an extension's page ([extOrigin]) as the extension knows it ([nativeBase]); anything else unchanged. */
 fun toNative(url: String?): String? = url?.let { u -> extIdOf(u)?.let { id -> nativeBase(id) + u.removePrefix(extOrigin(id)).trimStart('/') } ?: u }
 
-/** An extension's native address (moz-extension://<id>/…) as the address mi serves it at, or null if it isn't one. */
 /** Whether this WebView can run extensions (message listeners and document-start scripts). */
 internal val extensionsSupported get() = androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER) &&
     androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)
 
+/** An extension's native address (moz-extension://<id>/…) as the address mi serves it at, or null if it isn't one. */
 fun fromNative(url: String?): String? = url?.let { Regex("""^moz-extension://([a-z0-9-]+)/(.*)$""", RegexOption.IGNORE_CASE).find(it) }
     ?.let { m -> "${extOrigin(m.groupValues[1].lowercase())}/${m.groupValues[2]}" }
 
 /** The extension behind an address at its origin, or null. */
 fun extIdOf(url: String?): String? = url?.let { Regex("""^https://([a-z0-9-]+)\Q$EXT_HOST\E(/|$)""").find(it)?.groupValues?.get(1) }
+
+/**
+ * The extension file an address names, as (extension, path): at mi's address for it, or at its native one, as extensions
+ * know their files (runtime.getURL) and so redirect requests to them (LocalCDN: moz-extension://<id>/resources/….jsm?<the
+ * address it stands in for>). The query isn't part of the path. Null for any other address.
+ */
+fun extensionFileOf(url: String): Pair<String, String>? {
+    val u = fromNative(url) ?: url
+    val id = extIdOf(u) ?: return null
+    return id to (runCatching { java.net.URI(u).path }.getOrNull() ?: u.removePrefix(extOrigin(id)).substringBefore('?').substringBefore('#')).ifEmpty { "/" }
+}
 
 /** A toolbar button's state (chrome.action), shown in the tab menu. */
 data class ActionState(
@@ -157,7 +168,6 @@ class ExtensionEngine(internal val app: Context, internal val vm: BrowserViewMod
                 // reading and scanning extensions' files (megabytes of code) happens off the main thread
                 val read = withContext(Dispatchers.IO) {
                     ExtensionInstaller.staging(app).deleteRecursively() // left from a fetch never added
-                    File(app.cacheDir, "ext-staging").deleteRecursively() // where they waited before 2.0
                     store.list.map { it.id to inspect(it.id) }
                 }
                 read.forEach { (id, info) -> info?.let { apply(id, it) } }

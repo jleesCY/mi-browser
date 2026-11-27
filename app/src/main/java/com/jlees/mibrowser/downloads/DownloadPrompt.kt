@@ -42,7 +42,7 @@ class DownloadPrompt(
 ) {
     fun start(cookies: CookieManager, incognito: Boolean, url: String, userAgent: String, contentDisposition: String?, mimetype: String?, length: Long) {
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            vm.showAlert("Can't download", "This file is created by the page itself (a blob or data address), which mi can't save yet.")
+            vm.showAlert("Can't Download", "This file can't be downloaded.")
             return
         }
         val s = vm.settings
@@ -78,7 +78,7 @@ class DownloadPrompt(
         if (!s.confirmDownloads) { start(); return }
         val size = if (length > 0) " (${formatBytes(length)})" else ""
         vm.showAlert(
-            "Download file?", "$fileName$size\nfrom ${displayHost(url)}" +
+            "Download File?", "$fileName$size\nfrom ${displayHost(url)}" +
                 if (incognito) "\n\nThe file is saved to your phone and stays after you close this incognito tab." else "",
             listOf(AlertButton("Cancel", ButtonStyle.CANCEL), AlertButton("Download") { start() }),
             onCancel = {},
@@ -107,7 +107,7 @@ class DownloadPrompt(
                 }.getOrNull()
                 then(uri, chosen ?: name)
             }
-        }.onFailure { vm.showAlert("Can't choose a location", "This phone has no save dialog; the file is saved to Downloads instead.") }
+        }.onFailure { vm.showAlert("Can't Choose a Location", "This phone has no save dialog; the file is saved to Downloads instead.") }
     }
 
     /** Android's download manager: it saves to Downloads and shows its own notifications (not mi's list). */
@@ -120,6 +120,6 @@ class DownloadPrompt(
         req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
         runCatching { activity.getSystemService(DownloadManager::class.java).enqueue(req) }
             .onSuccess { com.jlees.mibrowser.ui.common.Notices.show("Downloading $fileName with Android") }
-            .onFailure { vm.showAlert("Couldn't download", "Android's download manager didn't take it. Choose mi in Settings → Downloads.") }
+            .onFailure { vm.showAlert("Couldn't Download", "Android's download manager didn't take it. Choose mi in Settings → Downloads.") }
     }
 }

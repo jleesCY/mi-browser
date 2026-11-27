@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.data.BookmarkNode
-import com.jlees.mibrowser.data.Favorite
 import com.jlees.mibrowser.data.JsonStore
 import com.jlees.mibrowser.data.Saver
 import kotlinx.serialization.builtins.ListSerializer
@@ -17,17 +16,9 @@ class BookmarksStore(private val store: JsonStore) {
     var nodes by mutableStateOf(listOf<BookmarkNode>()); private set
 
     private val nodeSerializer = ListSerializer(BookmarkNode.serializer())
-    private val favoriteSerializer = ListSerializer(Favorite.serializer())
 
     fun load() {
         nodes = store.read("bookmarks", nodeSerializer) ?: emptyList()
-        // favorites used to be their own list: moved into the Favorites folder once, and the old list emptied
-        val old = store.read("favorites", favoriteSerializer).orEmpty()
-        if (old.isNotEmpty()) {
-            old.forEach { nodes = addFavorite(nodes, it.title, it.url) }
-            store.write("bookmarks", nodeSerializer, nodes)
-            store.write("favorites", favoriteSerializer, emptyList())
-        }
     }
 
     val savers = listOf(

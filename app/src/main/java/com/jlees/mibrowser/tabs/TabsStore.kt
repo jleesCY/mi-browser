@@ -12,6 +12,7 @@ import com.jlees.mibrowser.data.StartupTabs
 import com.jlees.mibrowser.data.TabItem
 import com.jlees.mibrowser.data.newTab
 import com.jlees.mibrowser.logic.displayHost
+import com.jlees.mibrowser.logic.uniqueId
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import java.io.File
@@ -31,6 +32,8 @@ class TabsStore(
     var closed by mutableStateOf<Pair<TabItem, Int>?>(null); private set
     /** Closed tabs, newest first (History's Recently Closed). Saved only when [keepClosed] reaches past this session. */
     var recentlyClosed by mutableStateOf(listOf<TabItem>()); private set
+    /** Tab groups (TabGroupRules): each holds at least one tab, an emptied one goes. */
+    var groups by mutableStateOf(listOf<TabGroup>()); private set
 
     val current get() = get(activeId)
     operator fun get(id: String) = list.firstOrNull { it.id == id }
@@ -40,6 +43,8 @@ class TabsStore(
         val saved = (store.read("tabs", ListSerializer(TabItem.serializer())) ?: emptyList()).map(::repairSaved)
         val restored = restoreSession(saved, store.read("activeTabId", String.serializer()), mode, link?.let { newTab(it, "External Link") })
         list = restored.tabs
+        groups = liveGroups(store.read("tab_groups", ListSerializer(TabGroup.serializer())) ?: emptyList(), list)
+        list = list.map { t -> if (t.groupId != null && groups.none { it.id == t.groupId }) t.copy(groupId = null) else t }
         select(restored.activeId)
         val keep = keepClosed()
         if (keep != KeepClosedTabs.SESSION) recentlyClosed = keptClosed(store.read("recently_closed", ListSerializer(TabItem.serializer())) ?: emptyList(), keep, now())
@@ -58,7 +63,46 @@ class TabsStore(
         store.write("activeTabId", String.serializer(), it.second)
     }
 
+    /** The groups, saved with the tabs (only saved tabs are ever grouped: incognito ones aren't). */
+    val groupSaver = Saver(500, { groups }) { store.write("tab_groups", ListSerializer(TabGroup.serializer()), it) }
+
     fun update(id: String, f: TabItem.() -> TabItem) { list = list.map { if (it.id == id) it.f() else it } }
+
+    // ---- groups
+
+    /** [tabId] opened from [openerId]'s page: both go in the opener's group, or a new one (see [groupFromLink]). */
+    fun joinGroupFromLink(openerId: String, tabId: String) {
+        val opener = get(openerId) ?: return
+        val (next, id) = groupFromLink(opener, groups, ::uniqueId) ?: return
+        groups = next
+        list = list.map { if (it.id == openerId || it.id == tabId) it.copy(groupId = id) else it }
+    }
+
+    /** Puts [tabId] in group [groupId], or takes it out of its group (null). */
+    fun setGroup(tabId: String, groupId: String?) {
+        if (get(tabId)?.keepsTraces != true || (groupId != null && groups.none { it.id == groupId })) return
+        update(tabId) { copy(groupId = groupId) }
+        pruneGroups()
+    }
+
+    /** A new group named [name], with [tabId] in it; returns its id. */
+    fun newGroup(name: String, tabId: String): String? {
+        if (get(tabId)?.keepsTraces != true) return null
+        val group = TabGroup(uniqueId(), groupName(name, "Group"))
+        groups = groups + group
+        setGroup(tabId, group.id)
+        return group.id
+    }
+
+    fun renameGroup(id: String, name: String) { groups = groups.map { if (it.id == id) it.copy(name = groupName(name, it.name)) else it } }
+
+    /** The group goes; its tabs stay open, in no group. */
+    fun ungroup(id: String) {
+        list = list.map { if (it.groupId == id) it.copy(groupId = null) else it }
+        groups = groups.filterNot { it.id == id }
+    }
+
+    private fun pruneGroups() { groups = liveGroups(groups, list, closed?.first) }
 
     /** Makes [id] the tab that shows (and the most recently used). */
     fun select(id: String) {
@@ -89,6 +133,7 @@ class TabsStore(
         list = next.tabs
         if (next.activeId != activeId) select(next.activeId)
         (closing + before).forEach { releasePreview(it.previewImage) } // kept only where still shown (or for Undo)
+        pruneGroups()
         return next.activeId
     }
 
@@ -107,7 +152,9 @@ class TabsStore(
         recentlyClosed = recentlyClosed - t
         if (closed?.first?.id == id) dismissUndo() // the Undo bar for this same tab would open a second copy
         val url = t.historyStack.getOrNull(t.currentIndex)
-        open(t.copy(url = url, requestedUrl = url, loadNonce = t.loadNonce + 1, hasLoadedOnce = true, loading = false, closedAt = 0))
+        // its group may have gone with its last tab
+        open(t.copy(url = url, requestedUrl = url, loadNonce = t.loadNonce + 1, hasLoadedOnce = true, loading = false, closedAt = 0,
+            groupId = t.groupId?.takeIf { g -> groups.any { it.id == g } }))
     }
 
     /** Drops [id] from the recently closed list, or (null) the whole list: clearing history clears it too. */
@@ -125,9 +172,12 @@ class TabsStore(
         expired.forEach { releasePreview(it.previewImage) }
     }
 
-    fun dismissUndo() { val t = closed?.first; closed = null; releasePreview(t?.previewImage) }
+    fun dismissUndo() { val t = closed?.first; closed = null; releasePreview(t?.previewImage); pruneGroups() }
 
     fun togglePinned(id: String) = update(id) { copy(pinned = !pinned) }
+
+    /** Tab [id] belongs to profile [container] (containers/ContainerRules) from now on, or to Default (null). */
+    fun setContainer(id: String, container: String?) = update(id) { copy(container = container) }
 
     /** App mode on (opening at [start]) or off (null). */
     fun setApp(id: String, start: String?) = update(id) { copy(appStart = start) }

@@ -128,32 +128,3 @@ fun Modifier.pullDownToOpen(distanceDp: Float, onDrag: (Float) -> Unit, onReleas
         }
     }.semantics { customActions = listOf(CustomAccessibilityAction("Open this tab") { onDrag(1f); onRelease(true); true }) }
 }
-
-/**
- * Holding the switcher's Pill still (anywhere on it, its buttons too) calls [onLongPress] once the long-press time
- * passes; moving first leaves the touch to the Pill's swipes. Seen before the buttons see the touch, and the rest of a
- * long press is kept from them, so the button under the thumb doesn't click as well.
- */
-@Composable
-fun Modifier.pillLongPress(onLongPress: () -> Unit): Modifier {
-    val haptics = LocalHaptics.current
-    val action by rememberUpdatedState(onLongPress)
-    return pointerInput(Unit) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val slop = viewConfiguration.touchSlop
-            // false: let go or moved in time (a tap or a swipe); null: still held, still, when the time ran out
-            val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                while (true) {
-                    val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
-                    if (!c.pressed || (c.position - down.position).getDistance() > slop) break
-                }
-                false
-            }
-            if (ended != null) return@awaitEachGesture
-            haptics?.longPress()
-            action()
-            do { val e = awaitPointerEvent(PointerEventPass.Initial); e.changes.forEach { it.consume() } } while (e.changes.any { it.pressed })
-        }
-    } // its screen-reader action is with the Pill's swipe actions (switcherPillSwipes): one node holds one list
-}

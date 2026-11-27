@@ -1,7 +1,10 @@
-// The tab menu (⋮ in the tab switcher): favorite, bookmark, pin; quick tiles; tools; closing tabs.
+// The tab menu (⋮ in the tab switcher): favorite, bookmark, pin, share; then three pages (the tab's tiles, extensions,
+// tools) switched like the Library's; closing tabs.
 package com.jlees.mibrowser.ui
 
+import com.jlees.mibrowser.containers.nameOf
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateDpAsState
 import com.jlees.mibrowser.search.addSearchShortcutFromPage
 import com.jlees.mibrowser.incognito.closeIncognitoTabs
@@ -9,6 +12,7 @@ import com.jlees.mibrowser.library.toggleFavorite
 
 import com.jlees.mibrowser.adblock.adsAllowedHere
 import com.jlees.mibrowser.adblock.cleanLink
+import com.jlees.mibrowser.adblock.copyLink
 import com.jlees.mibrowser.adblock.toggleAdsHere
 
 import com.jlees.mibrowser.launcher.toggleAppMode
@@ -21,11 +25,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -65,14 +69,16 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             (if (on) ui.cs.onPrimaryContainer else ui.cs.onSurface)
     }
     @Composable
-    fun RowScope.Tile(icon: String, label: String, sub: String?, on: Boolean?, enabled: Boolean = true, onPress: () -> Unit) {
+    fun RowScope.Tile(icon: String, label: String, sub: String?, on: Boolean?, enabled: Boolean = true, iconContent: (@Composable () -> Unit)? = null, onPress: () -> Unit) {
         val (style, fg) = tileStyle(on == true, enabled, onPress)
         Row(
             Modifier.weight(1f).height(62.dp).then(style).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val pop = popScale(on == true) // turned on: the icon pops
-            Sym(icon, 22f, fg, Modifier.padding(end = 12.dp).graphicsLayer { scaleX = pop; scaleY = pop })
+            // an extension's tile shows its own icon
+            if (iconContent != null) Box(Modifier.padding(end = 12.dp).size(22.dp), contentAlignment = Alignment.Center) { iconContent() }
+            else Sym(icon, 22f, fg, Modifier.padding(end = 12.dp).graphicsLayer { scaleX = pop; scaleY = pop })
             Column(Modifier.weight(1f)) {
                 Txt(label, 14f, fg, ui.semibold, maxLines = 1)
                 if (sub != null) Txt(sub, 12f, fg.copy(alpha = 0.75f), ui.regular, maxLines = 1)
@@ -144,8 +150,6 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             Sym(icon, 22f, ui.cs.onSurfaceVariant, label = label)
         }
     }
-    @Composable
-    fun Section(title: String) = Txt(title, 13f, ui.cs.primary, ui.bold, Modifier.padding(start = 6.dp, top = 14.dp, bottom = 8.dp))
 
     Column(modifier.zIndex(10f).shadow(10.dp, shape).clip(shape).background(ui.cs.surfaceContainer).blockTouches().padding(16.dp)) {
         // the tab this menu acts on; tapping its site opens Site settings
@@ -166,14 +170,14 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 }
             }
             if (hasUrl) {
-                MenuIcon("content_copy", "Copy link") { copyText(ctx, vm.cleanLink(url)); com.jlees.mibrowser.ui.common.Notices.show("Link copied", done = true); dismiss() }
+                MenuIcon("content_copy", "Copy link") { vm.copyLink(ctx, url); dismiss() }
             }
         }
 
         // favorite · bookmark · pin: their own row, right under the tab's name
         val fav = url != null && vm.bookmarks.isFavorite(url)
         val pinned = tab?.pinned == true
-        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(top = 12.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TopAction("star", if (fav) "Favorited" else "Favorite", fav, hasUrl) {
                 vm.toggleFavorite()
                 com.jlees.mibrowser.ui.common.Notices.show(if (fav) "Removed from favorites" else "Added to favorites", done = !fav)
@@ -184,11 +188,23 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
             TopAction("share", "Share", false, hasUrl) { dismiss(); shareText(ctx, vm.cleanLink(url!!), tab?.title?.takeIf { it.isNotBlank() }) }
         }
 
-        // the space the middle part has and what it needs: the tools stack in rows while they fit (see below)
-        var viewportH by remember { mutableIntStateOf(0) }
-        var contentH by remember { mutableIntStateOf(0) }
-        Column(Modifier.weight(1f).onSizeChanged { viewportH = it.height }.verticalScroll(rememberScrollState()).onSizeChanged { contentH = it.height }) {
-            Section("This tab")
+        // its three pages, switched like the Library's: the tab's own tiles, extensions, tools
+        val page = menuPage
+        ConnectedIconChoice(MenuPage.entries.map { Triple(it.name, it.label, it.icon) }, page.name, Modifier.padding(bottom = 8.dp)) { menuPage = MenuPage.valueOf(it) }
+        // tiles scrolled up fade out under the page buttons, instead of being cut off at their edge
+        val menuBg = ui.cs.surfaceContainer
+        androidx.compose.animation.AnimatedContent(
+            page, Modifier.weight(1f).fillMaxWidth(),
+            transitionSpec = { androidx.compose.animation.fadeIn(Motion.enter(180)) togetherWith androidx.compose.animation.fadeOut(Motion.exit(90)) },
+            label = "tab menu page",
+        ) { shown -> Column(Modifier.fillMaxSize()
+            .drawWithContent {
+                drawContent()
+                val h = 16.dp.toPx()
+                drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(menuBg, menuBg.copy(alpha = 0f)), endY = h), size = androidx.compose.ui.geometry.Size(size.width, h))
+            }
+            .verticalScroll(rememberScrollState()).padding(top = 8.dp)) { when (shown) {
+            MenuPage.TAB -> {
             val desktop = tab?.desktopMode ?: vm.settings.desktopMode
             val reader = tab?.readerMode ?: vm.settings.readerModeEnabled
             val blocking = vm.adsAllowedHere() == null
@@ -199,16 +215,30 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                     com.jlees.mibrowser.data.QuickTile.DESKTOP -> Tile("desktop_windows", "Desktop site", if (desktop) "On" else "Off", desktop) { vm.setDesktopMode(!desktop) }
                     com.jlees.mibrowser.data.QuickTile.READER -> Tile("chrome_reader_mode", "Reader mode", if (reader) "On" else "Off", reader) { vm.setReaderMode(!reader) }
                     com.jlees.mibrowser.data.QuickTile.FIND -> Tile("search", "Find in page", null, null, hasUrl) { leave(); vm.find.open() }
+                    // its tab group (a new tab joins one from the Group tile; incognito tabs aren't grouped)
+                    com.jlees.mibrowser.data.QuickTile.GROUP -> Tile("tab_group", "Group", vm.tabs.groups.firstOrNull { it.id == tab?.groupId }?.name ?: "None", false, tab?.keepsTraces == true) {
+                        tab?.let { com.jlees.mibrowser.tabs.TabGroupFlow.picking = it.id }
+                    }
+                    // the profile it's in (its own tabs, cookies and sign-ins): tap to move it to another; greyed out while
+                    // profiles are off (Settings › Tabs › Profiles)
+                    com.jlees.mibrowser.data.QuickTile.CONTAINER -> {
+                        val profiles = vm.settings.profilesEnabled
+                        Tile("workspaces", "Profile", if (profiles) vm.nameOf(tab?.container) else "Off", false, profiles && tab != null) {
+                            tab?.let { com.jlees.mibrowser.containers.ContainerFlow.picking = it.id }
+                        }
+                    }
                     com.jlees.mibrowser.data.QuickTile.ADS -> Tile("shield", "Block ads here", if (!hasUrl) null else if (blocking) com.jlees.mibrowser.adblock.blockingLabel(com.jlees.mibrowser.adblock.BlockedCounts.on(tab?.id)) else "Off for this site", hasUrl && blocking, hasUrl) { vm.toggleAdsHere() }
                 }
             }
 
+            }
             // extensions with a toolbar button: tapping one opens its popup (or tells it it was tapped); + gets more
+            MenuPage.EXTENSIONS -> {
             val engine = com.jlees.mibrowser.extensions.ExtensionFlow.engine
             val buttons = vm.extensions.list.filter { e -> e.enabled && e.showButton && (!incognito || e.incognito) && engine?.infos?.get(e.id)?.manifest?.hasButton == true }
-            Section("Extensions")
-            // four across, Add always last; hold one and drag to rearrange them (the order is kept)
-            DragSlots(buttons.map { it.id } + "", columns = 4, slotH = 84.dp, key = { it }, fixedTail = 1,
+            // two across like the tab's own tiles, so a name has room and the badge (uBlock Origin's count) shows under it;
+            // Add always last; hold one and drag to rearrange them (the order is kept)
+            DragSlots(buttons.map { it.id } + "", columns = 2, slotH = 70.dp, key = { it }, fixedTail = 1,
                 onReorder = { from, to -> vm.extensions.reorder(buttons.map { it.id }, from, to) },
                 // held and let go without moving: the extension's own page in Settings
                 onHold = { id -> if (id.isNotEmpty()) {
@@ -217,14 +247,17 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 val item = buttons.firstOrNull { it.id == id }
                 if (item != null) {
                     val action = engine?.actions?.get(item.id)
-                    Round("extension", action?.title?.takeIf { it.isNotBlank() } ?: item.name, action?.enabled != false, badge = engine?.badgeOf(item.id).orEmpty(),
-                        iconContent = { com.jlees.mibrowser.extensions.ExtensionIcon(item.id, 28f) }) { dismiss(); engine?.pressAction(item.id) }
-                } else Round("add", "Add") {
+                    // the name itself (an extension's button title often has its count in it too: "LocalCDN (2)"),
+                    // and under it the badge it shows on this tab, else what a tap does
+                    Tile("extension", item.name, engine?.badgeOf(item.id)?.takeIf { it.isNotBlank() } ?: "Open", false, action?.enabled != false,
+                        iconContent = { com.jlees.mibrowser.extensions.ExtensionIcon(item.id, 22f) }) { dismiss(); engine?.pressAction(item.id) }
+                } else Tile("add", "Add Extension", null, false) {
                     leave(); com.jlees.mibrowser.extensions.ExtensionFlow.libraryTarget = "get"; vm.openView(com.jlees.mibrowser.Sheet.EXTENSIONS)
                 }
             }
 
-            Section("Tools")
+            }
+            MenuPage.TOOLS -> {
             val askNotify = rememberNotifyAsk() // app mode's way out is a notification
             val tools = listOfNotNull(
                 TabTool("qr_code_scanner", "Scan QR", true) { leave(); vm.qrScannerVisible = true },
@@ -239,8 +272,6 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 // app mode: the Pill hides (launcher/AppMode); it's turned off here or from its notification
                 if (!incognito) TabTool("fullscreen", if (tab?.appStart != null) "Exit immersive" else "Immersive", hasUrl) { if (tab?.appStart == null) askNotify(false); leave(); vm.toggleAppMode() } else null,
             )
-            // At most four to a row. The rows stack while the menu has room for them; only when they'd overflow do they
-            // become pages swiped sideways, with dots for which page shows.
             // four across; hold one and drag to rearrange them (the order is kept); the menu's middle scrolls if they don't fit
             val saved = vm.settings.toolOrder
             val ordered = tools.sortedBy { t -> saved.indexOf(t.icon).let { if (it < 0) saved.size + tools.indexOf(t) else it } }
@@ -248,7 +279,8 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
                 onReorder = { from, to -> vm.updateSettings { val moved = ordered.map { it.icon }.toMutableList().apply { add(to, removeAt(from)) }; copy(toolOrder = moved + (toolOrder - moved.toSet())) } }) { t ->
                 Round(t.icon, t.label, t.enabled, onPress = t.onPress)
             }
-        }
+            }
+        } } }
 
         // closing tabs: kept apart at the bottom
         Box(Modifier.padding(vertical = 8.dp).fillMaxWidth().height(1.dp).background(ui.cs.outlineVariant))
@@ -258,6 +290,12 @@ fun TabMenu(vm: BrowserViewModel, modifier: Modifier) {
         if (vm.settings.clearDataOnExit) MenuRow("power_settings_new", "Exit and Clear", ui.cs.error) { dismiss(); (ctx as? android.app.Activity)?.finishAndRemoveTask() }
     }
 }
+
+/** The tab menu's pages, switched by the buttons under its top row (as the Library's are). */
+private enum class MenuPage(val label: String, val icon: String) { TAB("Tab", "tab"), EXTENSIONS("Extensions", "extension"), TOOLS("Tools", "apps") }
+
+/** The page the tab menu shows: the one last picked, while mi runs. */
+private var menuPage by mutableStateOf(MenuPage.TAB)
 
 /** One of the tab menu's tools: shown four to a row, on pages swiped sideways when there are more. */
 private class TabTool(val icon: String, val label: String, val enabled: Boolean, val onPress: () -> Unit)

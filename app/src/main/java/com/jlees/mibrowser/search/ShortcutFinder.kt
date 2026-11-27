@@ -62,7 +62,7 @@ fun BrowserViewModel.addSearchShortcutFromPage() {
     viewModelScope.launch {
         val template = searchTemplateFrom(url) ?: withContext(Dispatchers.IO) { declaredTemplate(url) }
         if (template != null) shortcutDraft = suggestedShortcutKey(url) to template
-        else showAlert("No search found", "Search for something on this site first, then tap Add shortcut again from the results page.")
+        else showAlert("No Search Found", "Search for something on this site first, then tap Add shortcut again from the results page.")
     }
 }
 

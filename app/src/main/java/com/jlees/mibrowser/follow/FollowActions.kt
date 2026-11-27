@@ -192,7 +192,7 @@ fun BrowserViewModel.repick(id: String) {
     }
 }
 
-/** For a backup (Export Settings): your followed products, with their price history and settings. */
+/** For a backup (Back Up): your followed products, with their price history and settings. */
 fun BrowserViewModel.followsBackup(): JsonElement =
     json.encodeToJsonElement(ListSerializer(Follow.serializer()), follows.follows)
 

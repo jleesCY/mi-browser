@@ -12,19 +12,20 @@ data class TabsState(val tabs: List<TabItem>, val activeId: String)
  * The tab to show after [closed] is gone from [remaining] (not empty): its opener for a pop-up (window.close, Back out
  * of a pop-up), otherwise the most recently used, like an app switcher.
  */
-fun nextTabAfterClosing(closed: TabItem, remaining: List<TabItem>): String =
-    closed.openerId?.takeIf { o -> remaining.any { it.id == o } } ?: remaining.maxBy { it.lastUsed }.id
+fun nextTabAfterClosing(closed: TabItem, remaining: List<TabItem>): String? =
+    closed.openerId?.takeIf { o -> remaining.any { it.id == o } }
+        ?: remaining.filter { it.container == closed.container }.maxByOrNull { it.lastUsed }?.id // staying in its profile
 
 /**
- * Closes [ids] from [state]. The active tab moves on by [nextTabAfterClosing] if it was closed; with nothing left,
- * one new tab starts over.
+ * Closes [ids] from [state]. The active tab moves on by [nextTabAfterClosing] if it was closed; with no tab left in its
+ * profile (containers/), a new tab starts that profile over, so closing never moves you into another one.
  */
 fun closeTabs(state: TabsState, ids: Set<String>): TabsState {
     val remaining = state.tabs.filter { it.id !in ids }
-    if (remaining.isEmpty()) return newTab().let { TabsState(listOf(it), it.id) }
     if (state.activeId !in ids) return state.copy(tabs = remaining)
     val closed = state.tabs.first { it.id == state.activeId }
-    return TabsState(remaining, nextTabAfterClosing(closed, remaining))
+    val next = nextTabAfterClosing(closed, remaining) ?: return newTab().copy(container = closed.container).let { TabsState(remaining + it, it.id) }
+    return TabsState(remaining, next)
 }
 
 /** "Clear all tabs": everything but pinned tabs ([keepPinned]). */

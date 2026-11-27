@@ -84,7 +84,8 @@ interface Choice { val label: String }
 
 /** The tab menu's quick tiles ("This tab"), in the order they show; rearranged by dragging them. */
 @Serializable enum class QuickTile {
-    @SerialName("desktop") DESKTOP, @SerialName("reader") READER, @SerialName("find") FIND, @SerialName("ads") ADS;
+    @SerialName("desktop") DESKTOP, @SerialName("reader") READER, @SerialName("find") FIND, @SerialName("ads") ADS, @SerialName("group") GROUP,
+    @SerialName("container") CONTAINER;
     companion object {
         /** [saved] in order, with any tile it doesn't name (one added since) after them. */
         fun ordered(saved: List<QuickTile>) = saved.distinct() + entries.filterNot { it in saved }
@@ -177,6 +178,17 @@ data class Settings(
     val switcherUp: SwitcherPanel = SwitcherPanel.HISTORY,
     /** Tab switcher: long-pressing its Pill turns it into a search field for the open tabs. */
     val longPressTabSearch: Boolean = true,
+    /** Gestures › Long Press to Copy Link: holding the browsing Pill copies the page's link. */
+    val longPressCopyLink: Boolean = true,
+    /** Tabs › Group Tabs from Links: a tab opened from a page's link joins that page's tab group (tabs/TabGroupRules). */
+    val groupLinkTabs: Boolean = true,
+    /** Tabs › Profiles: on, the tab switcher's row of profiles and their own tabs and history (containers/); off (the default), all together. */
+    val profilesEnabled: Boolean = false,
+    /** The profiles besides Default (containers/ContainerRules), in the order made. */
+    val containers: List<com.jlees.mibrowser.containers.Container> = emptyList(),
+    /** The Default profile's icon and colour (they can be changed like any profile's). */
+    val defaultProfileIcon: com.jlees.mibrowser.containers.ProfileIcon = com.jlees.mibrowser.containers.ProfileIcon.WEB,
+    val defaultProfileColor: com.jlees.mibrowser.containers.ProfileColor = com.jlees.mibrowser.containers.ProfileColor.ACCENT,
     val searchSuggestions: Boolean = true,
     val recentSearches: Boolean = true,
     val quickActions: Boolean = true,
@@ -224,7 +236,11 @@ fun Settings.darkFor(config: android.content.res.Configuration) = when (themeMod
 }
 
 /** A backup's settings, in place of [current], except what belongs to this phone: its download folder (access to a folder is given per phone), when it last checked for updates and the last What's New it showed. */
-fun Settings.importedOver(current: Settings) = copy(downloadFolder = current.downloadFolder, lastUpdateCheck = current.lastUpdateCheck, lastSeenVersion = current.lastSeenVersion).sanitized().migrated()
+fun Settings.importedOver(current: Settings) = copy(
+    downloadFolder = current.downloadFolder, lastUpdateCheck = current.lastUpdateCheck, lastSeenVersion = current.lastSeenVersion,
+    // this phone's profiles stay beside the backup's: one left out would have its sign-ins deleted
+    containers = containers + current.containers.filter { c -> containers.none { it.id == c.id } },
+).sanitized().migrated()
 
 /** Defaults changed for existing installs. v1: third-party cookies allowed (payment/sign-in iframes need them). */
 fun Settings.migrated(): Settings {

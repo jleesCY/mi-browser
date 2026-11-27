@@ -12,11 +12,14 @@ package com.jlees.mibrowser.extensions
  * also says which WebView versions (Chromium major versions) it suits: [testedWebView] is the one it was tested on;
  * below [worksFrom] it won't work (it needs something that version lacks); below [problemsBelow] it may have problems.
  * Work them out when verifying, from what it uses (its manifest version, the web features its code needs).
+ * [limitations]: what testing found it can't do, or does differently, in mi, one point each (no full stop): shown as
+ * Known Limitations, above the other warnings, before it's added and on its page.
  */
 data class VerifiedExtension(
     val name: String, val amoSlug: String,
     val summary: String = "", val iconUrl: String? = null,
     val testedWebView: Int, val worksFrom: Int, val problemsBelow: Int = worksFrom,
+    val limitations: List<String> = emptyList(),
 ) {
     val source: InstallSource get() = InstallSource.Amo(amoSlug)
 }
@@ -47,7 +50,8 @@ fun webViewMajor(ctx: android.content.Context): Int? = webViewVersion(ctx)?.subs
 
 /**
  * Add an entry only after testing it in mi on a phone: install, its button and popup, its options page, what it does
- * on pages, and incognito if it allows that. Say in a comment above it what was checked, in which mi version.
+ * on pages, and incognito if it allows that. Say in a comment above it what was checked, in which mi version, and put
+ * anything found that it can't do in mi in [VerifiedExtension.limitations].
  */
 val VERIFIED_EXTENSIONS: List<VerifiedExtension> = listOf(
     // Tested in mi 2.0. Firefox Add-ons build. Checked: theming (dynamic mode) on
@@ -66,14 +70,19 @@ val VERIFIED_EXTENSIONS: List<VerifiedExtension> = listOf(
     // need Array.toSorted (110).
     VerifiedExtension("uBlock Origin", amoSlug = "ublock-origin", testedWebView = 133, worksFrom = 98, problemsBelow = 110,
         summary = "Finally, an efficient wide-spectrum content blocker. Easy on CPU and memory.",
-        iconUrl = "https://addons.mozilla.org/user-media/addon_icons/607/607454-64.png"),
+        iconUrl = "https://addons.mozilla.org/user-media/addon_icons/607/607454-64.png",
+        limitations = listOf(
+            "It starts filtering a little while after mi opens; mi's own ad blocking covers that time",
+            "On a heavy page, a request it hasn't answered within 1.5 seconds loads anyway (uBlock Origin Lite is steadier in mi)",
+        )),
     // Tested in mi 2.0. Firefox Add-ons build (Manifest V3: its background is a module; its rules matched by mi itself,
     // so pages don't wait on it). Checked: blocking scripts and fetches, hiding page elements (on pages loaded once its
     // first start has registered its scripts), its popup's filtering mode down to none and back up to optimal, applied
     // at once. Range: its code needs Promise.withResolvers (119); Firefox for Android 128 is its minimum.
     VerifiedExtension("uBlock Origin Lite", amoSlug = "ublock-origin-lite", testedWebView = 158, worksFrom = 119, problemsBelow = 122,
         summary = "An efficient content blocker. Blocks ads, trackers, miners, and more immediately upon installation.",
-        iconUrl = "https://addons.mozilla.org/user-media/addon_icons/2887/2887803-64.png"),
+        iconUrl = "https://addons.mozilla.org/user-media/addon_icons/2887/2887803-64.png",
+        limitations = listOf("Right after it's added, it hides page elements only on pages loaded once it has finished setting up")),
     // Tested in mi 2.0. Firefox Add-ons build. Checked: its setup page (accepting closes it and restarts Keepa, which then
     // saves its settings through cookies on keepa.com/extension), the price-history chart on an Amazon product page.
     // Range: its code needs ||=, ??= and String.replaceAll (85).
@@ -85,7 +94,8 @@ val VERIFIED_EXTENSIONS: List<VerifiedExtension> = listOf(
     // Range: its background needs Array.at (92); its popup needs structuredClone (98).
     VerifiedExtension("SponsorBlock", amoSlug = "sponsorblock", testedWebView = 158, worksFrom = 92, problemsBelow = 98,
         summary = "Easily skip YouTube video sponsors, using a shared database of reported segments.",
-        iconUrl = "https://addons.mozilla.org/user-media/addon_icons/2590/2590937-64.png"),
+        iconUrl = "https://addons.mozilla.org/user-media/addon_icons/2590/2590937-64.png",
+        limitations = listOf("On YouTube, mi turns off one of the site's script protections (Trusted Types) so SponsorBlock can add its buttons")),
     // Tested in mi 2.0. Firefox Add-ons build. Checked: its welcome page, trackers seen and blocked on a news site
     // (its badge counts them), its popup listing them. Range: its code needs Object.hasOwn (93).
     VerifiedExtension("Privacy Badger", amoSlug = "privacy-badger17", testedWebView = 158, worksFrom = 93,

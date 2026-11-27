@@ -18,7 +18,8 @@ one line in BrowserViewModel and its rows in the Settings section files) should 
 | `adblock/` | filter engine, content blocker (WebView hooks), scriptlets (ScriptletRules + assets/js/scriptlets.js, from uBlock Origin's lists), tracking-parameter cleaning |
 | `search/` | engines, `!` shortcuts, suggestions, Pill highlighting of shortcuts, the Add search shortcut dialog |
 | `incognito/` | WebView profiles, screen/keyboard protections, notification, toggle |
-| `tabs/` | TabsStore, TabRules, per-tab back/forward stack, tab switcher and its search, the switcher Pill's layout (SwitcherLayout) |
+| `tabs/` | TabsStore, TabRules, per-tab back/forward stack, tab switcher and its search, the switcher Pill's layout (SwitcherLayout), tab groups (TabGroupRules; TabGroups: the switcher's chips and the group dialogs) |
+| `containers/` | Profiles (called containers in the code, apart from WebView's own profiles): spaces shown by an icon and a colour, with their own tabs, tab groups, history and (if kept separate) cookies and storage. ContainerRules (a profile's tabs, which profile a new tab goes in, which have their own storage, storage to delete), ContainerProfiles (each one's WebView profile), ContainerActions (switching profile, moving a tab, making, changing and deleting profiles), ContainerScreens (the tab switcher's current profile and list of profiles, History's profile chips, the profile dialogs) |
 | `library/` | HistoryStore, BookmarksStore (favorites are the bookmarks in its Favorites folder), their rules, bookmark file import/export (Netscape HTML), History and Bookmarks screens |
 | `downloads/` | mi's downloader (engine, foreground service, notifications), DownloadsStore, the download prompt and other handlers, BlobDownloads (files a page makes itself, handed over by blob-download.js), Downloads page |
 | `sites/` | Site settings page (one site's permissions, pop-ups, ad blocking, data), opened from the tab menu |

@@ -76,8 +76,7 @@ private fun ExportBookmarksItem(vm: BrowserViewModel) {
         val html = vm.bookmarks.export()
         scope.launch {
             val err = withContext(Dispatchers.IO) { runCatching { ctx.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(html.toByteArray()) } }.exceptionOrNull() }
-            if (err == null) vm.showAlert("Bookmarks Exported", "Import the file in mi or any other browser to bring your bookmarks there.")
-            else vm.showAlert("Couldn't Export", err.message ?: "The file couldn't be saved.")
+            com.jlees.mibrowser.ui.common.Notices.show(if (err == null) "Saved bookmarks" else "Couldn't save the file", done = err == null)
         }
     }
     val count = vm.bookmarks.nodes.count { !it.isFolder }

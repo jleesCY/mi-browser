@@ -23,3 +23,9 @@ fun stripTracking(url: String): String {
 
 /** [url] without tracking parameters when that setting is on (links opened, copied or shared). */
 fun BrowserViewModel.cleanLink(url: String) = if (settings.stripTrackingParams) stripTracking(url) else url
+
+/** Copies [url] for pasting, cleaned of tracking (the tab menu's copy button, holding the Pill), and says so. */
+fun BrowserViewModel.copyLink(ctx: android.content.Context, url: String) {
+    com.jlees.mibrowser.ui.common.copyText(ctx, cleanLink(url))
+    com.jlees.mibrowser.ui.common.Notices.show("Link copied", done = true)
+}

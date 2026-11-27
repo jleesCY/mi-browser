@@ -98,18 +98,24 @@ fun ConfirmDialog(vm: BrowserViewModel) {
     var last by remember { mutableStateOf<ConfirmData?>(null) }
     vm.confirm?.let { last = it }
     val c = last ?: return
+    // the title asks the action by name, the body says exactly what goes, the button repeats the title's verb
+    val title = when (c.action) {
+        ConfirmAction.CLEAR_HISTORY -> "Clear History?"; ConfirmAction.WIPE_DATA -> "Wipe mi. Browser?"
+        ConfirmAction.CLEAR_DATA -> "Clear Browsing Data?"; ConfirmAction.RESET_SETTINGS -> "Reset All Settings?"
+    }
     val message = when (c.action) {
-        ConfirmAction.CLEAR_HISTORY -> "This will permanently delete history for: ${c.label}."
-        ConfirmAction.WIPE_DATA -> "This will delete ALL data including history, bookmarks, tabs, followed prices and settings. mi will then close and open again, fresh."
-        ConfirmAction.CLEAR_DATA -> "This will delete cookies, site storage, cached files, saved site icons and tab snapshots. You will be signed out of websites."
-        ConfirmAction.RESET_SETTINGS -> "This will restore all app settings to their default values. Your history and tabs will be preserved."
+        ConfirmAction.CLEAR_HISTORY -> if (c.ms < 0) "All of your history will be deleted. This can't be undone."
+            else "Your history from the ${c.label.lowercase()} will be deleted. This can't be undone."
+        ConfirmAction.WIPE_DATA -> "Everything mi keeps will be deleted: history, bookmarks, tabs, followed prices, extensions and settings. mi will then open again, fresh. This can't be undone."
+        ConfirmAction.CLEAR_DATA -> "Cookies, site storage, cached files, site icons and tab snapshots will be deleted, and you'll be signed out of websites. This can't be undone."
+        ConfirmAction.RESET_SETTINGS -> "Every setting goes back to its default. Your history, bookmarks, tabs and containers are kept. This can't be undone."
     }
     val action = when (c.action) {
         ConfirmAction.RESET_SETTINGS -> "Reset"; ConfirmAction.WIPE_DATA -> "Wipe App"
-        ConfirmAction.CLEAR_DATA -> "Clear"; ConfirmAction.CLEAR_HISTORY -> "Delete"
+        ConfirmAction.CLEAR_DATA -> "Clear"; ConfirmAction.CLEAR_HISTORY -> "Clear"
     }
     ModalFrame(vm.confirm != null, { vm.confirm = null }, dismissOnScrim = true) {
-        DialogCard("Are you sure?", actions = {
+        DialogCard(title, actions = {
             DialogAction("Cancel") { vm.confirm = null }
             DialogAction(action, destructive = true) { vm.confirmAction(c) }
         }) { Txt(message, 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f, scaled = false) }

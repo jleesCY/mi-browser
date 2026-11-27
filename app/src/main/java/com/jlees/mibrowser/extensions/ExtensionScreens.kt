@@ -57,9 +57,10 @@ fun WebViewWarning(v: VerifiedExtension?) {
     val ui = LocalUi.current
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val major = remember { webViewMajor(ctx) }
-    val text = webViewWarning(v, major) ?: return
-    val bad = webViewFit(v, major) == WebViewFit.WONT_WORK
-    Txt(text, 13f, if (bad) ui.cs.error else fitAmber(), ui.semibold, Modifier.padding(top = 8.dp), lineHeight = 18f)
+    webViewWarning(v, major)?.let { text ->
+        val bad = webViewFit(v, major) == WebViewFit.WONT_WORK
+        Txt(text, 13f, if (bad) ui.cs.error else fitAmber(), ui.semibold, Modifier.padding(top = 8.dp), lineHeight = 18f)
+    }
 }
 
 /** The rating as a small pill: its symbol and words, in its colour. */
@@ -78,9 +79,8 @@ fun FitBadge(fit: Fit, modifier: Modifier = Modifier, small: Boolean = false) {
  * (amber), each under its own heading; for Works, that everything it uses is supported.
  */
 @Composable
-fun FitReasons(fit: Fit, reasons: List<String>, serious: List<String> = emptyList()) {
+fun FitReasons(fit: Fit, reasons: List<String>, serious: List<String> = emptyList(), limitations: List<String> = emptyList()) {
     val ui = LocalUi.current
-    if (fit == Fit.WORKS) { Txt("Everything this extension uses works in mi.", 14f, ui.cs.onSurfaceVariant, ui.regular, lineHeight = 20f); return }
     // older saved ratings have no split: all of a Not recommended's reasons count as serious then
     val bad = if (fit == Fit.NO && serious.isEmpty()) reasons else serious
     val minor = reasons - bad.toSet()
@@ -97,8 +97,14 @@ fun FitReasons(fit: Fit, reasons: List<String>, serious: List<String> = emptyLis
             }
         }
     }
-    Group("Won't Work", "block", ui.cs.error, bad, top = true)
-    Group("Might Have Problems", "warning", fitAmber(), minor, top = bad.isEmpty())
+    // a tested extension's: what testing found it can't do in mi (VerifiedExtensions), above what its code scan found
+    Group("Known Limitations", "info", ui.cs.onSurface, limitations, top = true)
+    if (fit == Fit.WORKS) {
+        Txt("Everything this extension uses works in mi.", 14f, ui.cs.onSurfaceVariant, ui.regular, Modifier.padding(top = if (limitations.isEmpty()) 0.dp else 12.dp), lineHeight = 20f)
+        return
+    }
+    Group("Won't Work", "block", ui.cs.error, bad, top = limitations.isEmpty())
+    Group("Might Have Problems", "warning", fitAmber(), minor, top = bad.isEmpty() && limitations.isEmpty())
 }
 
 /** An installed extension's icon (from its own files), else the extension symbol. */
@@ -193,7 +199,7 @@ fun ExtensionInstallDialog(vm: BrowserViewModel) {
             if (!description.isNullOrBlank()) Txt(description, 14f, ui.cs.onSurface, ui.regular, Modifier.padding(top = 14.dp), lineHeight = 20f)
             if (p != null) {
                 Spacer(Modifier.height(14.dp))
-                FitReasons(p.info.compatibility.fit, p.info.compatibility.reasons, p.info.compatibility.serious)
+                FitReasons(p.info.compatibility.fit, p.info.compatibility.reasons, p.info.compatibility.serious, verifiedFor(storeSource(p.source))?.limitations.orEmpty())
                 reachOf(p.info.manifest)?.let { reach ->
                     Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Sym("shield", 18f, ui.cs.onSurfaceVariant, Modifier.padding(end = 10.dp))

@@ -39,7 +39,7 @@ import androidx.compose.ui.zIndex
 import com.jlees.mibrowser.BrowserViewModel
 import com.jlees.mibrowser.ui.SWITCHER_DRAG
 import com.jlees.mibrowser.tabs.pullDownToOpen
-import com.jlees.mibrowser.tabs.pillLongPress
+import com.jlees.mibrowser.ui.common.pillLongPress
 import com.jlees.mibrowser.tabs.switcherLayout
 import com.jlees.mibrowser.data.SwitcherPanel
 import com.jlees.mibrowser.tabs.TabCardView

@@ -1,7 +1,7 @@
-// Settings › Gestures, divided by where each gesture is made: the tab switcher's Pill (its swipes pick which page each
+// Settings › Gestures, divided by where each gesture is made: the browsing Pill (its long press), the tab switcher's Pill (its swipes pick which page each
 // opens, and so which button shows it: a swipe left the right button, a swipe right the left button, a swipe up the
 // button left of +; each page has one place, so picking one swaps it with the page that swipe opened; and its long
-// press), and web pages (pull to refresh). Gestures elsewhere (the browsing Pill…) get their own heading here.
+// press), and web pages (pull to refresh).
 package com.jlees.mibrowser.ui.settings
 
 import com.jlees.mibrowser.BrowserViewModel
@@ -10,6 +10,10 @@ import com.jlees.mibrowser.tabs.switcherLayout
 import com.jlees.mibrowser.tabs.withSwitcherLayout
 
 fun gesturesSection(vm: BrowserViewModel) = SettingsSection("gestures", "Gestures", "vibration", "How gestures work throughout mi", listOf(
+    SettingsHeading("Browsing Pill"),
+    SettingsRow("Long Press to Copy Link", "long press hold pill copy link address url clipboard share") {
+        SwitchItem("content_copy", "Long Press to Copy Link", "Hold the Pill to copy the page's link", vm.settings.longPressCopyLink) { vm.updateSettings { copy(longPressCopyLink = it) } }
+    },
     SettingsHeading("Tab Switcher Pill"),
 ) + listOf(
     Triple(PillSwipe.LEFT, "Swipe Left", "Remap the swipe left action"),

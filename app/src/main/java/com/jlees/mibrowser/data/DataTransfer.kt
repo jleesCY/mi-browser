@@ -1,4 +1,4 @@
-// Settings backup: .midata = zip { data.json: {settings, and other parts by name (follows: followed prices)} }. Older backups may also hold a background image; it is ignored.
+// Backup (Back Up / Restore): .mibrowserdata (older ones .midata) = zip { data.json: {settings, and other parts by name (follows: followed prices; bookmarks: a mi bookmark file)} }. Older backups may also hold a background image; it is ignored.
 package com.jlees.mibrowser.data
 
 import android.content.Context
@@ -29,7 +29,7 @@ object DataTransfer {
         } ?: error("Could not open file")
     }
 
-    /** Validates and parses a .midata file. Its name isn't checked (pickers and cloud apps drop or change the extension): anything without a data.json isn't one. */
+    /** Validates and parses a backup file. Its name isn't checked (pickers and cloud apps drop or change the extension): anything without a data.json isn't one. */
     fun import(ctx: Context, uri: Uri): Backup {
         var raw: ByteArray? = null
         ctx.contentResolver.openInputStream(uri)?.use { input ->
@@ -37,9 +37,9 @@ object DataTransfer {
                 while (raw == null) { val e = zip.nextEntry ?: break; if (e.name == "data.json") raw = zip.readBytes() }
             }
         }
-        raw ?: throw ImportError("Invalid File", "Please select a .midata file exported from mi.")
-        val obj = runCatching { json.parseToJsonElement(String(raw!!)).jsonObject }.getOrNull() ?: throw ImportError("Invalid Data", "The selected file does not contain valid app data.")
-        val settingsEl = obj["settings"]?.takeIf { it is JsonObject } ?: throw ImportError("Invalid Data", "Structure mismatch.")
+        raw ?: throw ImportError("Couldn't Restore", "Choose a backup file saved with Back Up in mi.")
+        val obj = runCatching { json.parseToJsonElement(String(raw!!)).jsonObject }.getOrNull() ?: throw ImportError("Couldn't Restore", "That file isn't a mi. Browser backup.")
+        val settingsEl = obj["settings"]?.takeIf { it is JsonObject } ?: throw ImportError("Couldn't Restore", "That file isn't a mi. Browser backup.")
         return Backup(json.decodeFromJsonElement<Settings>(settingsEl), obj)
     }
 }

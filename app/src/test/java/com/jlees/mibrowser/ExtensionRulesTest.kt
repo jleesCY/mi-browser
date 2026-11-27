@@ -166,6 +166,15 @@ class ExtensionRulesTest {
         assertEquals(null, com.jlees.mibrowser.extensions.fromNative("https://example.com/"))
     }
 
+    @Test fun aRedirectToAnExtensionsNativeAddressIsServedFromItsFiles() {
+        // LocalCDN redirects a CDN's library to its own copy by runtime.getURL (moz-extension://…), the address after "?"
+        val id = "0b1c2d3e-aaaa-bbbb-cccc-1234567890ab"
+        assertEquals(id to "/resources/jquery/2.1.4/jquery.min.jsm",
+            com.jlees.mibrowser.extensions.extensionFileOf("moz-extension://$id/resources/jquery/2.1.4/jquery.min.jsm?https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"))
+        assertEquals(id to "/a.css", com.jlees.mibrowser.extensions.extensionFileOf(com.jlees.mibrowser.extensions.extOrigin(id) + "/a.css"))
+        assertEquals(null, com.jlees.mibrowser.extensions.extensionFileOf("https://cdn.example.com/a.js"))
+    }
+
     @Test fun styleSheetsNameTheExtensionsOwnFiles() {
         val css = "@font-face{src:url(moz-extension://__MSG_@@extension_id__/fonts/a.woff2)} .x{background:url(moz-extension://__MSG_@@extension_id__/i.png)} /* __MSG_@@extension_id__ */"
         assertEquals("@font-face{src:url(https://abc.ext.mi.invalid/fonts/a.woff2)} .x{background:url(https://abc.ext.mi.invalid/i.png)} /* abc */",

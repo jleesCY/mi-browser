@@ -32,8 +32,9 @@ class HistoryStore(private val store: JsonStore) {
     )
 
     /** A page finished loading (in a tab that keeps traces); a search results page also becomes a recent search. */
-    fun add(url: String, title: String?) {
-        val (h, r) = addHistory(items, recents, url, title)
+    /** [profile]: the one it was visited in (containers/), null for Default. */
+    fun add(url: String, title: String?, profile: String? = null) {
+        val (h, r) = addHistory(items, recents, url, title, profile = profile)
         if (h !== items) items = h
         if (r !== recents) recents = r
     }
@@ -54,4 +55,10 @@ class HistoryStore(private val store: JsonStore) {
     fun restore(removed: Pair<HistoryItem, Int>) { items = items.toMutableList().apply { add(removed.second.coerceIn(0, size), removed.first) } }
     fun removeSearch(id: String) { recents = recents.filter { it.id != id } }
     fun clear() { items = emptyList(); recents = emptyList() }
+
+    /** A deleted profile's history and searches move to [to] (Default: null), as its tabs do. */
+    fun moveProfile(from: String, to: String?) {
+        items = items.map { if (it.profile == from) it.copy(profile = to) else it }
+        recents = recents.map { if (it.profile == from) it.copy(profile = to) else it }
+    }
 }

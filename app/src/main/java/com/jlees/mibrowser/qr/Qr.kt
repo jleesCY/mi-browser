@@ -219,8 +219,8 @@ fun QrGenerator(vm: BrowserViewModel) {
                     Modifier.weight(1f).height(48.dp).clip(CircleShape).background(ui.cs.primary).touchable {
                         val b = bmp ?: return@touchable
                         if (needsLegacyWritePermission(ctx)) { permLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE); return@touchable }
-                        try { saveBitmapToGallery(ctx, b, "qrcode_${System.currentTimeMillis()}.png"); vm.showAlert("Success", "QR Code saved to gallery!") }
-                        catch (e: Exception) { vm.showAlert("Error", "Failed to save QR code: ${e.message ?: "Unknown error"}") }
+                        try { saveBitmapToGallery(ctx, b, "qrcode_${System.currentTimeMillis()}.png"); com.jlees.mibrowser.ui.common.Notices.show("Saved QR code", done = true) }
+                        catch (_: Exception) { com.jlees.mibrowser.ui.common.Notices.show("Couldn't save the QR code") }
                     },
                     horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
                 ) { Sym("download", 20f, ui.cs.onPrimary, Modifier.padding(end = 8.dp)); Txt("Save", 14f, ui.cs.onPrimary, ui.bold, scaled = false) }
@@ -232,7 +232,7 @@ fun QrGenerator(vm: BrowserViewModel) {
                             f.outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
                             val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f)
                             ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
-                        } catch (_: Exception) { vm.showAlert("Error", "Failed to share QR code.") }
+                        } catch (_: Exception) { com.jlees.mibrowser.ui.common.Notices.show("Couldn't share the QR code") }
                     },
                     horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
                 ) { Sym("share", 20f, ui.cs.onSecondaryContainer, Modifier.padding(end = 8.dp)); Txt("Share", 14f, ui.cs.onSecondaryContainer, ui.bold, scaled = false) }

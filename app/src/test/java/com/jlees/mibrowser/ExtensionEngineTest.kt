@@ -143,4 +143,12 @@ class ExtensionEngineTest {
         val r = blockedPart()
         assertTrue(runCatching { r.data.available() }.exceptionOrNull() is IOException)
     }
+
+    @Test fun extensionScriptsInJsmFilesAreJavaScript() {
+        // LocalCDN's stand-ins for CDN libraries are .jsm files: served as anything but JavaScript, pages refuse them
+        assertEquals("text/javascript", com.jlees.mibrowser.extensions.extensionFileType("jsm"))
+        assertEquals("text/javascript", com.jlees.mibrowser.extensions.extensionFileType("js"))
+        assertEquals("font/woff2", com.jlees.mibrowser.extensions.extensionFileType("woff2"))
+        assertEquals(null, com.jlees.mibrowser.extensions.extensionFileType("png")) // Android knows the rest
+    }
 }

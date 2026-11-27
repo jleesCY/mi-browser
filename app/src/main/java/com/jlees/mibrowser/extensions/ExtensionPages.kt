@@ -213,11 +213,7 @@ internal class ExtensionPages(private val e: ExtensionEngine) {
         val f = File(dir, path.trimStart('/')).canonicalFile
         if (!f.path.startsWith(dir.path) || !f.isFile) return notFound()
         val ext = f.extension.lowercase()
-        val mime = when (ext) {
-            "js", "mjs" -> "text/javascript"; "json" -> "application/json"; "css" -> "text/css"; "html", "htm" -> "text/html"
-            "svg" -> "image/svg+xml"; "wasm" -> "application/wasm"; "woff2" -> "font/woff2"; "woff" -> "font/woff"; "ttf" -> "font/ttf"
-            else -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
-        }
+        val mime = extensionFileType(ext) ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
         // style sheets name the extension's own files as moz-extension://__MSG_@@extension_id__/… (Firefox, Chrome fill the
         // id in as they serve them): here, its address at mi
         val body = if (ext == "css") ByteArrayInputStream(extensionCss(f.readText(), id).toByteArray()) else f.inputStream()
@@ -239,4 +235,14 @@ internal fun backgroundHtml(m: Manifest): String = buildString {
     m.backgroundScripts.forEach { append("<script ${type}src=\"/${it.trimStart('/')}\"></script>") }
     m.serviceWorker?.let { append("<script ${type}src=\"/${it.trimStart('/')}\"></script>") }
     append("</body></html>")
+}
+
+/**
+ * The type an extension's file of extension [ext] is served as, for the kinds pages and extensions rely on (null: ask
+ * Android). .jsm is JavaScript too, Firefox's old name for modules: LocalCDN serves the libraries it stands in for so.
+ */
+internal fun extensionFileType(ext: String): String? = when (ext) {
+    "js", "mjs", "jsm" -> "text/javascript"; "json" -> "application/json"; "css" -> "text/css"; "html", "htm" -> "text/html"
+    "svg" -> "image/svg+xml"; "wasm" -> "application/wasm"; "woff2" -> "font/woff2"; "woff" -> "font/woff"; "ttf" -> "font/ttf"
+    else -> null
 }

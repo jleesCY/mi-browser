@@ -25,6 +25,10 @@ data class TabItem(
     /** Immersive (launcher/AppMode, turned on from the tab menu): the page it was turned on at; the Pill stays hidden
      *  and a notification turns it off. Null for an ordinary tab. */
     val appStart: String? = null,
+    /** The tab group it's in (tabs/TabGroupRules), or none. */
+    val groupId: String? = null,
+    /** The profile it belongs to (containers/ContainerRules: its own tabs, cookies and storage), or Default (null). */
+    val container: String? = null,
     // runtime only
     @Transient val url: String? = null,
     @Transient val requestedUrl: String? = null,
@@ -78,6 +82,8 @@ data class HistoryItem(
     val url: String,
     val title: String = "",
     val timestamp: Long = 0,
+    /** The profile it was visited in (containers/), or Default (null). */
+    val profile: String? = null,
     @Transient val id: String = "",
 )
 
@@ -96,5 +102,3 @@ data class BookmarkNode(
 /** Saved by their original names, so bookmarks saved before this was an enum load unchanged. */
 @Serializable enum class BookmarkType { @SerialName("bookmark") BOOKMARK, @SerialName("folder") FOLDER }
 
-@Serializable
-data class Favorite(val id: String, val url: String, val title: String)

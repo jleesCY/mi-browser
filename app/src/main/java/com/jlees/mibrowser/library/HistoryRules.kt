@@ -24,18 +24,19 @@ const val RESTORED_VISIT = "\u0000restored"
 fun isNewVisit(lastVisit: String?, url: String) = lastVisit != RESTORED_VISIT && lastVisit?.removeSuffix("/") != url.removeSuffix("/")
 
 /** A visit to [url]: the new (history, recent searches); a search results page is also a recent search. */
-fun addHistory(history: List<HistoryItem>, recents: List<HistoryItem>, url: String, title: String?, now: Long = System.currentTimeMillis()): Pair<List<HistoryItem>, List<HistoryItem>> {
+fun addHistory(history: List<HistoryItem>, recents: List<HistoryItem>, url: String, title: String?, now: Long = System.currentTimeMillis(), profile: String? = null): Pair<List<HistoryItem>, List<HistoryItem>> {
     if (url.isEmpty() || url == "about:blank") return history to recents
-    val newHistory = if (history.isNotEmpty() && history[0].url == url) {
+    // a page is listed once per profile it was visited in (containers/: each profile has its own history)
+    val newHistory = if (history.isNotEmpty() && history[0].url == url && history[0].profile == profile) {
         // the page was recorded before its title arrived (host placeholder): take the real title now
         val better = historyTitle(url, title)
         if (better != history[0].title && better != displayHost(url)) listOf(history[0].copy(title = better)) + history.drop(1) else history
     } else {
         val trimmed = url.removeSuffix("/")
-        (listOf(HistoryItem(url, historyTitle(url, title), now, uniqueId())) + history.filter { it.url.removeSuffix("/") != trimmed }).take(1000)
+        (listOf(HistoryItem(url, historyTitle(url, title), now, profile, uniqueId())) + history.filter { it.profile != profile || it.url.removeSuffix("/") != trimmed }).take(1000)
     }
     val query = searchQueryFromUrl(url) ?: return newHistory to recents
-    val newRecents = (listOf(HistoryItem(url, query, now, uniqueId())) + recents.filter { searchQueryFromUrl(it.url) != query }).take(20)
+    val newRecents = (listOf(HistoryItem(url, query, now, profile, uniqueId())) + recents.filter { it.profile != profile || searchQueryFromUrl(it.url) != query }).take(20)
     return newHistory to newRecents
 }
 
@@ -83,3 +84,7 @@ fun smartDate(ts: Long, now: Long = System.currentTimeMillis()): String {
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(ts)) + ", " + time
     }
 }
+
+/** The entries visited in [profiles] (containers/: each profile has its own history); null: every profile's. */
+fun inProfiles(items: List<HistoryItem>, profiles: Set<String?>?): List<HistoryItem> =
+    if (profiles == null) items else items.filter { it.profile in profiles }

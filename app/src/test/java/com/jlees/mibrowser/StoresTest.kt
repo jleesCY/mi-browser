@@ -139,16 +139,6 @@ class StoresTest {
         assertEquals(listOf("c", "a", "b"), b.favorites.map { it.title })
     }
 
-    @Test fun oldFavoritesMoveIntoTheFolder() {
-        store.write("favorites", kotlinx.serialization.builtins.ListSerializer(com.jlees.mibrowser.data.Favorite.serializer()),
-            listOf(com.jlees.mibrowser.data.Favorite("x", "https://old.com", "Old")))
-        val b = BookmarksStore(store).apply { load() }
-        assertEquals(listOf("Old"), b.favorites.map { it.title })
-        b.delete(com.jlees.mibrowser.library.FAVORITES_FOLDER)
-        b.savers.forEach { it.writeNow() }
-        assertEquals(0, BookmarksStore(store).apply { load() }.favorites.size) // moved once: deleting them sticks
-    }
-
     @Test fun findInPageCountsAndSearchesAgain() {
         val sent = mutableListOf<WebCmd>()
         val find = FindInPage { sent += it }
@@ -242,5 +232,53 @@ class StoresTest {
         java.io.File(dir, "x.json.tmp").mkdir() // the next write can't create its file, as on a full disk
         store.write("x", ListSerializer(kotlinx.serialization.serializer<Int>()), listOf(2)) // no crash
         assertEquals(listOf(1), store.read("x", ListSerializer(kotlinx.serialization.serializer<Int>())))
+    }
+
+    @Test fun anUnreadableFileIsKeptAsideNotOverwritten() {
+        val dir = Files.createTempDirectory("store").toFile()
+        java.io.File(dir, "history.json").writeText("[{ this isn't history")
+        val js = JsonStore(dir)
+        assertNull(js.read("history", ListSerializer(kotlinx.serialization.serializer<Int>())))
+        assertEquals(false, java.io.File(dir, "history.json").exists()) // the next save can't write over it
+        assertEquals("[{ this isn't history", dir.listFiles()!!.single { it.name.startsWith("history.json.broken-") }.readText())
+        // said once, by any copy of the store (a background job may be the one that set it aside)
+        assertEquals(true, JsonStore(dir).newlyKeptAside())
+        assertEquals(false, js.newlyKeptAside())
+    }
+
+    @Test fun savingOnLeavingWritesOnlyWhatChanged() {
+        var state = listOf("a"); var writes = 0
+        val saver = com.jlees.mibrowser.data.Saver(1000, { state }) { writes++ }
+        saver.writeNow(); assertEquals(1, writes)
+        saver.writeNow(); assertEquals(1, writes) // unchanged since: nothing written
+        state = listOf("a", "b")
+        saver.writeNow(); assertEquals(2, writes)
+        state = listOf("a", "b") // a new list, equal to what's on disk (as the tabs' saver builds each time)
+        saver.writeNow(); assertEquals(2, writes)
+    }
+
+    @Test fun bookmarksRoundTripThroughABackup() {
+        val b = BookmarksStore(store)
+        b.add("Mars", "https://mars.example", null)
+        val folder = b.addFolder("Space", null)
+        b.add("Moon", "https://moon.example", folder)
+        val data = kotlinx.serialization.json.buildJsonObject { put("bookmarks", kotlinx.serialization.json.JsonPrimitive(b.export())) }
+        val entries = com.jlees.mibrowser.library.backedUpBookmarks(data)
+        val (restored, added, _) = com.jlees.mibrowser.library.importBookmarks(emptyList(), entries, null)
+        assertEquals(2, added)
+        assertEquals(setOf("Mars", "Moon", "Space"), restored.map { it.title }.toSet())
+        assertEquals("Space", restored.first { it.title == "Moon" }.parentId?.let { id -> restored.first { it.id == id }.title })
+        // a backup from before bookmarks were saved has none
+        assertEquals(0, com.jlees.mibrowser.library.backedUpBookmarks(kotlinx.serialization.json.buildJsonObject {}).size)
+    }
+
+    @Test fun restoredFavoritesAreFavoritesOnANewPhone() {
+        val old = BookmarksStore(store).apply { addFavorite("Mars", "https://mars.example") }
+        val data = kotlinx.serialization.json.buildJsonObject { put("bookmarks", kotlinx.serialization.json.JsonPrimitive(old.export())) }
+        val fresh = BookmarksStore(JsonStore(Files.createTempDirectory("new-phone").toFile())) // no Favorites folder yet
+        fresh.import(com.jlees.mibrowser.library.backedUpBookmarks(data), fromMi = true, folder = "")
+        assertEquals(listOf("Mars"), fresh.favorites.map { it.title })
+        fresh.addFavorite("Moon", "https://moon.example")
+        assertEquals(1, fresh.nodes.count { it.isFolder && it.title == "Favorites" }) // one Favorites folder, not two
     }
 }

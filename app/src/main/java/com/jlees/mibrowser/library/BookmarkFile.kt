@@ -2,6 +2,12 @@
 // mi reads it to import from other browsers and writes it to export, so a mi export opens anywhere.
 package com.jlees.mibrowser.library
 
+import com.jlees.mibrowser.BrowserViewModel
+import com.jlees.mibrowser.logic.decodeEntities
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import com.jlees.mibrowser.data.BookmarkNode
 
 /** A bookmark or a folder (with what's inside it), as read from a file. */
@@ -90,9 +96,12 @@ fun importBookmarks(existing: List<BookmarkNode>, entries: List<BookmarkEntry>, 
                 all = addBookmark(all, e.title, e.url, into); added++
             }
             is BookmarkEntry.Folder -> {
-                val folder = all.firstOrNull { it.isFolder && it.parentId == into && it.title == e.title }
-                    ?: addFolder(all, e.title, into).also { all = it }.last()
-                add(e.children, folder.id)
+                // a mi file's top-level Favorites is the Favorites folder (its bookmarks are the home page's favorites),
+                // made if this phone has none yet, not a plain folder that happens to share the name
+                val id = if (into == null && e.title == "Favorites") FAVORITES_FOLDER.also { all = withFavoritesFolder(all) }
+                    else (all.firstOrNull { it.isFolder && it.parentId == into && it.title == e.title }
+                        ?: addFolder(all, e.title, into).also { all = it }.last()).id
+                add(e.children, id)
             }
         }
     }
@@ -113,12 +122,12 @@ private val HREF = Regex("""HREF\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
 
 private fun escape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
-private fun decodeEntities(s: String): String = Regex("&(#x[0-9a-fA-F]+|#[0-9]+|amp|lt|gt|quot|apos|#39|nbsp);").replace(s) { m ->
-    when (val e = m.groupValues[1]) {
-        "amp" -> "&"; "lt" -> "<"; "gt" -> ">"; "quot" -> "\""; "apos", "#39" -> "'"; "nbsp" -> " "
-        else -> runCatching {
-            val code = if (e.startsWith("#x", true)) e.substring(2).toInt(16) else e.substring(1).toInt()
-            String(Character.toChars(code))
-        }.getOrDefault(m.value)
-    }
-}
+/** For a backup (Back Up): your bookmarks, as a mi bookmark file (what Export Bookmarks saves). */
+fun BrowserViewModel.bookmarksBackup(): JsonElement = JsonPrimitive(bookmarks.export())
+
+/** The bookmarks in a backup's [data] (none in one from before they were saved). */
+fun backedUpBookmarks(data: JsonObject): List<BookmarkEntry> =
+    (data["bookmarks"] as? JsonPrimitive)?.contentOrNull?.let(::parseBookmarkFile).orEmpty()
+
+/** A backup's bookmarks join yours, in their folders; pages already bookmarked are skipped. How many were added. */
+fun BrowserViewModel.restoreBookmarks(entries: List<BookmarkEntry>): Int = bookmarks.import(entries, fromMi = true, folder = "").first

@@ -55,8 +55,11 @@ fun saveImageFromUrl(activity: Activity, vm: BrowserViewModel, url: String) {
     // SECURITY: only http, https and data URLs
     if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("data:")) return
     if (needsLegacyWritePermission(activity)) {
-        vm.showAlert("Permission Required", "This app needs access to your Photos.")
-        androidx.core.app.ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
+        // a plain ask first, then Android's own prompt
+        vm.showAlert("Allow mi. Browser to Save Photos?", "Images you save go to your Photos.", listOf(
+            com.jlees.mibrowser.AlertButton("Not Now", com.jlees.mibrowser.ButtonStyle.CANCEL),
+            com.jlees.mibrowser.AlertButton("Allow") { androidx.core.app.ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1) },
+        ))
         return
     }
     val ext = when {
@@ -77,10 +80,10 @@ fun saveImageFromUrl(activity: Activity, vm: BrowserViewModel, url: String) {
                 }
                 saveToGallery(activity, bytes, "download_${System.currentTimeMillis()}.$ext", mime)
             }
-            vm.showAlert("Success", "Image saved to gallery!")
+            com.jlees.mibrowser.ui.common.Notices.show("Saved image", done = true)
             vm.contextMenu = null
         } catch (e: Exception) {
-            vm.showAlert("Save Error", e.message ?: "Unknown error")
+            com.jlees.mibrowser.ui.common.Notices.show("Couldn't save the image")
         }
     }
 }

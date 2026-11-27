@@ -38,6 +38,8 @@ import {
   Puzzle,
   Star,
   EyeOff,
+  Group,
+  Boxes,
 } from "lucide-react";
 import { DeviceMockup } from "@/components/device-mockup";
 
@@ -89,6 +91,7 @@ export default function UserDocs() {
                       <GuideItem icon={<ChevronRight size={18} className="rotate-90" />} title="Swipe Down" desc="Hide the Pill. Tap the small button left behind to bring it back, or drag it to either side." />
                     </div>
                     <GuideItem icon={<Search size={18} />} title="Paste and Go" desc="Just copied a link? Tap the Pill to open it." />
+                    <GuideItem icon={<MousePointer2 size={18} />} title="Hold" desc="Copy the page's link." />
                   </div>
                 </div>
                 <DeviceMockup src="/images/browsing.jpg" color="blue" />
@@ -145,7 +148,7 @@ export default function UserDocs() {
                     <GuideItem icon={<Settings2 size={18} />} title="Settings" desc="The right button (or swiping the Pill left) opens Settings on top of the switcher. Search from the Pill at the bottom; swipe it right to go back up a level, and from the top level back to the switcher." />
                   </div>
                   <div className="p-4 rounded-xl border border-outline-variant bg-surface-container-high text-[10px] sm:text-xs text-on-surface-variant">
-                    <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark and Pin; Desktop site, Reader mode and Find in page tiles; tools (Scan QR, QR code, Print, Follow price, Add shortcut, Home screen, Immersive: four to a row, swiped sideways if the menu runs out of room); copy link and share. &quot;Close all tabs&quot; keeps pinned tabs.</p>
+                    <p><strong>Tab Menu:</strong> Tap ⋮ for the centered tab: Favorite, Bookmark, Pin and Share along the top, then three pages, switched like the Library's: Tab (Desktop site, Reader mode, Find in page, Block ads here, Group and Profile tiles), Extensions (each extension's button, and Add Extension) and Tools (Scan QR, QR code, Print, Follow price, Add shortcut, Home screen, Immersive). It opens on the page you used last. Copy link is beside the tab's name. &quot;Close all tabs&quot; keeps pinned tabs.</p>
                   </div>
                 </div>
               </div>
@@ -203,6 +206,12 @@ export default function UserDocs() {
                       <GuideItem icon={<Pencil size={18} />} title="Tab Editing" desc="Long-press a card to rename the tab." />
                     </div>
                     <GuideItem icon={<Zap size={18} />} title="Live Previews" desc="Every card shows a snapshot of its page, updated whenever you leave the tab." />
+                    <div id="tab-groups">
+                      <GuideItem icon={<Group size={18} />} title="Tab Groups" desc="A tab you open from a page's link joins that page's group (the two start one, named for its site). Once there's a group, chips above the cards show All or one group's tabs; + makes a group of the centered tab, and holding a chip renames or ungroups it. Put any tab in a group, or take it out, from the Group tile in the tab menu. Incognito tabs aren't grouped." />
+                    </div>
+                    <div id="profiles">
+                      <GuideItem icon={<Boxes size={18} />} title="Profiles" desc="Keep Work and play apart: each profile, shown by an icon in its own colour and named for it (Work, Home, Games…), has its own tabs, tab groups, history and recent searches. Turn them on in Settings › Tabs › Profiles. You start with one, Default. Make another there (+), or with the Profile tile in the tab menu, where New Profile moves that tab into it and you can move a tab to any profile. The Tab Switcher shows the profile you're in beside its tab count: tap it for every profile and New Profile, then tap one to switch (only its tabs and groups show), its pencil (or a profile in Settings › Tabs › Profiles) to change its icon and colour, delete it, or Keep Sign-ins Separate, which gives it its own cookies, sign-ins and site data. New tabs and links open in the profile you're in. History shows the profile you're in, with chips to add the others. Bookmarks are shared." />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -260,7 +269,7 @@ export default function UserDocs() {
                     </div>
                     <GuideItem icon={<ShieldCheck size={18} />} title="Local-Only" desc="Your history is never uploaded to any cloud. It is stored only in the app's private storage on your device." />
                     <div id="downloads">
-                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="Beside Bookmarks in the Library, grouped by day. Downloads in progress show their progress, speed and time left, with pause and cancel (they keep going when you leave mi, with a notification). Large files come over several connections at once, which is often quicker. A download whose connection drops tries again by itself when you're back online, and one that was running when mi closed carries on when you open it; finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. Files you delete elsewhere leave the list." />
+                      <GuideItem icon={<Layers size={18} />} title="Downloads" desc="Beside Bookmarks in the Library, grouped by day. Downloads in progress show their progress, speed and time left, with pause and cancel (they keep going when you leave mi, with a notification). Large files come over several connections at once, which is often quicker. A download whose connection drops tries again by itself when you're back online, and one that was running when mi closed carries on when you open it; finished ones open with a tap and can be shared. Swipe one left to delete it from your phone (or cancel it, if it's still downloading); mi asks first. ⋮ › Delete All Downloads deletes every file mi downloaded, and nothing else. Files you delete elsewhere leave the list." />
                     </div>
                     <div id="following">
                       <GuideItem icon={<Tag size={18} />} title="Following Prices" desc="On a product page, open the tab menu and tap Follow Price. mi finds the price (the shop's product data, or the likeliest price shown, with any others it found under Other Prices Found) and any sale beside it, so a crossed-out price, '-33%' or 'Save $100' shows as 'Was … · N% off'. Not right? Tap Pick It Myself, then tap the price on the page. You can rename the product before following. Library › Following lists everything you follow with its price, sale and stock (out of stock in red); products with a change you haven't seen are pinned at the top with a dot, and you can hold and drag the rest into any order. Tap one for its price graph (press and drag along it to read any day), its lowest and highest prices, Check Now, its alerts (drops or any change, the smallest change worth one, stock changes, right away, daily or never), how often it's checked, Use My Login for member prices, and Pause Checking. Checks run in the background on your phone, with no account or server; a check that keeps failing tells you why." />
@@ -370,10 +379,13 @@ export default function UserDocs() {
                 <SettingsSection title="Tabs" icon={<Layers size={20} />}>
                   <SettingItem title="On Startup" desc="Choose to start with a New Tab or Continue Session (restores your last browsing session)." />
                   <SettingItem title="Rest Unused Tabs" desc="On by default. Tabs you haven't opened in 10 minutes free their memory, saving battery, and reload where they were when you open them. The tab you're on, one playing media and a pop-up with its opener always stay." />
+                  <SettingItem title="Group Tabs from Links" desc="On by default. A tab you open from a page's link joins that page's tab group, or the two start one named for its site." />
+                  <SettingItem title="Profiles" desc="Off by default. On: profiles, each with its own tabs and history, switched from the Tab Switcher. Your profiles are listed under it: tap one to edit it, or + for a new one. Off, every tab and all history show together. Keeping a profile's sign-ins separate needs a recent Android System WebView." />
                   <SettingItem title="Site Icons" id="setting-site-icons-tabs" desc="Shows each website's icon on its tab card in the tab switcher. When off, a globe is shown." />
                 </SettingsSection>
 
                 <SettingsSection title="Gestures" icon={<Hand size={20} />}>
+                  <SettingItem title="Long Press to Copy Link" desc="Hold the Pill to copy the page's link, without tracking. On by default." />
                   <SettingItem title="Swipe Left, Swipe Right, Swipe Up" desc="Which page each swipe on the tab switcher's Pill opens: Library, Settings or History. The buttons and the side each page slides in from follow your choice." />
                   <SettingItem title="Long Press to Search" desc="Hold the tab switcher's Pill to search your open tabs. On by default." />
                   <SettingItem title="Pull to Refresh" desc="Pull down at the very top of a page to reload it. It never triggers while you're scrolled down, even if you scroll back to the top in the same pull." />
@@ -400,8 +412,8 @@ export default function UserDocs() {
                 </SettingsSection>
 
                 <SettingsSection title="Backup & Reset" icon={<RefreshCw size={20} />}>
-                  <SettingItem title="Export Settings" desc="Save all your settings and followed prices to a file, for a backup or a new phone. History, downloads and other browsing data are left out." />
-                  <SettingItem title="Import Settings" desc="Restore from an exported file: its settings replace yours (this phone keeps its own download folder), and followed prices you don't already have are added." />
+                  <SettingItem title="Back Up" desc="Save all your settings, bookmarks and followed prices to a file, for safekeeping or a new phone. History, downloads and other browsing data are left out." />
+                  <SettingItem title="Restore" desc="Bring back everything from a backup file: its settings replace yours (this phone keeps its own download folder), and bookmarks and followed prices you don't already have are added." />
                   <SettingItem title="Reset All Settings" desc="Revert every setting to factory defaults without affecting your bookmarks, history, or tabs." />
                   <SettingItem title="Wipe All Data" desc="Permanently delete all app data including bookmarks, history, tabs, followed prices, downloads and settings, then restart mi." />
                 </SettingsSection>
@@ -476,10 +488,10 @@ export default function UserDocs() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
                   <GuideItem icon={<Puzzle size={18} />} title="Get Extensions" desc="Library › Extensions › Get Extensions: browse by category or search Firefox Add-ons from the Pill. Only extensions made for phones are offered; tap one, check what it can do, and Add. On Firefox Add-ons' own site, an 'Add to mi.' bar offers the page's extension too." />
                   <div id="tested-in-mi">
-                    <GuideItem icon={<Star size={18} />} title="Tested in mi" desc="Extensions checked by hand in mi, at the top of Get Extensions: Dark Reader, uBlock Origin, uBlock Origin Lite, Keepa, SponsorBlock, Privacy Badger and ClearURLs. If your phone's Android System WebView is too old for one, mi says so and how to update it." />
+                    <GuideItem icon={<Star size={18} />} title="Tested in mi" desc="Extensions checked by hand in mi, at the top of Get Extensions: Dark Reader, uBlock Origin, uBlock Origin Lite, Keepa, SponsorBlock, Privacy Badger and ClearURLs. If your phone's Android System WebView is too old for one, mi says so and how to update it. Anything testing found one can't do in mi is listed under Known Limitations, above any other warnings, before you add it and on its page: uBlock Origin starts filtering a little while after mi opens (mi's own ad blocking covers that time), and on a heavy page lets through a request it hasn't answered within 1.5 seconds; uBlock Origin Lite, just added, hides page elements once it has finished setting up; SponsorBlock needs mi to turn off one of YouTube's script protections (Trusted Types) on YouTube." />
                   </div>
                   <GuideItem icon={<ShieldCheck size={18} />} title="How Well It Works" desc="Before you add an extension, mi reads its code and rates it: Works, Might Have Problems (with what may not work) or Not Recommended. Extensions made only for desktop, and password managers, can't be added: mi says why." />
-                  <GuideItem icon={<Layers size={18} />} title="In the Tab Menu" desc="An extension with a button shows it under Extensions in the tab menu, with its badge (a count of blocked ads, for example). Tap it for its popup; hold and drag to rearrange; hold and let go for its page in the Library." />
+                  <GuideItem icon={<Layers size={18} />} title="In the Tab Menu" desc="An extension with a button gets a tile under Extensions in the tab menu, like the tab's own tiles: its name, and under it its badge (a count of blocked ads, for example). Tap it for its popup; hold and drag to rearrange; hold and let go for its page in the Library." />
                   <GuideItem icon={<Settings2 size={18} />} title="Its Page" desc="Tap an extension in the Library for its page: turn it on or off, Show in Tab Menu, Allow in Incognito (off by default), the sites it's turned off on, its permissions, Options, Clear Data and Remove." />
                   <GuideItem icon={<Trash2 size={18} />} title="Remove" desc="Remove from its page, or swipe it away in the Library. Undo puts it back with its settings." />
                   <GuideItem icon={<EyeOff size={18} />} title="With mi's Ad Blocking" desc="mi's own ad blocking keeps running beside an ad-blocking extension, so both block. If a site breaks, turn one of them off for that site." />

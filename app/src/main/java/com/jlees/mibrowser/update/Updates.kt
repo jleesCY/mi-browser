@@ -16,7 +16,14 @@ import java.net.URL
 data class Release(val version: String, val apkUrl: String)
 
 object Updates {
-    private const val LATEST = "https://api.github.com/repos/mi-app-hub/mi-browser/releases/latest"
+    /** A release from GitHub's API ([path]: "latest", "tags/v2.0.0"); a missing one throws FileNotFoundException. */
+    internal fun release(path: String): JSONObject {
+        val conn = (URL("https://api.github.com/repos/mi-app-hub/mi-browser/releases/$path").openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10_000; readTimeout = 10_000
+            setRequestProperty("Accept", "application/vnd.github+json")
+        }
+        return JSONObject(conn.inputStream.use { it.readBytes().decodeToString() })
+    }
 
     /**
      * Whether the launch check should ask GitHub now. [lastNothingNew] is when a check last found nothing new: the next
@@ -39,11 +46,7 @@ object Updates {
      *  unreachable) is reported, not mistaken for "up to date". */
     suspend fun check(current: String): Result<Release?> = withContext(Dispatchers.IO) {
         runCatching {
-            val conn = (URL(LATEST).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 10_000; readTimeout = 10_000
-                setRequestProperty("Accept", "application/vnd.github+json")
-            }
-            val json = JSONObject(conn.inputStream.use { it.readBytes().decodeToString() })
+            val json = release("latest")
             val tag = json.getString("tag_name")
             val assets = json.getJSONArray("assets")
             val apk = (0 until assets.length()).map { assets.getJSONObject(it).getString("browser_download_url") }

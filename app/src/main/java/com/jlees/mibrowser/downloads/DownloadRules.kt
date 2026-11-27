@@ -181,3 +181,6 @@ fun retriesItself(error: String?) = error == CONNECTION_LOST || error == RETRYIN
  * by themselves (DownloadsStore.interrupted), where they stopped if the server allows it.
  */
 fun afterRestart(items: List<DownloadItem>) = items.map { if (it.active) it.copy(state = DownloadState.PAUSED) else it }
+
+/** The downloads Delete All Downloads deletes: the finished ones (each one's file, which only mi saved); not one still going. */
+fun finishedDownloads(items: List<DownloadItem>) = items.filter { it.state == DownloadState.DONE }

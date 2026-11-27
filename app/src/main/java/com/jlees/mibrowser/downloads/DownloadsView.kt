@@ -40,7 +40,7 @@ fun DownloadsView(vm: BrowserViewModel) {
     fun open(d: DownloadItem) {
         val uri = vm.downloader.shareableUri(d) ?: return
         try { ctx.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, d.mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
-        catch (_: ActivityNotFoundException) { vm.showAlert("Can't open", "No app on this phone can open ${d.fileName}.") }
+        catch (_: ActivityNotFoundException) { vm.showAlert("Can't Open", "No app on this phone can open ${d.fileName}.") }
     }
     fun share(d: DownloadItem) {
         val uri = vm.downloader.shareableUri(d) ?: return
@@ -100,6 +100,7 @@ fun DownloadsView(vm: BrowserViewModel) {
                 close()
                 runCatching { ctx.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
+            if (finishedDownloads(vm.downloads.items).isNotEmpty()) SheetMenuItem("delete", "Delete All Downloads") { close(); confirmDeleteAll(vm) }
         }
     }
 }
@@ -139,6 +140,19 @@ private fun DownloadRow(d: DownloadItem, onPress: () -> Unit, actions: @Composab
 @Composable
 private fun RowAction(icon: String, label: String, onClick: () -> Unit) {
     IconButton(onClick = onClick) { Sym(icon, 20f, LocalUi.current.cs.onSurfaceVariant, label = label) }
+}
+
+/** Every finished download's file deleted from the phone, after asking: only what mi downloaded, never other files. */
+private fun confirmDeleteAll(vm: BrowserViewModel) {
+    val done = finishedDownloads(vm.downloads.items)
+    vm.showAlert(
+        "Delete All Downloads?",
+        "${done.size} ${if (done.size == 1) "file" else "files"} mi downloaded will be deleted from your phone. Files from other apps aren't touched. This can't be undone.",
+        listOf(
+            AlertButton("Cancel", ButtonStyle.CANCEL),
+            AlertButton("Delete All", ButtonStyle.DESTRUCTIVE) { done.forEach { vm.downloader.cancel(it.id) } },
+        ),
+    )
 }
 
 /** Deleting a download asks first: a finished one's file is deleted from the phone, a running one is cancelled. */

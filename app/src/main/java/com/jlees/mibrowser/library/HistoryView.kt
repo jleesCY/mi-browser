@@ -46,7 +46,11 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     val searching = search.trim().isNotEmpty()
     LaunchedEffect(vm.history.items.size) { focusManager.clearFocus() }
 
-    val filtered = vm.history.items.filter { it.title.lowercase().contains(search.lowercase()) || it.url.lowercase().contains(search.lowercase()) }
+    // the profile you're in (containers/), others added from the chips; every profile's with profiles turned off
+    var shownProfiles by remember { mutableStateOf(setOf(vm.tabs.current?.container)) }
+    val profilesShown = vm.settings.profilesEnabled && vm.settings.containers.isNotEmpty()
+    val filtered = inProfiles(vm.history.items, shownProfiles.takeIf { profilesShown })
+        .filter { it.title.lowercase().contains(search.lowercase()) || it.url.lowercase().contains(search.lowercase()) }
     val visible = filtered.take(visibleCount)
     val sections = if (vm.settings.historyGrouping == HistoryGrouping.SITE) groupHistoryBySite(visible) else groupHistoryByDate(visible)
 
@@ -61,6 +65,7 @@ fun HistoryView(vm: BrowserViewModel, closeOverlay: () -> Unit) {
     var undo by remember { mutableStateOf<Undo?>(null) } // the last swipe-deleted entry, for a few seconds
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = listSides(), end = listSides(), top = 16.dp, bottom = SheetPillSpace)) {
+            if (profilesShown) item(key = "profiles") { com.jlees.mibrowser.containers.ProfileChips(vm, shownProfiles, Modifier.listInset().padding(bottom = 8.dp)) { shownProfiles = it } }
             if (sections.isEmpty()) item { EmptyState("history", if (searching) "No matches" else "No History Yet") }
             sections.forEach { sec ->
                 item(key = "h_" + sec.title) {

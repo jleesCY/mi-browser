@@ -58,8 +58,9 @@ fun SwitcherPillButtons(onNew: () -> Unit, onMenu: () -> Unit, up: SwitcherPanel
         IconButton(onClick = onUp, Modifier.padding(start = 4.dp, end = 4.dp).size(52.dp).pressScale(pressUp), interactionSource = pressUp) { Sym(up.icon, 24f, ui.cs.onSurface, label = up.label) }
         FilledIconButton(
             onClick = onNew, modifier = Modifier.size(56.dp).pressScale(pressNew), interactionSource = pressNew,
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = ui.cs.primaryContainer),
-        ) { Sym("add", 30f, ui.cs.onPrimaryContainer, label = "New tab") }
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(ui.radius.dp), // the Corners setting: round, soft or square
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = ui.mainAction, contentColor = ui.onMainAction),
+        ) { Sym("add", 30f, ui.onMainAction, label = "New tab") }
         IconButton(onClick = onMenu, Modifier.padding(horizontal = 4.dp).size(52.dp).pressScale(pressMenu), interactionSource = pressMenu) { Sym("more_vert", 24f, ui.cs.onSurface, label = "Tab menu") }
     }
 }

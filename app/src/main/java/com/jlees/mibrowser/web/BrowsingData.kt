@@ -15,17 +15,19 @@ import com.jlees.mibrowser.incognito.IncognitoProfiles
 
 class BrowsingData(
     private val activity: Activity, private val vm: BrowserViewModel, private val incognito: IncognitoProfiles,
+    private val containers: com.jlees.mibrowser.containers.ContainerProfiles,
     /** What was granted this session goes too: sign-ins, camera/mic/location. */
     private val forgetGrants: () -> Unit,
 ) {
     /** The HTTP cache is cleared through a WebView: with none open (e.g. at startup), the next one created does it. */
     private var cacheClearPending = false
 
-    /** Cookies, site storage (localStorage, IndexedDB…), HTTP cache and saved form/auth data, in every normal tab. */
+    /** Cookies, site storage (localStorage, IndexedDB…), HTTP cache and saved form/auth data, in every normal tab and container. */
     fun clearAll(views: Collection<WebView>) {
         CookieManager.getInstance().removeAllCookies(null)
         CookieManager.getInstance().flush()
         WebStorage.getInstance().deleteAllData()
+        containers.clearAll()
         views.forEach { it.clearCache(true); it.clearFormData() }
         if (views.isEmpty()) cacheClearPending = true
         @Suppress("DEPRECATION") WebViewDatabase.getInstance(activity).apply { clearHttpAuthUsernamePassword(); clearFormData() }
@@ -37,12 +39,12 @@ class BrowsingData(
     fun created(wv: WebView) { if (cacheClearPending) { wv.clearCache(true); cacheClearPending = false } }
 
     /**
-     * Clears [url]'s site, as seen from [wv] (null: no live WebView; [incognitoTab]: its profile's storage): its cookies
+     * Clears [url]'s site, as seen from [wv] (null: no live WebView): in its profile (incognito, a container), its cookies
      * (WebView can't delete one site's cookies directly, so each is expired, for the host and its registrable domain)
      * and its storage (local storage, IndexedDB, caches, service workers), then reloads. Cookies set on other paths
      * than / can survive.
      */
-    fun clearSite(wv: WebView?, incognitoTab: Boolean, url: String) {
+    fun clearSite(wv: WebView?, url: String) {
         val u = Uri.parse(url)
         val host = u.host ?: return
         val origin = "${u.scheme}://$host"
@@ -53,7 +55,7 @@ class BrowsingData(
             domains.forEach { d -> cm.setCookie(origin, "$name=; Max-Age=0; Path=/; Domain=$d") }
         }
         cm.flush()
-        val storage = if (wv != null && incognitoTab) WebViewCompat.getProfile(wv).webStorage else WebStorage.getInstance()
+        val storage = if (wv != null && com.jlees.mibrowser.incognito.incognitoSupported) WebViewCompat.getProfile(wv).webStorage else WebStorage.getInstance()
         storage.deleteOrigin(origin)
         wv?.reload()
     }

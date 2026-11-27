@@ -44,7 +44,7 @@ fun ContextMenu(vm: BrowserViewModel, onSaveImage: (String) -> Unit) {
                 }
             }
             val web = target != null && (target.startsWith("http://") || target.startsWith("https://"))
-            if (web) Action("open_in_new", "Open in New Tab") { vm.addNewTab(target, incognito = vm.tabs.current?.incognito == true); close() }
+            if (web) Action("open_in_new", "Open in New Tab") { vm.addNewTab(target, incognito = vm.tabs.current?.incognito == true, from = vm.tabs.activeId); close() }
             if (web && vm.tabs.current?.incognito != true && incognitoSupported) Action("incognito", "Open in Incognito Tab") { vm.addNewTab(target, incognito = true); close() }
             if (web && d.url != null) Action("tab", "Open in Background Tab") {
                 vm.addBackgroundTab(d.url)

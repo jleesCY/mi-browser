@@ -27,10 +27,7 @@ import com.jlees.mibrowser.ui.common.Txt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.io.FileNotFoundException
-import java.net.HttpURLConnection
-import java.net.URL
 
 /** What to do at launch about What's New. */
 enum class WhatsNewStep { SHOW, RECORD, NONE }
@@ -86,12 +83,8 @@ private fun clean(s: String) = LINK.replace(s.trim()) { it.groupValues[1] }
 
 /** Asks GitHub for the release tagged "v[version]": its notes, null when there's no such release (or no notes). */
 internal suspend fun fetchReleaseNotes(version: String): ReleaseNotes? = withContext(Dispatchers.IO) {
-    val conn = (URL("https://api.github.com/repos/mi-app-hub/mi-browser/releases/tags/v$version").openConnection() as HttpURLConnection).apply {
-        connectTimeout = 10_000; readTimeout = 10_000
-        setRequestProperty("Accept", "application/vnd.github+json")
-    }
     try {
-        val body = JSONObject(conn.inputStream.use { it.readBytes().decodeToString() }).optString("body")
+        val body = Updates.release("tags/v$version").optString("body")
         body.takeIf { it.isNotBlank() }?.let { parseReleaseNotes(version, it) }
     } catch (_: FileNotFoundException) { null } // 404: this version has no release
 }

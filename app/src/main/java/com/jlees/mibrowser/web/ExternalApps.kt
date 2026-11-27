@@ -48,8 +48,8 @@ class ExternalApps(private val activity: Activity, private val vm: BrowserViewMo
                     try {
                         if (isIntent) handleIntent(url)
                         else activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
-                    } catch (e: Exception) {
-                        vm.showAlert("Link Error", "Could not open this link.\n\nError: ${e.message ?: "Unknown error"}\n\nURL: $url")
+                    } catch (_: Exception) {
+                        com.jlees.mibrowser.ui.common.Notices.show("Couldn't open this link")
                     }
                 },
             ),
@@ -81,7 +81,7 @@ class ExternalApps(private val activity: Activity, private val vm: BrowserViewMo
         Regex("browser_fallback_url=([^;]+)").find(intentUrl)?.let {
             val fallback = Uri.decode(it.groupValues[1])
             if (!fallback.startsWith("http://") && !fallback.startsWith("https://")) {
-                vm.showAlert("Invalid Fallback URL", "The fallback URL provided is not a valid web address."); return
+                com.jlees.mibrowser.ui.common.Notices.show("Couldn't open this link"); return // its fallback isn't a web address
             }
             vm.loadInTab(vm.tabs.activeId, fallback)
             vm.inputUrl = displayHost(fallback)
@@ -90,7 +90,7 @@ class ExternalApps(private val activity: Activity, private val vm: BrowserViewMo
         // Attempt 4: package → store
         Regex("package=([^;]+)").find(intentUrl)?.let {
             val pkg = it.groupValues[1]
-            vm.showAlert("App Required", "This feature requires an external app ($pkg). Would you like to view it in the store?", listOf(
+            vm.showAlert("Open in Play Store?", "This link needs an app that isn't on your phone.", listOf(
                 AlertButton("Cancel", ButtonStyle.CANCEL),
                 AlertButton("View Store") {
                     runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg"))) }
@@ -98,6 +98,6 @@ class ExternalApps(private val activity: Activity, private val vm: BrowserViewMo
             ))
             return
         }
-        vm.showAlert("Action Failed", "Could not handle this action and no fallback was provided by the website.")
+        com.jlees.mibrowser.ui.common.Notices.show("Couldn't open this link") // no app for it, and the site gave no web address to fall back on
     }
 }

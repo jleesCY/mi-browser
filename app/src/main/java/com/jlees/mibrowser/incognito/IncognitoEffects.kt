@@ -7,6 +7,8 @@ import android.os.Build
 import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.PlatformTextInputMethodRequest
@@ -25,13 +27,15 @@ fun IncognitoEffects(vm: BrowserViewModel, activity: Activity) {
     val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
         IncognitoNotice.update(activity, vm.tabs.list.count { t -> t.incognito })
     }
+    // asked once (kept when mi's screen is rebuilt, coming back to mi or turning the phone), not each time it starts again
+    var askedNotify by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     LaunchedEffect(incognitoCount) {
         // off the main thread: the binder calls would hold up the incognito wave's first frames
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { IncognitoNotice.update(activity, incognitoCount) }
         // asked when the first incognito tab opens (Android stops asking after two refusals)
-        if (incognitoCount > 0 && Build.VERSION.SDK_INT >= 33 &&
+        if (incognitoCount > 0 && !askedNotify && Build.VERSION.SDK_INT >= 33 &&
             activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        ) { askedNotify = true; notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
     }
     LaunchedEffect(incognitoShown) {
         if (incognitoShown) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)

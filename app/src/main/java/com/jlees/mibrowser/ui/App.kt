@@ -109,7 +109,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
         style = if (s.accentColor == GRAY_ACCENT) PaletteStyle.Monochrome else PaletteStyle.Vibrant,
     )
     val scheme = if (dark && s.pureBlack) remember(baseScheme) { pureBlack(baseScheme) } else baseScheme
-    val ui = UiConfig(scheme, dark, s.cornerRadius, s.fontScale, s.uiPadding, appFont(s.font), pureBlack = dark && s.pureBlack, listStyle = s.listStyle)
+    val ui = UiConfig(scheme, dark, s.cornerRadius, s.fontScale, s.uiPadding, appFont(s.font), pureBlack = dark && s.pureBlack, listStyle = s.listStyle,
+        vivid = if (s.accentColor == DYNAMIC_ACCENT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) null else Color(hexColor(s.accentColor)))
     MaterialExpressiveTheme(colorScheme = scheme, motionScheme = MotionScheme.expressive(), typography = appTypography(s.font)) {
     CompositionLocalProvider(LocalUi provides ui) {
     IncognitoTextInput(incognito = { vm.tabs.current?.incognito == true }) {
@@ -407,6 +408,8 @@ fun App(vm: BrowserViewModel, host: WebViewHost, activity: Activity) {
             CompositionLocalProvider(LocalPan provides s.pans(PanArea.EXTENSIONS)) { ExtensionPanel(vm) } // an installed extension's panel (pans as Extensions says)
             ConfirmDialog(vm)
             RenameDialog(vm)
+            com.jlees.mibrowser.tabs.TabGroupDialogs(vm)
+            com.jlees.mibrowser.containers.ContainerDialogs(vm)
             com.jlees.mibrowser.launcher.PinDialog()
             com.jlees.mibrowser.search.ShortcutDraftDialog(vm)
             AuthDialog(vm)

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Download, ChevronRight, Zap, Palette, Shield, Sparkles, Puzzle, Check } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { GITHUB_URL } from "@/site";
+import { GITHUB_URL, getAssetPath } from "@/site";
 import { DeviceMockup } from "@/components/device-mockup";
 
 
@@ -159,9 +159,37 @@ export default function Home() {
         </div>
       </section>
 
+      <MoreApps />
+
       {/* Footer */}
       <Footer />
     </main>
+  );
+}
+
+/** The other released mi. apps (mi-brand's family table), each linking to its own site. */
+const MI_APPS = [
+  { name: "mi. Notes", line: "A simple, private Android notes app built around a single control: the Pill.", icon: "/family/notes.png", href: "https://mi-app-hub.github.io/mi-notes/" },
+  { name: "mi. Budget", line: "Your purchases, budgets and subscriptions, private on your phone.", icon: "/family/budget.svg", href: "https://mi-app-hub.github.io/mi-budget/" },
+];
+
+function MoreApps() {
+  return (
+    <section className="max-w-6xl mx-auto px-6 mb-20">
+      <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tighter mb-8 text-center">More mi. Apps</h2>
+      <div className="grid sm:grid-cols-2 gap-4">
+        {MI_APPS.map((a) => (
+          <a key={a.name} href={a.href} className="flex items-center gap-5 rounded-[2rem] bg-surface-container p-6 hover:bg-surface-container-high transition-colors">
+            <img src={getAssetPath(a.icon)} alt={`${a.name} icon`} className="w-14 h-14 rounded-full shrink-0" />
+            <div>
+              <div className="text-lg font-extrabold">{a.name}</div>
+              <div className="text-sm text-on-surface-variant font-medium leading-snug">{a.line}</div>
+            </div>
+            <ChevronRight size={20} className="ml-auto shrink-0 text-on-surface-variant" />
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 

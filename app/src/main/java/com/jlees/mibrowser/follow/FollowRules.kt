@@ -245,12 +245,11 @@ fun structuredData(html: String): Pair<List<String>, Map<String, String>> {
     val meta = META.findAll(html).mapNotNull { m ->
         val attrs = ATTR.findAll(m.value).associate { it.groupValues[1].lowercase() to it.groupValues[3] }
         val key = (attrs["property"] ?: attrs["name"] ?: attrs["itemprop"])?.lowercase() ?: return@mapNotNull null
-        attrs["content"]?.let { key to htmlDecode(it) }
+        attrs["content"]?.let { key to com.jlees.mibrowser.logic.decodeEntities(it) }
     }.toMap()
     return ld to meta
 }
 
-private fun htmlDecode(s: String) = s.replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
 
 private val BLOCKED = Regex("""captcha|robot check|are you a (human|robot)|unusual traffic|access denied|request blocked|verify you are human|enable javascript and cookies""", RegexOption.IGNORE_CASE)
 

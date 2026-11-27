@@ -154,7 +154,7 @@ fun BookmarksView(vm: BrowserViewModel, kbVisible: Boolean, closeOverlay: () -> 
                 SmallFloatingActionButton(onClick = { openFolder() }, modifier = Modifier.padding(end = 16.dp), containerColor = ui.cs.secondaryContainer) {
                     Sym("create_new_folder", 24f, ui.cs.onSecondaryContainer, label = "New folder")
                 }
-                FloatingActionButton(onClick = { openAdd() }, containerColor = ui.cs.primaryContainer) { Sym("add", 28f, ui.cs.onPrimaryContainer, label = "Add bookmark") }
+                FloatingActionButton(onClick = { openAdd() }, shape = androidx.compose.foundation.shape.RoundedCornerShape(ui.radius.dp), containerColor = ui.mainAction, contentColor = ui.onMainAction) { Sym("add", 28f, ui.onMainAction, label = "Add bookmark") }
             }
         }
     }

@@ -128,7 +128,9 @@ class WebViewHost(
         },
         serviceWorkers = blocker.profileWorkers,
     )
-    private val browsingData by lazy { BrowsingData(activity, vm, incognito) { signIn.forget(); permissions.forget() } }
+    // ---- containers: each container's storage is its own lasting WebView profile (see ContainerProfiles)
+    val containers = com.jlees.mibrowser.containers.ContainerProfiles(blocker.profileWorkers)
+    private val browsingData by lazy { BrowsingData(activity, vm, incognito, containers) { signIn.forget(); permissions.forget() } }
     /** Tab [id]'s profile (null: a normal tab); also for Site settings. */
     fun profileOf(id: String) = vm.tabs.list.firstOrNull { it.id == id }?.profile ?: incognito.profileOfView(id)
     internal fun isIncognito(id: String) = profileOf(id) != null
@@ -188,7 +190,7 @@ class WebViewHost(
     /** Get or create the tab's WebView, apply settings and perform any requested load. */
     fun sync(tab: TabItem): WebView {
         val fresh = !views.containsKey(tab.id)
-        val wv = views.getOrPut(tab.id) { create(tab.id, tab.profile) }
+        val wv = views.getOrPut(tab.id) { create(tab.id, tab.profile, tab.container) }
         val now = System.nanoTime()
         if (fresh) lastUsed.putIfAbsent(tab.id, now) // opened in the background: its 10 minutes start now
         if (tab.id == vm.tabs.activeId) {
@@ -289,6 +291,9 @@ class WebViewHost(
             }
             WebCmd.ClearBrowsingData -> browsingData.clearAll(views.values)
             WebCmd.RecreateAll -> { views.keys.toList().forEach { destroy(it) }; generation++ }
+            // rested (its pages kept) and made again in its new container's profile when shown; on screen, at once
+            is WebCmd.Rebuild -> if (views.containsKey(cmd.tabId)) { rest(cmd.tabId); if (cmd.tabId == vm.tabs.activeId) generation++ }
+            WebCmd.ReleaseContainers -> containers.release(vm.settings.containers)
             is WebCmd.Find -> views[vm.tabs.activeId]?.let { if (cmd.query.isEmpty()) it.clearMatches() else it.findAllAsync(cmd.query) }
             is WebCmd.FindNext -> views[vm.tabs.activeId]?.findNext(cmd.forward)
         }
@@ -297,7 +302,8 @@ class WebViewHost(
     fun exitFullscreen() { customViewCallback?.onCustomViewHidden() }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun create(id: String, profile: String?): WebView {
+    /** [profile]: an incognito tab's; else [container]: the container it browses in (its own profile), if any. */
+    private fun create(id: String, profile: String?, container: String? = null): WebView {
         // Pages see prefers-color-scheme from the creating context's theme, so match the app's light/dark setting.
         val themed = ContextThemeWrapper(activity, if (vm.settings.darkFor(activity.resources.configuration)) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)
         val wv = MiWebView(themed, incognito = profile != null, pullEnabled = { vm.settings.pullToRefresh },
@@ -306,6 +312,8 @@ class WebViewHost(
             onThreshold = { haptics.tick() })
         if (profile == null) browsingData.created(wv)
         if (profile != null) incognito.attach(id, wv, profile)
+        // a profile that keeps its sign-ins separate browses in its own storage; any other uses Default's
+        else com.jlees.mibrowser.containers.isolatedProfile(container, vm.settings.containers)?.let { containers.attach(wv, it) }
         wv.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         wv.setBackgroundColor(Color.WHITE)
         // a tab out of sight lets Android reclaim its page's memory first (the visible one keeps the renderer
@@ -387,7 +395,7 @@ class WebViewHost(
         val opener = vm.tabs.list.firstOrNull { it.id == openerId }
         val desktop = opener?.desktopMode
         val popupId = uniqueId()
-        val wv = create(popupId, opener?.profile) // same profile as the opener
+        val wv = create(popupId, opener?.profile, opener?.container) // same profile (or container) as the opener
         configure(wv, desktop ?: vm.settings.desktopMode)
         views[popupId] = wv
         lastUsed[popupId] = System.nanoTime()
@@ -461,7 +469,7 @@ class WebViewHost(
     fun setPopupsAllowed(tabId: String, site: String, allow: Boolean) = popups.setAllowed(profileOf(tabId), site, allow)
 
     /** Clears [url]'s site in tab [tabId]'s profile, then reloads (see BrowsingData.clearSite). */
-    fun clearSiteData(tabId: String, url: String) = browsingData.clearSite(views[tabId], profileOf(tabId) != null, url)
+    fun clearSiteData(tabId: String, url: String) = browsingData.clearSite(views[tabId], url)
 
     // ---------------------------------------------------------------- previews
     /** Snapshots tab [id]'s page for its switcher card (see TabPreviews). */

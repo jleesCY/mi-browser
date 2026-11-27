@@ -30,7 +30,7 @@ class Updater(private val vm: BrowserViewModel) {
     /** Settings → About: check now, and say so when there's nothing new. */
     fun checkNow() = vm.viewModelScope.launch {
         val current = BuildConfig.VERSION_NAME
-        if (BuildConfig.DEBUG) { vm.showAlert("Development Build", "mi. dev ($current) is a separate app for development and doesn't update from GitHub releases."); return@launch }
+        if (BuildConfig.DEBUG) { vm.showAlert("Development Build", "mi. Browser dev ($current) is a separate app for development and doesn't update from GitHub releases."); return@launch }
         Updates.check(current)
             .onSuccess { release -> if (release != null) offerUpdate(release) else vm.showAlert("Up to Date", "mi. Browser $current is the latest version.") }
             .onFailure { vm.showAlert("Couldn't Check for Updates", "GitHub couldn't be reached. Check your connection and try again.") }
@@ -49,6 +49,6 @@ class Updater(private val vm: BrowserViewModel) {
         val app = vm.getApplication<Application>()
         com.jlees.mibrowser.ui.common.Notices.show("Downloading update…")
         runCatching { Updates.downloadAndInstall(app, release) }
-            .onFailure { vm.showAlert("Update Failed", it.message ?: "Could not download the update.") }
+            .onFailure { com.jlees.mibrowser.ui.common.Notices.show("Couldn't download the update") }
     }
 }

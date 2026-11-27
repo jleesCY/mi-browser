@@ -17,7 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
-/** Applies an imported .midata. */
+/** Applies a restored backup. */
 fun BrowserViewModel.applyImport(newSettings: Settings) { settings = newSettings.importedOver(settings) }
 // ---------------------------------------------------------------- confirm actions
 fun BrowserViewModel.confirmAction(c: ConfirmData) {
@@ -30,11 +30,13 @@ fun BrowserViewModel.confirmAction(c: ConfirmData) {
     confirm = null
 }
 fun BrowserViewModel.resetSettings() {
-    settings = Settings().migrated() // current version, so the next launch doesn't migrate it again
+    // current version, so the next launch doesn't migrate it again; containers stay (they hold sign-ins: data, not preferences)
+    settings = Settings(containers = settings.containers).migrated()
     certExceptions.clear(); httpAllowed.clear()
 }
 internal fun BrowserViewModel.wipeData() {
     resetSettings()
+    settings = settings.copy(containers = emptyList()) // erasing everything: containers and their data go too
     history.clear(); bookmarks.clear(); downloads.clear(); follows.clear()
     com.jlees.mibrowser.follow.FollowJob.schedule(getApplication(), false, false)
     com.jlees.mibrowser.follow.FollowImages.clear(getApplication())

@@ -84,6 +84,10 @@ sealed interface WebCmd {
     data object WipeWebData : WebCmd
     data object ClearBrowsingData : WebCmd
     data object RecreateAll : WebCmd
+    /** Tab [tabId]'s WebView is made again, its pages kept (it moved to another container: a new profile). */
+    data class Rebuild(val tabId: String) : WebCmd
+    /** Deletes the data of containers that are gone (sent once the settings have loaded, and after a delete). */
+    data object ReleaseContainers : WebCmd
     /** Find in page on the visible tab: highlight [query] (empty clears). */
     data class Find(val query: String) : WebCmd
     data class FindNext(val forward: Boolean) : WebCmd
@@ -169,6 +173,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         pendingShortcut = shortcut
         if (started) return
         started = true
+        var keptAside = false
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 settings = (store.read("settings", Settings.serializer()) ?: Settings()).sanitized().migrated()
@@ -182,6 +187,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 // mi was started by another app's link: that tab may hand back to the app (a sign-in returning to it)
                 if (deepLink != null && fromApp != null) markOpenedBy(fromApp)
                 sweepFiles()
+                keptAside = store.newlyKeptAside()
             }
             downloader.resumeInterrupted() // downloads running when mi was last closed carry on
             scheduleChecks()
@@ -191,6 +197,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
                 launch(Dispatchers.IO) { saveNow() }
             }
             ready = true
+            web.tryEmit(WebCmd.ReleaseContainers) // only now: before the settings load, every container would look deleted
+            if (keptAside) com.jlees.mibrowser.ui.common.Notices.show("Couldn't read some saved data. It was kept aside", long = true)
             syncInputToActiveTab()
             pendingShortcut?.let { openFromShortcut(it); pendingShortcut = null }
             savers.forEach { it.launchIn(viewModelScope) }
@@ -224,7 +232,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Every stored file; each store owns its own (incognito tabs are never written: they don't survive the app). */
-    private val savers = listOf(Saver(0, { settings }) { store.write("settings", Settings.serializer(), it) }, tabs.saver, tabs.closedSaver) +
+    private val savers = listOf(Saver(0, { settings }) { store.write("settings", Settings.serializer(), it) }, tabs.saver, tabs.closedSaver, tabs.groupSaver) +
         history.savers + bookmarks.savers + downloads.savers + extensions.savers
 
     /** Writes everything now (before mi ends its process after incognito use). */
@@ -258,11 +266,21 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         onTabShown()
     }
 
-    fun addNewTab(url: String? = null, incognito: Boolean = false) {
+    /**
+     * [from]: the tab whose link this is (it joins that tab's group, Group Tabs from Links). [profile]: the profile it
+     * opens in (containers/): the one you're in, or the linking tab's.
+     */
+    fun addNewTab(url: String? = null, incognito: Boolean = false, from: String? = null,
+                  profile: String? = com.jlees.mibrowser.containers.inheritedContainer(from?.let { tabs[it] } ?: tabs.current, settings.containers)) {
         captureOutgoing()
-        tabs.open(newTab(url).copy(profile = if (incognito) newIncognitoProfile() else null))
+        val tab = newTab(url).copy(profile = if (incognito) newIncognitoProfile() else null, container = profile)
+        tabs.open(tab)
+        from?.let { groupLinkTab(it, tab.id) }
         onTabShown()
     }
+
+    /** A tab opened from [openerId]'s page joins its group (or both start one), when Group Tabs from Links is on. */
+    private fun groupLinkTab(openerId: String, tabId: String) { if (settings.groupLinkTabs) tabs.joinGroupFromLink(openerId, tabId) }
 
     /** A page opened a window: a new tab, linked to its opener, whose WebView the host has already created. */
     fun addPopupTab(id: String, openerId: String, desktopMode: Boolean?) {
@@ -270,8 +288,10 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
         tabs.open(newTab(null).copy(
             id = id, openerId = openerId, desktopMode = desktopMode,
             profile = tabs[openerId]?.profile, // same profile as the opener (window.opener needs it)
+            container = tabs[openerId]?.container, // and the same profile (containers/)
             openedByApp = tabs[openerId]?.openedByApp, openedByAppAt = tabs[openerId]?.openedByAppAt ?: 0, // a sign-in window opened from a tab an app opened
         ))
+        groupLinkTab(openerId, id)
         switcherVisible = false
         onTabShown()
     }
@@ -305,11 +325,14 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     fun addBackgroundTab(url: String) {
         val current = tabs.current
         // just behind the current tab in recency, so it sits next to it in the switcher
-        tabs.openInBackground(newTab(url).copy(
+        val tab = newTab(url).copy(
             hasLoadedOnce = false, // loads when first shown
             lastUsed = (current?.lastUsed ?: System.currentTimeMillis()) - 1,
             profile = if (current?.incognito == true) newIncognitoProfile() else null, // links from incognito stay incognito
-        ))
+            container = com.jlees.mibrowser.containers.inheritedContainer(current, settings.containers), // in the profile you're in
+        )
+        tabs.openInBackground(tab)
+        current?.let { groupLinkTab(it.id, tab.id) }
     }
 
     // ---------------------------------------------------------------- tab switcher transition
@@ -334,10 +357,12 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun clearAllTabs() {
-        val anyPinned = tabs.list.any { it.pinned }
-        alert = AlertData("Clear All Tabs", if (anyPinned) "Close all tabs except pinned ones?" else "Are you sure you want to close all tabs?", listOf(
+        val mine = com.jlees.mibrowser.containers.profileTabs(tabs.list, tabs.current?.container, settings.profilesEnabled) // the profile you're in
+        val anyPinned = mine.any { it.pinned }
+        alert = AlertData("Close All Tabs?", (if (anyPinned) "Every tab except pinned ones will close." else "Every tab will close.") +
+            (if (tabs.list.any { it.incognito && !it.pinned }) " You can reopen them from History, except incognito ones." else " You can reopen them from History."), listOf(
             AlertButton("Cancel", ButtonStyle.CANCEL),
-            AlertButton("Clear All", ButtonStyle.DESTRUCTIVE) { resetTabs(keepPinned = true) },
+            AlertButton("Close All", ButtonStyle.DESTRUCTIVE) { closeTabs(tabsToClear(mine, keepPinned = true)) },
         ))
     }
 
@@ -404,7 +429,7 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             isLoading = loading
             if (url != null && !loading && t.keepsTraces) {
                 // a new visit is recorded; the same page finishing again (a reload, a late title) only updates its title
-                if (isNewVisit(t.lastVisit, url) || history.items.firstOrNull()?.url == url) history.add(url, tabTitle(title, url))
+                if (isNewVisit(t.lastVisit, url) || history.items.firstOrNull()?.url == url) history.add(url, tabTitle(title, url), t.container)
                 if (t.lastVisit != url) tabs.update(id) { copy(lastVisit = url) }
             }
             if (!isInputFocused && url != null) inputUrl = com.jlees.mibrowser.extensions.shownHost(url)

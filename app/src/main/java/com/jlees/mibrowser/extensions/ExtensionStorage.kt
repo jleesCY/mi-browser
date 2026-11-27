@@ -7,6 +7,7 @@
 // Calls run on the caller's thread: the API runs them on one background thread, in order (ExtensionApi).
 package com.jlees.mibrowser.extensions
 
+import com.jlees.mibrowser.data.writeSynced
 import java.io.File
 import java.security.MessageDigest
 
@@ -74,7 +75,8 @@ class ExtensionStorage(private val root: File) {
         f.parentFile?.mkdirs()
         val tmp = File(f.path + ".tmp")
         runCatching {
-            tmp.bufferedWriter().use { it.write(quote(key)); it.write("\n"); it.write(value) }
+            // on disk before the rename: a phone switched off right after keeps the old value, never an empty file
+            tmp.writeSynced { out -> out.bufferedWriter().run { write(quote(key)); write("\n"); write(value); flush() } }
             if (!tmp.renameTo(f)) tmp.delete()
         }.onFailure { tmp.delete() } // storage full: the last good value stays
     }
